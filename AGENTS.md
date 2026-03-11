@@ -33,6 +33,29 @@ This agent acts as a pair programmer for this repository and supports:
 - Use Lombok getters/setters wherever appropriate to reduce boilerplate while keeping code readable.
 - Prefer constructor injection by default; use `@Autowired` only when it is truly appropriate (for example, optional/lazy wiring or framework-specific edge cases).
 
+### Architecture pattern used in this repo
+This project uses a pragmatic combination of:
+1. Layered architecture
+- Organize flow as `controller -> service -> client/persistence`.
+- Keep HTTP concerns, orchestration logic, external API integration, and DB access separated.
+
+2. Ports and adapters (hexagonal style)
+- Use interfaces as ports (`WebhookParser`, `WebhookSignatureVerifier`, `WebhookDispatcher`, future `FollowUpBossClient`).
+- Implement provider-specific adapters (for example, FUB parser/verifier/client adapters).
+- Add new providers by adding adapters instead of rewriting core flow.
+
+3. Strategy pattern for source/provider behavior
+- Select behavior using `supports(source)` contracts.
+- Introduce new source behavior via new strategy implementations.
+
+4. Repository pattern
+- Keep persistence access in repository interfaces/entities.
+- Keep service layer focused on orchestration rather than query details.
+
+5. Inbox pattern for webhook ingestion
+- Validate and persist webhook events first, then process.
+- This supports reliability, idempotency, retries, and async evolution.
+
 ## Reuse-first policy
 - Reuse existing modules, files, conventions, and patterns before adding new ones.
 - Extend existing components safely instead of duplicating behavior.

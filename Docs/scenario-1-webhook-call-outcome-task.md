@@ -156,9 +156,18 @@ Metrics (phase 1.5+):
 7. Add integration tests and run full suite.
 
 ## Implementation (Five Actionable Steps)
-1. Webhook foundation
+1. Webhook foundation ✅ Completed
 - Build `POST /webhooks/fub` endpoint with raw-body signature verification and fast `202` acknowledgment.
 - Persist inbound webhook metadata (`eventId`, `event`, `resourceIds[]`, nullable `uri`, payload hash, received timestamp).
+- Delivered:
+  - Modular webhook ingress endpoint and service flow.
+  - Signature verification, payload normalization, and inbox persistence (`webhook_events`).
+  - Separate webhook exception package.
+  - Placeholder dispatcher for Step 1 (`NoopWebhookDispatcher`).
+  - Test coverage for controller, parser, verifier, repository, and ingress integration.
+  - Latest signature implementation aligned to FUB docs: HMAC over base64-encoded JSON payload.
+- Validation:
+  - Full test suite executed successfully (`./mvnw clean test`).
 
 2. Follow Up Boss client and auth layer
 - Implement client methods for `registerWebhook`, `getCallById`, and `createTask`.
