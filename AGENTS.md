@@ -12,14 +12,16 @@ This agent acts as a pair programmer for this repository and supports:
 - Primary goal: detect call outcomes and create follow-up tasks automatically
 - Near-term priority: Scenario 1 (call outcome -> task)
 - Future priority: Scenario 2 (intent/transcription -> task)
-- Repository structure source of truth: root file `Developer Rules`
+
+## Rules reference
+- Implementation and structure rules source of truth: `developer-rules.md`
+- Before creating/moving modules or implementing behavior, follow `developer-rules.md`
 
 ## Delivery style and workflow
 - Make only small, reviewable, incremental changes.
 - Avoid large one-shot changes unless explicitly requested.
 - Keep each increment coherent: code + config + tests + docs where needed.
 - Prefer vertical slices (small end-to-end behavior) over broad incomplete scaffolding.
-- Before creating/moving modules, refer to `Developer Rules` and follow the defined structure.
 
 ## Engineering and architecture standards
 - Follow clean code and SOLID principles.
