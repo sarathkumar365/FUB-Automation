@@ -74,3 +74,10 @@ This agent acts as a pair programmer for this repository and supports:
 - Keep methods focused and naming explicit.
 - Prefer deterministic logic and guard edge cases.
 - Update docs when behavior or setup changes.
+
+## Mandatory testing policy
+- For every code change, add at least one newly created test that validates the change.
+- Every newly added test must be executed before marking a task complete.
+- For every code change, run the previously existing test suite in addition to the new test(s).
+- A change is considered acceptable only if overall test success is greater than 85%.
+- If test execution is blocked (environment, credentials, infra), clearly report the blocker and do not claim validation as complete.
