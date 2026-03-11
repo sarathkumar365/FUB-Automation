@@ -1,0 +1,17 @@
+package com.fuba.automation_engine.service;
+
+import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateTaskCommand;
+import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
+import com.fuba.automation_engine.service.model.RegisterWebhookResult;
+
+public interface FollowUpBossClient {
+
+    RegisterWebhookResult registerWebhook(RegisterWebhookCommand command);
+
+    CallDetails getCallById(long callId);
+
+    CreatedTask createTask(CreateTaskCommand command);
+}
+
