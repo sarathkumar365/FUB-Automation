@@ -169,9 +169,18 @@ Metrics (phase 1.5+):
 - Validation:
   - Full test suite executed successfully (`./mvnw clean test`).
 
-2. Follow Up Boss client and auth layer
+2. Follow Up Boss client and auth layer ✅ Completed
 - Implement client methods for `registerWebhook`, `getCallById`, and `createTask`.
 - Use Basic Auth (`API_KEY:`) and include required integration headers (`X-System`, `X-System-Key`).
+- Delivered:
+  - Added service port `FollowUpBossClient` and FUB adapter implementation.
+  - Implemented real HTTP methods for `getCallById` and `createTask`.
+  - Implemented mocked/stubbed `registerWebhook` method for Step 2 boundary completeness.
+  - Added outbound FUB config properties and centralized auth/header wiring.
+  - Added FUB DTOs and typed exceptions (`FubTransientException`, `FubPermanentException`) for retry-ready error classification.
+  - Added adapter test coverage for auth headers, success mappings, error mappings, and stub behavior.
+- Validation:
+  - Full test suite executed successfully (`./mvnw clean test`).
 
 3. Idempotent processing pipeline
 - Process webhook events asynchronously through a worker/executor boundary.
