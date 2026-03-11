@@ -56,6 +56,14 @@ This project uses a pragmatic combination of:
 - Validate and persist webhook events first, then process.
 - This supports reliability, idempotency, retries, and async evolution.
 
+## Module boundary usage rule (must follow)
+- Always route work through the layered boundary: `controller -> service -> port(interface) -> adapter(impl) -> repository/rules`.
+- If the task is "call Follow Up Boss APIs", use the FUB client port (`FollowUpBossClient`) and its adapter implementation under `client/fub`; keep all FUB HTTP/auth/header logic in that adapter layer only.
+- If the task is "evaluate call outcome / decide task intent", use the rules module (`rules`) only; rule evaluation must not perform HTTP calls or repository access.
+- If the task is "orchestrate flow/state transitions/retries", use service layer orchestration; services may call ports and repositories but must not embed provider-specific transport details.
+- If the task is "persist or query data", use repository + entity modules only; do not place query logic in controllers, clients, or rule classes.
+- Add new provider/source behavior by adding new adapter implementations behind existing ports, not by changing core orchestration contracts.
+
 ## Reuse-first policy
 - Reuse existing modules, files, conventions, and patterns before adding new ones.
 - Extend existing components safely instead of duplicating behavior.
