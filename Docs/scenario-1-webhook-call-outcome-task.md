@@ -24,16 +24,16 @@ Automatically create Follow Up Boss tasks from call outcomes with reliable idemp
 1. Register webhook via FUB (`callsCreated` initially).
 2. FUB sends event to `POST /webhooks/fub`.
 3. Verify signature from raw request body.
-4. Parse event type and `callId`.
+4. Parse event type and `resourceIds` (array of call ids).
 5. Persist/queue work item.
-6. Worker loads full call via `GET /v1/calls/{id}`.
+6. Worker loads full call via `GET /v1/calls/{id}` for each resource id.
 7. Rule engine classifies call outcome.
 8. If actionable, create task via `POST /v1/tasks`.
 9. Persist final status (`TASK_CREATED` / `SKIPPED` / `FAILED`).
 
 ## Rule engine (MEP v1)
 Rule precedence:
-1. Missing `personId` -> `SKIPPED` (cannot create task).
+1. Missing/unknown `personId` (`null` or `0`) -> `SKIPPED` (cannot create task).
 2. `duration == null` -> `SKIPPED` (until fallback field is confirmed).
 3. `duration == 0` -> `MISSED`.
 4. `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> `SHORT`.
@@ -122,8 +122,8 @@ Metrics (phase 1.5+):
 ## Configuration
 - `FUB_API_KEY`
 - `FUB_BASE_URL`
-- `FUB_X_SYSTEM`
-- `FUB_X_SYSTEM_KEY`
+- `FUB_X_SYSTEM` (integration identification header)
+- `FUB_X_SYSTEM_KEY` (required for webhook signature verification and system-level operations)
 - `SHORT_CALL_THRESHOLD_SECONDS`
 - `POLL_INTERVAL_MS` (for optional reconciliation poller)
 
@@ -138,11 +138,13 @@ Metrics (phase 1.5+):
 2. Duplicate webhook same `callId` -> no duplicate task.
 3. Short call -> short follow-up task template used.
 4. Connected call -> connected follow-up task template used.
-5. Missing `personId` -> skipped with persisted reason.
+5. Missing/unknown `personId` (`null` or `0`) -> skipped with persisted reason.
 6. Task API `429` then success -> retry path succeeds.
 7. Task API `400` -> marked failed without endless retry.
 8. Invalid signature -> request rejected and not processed.
 9. `callsDeleted` -> ignored safely.
+10. Webhook payload with multiple `resourceIds` -> each call id processed independently.
+11. Webhook payload with `uri: null` -> event still processed using `resourceIds`.
 
 ## Incremental implementation backlog
 1. Add migration for `processed_calls` statusful schema.
@@ -152,3 +154,36 @@ Metrics (phase 1.5+):
 5. Add rule engine + task mapper.
 6. Add admin endpoints (`last-processed`, optional `reprocess`).
 7. Add integration tests and run full suite.
+
+## Implementation (Five Actionable Steps)
+1. Webhook foundation
+- Build `POST /webhooks/fub` endpoint with raw-body signature verification and fast `202` acknowledgment.
+- Persist inbound webhook metadata (`eventId`, `event`, `resourceIds[]`, nullable `uri`, payload hash, received timestamp).
+
+2. Follow Up Boss client and auth layer
+- Implement client methods for `registerWebhook`, `getCallById`, and `createTask`.
+- Use Basic Auth (`API_KEY:`) and include required integration headers (`X-System`, `X-System-Key`).
+
+3. Idempotent processing pipeline
+- Process webhook events asynchronously through a worker/executor boundary.
+- Enforce deduplication by `call_id` (and webhook `eventId` where available) using `processed_calls`.
+- Track status transitions: `RECEIVED`, `PROCESSING`, `SKIPPED`, `TASK_CREATED`, `FAILED`.
+
+4. Rule engine and task mapping
+- Implement outcome rules:
+  - `duration == 0` -> missed call task
+  - `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> short-call follow-up task
+  - `duration > SHORT_CALL_THRESHOLD_SECONDS` -> connected-call follow-up task
+  - Missing/invalid `personId` -> skip with persisted reason
+- Map each outcome to a task payload with assignment fallback strategy.
+
+5. Reliability, visibility, and validation
+- Add retry/backoff for transient FUB errors (`429`, `5xx`) and terminal handling for permanent `4xx`.
+- Assume webhook retries/duplicates can occur and keep processing idempotent.
+- Add admin visibility endpoint (`GET /admin/last-processed`) and optional replay endpoint.
+- Add tests for signature checks, idempotency, rule routing, retry behavior, and failure handling; execute full suite.
+
+## Webhook payload contract notes (FUB)
+- `resourceIds` is an array and may include multiple ids in one event.
+- `uri` may be null; processing should not depend on it.
+- Use `resourceIds` as the primary source for call lookup.
