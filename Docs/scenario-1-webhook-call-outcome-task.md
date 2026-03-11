@@ -1,98 +1,154 @@
 # Scenario 1: Call Outcome -> Auto Follow-up Task (MEP)
 
 ## Objective
-Automatically create a Follow Up Boss task when a call outcome indicates follow-up is needed (missed, short, disconnected, or connected depending on rule).
+Automatically create Follow Up Boss tasks from call outcomes with reliable idempotency, retry handling, and secure webhook verification.
+
+## Scope
+- Primary trigger mode: webhook-first.
+- Event types considered: `callsCreated` (required), `callsUpdated` (optional), `callsDeleted` (ignore safely).
+- Decision output: `TASK_CREATED`, `SKIPPED`, or `FAILED`.
 
 ## Why webhook-first
-Use Follow Up Boss webhooks so call events are pushed to us in near real time instead of relying only on polling.
+- Lower latency than polling.
+- Better operator experience (near-real-time task creation).
+- Keep a lightweight reconciliation poller later for missed webhook recovery.
 
-Supported call webhook events from FUB docs:
-- `callsCreated`
-- `callsUpdated`
-- `callsDeleted`
+## Core implementation invariants
+1. Webhook endpoint acknowledges quickly (`2xx/202`) and does not do heavy work inline.
+2. Processing is asynchronous and idempotent.
+3. One call should never create duplicate tasks.
+4. All decision branches are persisted and observable.
+5. Secrets are never logged.
 
-## High-level flow
-1. Register webhook in FUB for `callsCreated` (and optionally `callsUpdated`).
-2. FUB sends event to our webhook endpoint.
-3. Verify webhook signature.
-4. Extract `callId` from payload.
-5. Fetch full call details from FUB `/v1/calls/{id}` if payload is partial.
-6. Evaluate call outcome rules.
-7. If rule matches, create task via `/v1/tasks`.
-8. Store processed call id in DB (idempotency).
-9. Return HTTP 2xx quickly to FUB.
+## End-to-end flow
+1. Register webhook via FUB (`callsCreated` initially).
+2. FUB sends event to `POST /webhooks/fub`.
+3. Verify signature from raw request body.
+4. Parse event type and `callId`.
+5. Persist/queue work item.
+6. Worker loads full call via `GET /v1/calls/{id}`.
+7. Rule engine classifies call outcome.
+8. If actionable, create task via `POST /v1/tasks`.
+9. Persist final status (`TASK_CREATED` / `SKIPPED` / `FAILED`).
 
-## Initial rules for MEP
-1. Missed/Not connected:
-- Condition: `duration == 0`
-- Action: Create callback task
-- Example text: `Call back - previous attempt not answered`
+## Rule engine (MEP v1)
+Rule precedence:
+1. Missing `personId` -> `SKIPPED` (cannot create task).
+2. `duration == null` -> `SKIPPED` (until fallback field is confirmed).
+3. `duration == 0` -> `MISSED`.
+4. `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> `SHORT`.
+5. `duration > SHORT_CALL_THRESHOLD_SECONDS` -> `CONNECTED`.
 
-2. Short/disconnected:
-- Condition: `duration > 0 && duration <= SHORT_CALL_THRESHOLD_SECONDS` (suggest 15 or 30)
-- Action: Create follow-up task
-- Example text: `Follow up - previous call was very short`
+Actions:
+1. `MISSED`
+- Task text: `Call back - previous attempt not answered`
 
-3. Connected:
-- Condition: `duration > SHORT_CALL_THRESHOLD_SECONDS`
-- Action: Create follow-up task
-- Example text: `Follow up - connected call completed`
+2. `SHORT`
+- Task text: `Follow up - previous call was very short`
+
+3. `CONNECTED`
+- Task text: `Follow up - connected call completed`
+
+Recommendation:
+- Default `SHORT_CALL_THRESHOLD_SECONDS=30`.
 
 ## APIs used
 - Webhooks:
-  - `POST /v1/webhooks` (registration)
-  - `GET /v1/webhooks` (validation)
+  - `POST /v1/webhooks`
+  - `GET /v1/webhooks`
 - Calls:
   - `GET /v1/calls/{id}`
 - Tasks:
   - `POST /v1/tasks`
 
-## Required technical guardrails
-1. Idempotency:
-- DB table `processed_calls` with unique `call_id`
-- If `call_id` already processed, skip
+## Data model (recommended)
+`processed_calls`
+- `id` (PK)
+- `call_id` (unique)
+- `status` (`RECEIVED`, `PROCESSING`, `SKIPPED`, `TASK_CREATED`, `FAILED`)
+- `rule_applied` (nullable)
+- `task_id` (nullable)
+- `failure_reason` (nullable)
+- `retry_count` (default 0)
+- `created_at`
+- `updated_at`
+- `raw_payload` (jsonb, optional)
 
-2. Security:
-- Verify `FUB-Signature` using configured `X-System-Key`
-- Reject invalid signatures
+## Reliability and retry policy
+1. Signature verification failure:
+- Reject request (`401/403`), do not enqueue.
 
-3. Reliability:
-- Acknowledge webhook quickly (2xx)
-- Process asynchronously (queue/executor)
-- Retry task creation on transient failures (429/5xx)
+2. `GET /calls/{id}` transient failure:
+- Retry with exponential backoff + jitter.
 
-4. Observability:
-- Log `callId`, `personId`, `duration`, `ruleMatched`, `taskCreated`
-- Do not log API keys or secrets
+3. `POST /tasks` transient failure (`429/5xx`):
+- Retry with exponential backoff + jitter.
 
-## Endpoint design in our service (planned)
+4. `POST /tasks` permanent failure (`4xx` validation):
+- Mark `FAILED` with reason, no infinite retry.
+
+## Security requirements
+1. Verify `FUB-Signature` using configured signing key.
+2. Use constant-time signature comparison.
+3. Optional replay protection (timestamp window) if provided by FUB header set.
+4. Never log API keys, signing keys, or raw authorization headers.
+
+## Observability requirements
+Structured logs (minimum fields):
+- `callId`
+- `eventType`
+- `personId`
+- `duration`
+- `ruleMatched`
+- `status`
+- `taskId`
+
+Metrics (phase 1.5+):
+- `webhook_received_total`
+- `webhook_signature_failed_total`
+- `calls_processed_total`
+- `tasks_created_total`
+- `calls_skipped_total`
+- `processing_failed_total`
+
+## Service endpoints (planned)
 - `POST /webhooks/fub`
-  - Receives FUB webhook payloads
-  - Verifies signature
-  - Enqueues processing
+  - Inbound webhook receiver + signature verification + enqueue
 - `GET /admin/last-processed`
-  - Returns latest processed call metadata
+  - Latest processed call metadata
 - `POST /admin/reprocess/{callId}` (optional)
-  - Manual retry hook for support
+  - Manual replay for support/debug
 
-## Configuration to add
+## Configuration
 - `FUB_API_KEY`
 - `FUB_BASE_URL`
 - `FUB_X_SYSTEM`
 - `FUB_X_SYSTEM_KEY`
 - `SHORT_CALL_THRESHOLD_SECONDS`
-- `WEBHOOK_SECRET` (if separated)
+- `POLL_INTERVAL_MS` (for optional reconciliation poller)
 
-## Open decisions before coding
-1. Should short-call threshold be 15s or 30s?
-2. Do we assign task to `call.userId` always, or fallback to default user?
-3. Should `callsUpdated` also trigger re-evaluation?
-4. Do we create different task templates for inbound vs outbound?
+## Open decisions to lock
+1. Confirm `SHORT_CALL_THRESHOLD_SECONDS` final value (`30` recommended).
+2. Assignment strategy: `call.userId` first, fallback user when null.
+3. Whether to process `callsUpdated` in MEP or defer.
+4. Whether to create inbound/outbound-specific task templates in MEP.
 
-## Immediate implementation backlog
-1. Add DB schema (`processed_calls`).
-2. Add webhook controller + signature verification.
-3. Add FUB client methods (`getCallById`, `createTask`).
-4. Add rule engine and task mapper.
-5. Add async processing + retries.
-6. Add integration tests with mocked FUB responses.
+## Test matrix (required baseline)
+1. Valid signature + missed call -> one task created.
+2. Duplicate webhook same `callId` -> no duplicate task.
+3. Short call -> short follow-up task template used.
+4. Connected call -> connected follow-up task template used.
+5. Missing `personId` -> skipped with persisted reason.
+6. Task API `429` then success -> retry path succeeds.
+7. Task API `400` -> marked failed without endless retry.
+8. Invalid signature -> request rejected and not processed.
+9. `callsDeleted` -> ignored safely.
+
+## Incremental implementation backlog
+1. Add migration for `processed_calls` statusful schema.
+2. Add webhook controller with raw-body signature verification.
+3. Add async queue/worker boundary.
+4. Add FUB client methods (`getCallById`, `createTask`) with retry wrapper.
+5. Add rule engine + task mapper.
+6. Add admin endpoints (`last-processed`, optional `reprocess`).
+7. Add integration tests and run full suite.
