@@ -30,6 +30,8 @@ This agent acts as a pair programmer for this repository and supports:
 - Use explicit DTOs for external APIs and avoid leaking transport models internally.
 - Handle idempotency, retries, and failure states explicitly for automation flows.
 - Never log secrets (API keys, tokens, webhook signing keys).
+- Use Lombok getters/setters wherever appropriate to reduce boilerplate while keeping code readable.
+- Prefer constructor injection by default; use `@Autowired` only when it is truly appropriate (for example, optional/lazy wiring or framework-specific edge cases).
 
 ## Reuse-first policy
 - Reuse existing modules, files, conventions, and patterns before adding new ones.
