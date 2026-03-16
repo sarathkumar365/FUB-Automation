@@ -64,7 +64,7 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
             }
 
             log.info("FUB getCallById succeeded callId={}", callId);
-            return new CallDetails(response.id(), response.personId(), response.duration(), response.userId());
+            return new CallDetails(response.id(), response.personId(), response.duration(), response.userId(), response.outcome());
         } catch (RestClientResponseException ex) {
             log.warn("FUB getCallById returned HTTP error callId={} status={}", callId, ex.getStatusCode().value());
             throw mapResponseException("GET /calls/{id}", ex);

@@ -6,7 +6,17 @@ import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
+import com.fuba.automation_engine.rules.CallDecision;
+import com.fuba.automation_engine.rules.CallDecisionAction;
+import com.fuba.automation_engine.rules.CallDecisionEngine;
+import com.fuba.automation_engine.rules.CallPreValidationService;
+import com.fuba.automation_engine.rules.CallbackTaskCommandFactory;
+import com.fuba.automation_engine.rules.PreValidationResult;
+import com.fuba.automation_engine.rules.ValidatedCallContext;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateTaskCommand;
+import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -23,19 +33,30 @@ public class WebhookEventProcessorService {
     private static final Logger log = LoggerFactory.getLogger(WebhookEventProcessorService.class);
     private static final String EVENT_CALLS_CREATED = "callsCreated";
     private static final String EVENT_TYPE_NOT_SUPPORTED = "EVENT_TYPE_NOT_SUPPORTED_IN_STEP3";
-    private static final String RULE_ENGINE_PENDING = "RULE_ENGINE_PENDING_STEP4";
     private static final String TRANSIENT_FETCH_FAILURE = "TRANSIENT_FETCH_FAILURE";
     private static final String PERMANENT_FETCH_FAILURE = "PERMANENT_FETCH_FAILURE";
     private static final String UNEXPECTED_PROCESSING_FAILURE = "UNEXPECTED_PROCESSING_FAILURE";
+    private static final String TRANSIENT_TASK_CREATE_FAILURE = "TRANSIENT_TASK_CREATE_FAILURE";
+    private static final String PERMANENT_TASK_CREATE_FAILURE = "PERMANENT_TASK_CREATE_FAILURE";
+    private static final String UNEXPECTED_TASK_CREATE_FAILURE = "UNEXPECTED_TASK_CREATE_FAILURE";
 
     private final ProcessedCallRepository processedCallRepository;
     private final FollowUpBossClient followUpBossClient;
+    private final CallPreValidationService callPreValidationService;
+    private final CallDecisionEngine callDecisionEngine;
+    private final CallbackTaskCommandFactory callbackTaskCommandFactory;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
-            FollowUpBossClient followUpBossClient) {
+            FollowUpBossClient followUpBossClient,
+            CallPreValidationService callPreValidationService,
+            CallDecisionEngine callDecisionEngine,
+            CallbackTaskCommandFactory callbackTaskCommandFactory) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
+        this.callPreValidationService = callPreValidationService;
+        this.callDecisionEngine = callDecisionEngine;
+        this.callbackTaskCommandFactory = callbackTaskCommandFactory;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -79,9 +100,17 @@ public class WebhookEventProcessorService {
         }
 
         try {
-            followUpBossClient.getCallById(callId);
+            CallDetails callDetails = followUpBossClient.getCallById(callId);
             log.info("Fetched call details from FUB callId={}", callId);
-            markFailed(entity, RULE_ENGINE_PENDING);
+            Optional<PreValidationResult> preValidationResult = callPreValidationService.validate(callDetails);
+            if (preValidationResult.isPresent()) {
+                handlePreValidationTerminal(entity, callDetails, preValidationResult.get());
+                return;
+            }
+
+            ValidatedCallContext callContext = callPreValidationService.normalize(callDetails);
+            CallDecision decision = callDecisionEngine.decide(callContext);
+            executeDecision(entity, callContext, decision);
         } catch (FubTransientException ex) {
             log.warn("Transient FUB fetch failure callId={} status={}", callId, stringifyStatus(ex.getStatusCode()));
             markFailed(entity, TRANSIENT_FETCH_FAILURE + ":" + stringifyStatus(ex.getStatusCode()));
@@ -91,6 +120,64 @@ public class WebhookEventProcessorService {
         } catch (RuntimeException ex) {
             log.error("Unexpected processing failure callId={}", callId, ex);
             markFailed(entity, UNEXPECTED_PROCESSING_FAILURE);
+        }
+    }
+
+    private void handlePreValidationTerminal(ProcessedCallEntity entity, CallDetails callDetails, PreValidationResult preValidationResult) {
+        if (preValidationResult.action() == CallDecisionAction.SKIP) {
+            log.warn(
+                    "Pre-validation skip callId={} reason={} userId={}",
+                    entity.getCallId(),
+                    preValidationResult.reasonCode(),
+                    callDetails.userId());
+            markSkipped(entity, preValidationResult.reasonCode());
+            return;
+        }
+
+        log.warn(
+                "Pre-validation failure callId={} reason={} duration={}",
+                entity.getCallId(),
+                preValidationResult.reasonCode(),
+                callDetails.duration());
+        markFailed(entity, preValidationResult.reasonCode());
+    }
+
+    private void executeDecision(ProcessedCallEntity entity, ValidatedCallContext callContext, CallDecision decision) {
+        if (decision.action() == CallDecisionAction.SKIP) {
+            log.warn(
+                    "Skipping task creation callId={} reason={} userId={} duration={}",
+                    entity.getCallId(),
+                    decision.reasonCode(),
+                    callContext.userId(),
+                    callContext.duration());
+            markSkipped(entity, decision.reasonCode());
+            return;
+        }
+
+        if (decision.action() == CallDecisionAction.FAIL) {
+            log.warn(
+                    "Failing call processing callId={} reason={} outcome={} duration={}",
+                    entity.getCallId(),
+                    decision.reasonCode(),
+                    callContext.normalizedOutcome(),
+                    callContext.duration());
+            markFailed(entity, decision.reasonCode());
+            return;
+        }
+
+        try {
+            CreateTaskCommand command = callbackTaskCommandFactory.fromDecision(decision, callContext);
+            CreatedTask task = followUpBossClient.createTask(command);
+            markTaskCreated(entity, decision.ruleApplied(), task.id());
+        } catch (FubTransientException ex) {
+            log.warn("Transient FUB task create failure callId={} status={}", entity.getCallId(), stringifyStatus(ex.getStatusCode()));
+            markFailed(entity, TRANSIENT_TASK_CREATE_FAILURE + ":" + stringifyStatus(ex.getStatusCode()));
+        } catch (FubPermanentException ex) {
+            log.warn("Permanent FUB task create failure callId={} status={}", entity.getCallId(), stringifyStatus(ex.getStatusCode()));
+            markFailed(entity, PERMANENT_TASK_CREATE_FAILURE + ":" + stringifyStatus(ex.getStatusCode()));
+        } catch (RuntimeException ex) {
+            log.error("Unexpected task create failure callId={}", entity.getCallId(), ex);
+            markFailed(entity, UNEXPECTED_TASK_CREATE_FAILURE);
         }
     }
 
@@ -125,10 +212,32 @@ public class WebhookEventProcessorService {
 
     private void markFailed(ProcessedCallEntity entity, String reason) {
         entity.setStatus(ProcessedCallStatus.FAILED);
+        entity.setRuleApplied(null);
+        entity.setTaskId(null);
         entity.setFailureReason(reason);
         entity.setUpdatedAt(OffsetDateTime.now());
         processedCallRepository.save(entity);
         log.info("Call marked FAILED callId={} reason={}", entity.getCallId(), reason);
+    }
+
+    private void markSkipped(ProcessedCallEntity entity, String reason) {
+        entity.setStatus(ProcessedCallStatus.SKIPPED);
+        entity.setRuleApplied(null);
+        entity.setTaskId(null);
+        entity.setFailureReason(reason);
+        entity.setUpdatedAt(OffsetDateTime.now());
+        processedCallRepository.save(entity);
+        log.info("Call marked SKIPPED callId={} reason={}", entity.getCallId(), reason);
+    }
+
+    private void markTaskCreated(ProcessedCallEntity entity, String ruleApplied, Long taskId) {
+        entity.setStatus(ProcessedCallStatus.TASK_CREATED);
+        entity.setRuleApplied(ruleApplied);
+        entity.setTaskId(taskId);
+        entity.setFailureReason(null);
+        entity.setUpdatedAt(OffsetDateTime.now());
+        processedCallRepository.save(entity);
+        log.info("Task created for call callId={} taskId={} rule={}", entity.getCallId(), taskId, ruleApplied);
     }
 
     private boolean isTerminal(ProcessedCallStatus status) {

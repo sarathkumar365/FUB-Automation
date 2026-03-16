@@ -60,7 +60,7 @@ class FubFollowUpBossClientTest {
             systemKeyHeader.set(exchange.getRequestHeaders().getFirst("X-System-Key"));
 
             byte[] payload = """
-                    {"id":123,"personId":42,"duration":15,"userId":30}
+                    {"id":123,"personId":42,"duration":15,"userId":30,"outcome":"No Answer"}
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
@@ -76,6 +76,7 @@ class FubFollowUpBossClientTest {
         assertEquals(42L, details.personId());
         assertEquals(15, details.duration());
         assertEquals(30L, details.userId());
+        assertEquals("No Answer", details.outcome());
 
         assertEquals("Basic " + base64("my-api-key:"), authHeader.get());
         assertEquals("my-system", systemHeader.get());
@@ -181,4 +182,3 @@ class FubFollowUpBossClientTest {
         return Base64.getEncoder().encodeToString(value.getBytes(StandardCharsets.UTF_8));
     }
 }
-

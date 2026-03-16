@@ -74,8 +74,17 @@ sequenceDiagram
             P->>PC: save(status=FAILED, reason=EVENT_TYPE_NOT_SUPPORTED_IN_STEP3:...)
         else supported callsCreated
             P->>FBC: getCallById(callId)
-            alt success
-                P->>PC: save(status=FAILED, reason=RULE_ENGINE_PENDING_STEP4)
+            alt decision = SKIP (missing assignee or connected > threshold)
+                P->>PC: save(status=SKIPPED, reason=...)
+            else decision = FAIL (duration null + unmapped outcome)
+                P->>PC: save(status=FAILED, reason=UNMAPPED_OUTCOME_WITHOUT_DURATION)
+            else decision = CREATE_TASK
+                P->>FBC: createTask(personId|null, name, assignedUserId, dueDate=+1d)
+                alt task create success
+                    P->>PC: save(status=TASK_CREATED, rule_applied=..., task_id=...)
+                else task create transient/permanent/unexpected failure
+                    P->>PC: save(status=FAILED, reason=...TASK_CREATE_FAILURE...)
+                end
             else FubTransientException
                 P->>PC: save(status=FAILED, reason=TRANSIENT_FETCH_FAILURE:status)
             else FubPermanentException

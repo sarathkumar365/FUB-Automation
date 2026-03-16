@@ -190,7 +190,7 @@ Metrics (phase 1.5+):
   - Replaced noop dispatch with async dispatcher + task executor boundary.
   - Added `processed_calls` persistence with per-call tracking and idempotent reprocessing behavior.
   - Implemented event processing per `resourceIds` call id.
-  - `callsCreated` currently ends at placeholder failure message: `RULE_ENGINE_PENDING_STEP4`.
+  - `callsCreated` now runs Step 4 decision engine and either creates task, skips, or fails with explicit reason codes.
   - `callsUpdated` and `callsDeleted` are captured and marked failed with message: `EVENT_TYPE_NOT_SUPPORTED_IN_STEP3`.
   - Ingress `POST /webhooks/fub` continues to return `202` with message-based acknowledgment.
 - Validation:
@@ -202,11 +202,16 @@ Metrics (phase 1.5+):
 
 4. Rule engine and task mapping
 - Implement outcome rules:
-  - `duration == 0` -> missed call task
-  - `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> short-call follow-up task
-  - `duration > SHORT_CALL_THRESHOLD_SECONDS` -> connected-call follow-up task
-  - Missing/invalid `personId` -> skip with persisted reason
-- Map each outcome to a task payload with assignment fallback strategy.
+  - Missing/invalid `userId` (`null` or `0`) -> `SKIPPED` (`MISSING_ASSIGNEE`)
+  - `outcome == No Answer` -> callback task (`OUTCOME_NO_ANSWER`) regardless of duration
+  - `duration == null` and unmapped `outcome` -> `FAILED` (`UNMAPPED_OUTCOME_WITHOUT_DURATION`)
+  - `duration == 0` -> callback task
+  - `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> short-call callback task
+  - `duration > SHORT_CALL_THRESHOLD_SECONDS` -> `SKIPPED` (`CONNECTED_NO_FOLLOWUP`)
+- Map actionable outcomes to a task payload:
+  - task due tomorrow (`dueDate = today + 1`, `dueDateTime = null`)
+  - assign to `call.userId`
+  - unknown `personId` (`null`/`0`) uses generic task path (send `personId=null`, let FUB accept/reject)
 
 ### Step 4 Reference: `GET /v1/calls/{id}` field map
 Use this map as the canonical reference for rule evaluation and task assignment.
@@ -214,10 +219,10 @@ Use this map as the canonical reference for rule evaluation and task assignment.
 | Field | Meaning | Step 4 usage | Confidence |
 |---|---|---|---|
 | `id` | Call log id in FUB | Traceability, logging, persistence key input | Confirmed |
-| `personId` | Matched FUB person id; `0` means unknown/unmatched caller | Primary guard: `null`/`0` => `SKIPPED` | Confirmed |
+| `personId` | Matched FUB person id; `0` means unknown/unmatched caller | Not a skip condition in Step 4; use generic task path (`personId=null`) | Confirmed |
 | `duration` | Call duration in seconds | Core classifier (`MISSED`/`SHORT`/`CONNECTED`) | Confirmed |
 | `userId` | FUB user/agent associated with the call log | Primary `assignedUserId` for task creation | Confirmed |
-| `outcome` | Provider call outcome label (for example `No Answer`) | Optional future signal; do not override duration rules in Step 4 | Confirmed |
+| `outcome` | Provider call outcome label (for example `No Answer`) | Outcome-first signal for callback creation (`No Answer`) | Confirmed |
 | `isIncoming` | Whether call direction is inbound | Optional future template variant | Confirmed |
 | `name` / `firstName` / `lastName` | Contact display fields when person is known | Optional in logs/observability only | Confirmed |
 | `phone` | Primary number represented on call log | Observability/debug only in Step 4 | Confirmed |
@@ -235,12 +240,13 @@ Use this map as the canonical reference for rule evaluation and task assignment.
 | `forwardNumber` | Forward target number when forwarding occurred | Not used in Step 4 | Inferred usage |
 | `note` | Call note text | Not used in Step 4 | Confirmed |
 
-Rule precedence for Step 4 should remain:
-1. `personId == null || personId == 0` -> `SKIPPED` (`MISSING_PERSON_ID`)
-2. `duration == null` -> `SKIPPED` (`MISSING_DURATION`)
-3. `duration == 0` -> `MISSED`
-4. `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> `SHORT`
-5. `duration > SHORT_CALL_THRESHOLD_SECONDS` -> `CONNECTED`
+Rule precedence for Step 4:
+1. `userId == null || userId == 0` -> `SKIPPED` (`MISSING_ASSIGNEE`)
+2. `outcome == "No Answer"` -> `CREATE_TASK` (`OUTCOME_NO_ANSWER`)
+3. `duration == null` and outcome unmapped -> `FAILED` (`UNMAPPED_OUTCOME_WITHOUT_DURATION`)
+4. `duration > SHORT_CALL_THRESHOLD_SECONDS` -> `SKIPPED` (`CONNECTED_NO_FOLLOWUP`)
+5. `duration == 0` -> `CREATE_TASK` (`MISSED`)
+6. `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> `CREATE_TASK` (`SHORT`)
 
 5. Reliability, visibility, and validation
 - Add retry/backoff for transient FUB errors (`429`, `5xx`) and terminal handling for permanent `4xx`.

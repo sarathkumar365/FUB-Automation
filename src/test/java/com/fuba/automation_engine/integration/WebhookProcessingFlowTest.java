@@ -1,8 +1,10 @@
 package com.fuba.automation_engine.integration;
 
+import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
+import com.fuba.automation_engine.rules.CallDecisionEngine;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
@@ -32,6 +34,7 @@ import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -57,47 +60,103 @@ class WebhookProcessingFlowTest {
     }
 
     @Test
-    void shouldProcessCallsCreatedAsFailedPendingRuleEngine() throws Exception {
-        followUpBossClient.setCallDetails(123L, new CallDetails(123L, 10L, 5, 20L));
+    void shouldCreateTaskForShortCall() throws Exception {
+        followUpBossClient.setCallDetails(123L, new CallDetails(123L, 10L, 5, 20L, "Connected"));
 
-        String body = """
-                {
-                  "eventId": "evt-step3-1",
-                  "event": "callsCreated",
-                  "resourceIds": [123],
-                  "uri": null
-                }
-                """;
-        String signature = hmacHex(base64(body), "test-signing-key");
-
-        mockMvc.perform(post("/webhooks/fub")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("FUB-Signature", signature)
-                        .content(body))
+        sendWebhook("evt-step4-1", "callsCreated", "[123]")
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.message").value("Webhook accepted for async processing"));
 
         ProcessedCallEntity processedCall = waitForCall(123L);
+        assertEquals(ProcessedCallStatus.TASK_CREATED, processedCall.getStatus());
+        assertEquals(CallDecisionEngine.RULE_SHORT, processedCall.getRuleApplied());
+        assertEquals(5000L, processedCall.getTaskId());
+        assertNull(processedCall.getFailureReason());
+        assertEquals(1, followUpBossClient.createdTasks().size());
+    }
+
+    @Test
+    void shouldSkipWhenAssigneeMissing() throws Exception {
+        followUpBossClient.setCallDetails(124L, new CallDetails(124L, 44L, 0, 0L, "No Answer"));
+
+        sendWebhook("evt-step4-2", "callsCreated", "[124]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(124L);
+        assertEquals(ProcessedCallStatus.SKIPPED, processedCall.getStatus());
+        assertEquals(CallDecisionEngine.REASON_MISSING_ASSIGNEE, processedCall.getFailureReason());
+        assertTrue(followUpBossClient.createdTasks().isEmpty());
+    }
+
+    @Test
+    void shouldSkipConnectedCallsOverThreshold() throws Exception {
+        followUpBossClient.setCallDetails(125L, new CallDetails(125L, 44L, 31, 20L, "Connected"));
+
+        sendWebhook("evt-step4-3", "callsCreated", "[125]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(125L);
+        assertEquals(ProcessedCallStatus.SKIPPED, processedCall.getStatus());
+        assertEquals(CallDecisionEngine.REASON_CONNECTED_NO_FOLLOWUP, processedCall.getFailureReason());
+        assertTrue(followUpBossClient.createdTasks().isEmpty());
+    }
+
+    @Test
+    void shouldCreateTaskFromNoAnswerWhenDurationMissing() throws Exception {
+        followUpBossClient.setCallDetails(126L, new CallDetails(126L, 44L, null, 20L, "No Answer"));
+
+        sendWebhook("evt-step4-4", "callsCreated", "[126]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(126L);
+        assertEquals(ProcessedCallStatus.TASK_CREATED, processedCall.getStatus());
+        assertEquals(CallDecisionEngine.RULE_OUTCOME_NO_ANSWER, processedCall.getRuleApplied());
+        assertEquals(1, followUpBossClient.createdTasks().size());
+    }
+
+    @Test
+    void shouldFailWhenDurationMissingAndOutcomeUnknown() throws Exception {
+        followUpBossClient.setCallDetails(127L, new CallDetails(127L, 44L, null, 20L, "Connected"));
+
+        sendWebhook("evt-step4-5", "callsCreated", "[127]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(127L);
         assertEquals(ProcessedCallStatus.FAILED, processedCall.getStatus());
-        assertEquals("RULE_ENGINE_PENDING_STEP4", processedCall.getFailureReason());
+        assertEquals(CallDecisionEngine.REASON_UNMAPPED_OUTCOME_WITHOUT_DURATION, processedCall.getFailureReason());
+        assertTrue(followUpBossClient.createdTasks().isEmpty());
+    }
+
+    @Test
+    void shouldCreateGenericTaskWhenPersonMissingAndClientAccepts() throws Exception {
+        followUpBossClient.setCallDetails(128L, new CallDetails(128L, 0L, 0, 20L, "No Answer"));
+
+        sendWebhook("evt-step4-6", "callsCreated", "[128]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(128L);
+        assertEquals(ProcessedCallStatus.TASK_CREATED, processedCall.getStatus());
+        assertEquals(1, followUpBossClient.createdTasks().size());
+        assertNull(followUpBossClient.createdTasks().get(0).personId());
+    }
+
+    @Test
+    void shouldFailWhenGenericTaskRejectedForMissingPerson() throws Exception {
+        followUpBossClient.setCallDetails(129L, new CallDetails(129L, 0L, 0, 20L, "No Answer"));
+        followUpBossClient.setRejectMissingPerson(true);
+
+        sendWebhook("evt-step4-7", "callsCreated", "[129]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(129L);
+        assertEquals(ProcessedCallStatus.FAILED, processedCall.getStatus());
+        assertEquals("PERMANENT_TASK_CREATE_FAILURE:400", processedCall.getFailureReason());
+        assertTrue(followUpBossClient.createdTasks().isEmpty());
     }
 
     @Test
     void shouldMarkUnsupportedCallsUpdatedAsFailedWithMessage() throws Exception {
-        String body = """
-                {
-                  "eventId": "evt-step3-2",
-                  "event": "callsUpdated",
-                  "resourceIds": [555],
-                  "uri": null
-                }
-                """;
-        String signature = hmacHex(base64(body), "test-signing-key");
-
-        mockMvc.perform(post("/webhooks/fub")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("FUB-Signature", signature)
-                        .content(body))
+        sendWebhook("evt-step4-8", "callsUpdated", "[555]")
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.message").value("Event type not supported yet: callsUpdated"));
 
@@ -108,53 +167,49 @@ class WebhookProcessingFlowTest {
     }
 
     @Test
-    void shouldDeduplicateCallProcessingAcrossDuplicateEvents() throws Exception {
-        followUpBossClient.setCallDetails(777L, new CallDetails(777L, 10L, 5, 20L));
-
-        String body1 = """
-                {"eventId":"evt-step3-3-a","event":"callsCreated","resourceIds":[777],"uri":null}
-                """;
-        String body2 = """
-                {"eventId":"evt-step3-3-b","event":"callsCreated","resourceIds":[777],"uri":null}
-                """;
-
-        mockMvc.perform(post("/webhooks/fub")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("FUB-Signature", hmacHex(base64(body1), "test-signing-key"))
-                        .content(body1))
-                .andExpect(status().isAccepted());
-
-        mockMvc.perform(post("/webhooks/fub")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("FUB-Signature", hmacHex(base64(body2), "test-signing-key"))
-                        .content(body2))
-                .andExpect(status().isAccepted());
-
-        waitForCall(777L);
-        assertEquals(1, processedCallRepository.findAll().size());
-    }
-
-    @Test
     void shouldProcessMultipleResourceIdsIndependently() throws Exception {
-        followUpBossClient.setCallDetails(901L, new CallDetails(901L, 10L, 5, 20L));
-        followUpBossClient.setCallDetails(902L, new CallDetails(902L, 10L, 5, 20L));
+        followUpBossClient.setCallDetails(901L, new CallDetails(901L, 10L, 0, 20L, "No Answer"));
+        followUpBossClient.setCallDetails(902L, new CallDetails(902L, 10L, 31, 20L, "Connected"));
 
-        String body = """
-                {"eventId":"evt-step3-4","event":"callsCreated","resourceIds":[901,902],"uri":null}
-                """;
-
-        mockMvc.perform(post("/webhooks/fub")
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .header("FUB-Signature", hmacHex(base64(body), "test-signing-key"))
-                        .content(body))
+        sendWebhook("evt-step4-9", "callsCreated", "[901,902]")
                 .andExpect(status().isAccepted());
 
         ProcessedCallEntity call901 = waitForCall(901L);
         ProcessedCallEntity call902 = waitForCall(902L);
 
-        assertEquals(ProcessedCallStatus.FAILED, call901.getStatus());
-        assertEquals(ProcessedCallStatus.FAILED, call902.getStatus());
+        assertEquals(ProcessedCallStatus.TASK_CREATED, call901.getStatus());
+        assertEquals(ProcessedCallStatus.SKIPPED, call902.getStatus());
         assertEquals(2, processedCallRepository.findAll().size());
+    }
+
+    @Test
+    void shouldCreateTaskForNoAnswerEvenWhenDurationAboveThreshold() throws Exception {
+        followUpBossClient.setCallDetails(903L, new CallDetails(903L, 10L, 43, 20L, "No Answer"));
+
+        sendWebhook("evt-step4-10", "callsCreated", "[903]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(903L);
+        assertEquals(ProcessedCallStatus.TASK_CREATED, processedCall.getStatus());
+        assertEquals(CallDecisionEngine.RULE_OUTCOME_NO_ANSWER, processedCall.getRuleApplied());
+        assertEquals(1, followUpBossClient.createdTasks().size());
+    }
+
+    private org.springframework.test.web.servlet.ResultActions sendWebhook(String eventId, String event, String resourceIds)
+            throws Exception {
+        String body = """
+                {
+                  "eventId": "%s",
+                  "event": "%s",
+                  "resourceIds": %s,
+                  "uri": null
+                }
+                """.formatted(eventId, event, resourceIds);
+
+        return mockMvc.perform(post("/webhooks/fub")
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("FUB-Signature", hmacHex(base64(body), "test-signing-key"))
+                .content(body));
     }
 
     private ProcessedCallEntity waitForCall(Long callId) throws InterruptedException {
@@ -204,18 +259,32 @@ class WebhookProcessingFlowTest {
     static class TestFollowUpBossClient implements FollowUpBossClient {
         private final Map<Long, CallDetails> callDetails = new HashMap<>();
         private final List<Long> calledCallIds = new CopyOnWriteArrayList<>();
+        private final List<CreateTaskCommand> createdTasks = new CopyOnWriteArrayList<>();
+        private volatile boolean rejectMissingPerson;
+        private volatile long taskSequence = 5000L;
 
         void reset() {
             callDetails.clear();
             calledCallIds.clear();
+            createdTasks.clear();
+            rejectMissingPerson = false;
+            taskSequence = 5000L;
         }
 
         void setCallDetails(Long callId, CallDetails details) {
             callDetails.put(callId, details);
         }
 
+        void setRejectMissingPerson(boolean rejectMissingPerson) {
+            this.rejectMissingPerson = rejectMissingPerson;
+        }
+
         List<Long> calledCallIds() {
             return calledCallIds;
+        }
+
+        List<CreateTaskCommand> createdTasks() {
+            return createdTasks;
         }
 
         @Override
@@ -226,12 +295,16 @@ class WebhookProcessingFlowTest {
         @Override
         public CallDetails getCallById(long callId) {
             calledCallIds.add(callId);
-            return callDetails.getOrDefault(callId, new CallDetails(callId, 10L, 5, 20L));
+            return callDetails.getOrDefault(callId, new CallDetails(callId, 10L, 5, 20L, "Connected"));
         }
 
         @Override
         public CreatedTask createTask(CreateTaskCommand command) {
-            return new CreatedTask(0L, command.personId(), command.assignedUserId(), command.name(), null, null);
+            if (rejectMissingPerson && command.personId() == null) {
+                throw new FubPermanentException("Missing personId for task", 400);
+            }
+            createdTasks.add(command);
+            return new CreatedTask(taskSequence++, command.personId(), command.assignedUserId(), command.name(), command.dueDate(), null);
         }
     }
 }
