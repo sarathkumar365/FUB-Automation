@@ -4,6 +4,7 @@ import com.fuba.automation_engine.exception.webhook.InvalidWebhookSignatureExcep
 import com.fuba.automation_engine.exception.webhook.MalformedWebhookPayloadException;
 import com.fuba.automation_engine.exception.webhook.UnsupportedWebhookSourceException;
 import com.fuba.automation_engine.service.webhook.WebhookIngressService;
+import com.fuba.automation_engine.service.webhook.model.WebhookIngressResult;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.springframework.http.HttpHeaders;
@@ -28,13 +29,13 @@ public class WebhookIngressController {
     }
 
     @PostMapping(path = "/{source}", consumes = "application/json")
-    public ResponseEntity<Void> receiveWebhook(
+    public ResponseEntity<WebhookIngressResult> receiveWebhook(
             @PathVariable String source,
             @RequestBody String rawBody,
             @RequestHeader HttpHeaders headers) {
 
-        webhookIngressService.ingest(source, rawBody, flattenHeaders(headers));
-        return ResponseEntity.accepted().build();
+        WebhookIngressResult result = webhookIngressService.ingest(source, rawBody, flattenHeaders(headers));
+        return ResponseEntity.accepted().body(result);
     }
 
     @ExceptionHandler(InvalidWebhookSignatureException.class)

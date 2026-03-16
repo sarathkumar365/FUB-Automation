@@ -15,11 +15,12 @@ import org.springframework.test.web.servlet.MockMvc;
 
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
-class WebhookIngressFlowIT {
+class WebhookIngressFlowTest {
 
     @Autowired
     private MockMvc mockMvc;
@@ -43,7 +44,8 @@ class WebhookIngressFlowIT {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("FUB-Signature", signature)
                         .content(body))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.message").value("Webhook accepted for async processing"));
 
         assertTrue(webhookEventRepository.existsBySourceAndEventId(WebhookSource.FUB, "evt-integration-1"));
     }

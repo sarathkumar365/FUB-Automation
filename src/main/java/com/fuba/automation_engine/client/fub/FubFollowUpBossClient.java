@@ -35,6 +35,8 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
 
     @Override
     public RegisterWebhookResult registerWebhook(RegisterWebhookCommand command) {
+        // Step 2 scope: webhook registration is done manually in FUB (UI/API) for now.
+        // This stub keeps the contract in place until automated registration is implemented.
         return new RegisterWebhookResult(
                 0L,
                 command == null ? null : command.event(),
@@ -143,4 +145,3 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
         }
     }
 }
-

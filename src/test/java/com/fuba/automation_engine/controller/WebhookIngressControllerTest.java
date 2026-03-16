@@ -4,6 +4,7 @@ import com.fuba.automation_engine.exception.webhook.InvalidWebhookSignatureExcep
 import com.fuba.automation_engine.exception.webhook.MalformedWebhookPayloadException;
 import com.fuba.automation_engine.exception.webhook.UnsupportedWebhookSourceException;
 import com.fuba.automation_engine.service.webhook.WebhookIngressService;
+import com.fuba.automation_engine.service.webhook.model.WebhookIngressResult;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -14,7 +15,9 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doThrow;
+import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(WebhookIngressController.class)
@@ -28,11 +31,15 @@ class WebhookIngressControllerTest {
 
     @Test
     void shouldReturnAcceptedForValidRequest() throws Exception {
+        when(webhookIngressService.ingest(eq("fub"), eq("{\"event\":\"callsCreated\",\"resourceIds\":[1]}"), anyMap()))
+                .thenReturn(new WebhookIngressResult("Webhook accepted for async processing"));
+
         mockMvc.perform(post("/webhooks/fub")
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("FUB-Signature", "sig")
                         .content("{\"event\":\"callsCreated\",\"resourceIds\":[1]}"))
-                .andExpect(status().isAccepted());
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.message").value("Webhook accepted for async processing"));
     }
 
     @Test

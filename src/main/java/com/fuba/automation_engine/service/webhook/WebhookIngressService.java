@@ -8,6 +8,7 @@ import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.service.webhook.dispatch.WebhookDispatcher;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
+import com.fuba.automation_engine.service.webhook.model.WebhookIngressResult;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import com.fuba.automation_engine.service.webhook.parse.WebhookParser;
 import com.fuba.automation_engine.service.webhook.security.WebhookSignatureVerifier;
@@ -19,6 +20,8 @@ import org.springframework.stereotype.Service;
 
 @Service
 public class WebhookIngressService {
+
+    private static final String EVENT_CALLS_CREATED = "callsCreated";
 
     private final List<WebhookSignatureVerifier> signatureVerifiers;
     private final List<WebhookParser> parsers;
@@ -39,7 +42,7 @@ public class WebhookIngressService {
         this.webhookProperties = webhookProperties;
     }
 
-    public void ingest(String sourcePath, String rawBody, Map<String, String> headers) {
+    public WebhookIngressResult ingest(String sourcePath, String rawBody, Map<String, String> headers) {
         WebhookSource source = WebhookSource.fromPathValue(sourcePath);
         if (source == null) {
             throw new UnsupportedWebhookSourceException("Unsupported webhook source: " + sourcePath);
@@ -68,16 +71,20 @@ public class WebhookIngressService {
                 .orElseThrow(() -> new UnsupportedWebhookSourceException("No parser configured for source: " + source));
 
         NormalizedWebhookEvent event = parser.parse(rawBody, headers);
+        String eventType = extractEventType(event);
+        String acceptedMessage = EVENT_CALLS_CREATED.equals(eventType)
+                ? "Webhook accepted for async processing"
+                : "Event type not supported yet: " + eventType;
 
         if (event.eventId() != null && !event.eventId().isBlank()
                 && webhookEventRepository.existsBySourceAndEventId(event.source(), event.eventId())) {
-            return;
+            return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         if ((event.eventId() == null || event.eventId().isBlank())
                 && event.payloadHash() != null
                 && webhookEventRepository.existsBySourceAndPayloadHash(event.source(), event.payloadHash())) {
-            return;
+            return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         WebhookEventEntity entity = new WebhookEventEntity();
@@ -91,9 +98,17 @@ public class WebhookIngressService {
         try {
             webhookEventRepository.save(entity);
         } catch (DataIntegrityViolationException ignored) {
-            return;
+            return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         webhookDispatcher.dispatch(event);
+        return new WebhookIngressResult(acceptedMessage);
+    }
+
+    private String extractEventType(NormalizedWebhookEvent event) {
+        if (event == null || event.payload() == null || event.payload().get("eventType") == null) {
+            return "";
+        }
+        return event.payload().get("eventType").asText("");
     }
 }

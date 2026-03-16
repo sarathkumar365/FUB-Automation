@@ -182,10 +182,23 @@ Metrics (phase 1.5+):
 - Validation:
   - Full test suite executed successfully (`./mvnw clean test`).
 
-3. Idempotent processing pipeline
+3. Idempotent processing pipeline ✅ Completed
 - Process webhook events asynchronously through a worker/executor boundary.
 - Enforce deduplication by `call_id` (and webhook `eventId` where available) using `processed_calls`.
-- Track status transitions: `RECEIVED`, `PROCESSING`, `SKIPPED`, `TASK_CREATED`, `FAILED`.
+- Track status transitions in `processed_calls` and persist call-level outcomes.
+- Delivered:
+  - Replaced noop dispatch with async dispatcher + task executor boundary.
+  - Added `processed_calls` persistence with per-call tracking and idempotent reprocessing behavior.
+  - Implemented event processing per `resourceIds` call id.
+  - `callsCreated` currently ends at placeholder failure message: `RULE_ENGINE_PENDING_STEP4`.
+  - `callsUpdated` and `callsDeleted` are captured and marked failed with message: `EVENT_TYPE_NOT_SUPPORTED_IN_STEP3`.
+  - Ingress `POST /webhooks/fub` continues to return `202` with message-based acknowledgment.
+- Validation:
+  - Runtime verification completed using real webhook traffic and DB rows in `processed_calls`.
+- Pending (acceptance checks to close Step 3 fully):
+  - Confirm duplicate webhook deliveries for the same `call_id` do not trigger duplicate processing side effects.
+  - Confirm multi-`resourceIds` payloads produce independent `processed_calls` rows for each call id.
+  - Confirm ingress response body messaging for unsupported intake event types matches expected operator text.
 
 4. Rule engine and task mapping
 - Implement outcome rules:
