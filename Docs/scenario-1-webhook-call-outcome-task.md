@@ -208,6 +208,40 @@ Metrics (phase 1.5+):
   - Missing/invalid `personId` -> skip with persisted reason
 - Map each outcome to a task payload with assignment fallback strategy.
 
+### Step 4 Reference: `GET /v1/calls/{id}` field map
+Use this map as the canonical reference for rule evaluation and task assignment.
+
+| Field | Meaning | Step 4 usage | Confidence |
+|---|---|---|---|
+| `id` | Call log id in FUB | Traceability, logging, persistence key input | Confirmed |
+| `personId` | Matched FUB person id; `0` means unknown/unmatched caller | Primary guard: `null`/`0` => `SKIPPED` | Confirmed |
+| `duration` | Call duration in seconds | Core classifier (`MISSED`/`SHORT`/`CONNECTED`) | Confirmed |
+| `userId` | FUB user/agent associated with the call log | Primary `assignedUserId` for task creation | Confirmed |
+| `outcome` | Provider call outcome label (for example `No Answer`) | Optional future signal; do not override duration rules in Step 4 | Confirmed |
+| `isIncoming` | Whether call direction is inbound | Optional future template variant | Confirmed |
+| `name` / `firstName` / `lastName` | Contact display fields when person is known | Optional in logs/observability only | Confirmed |
+| `phone` | Primary number represented on call log | Observability/debug only in Step 4 | Confirmed |
+| `fromNumber` | Originating number | Observability/debug only in Step 4 | Confirmed |
+| `toNumber` | Destination/system number that received the call | Observability/debug only in Step 4 | Confirmed |
+| `recordingUrl` | Recording location when available | Not used in Step 4; reserved for Scenario 2 | Confirmed |
+| `created` / `updated` / `startedAt` | Call timestamps | Optional future due-date/time logic | Confirmed (`startedAt` may be null) |
+| `userName` | Display name for `userId` | Logging/debug only | Confirmed |
+| `createdById` / `updatedById` | Actor ids that created/updated log (often system values) | Not used in Step 4 | Inferred usage |
+| `relationshipId` | Relationship/link id for call record | Not used in Step 4 | Inferred usage |
+| `sharedInboxId` | Shared inbox context id (`0` often none) | Not used in Step 4 | Inferred usage |
+| `conferenceCallId` | Conference call grouping id when present | Not used in Step 4 | Inferred usage |
+| `systemId` | External/system linkage id when present | Not used in Step 4 | Inferred usage |
+| `ringDuration` | Ringing duration when provided | Optional future rule signal; not used in Step 4 | Inferred usage |
+| `forwardNumber` | Forward target number when forwarding occurred | Not used in Step 4 | Inferred usage |
+| `note` | Call note text | Not used in Step 4 | Confirmed |
+
+Rule precedence for Step 4 should remain:
+1. `personId == null || personId == 0` -> `SKIPPED` (`MISSING_PERSON_ID`)
+2. `duration == null` -> `SKIPPED` (`MISSING_DURATION`)
+3. `duration == 0` -> `MISSED`
+4. `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> `SHORT`
+5. `duration > SHORT_CALL_THRESHOLD_SECONDS` -> `CONNECTED`
+
 5. Reliability, visibility, and validation
 - Add retry/backoff for transient FUB errors (`429`, `5xx`) and terminal handling for permanent `4xx`.
 - Assume webhook retries/duplicates can occur and keep processing idempotent.
