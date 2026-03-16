@@ -18,5 +18,8 @@ class RunAppScriptTest {
         assertTrue(content.contains("prod"), "script should support prod mode");
         assertTrue(content.contains("cloudflared"), "script should support cloudflared tunneling");
         assertTrue(content.contains("sync_fub_webhook_url"), "script should include webhook URL sync logic");
+        assertTrue(content.contains("APP_LOG_FILE"), "script should pass APP_LOG_FILE to Spring Boot in dev mode");
+        assertTrue(content.contains("mkdir -p"), "script should create the log directory in dev mode");
+        assertTrue(content.contains(": > \"${APP_LOG_FILE}\""), "script should clear backend log file on each dev start");
     }
 }

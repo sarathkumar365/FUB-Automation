@@ -10,6 +10,8 @@ DEV_PROFILE="local"
 PROD_PROFILE="prod"
 TUNNEL_LOG="$(mktemp -t cloudflared-log.XXXXXX)"
 CLOUDFLARED_PID=""
+APP_LOG_DIR="logs"
+APP_LOG_FILE="${APP_LOG_DIR}/backend.log"
 
 usage() {
   cat <<'EOF'
@@ -184,7 +186,14 @@ if [[ "$MODE" == "prod" ]]; then
 fi
 
 echo "Starting app in DEV mode on port ${PORT} with profile '${DEV_PROFILE}'"
-SERVER_PORT="${PORT}" SPRING_PROFILES_ACTIVE="${DEV_PROFILE}" ./mvnw spring-boot:run &
+mkdir -p "${APP_LOG_DIR}"
+: > "${APP_LOG_FILE}"
+echo "Dev log file: ${APP_LOG_FILE} (cleared on startup)"
+ACTIVE_DEV_PROFILES="local"
+if [[ "${DEV_PROFILE}" != "local" ]]; then
+  ACTIVE_DEV_PROFILES="${ACTIVE_DEV_PROFILES},${DEV_PROFILE}"
+fi
+SERVER_PORT="${PORT}" SPRING_PROFILES_ACTIVE="${ACTIVE_DEV_PROFILES}" APP_LOG_FILE="${APP_LOG_FILE}" ./mvnw spring-boot:run &
 APP_PID=$!
 
 trap cleanup EXIT INT TERM

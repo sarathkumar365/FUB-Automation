@@ -14,6 +14,8 @@ import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
@@ -23,6 +25,8 @@ import org.springframework.web.client.RestClientResponseException;
 
 @Component
 public class FubFollowUpBossClient implements FollowUpBossClient {
+
+    private static final Logger log = LoggerFactory.getLogger(FubFollowUpBossClient.class);
 
     private final RestClient restClient;
     private final FubClientProperties properties;
@@ -35,6 +39,7 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
 
     @Override
     public RegisterWebhookResult registerWebhook(RegisterWebhookCommand command) {
+        log.info("Register webhook called in stub mode event={} url={}", command == null ? null : command.event(), command == null ? null : command.url());
         // Step 2 scope: webhook registration is done manually in FUB (UI/API) for now.
         // This stub keeps the contract in place until automated registration is implemented.
         return new RegisterWebhookResult(
@@ -46,6 +51,7 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
 
     @Override
     public CallDetails getCallById(long callId) {
+        log.info("Calling FUB getCallById callId={}", callId);
         try {
             FubCallResponseDto response = restClient.get()
                     .uri("/calls/{id}", callId)
@@ -57,16 +63,20 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
                 throw new FubPermanentException("FUB returned empty body for getCallById", null);
             }
 
+            log.info("FUB getCallById succeeded callId={}", callId);
             return new CallDetails(response.id(), response.personId(), response.duration(), response.userId());
         } catch (RestClientResponseException ex) {
+            log.warn("FUB getCallById returned HTTP error callId={} status={}", callId, ex.getStatusCode().value());
             throw mapResponseException("GET /calls/{id}", ex);
         } catch (ResourceAccessException ex) {
+            log.warn("FUB getCallById network error callId={}", callId);
             throw new FubTransientException("FUB network failure on GET /calls/{id}", null, ex);
         }
     }
 
     @Override
     public CreatedTask createTask(CreateTaskCommand command) {
+        log.info("Calling FUB createTask personId={} assignedUserId={}", command.personId(), command.assignedUserId());
         FubCreateTaskRequestDto request = new FubCreateTaskRequestDto(
                 command.personId(),
                 command.name(),
@@ -86,6 +96,7 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
                 throw new FubPermanentException("FUB returned empty body for createTask", null);
             }
 
+            log.info("FUB createTask succeeded taskId={} personId={}", response.id(), response.personId());
             return new CreatedTask(
                     response.id(),
                     response.personId(),
@@ -94,8 +105,10 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
                     response.dueDate(),
                     response.dueDateTime());
         } catch (RestClientResponseException ex) {
+            log.warn("FUB createTask returned HTTP error status={}", ex.getStatusCode().value());
             throw mapResponseException("POST /tasks", ex);
         } catch (ResourceAccessException ex) {
+            log.warn("FUB createTask network error");
             throw new FubTransientException("FUB network failure on POST /tasks", null, ex);
         }
     }

@@ -21,6 +21,7 @@ public class AsyncWebhookDispatcher implements WebhookDispatcher {
     @Override
     @Async("webhookTaskExecutor")
     public void dispatch(NormalizedWebhookEvent event) {
+        log.info("Async webhook dispatch started eventId={} source={}", event.eventId(), event.source());
         try {
             processorService.process(event);
         } catch (RuntimeException ex) {
@@ -28,4 +29,3 @@ public class AsyncWebhookDispatcher implements WebhookDispatcher {
         }
     }
 }
-

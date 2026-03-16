@@ -41,6 +41,12 @@ public class WebhookEventProcessorService {
     public void process(NormalizedWebhookEvent event) {
         String eventType = extractEventType(event.payload());
         List<Long> callIds = extractResourceIds(event.payload());
+        log.info(
+                "Processing webhook event eventId={} source={} eventType={} callIdCount={}",
+                event.eventId(),
+                event.source(),
+                eventType,
+                callIds.size());
         if (callIds.isEmpty()) {
             log.info("No resourceIds present for eventId={}, eventType={}", event.eventId(), eventType);
             return;
@@ -60,10 +66,12 @@ public class WebhookEventProcessorService {
         // Replace with a single DB claim transition (for example RECEIVED/RETRYABLE -> PROCESSING)
         // that only one worker can win.
         if (isTerminal(entity.getStatus())) {
+            log.info("Skipping processing for terminal call state callId={} status={}", callId, entity.getStatus());
             return;
         }
 
         setStatus(entity, ProcessedCallStatus.PROCESSING);
+        log.info("Call moved to PROCESSING callId={} eventId={} eventType={}", callId, event.eventId(), eventType);
 
         if (!supportedEventType) {
             markFailed(entity, EVENT_TYPE_NOT_SUPPORTED + ":" + eventType);
@@ -72,12 +80,16 @@ public class WebhookEventProcessorService {
 
         try {
             followUpBossClient.getCallById(callId);
+            log.info("Fetched call details from FUB callId={}", callId);
             markFailed(entity, RULE_ENGINE_PENDING);
         } catch (FubTransientException ex) {
+            log.warn("Transient FUB fetch failure callId={} status={}", callId, stringifyStatus(ex.getStatusCode()));
             markFailed(entity, TRANSIENT_FETCH_FAILURE + ":" + stringifyStatus(ex.getStatusCode()));
         } catch (FubPermanentException ex) {
+            log.warn("Permanent FUB fetch failure callId={} status={}", callId, stringifyStatus(ex.getStatusCode()));
             markFailed(entity, PERMANENT_FETCH_FAILURE + ":" + stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
+            log.error("Unexpected processing failure callId={}", callId, ex);
             markFailed(entity, UNEXPECTED_PROCESSING_FAILURE);
         }
     }
@@ -99,6 +111,7 @@ public class WebhookEventProcessorService {
         try {
             return processedCallRepository.save(entity);
         } catch (DataIntegrityViolationException ignored) {
+            log.info("Processed call row already exists callId={}", callId);
             return processedCallRepository.findByCallId(callId)
                     .orElseThrow(() -> new IllegalStateException("Unable to recover existing processed call for callId=" + callId));
         }
@@ -115,6 +128,7 @@ public class WebhookEventProcessorService {
         entity.setFailureReason(reason);
         entity.setUpdatedAt(OffsetDateTime.now());
         processedCallRepository.save(entity);
+        log.info("Call marked FAILED callId={} reason={}", entity.getCallId(), reason);
     }
 
     private boolean isTerminal(ProcessedCallStatus status) {
