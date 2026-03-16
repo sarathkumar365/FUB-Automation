@@ -12,6 +12,7 @@ TUNNEL_LOG="$(mktemp -t cloudflared-log.XXXXXX)"
 CLOUDFLARED_PID=""
 APP_LOG_DIR="logs"
 APP_LOG_FILE="${APP_LOG_DIR}/backend.log"
+STARTUP_LOG_FILE="${APP_LOG_DIR}/startup.log"
 
 usage() {
   cat <<'EOF'
@@ -28,9 +29,29 @@ EOF
 
 require_cmd() {
   if ! command -v "$1" >/dev/null 2>&1; then
-    echo "Missing required command: $1" >&2
+    log_error "Missing required command: $1"
     exit 1
   fi
+}
+
+init_startup_log() {
+  mkdir -p "${APP_LOG_DIR}"
+  : > "${STARTUP_LOG_FILE}"
+}
+
+log_info() {
+  local message="$1"
+  printf '%s [INFO] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${message}" | tee -a "${STARTUP_LOG_FILE}"
+}
+
+log_warn() {
+  local message="$1"
+  printf '%s [WARN] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${message}" | tee -a "${STARTUP_LOG_FILE}"
+}
+
+log_error() {
+  local message="$1"
+  printf '%s [ERROR] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${message}" | tee -a "${STARTUP_LOG_FILE}" >&2
 }
 
 load_env_file() {
@@ -40,14 +61,14 @@ load_env_file() {
     source "$ROOT_DIR/.env"
     set +a
   else
-    echo "No .env file found at $ROOT_DIR/.env (continuing with existing environment)." >&2
+    log_warn "No .env file found at $ROOT_DIR/.env (continuing with existing environment)."
   fi
 }
 
 start_tunnel() {
   local port="$1"
   require_cmd cloudflared
-  echo "Starting cloudflared tunnel -> http://localhost:${port}"
+  log_info "Starting cloudflared tunnel -> http://localhost:${port}"
   cloudflared tunnel --url "http://localhost:${port}" >"${TUNNEL_LOG}" 2>&1 &
   CLOUDFLARED_PID=$!
 }
@@ -81,7 +102,7 @@ sync_fub_webhook_url() {
   local target_url="${tunnel_url}/webhooks/fub"
 
   if [[ -z "${FUB_API_KEY:-}" || -z "${FUB_X_SYSTEM:-}" || -z "${FUB_X_SYSTEM_KEY:-}" ]]; then
-    echo "FUB credentials not fully set; skipping webhook sync."
+    log_warn "FUB credentials not fully set; skipping webhook sync."
     return 0
   fi
 
@@ -117,12 +138,12 @@ sync_fub_webhook_url() {
   ')"
 
   if [[ -z "${webhook_id}" ]]; then
-    echo "No callsCreated webhook found in FUB; skipping update."
+    log_warn "No callsCreated webhook found in FUB; skipping update."
     return 0
   fi
 
   if [[ "${current_url}" == "${target_url}" ]]; then
-    echo "FUB webhook URL already up to date: ${target_url}"
+    log_info "FUB webhook URL already up to date: ${target_url}"
     return 0
   fi
 
@@ -133,7 +154,7 @@ sync_fub_webhook_url() {
     -H "Content-Type: application/json" \
     --data "{\"url\":\"${target_url}\"}" >/dev/null
 
-  echo "Updated FUB callsCreated webhook URL -> ${target_url}"
+  log_info "Updated FUB callsCreated webhook URL -> ${target_url}"
 }
 
 APP_PID=""
@@ -175,20 +196,22 @@ if [[ "$MODE" != "dev" && "$MODE" != "prod" ]]; then
   exit 1
 fi
 
+init_startup_log
+log_info "run-app.sh started mode=${MODE} port=${PORT}"
 require_cmd "$ROOT_DIR/mvnw"
 load_env_file
 cd "$ROOT_DIR"
 
 if [[ "$MODE" == "prod" ]]; then
-  echo "Starting app in PROD mode on port ${PORT} with profile '${PROD_PROFILE}'"
+  log_info "Starting app in PROD mode on port ${PORT} with profile '${PROD_PROFILE}'"
   SERVER_PORT="${PORT}" SPRING_PROFILES_ACTIVE="${PROD_PROFILE}" ./mvnw spring-boot:run
   exit 0
 fi
 
-echo "Starting app in DEV mode on port ${PORT} with profile '${DEV_PROFILE}'"
-mkdir -p "${APP_LOG_DIR}"
+log_info "Starting app in DEV mode on port ${PORT} with profile '${DEV_PROFILE}'"
 : > "${APP_LOG_FILE}"
-echo "Dev log file: ${APP_LOG_FILE} (cleared on startup)"
+log_info "Dev log file: ${APP_LOG_FILE} (cleared on startup)"
+log_info "Startup log file: ${STARTUP_LOG_FILE} (cleared on startup)"
 ACTIVE_DEV_PROFILES="local"
 if [[ "${DEV_PROFILE}" != "local" ]]; then
   ACTIVE_DEV_PROFILES="${ACTIVE_DEV_PROFILES},${DEV_PROFILE}"
@@ -200,31 +223,31 @@ trap cleanup EXIT INT TERM
 
 sleep 2
 if ! kill -0 "${APP_PID}" >/dev/null 2>&1; then
-  echo "App failed to start. Check logs above." >&2
+  log_error "App failed to start. Check logs above."
   exit 1
 fi
 
-echo "App started (pid=${APP_PID})."
+log_info "App started (pid=${APP_PID})."
 start_tunnel "${PORT}"
 
 if ! kill -0 "${CLOUDFLARED_PID}" >/dev/null 2>&1; then
-  echo "cloudflared failed to start. Check logs:" >&2
+  log_error "cloudflared failed to start. Check logs:"
   cat "${TUNNEL_LOG}" >&2
   exit 1
 fi
 
 TUNNEL_URL="$(wait_for_tunnel_url || true)"
 if [[ -z "${TUNNEL_URL}" ]]; then
-  echo "Could not determine cloudflared public URL. Check logs:" >&2
+  log_error "Could not determine cloudflared public URL. Check logs:"
   cat "${TUNNEL_LOG}" >&2
   exit 1
 fi
 
-echo "Cloudflare tunnel URL: ${TUNNEL_URL}"
+log_info "Cloudflare tunnel URL: ${TUNNEL_URL}"
 sync_fub_webhook_url "${TUNNEL_URL}"
 
-echo "Streaming cloudflared logs. Press Ctrl+C to stop."
-tail -f "${TUNNEL_LOG}" &
+log_info "Streaming cloudflared logs. Press Ctrl+C to stop."
+tail -f "${TUNNEL_LOG}" | tee -a "${STARTUP_LOG_FILE}" &
 TAIL_PID=$!
 wait "${CLOUDFLARED_PID}"
 kill "${TAIL_PID}" >/dev/null 2>&1 || true
