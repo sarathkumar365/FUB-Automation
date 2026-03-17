@@ -153,9 +153,10 @@ Metrics (phase 1.5+):
 4. Add FUB client methods (`getCallById`, `createTask`) with retry wrapper.
 5. Add rule engine + task mapper.
 6. Add admin endpoints (`last-processed`, optional `reprocess`).
-7. Add integration tests and run full suite.
+7. Add UI-focused admin APIs to expose webhook inbox activity and processed call outcomes in one operator view.
+8. Add integration tests and run full suite.
 
-## Implementation (Five Actionable Steps)
+## Implementation (Six Actionable Steps)
 1. Webhook foundation ✅ Completed
 - Build `POST /webhooks/fub` endpoint with raw-body signature verification and fast `202` acknowledgment.
 - Persist inbound webhook metadata (`eventId`, `event`, `resourceIds[]`, nullable `uri`, payload hash, received timestamp).
@@ -200,7 +201,7 @@ Metrics (phase 1.5+):
   - Confirm multi-`resourceIds` payloads produce independent `processed_calls` rows for each call id.
   - Confirm ingress response body messaging for unsupported intake event types matches expected operator text.
 
-4. Rule engine and task mapping
+4. Rule engine and task mapping ✅ Completed
 - Implement outcome rules:
   - Missing/invalid `userId` (`null` or `0`) -> `SKIPPED` (`MISSING_ASSIGNEE`)
   - `outcome == No Answer` -> callback task (`OUTCOME_NO_ANSWER`) regardless of duration
@@ -248,11 +249,24 @@ Rule precedence for Step 4:
 5. `duration == 0` -> `CREATE_TASK` (`MISSED`)
 6. `0 < duration <= SHORT_CALL_THRESHOLD_SECONDS` -> `CREATE_TASK` (`SHORT`)
 
-5. Reliability, visibility, and validation
+5. Reliability, visibility, and validation ✅ Completed
 - Add retry/backoff for transient FUB errors (`429`, `5xx`) and terminal handling for permanent `4xx`.
 - Assume webhook retries/duplicates can occur and keep processing idempotent.
 - Add admin visibility endpoint (`GET /admin/last-processed`) and optional replay endpoint.
 - Add tests for signature checks, idempotency, rule routing, retry behavior, and failure handling; execute full suite.
+
+6. UI API layer for operations dashboard (planned next)
+- Extend admin API surface so the UI can render both:
+  - processed calls (current outcomes/replay controls), and
+  - incoming webhook stream (what arrived, when, and processing state).
+- Expand the current admin controller design to include webhook-focused endpoints (or a dedicated admin webhook controller behind the same `/admin` boundary), with filter/paging support for:
+  - `source`, `eventType`, `receivedAt` range, and processing status.
+- Return list payloads that are UI-ready for a “webhooks coming in” page:
+  - `eventId`, `source`, `eventType`, `resourceIds`, `receivedAt`, and ingestion/processing status summary.
+- Keep layered boundaries intact:
+  - controller -> service -> repository,
+  - no provider HTTP logic in admin controller/service,
+  - map persistence entities to explicit response DTOs for UI contracts.
 
 ## Webhook payload contract notes (FUB)
 - `resourceIds` is an array and may include multiple ids in one event.
