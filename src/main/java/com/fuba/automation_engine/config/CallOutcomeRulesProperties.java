@@ -11,4 +11,5 @@ public class CallOutcomeRulesProperties {
 
     private int shortCallThresholdSeconds = 30;
     private int taskDueInDays = 1;
+    private Long devTestUserId = 0L;
 }

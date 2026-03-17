@@ -1,6 +1,7 @@
 package com.fuba.automation_engine.integration;
 
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
+import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
@@ -20,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicInteger;
 import javax.crypto.Mac;
 import javax.crypto.spec.SecretKeySpec;
 import org.junit.jupiter.api.BeforeEach;
@@ -195,6 +197,48 @@ class WebhookProcessingFlowTest {
         assertEquals(1, followUpBossClient.createdTasks().size());
     }
 
+    @Test
+    void shouldRetryTransientFetchFailureBeforeSuccess() throws Exception {
+        followUpBossClient.setCallDetails(904L, new CallDetails(904L, 10L, 0, 20L, "No Answer"));
+        followUpBossClient.setFetchTransientFailures(904L, 2, 503);
+
+        sendWebhook("evt-step5-1", "callsCreated", "[904]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(904L);
+        assertEquals(ProcessedCallStatus.TASK_CREATED, processedCall.getStatus());
+        assertEquals(2, processedCall.getRetryCount());
+        assertEquals(3, followUpBossClient.getCallAttemptsFor(904L));
+    }
+
+    @Test
+    void shouldFailWhenTransientFetchRetriesExhausted() throws Exception {
+        followUpBossClient.setFetchTransientFailures(905L, 3, 503);
+
+        sendWebhook("evt-step5-2", "callsCreated", "[905]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(905L);
+        assertEquals(ProcessedCallStatus.FAILED, processedCall.getStatus());
+        assertEquals("TRANSIENT_FETCH_FAILURE:503", processedCall.getFailureReason());
+        assertEquals(2, processedCall.getRetryCount());
+        assertEquals(3, followUpBossClient.getCallAttemptsFor(905L));
+    }
+
+    @Test
+    void shouldRetryTransientTaskCreateFailureBeforeSuccess() throws Exception {
+        followUpBossClient.setCallDetails(906L, new CallDetails(906L, 10L, 0, 20L, "No Answer"));
+        followUpBossClient.setCreateTaskTransientFailures(2, 429);
+
+        sendWebhook("evt-step5-3", "callsCreated", "[906]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(906L);
+        assertEquals(ProcessedCallStatus.TASK_CREATED, processedCall.getStatus());
+        assertEquals(2, processedCall.getRetryCount());
+        assertEquals(3, followUpBossClient.createTaskAttempts());
+    }
+
     private org.springframework.test.web.servlet.ResultActions sendWebhook(String eventId, String event, String resourceIds)
             throws Exception {
         String body = """
@@ -258,8 +302,14 @@ class WebhookProcessingFlowTest {
 
     static class TestFollowUpBossClient implements FollowUpBossClient {
         private final Map<Long, CallDetails> callDetails = new HashMap<>();
+        private final Map<Long, AtomicInteger> fetchAttempts = new HashMap<>();
+        private final Map<Long, Integer> fetchTransientFailuresRemaining = new HashMap<>();
         private final List<Long> calledCallIds = new CopyOnWriteArrayList<>();
         private final List<CreateTaskCommand> createdTasks = new CopyOnWriteArrayList<>();
+        private final AtomicInteger createTaskAttempts = new AtomicInteger(0);
+        private volatile int createTaskTransientFailuresRemaining;
+        private volatile int createTaskTransientStatusCode = 503;
+        private volatile int fetchTransientStatusCode = 503;
         private volatile boolean rejectMissingPerson;
         private volatile long taskSequence = 5000L;
 
@@ -267,6 +317,12 @@ class WebhookProcessingFlowTest {
             callDetails.clear();
             calledCallIds.clear();
             createdTasks.clear();
+            fetchAttempts.clear();
+            fetchTransientFailuresRemaining.clear();
+            createTaskAttempts.set(0);
+            createTaskTransientFailuresRemaining = 0;
+            createTaskTransientStatusCode = 503;
+            fetchTransientStatusCode = 503;
             rejectMissingPerson = false;
             taskSequence = 5000L;
         }
@@ -279,12 +335,30 @@ class WebhookProcessingFlowTest {
             this.rejectMissingPerson = rejectMissingPerson;
         }
 
+        void setFetchTransientFailures(Long callId, int failures, int statusCode) {
+            fetchTransientFailuresRemaining.put(callId, failures);
+            fetchTransientStatusCode = statusCode;
+        }
+
+        void setCreateTaskTransientFailures(int failures, int statusCode) {
+            createTaskTransientFailuresRemaining = failures;
+            createTaskTransientStatusCode = statusCode;
+        }
+
         List<Long> calledCallIds() {
             return calledCallIds;
         }
 
         List<CreateTaskCommand> createdTasks() {
             return createdTasks;
+        }
+
+        int getCallAttemptsFor(Long callId) {
+            return fetchAttempts.getOrDefault(callId, new AtomicInteger(0)).get();
+        }
+
+        int createTaskAttempts() {
+            return createTaskAttempts.get();
         }
 
         @Override
@@ -295,11 +369,22 @@ class WebhookProcessingFlowTest {
         @Override
         public CallDetails getCallById(long callId) {
             calledCallIds.add(callId);
+            fetchAttempts.computeIfAbsent(callId, ignored -> new AtomicInteger(0)).incrementAndGet();
+            Integer remainingFailures = fetchTransientFailuresRemaining.get(callId);
+            if (remainingFailures != null && remainingFailures > 0) {
+                fetchTransientFailuresRemaining.put(callId, remainingFailures - 1);
+                throw new FubTransientException("Simulated transient fetch failure", fetchTransientStatusCode);
+            }
             return callDetails.getOrDefault(callId, new CallDetails(callId, 10L, 5, 20L, "Connected"));
         }
 
         @Override
         public CreatedTask createTask(CreateTaskCommand command) {
+            createTaskAttempts.incrementAndGet();
+            if (createTaskTransientFailuresRemaining > 0) {
+                createTaskTransientFailuresRemaining--;
+                throw new FubTransientException("Simulated transient create failure", createTaskTransientStatusCode);
+            }
             if (rejectMissingPerson && command.personId() == null) {
                 throw new FubPermanentException("Missing personId for task", 400);
             }

@@ -1,6 +1,8 @@
 package com.fuba.automation_engine.service.webhook;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fuba.automation_engine.config.CallOutcomeRulesProperties;
+import com.fuba.automation_engine.config.FubRetryProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
@@ -22,9 +24,13 @@ import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
+import java.util.concurrent.ThreadLocalRandom;
+import java.util.function.Supplier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -39,24 +45,35 @@ public class WebhookEventProcessorService {
     private static final String TRANSIENT_TASK_CREATE_FAILURE = "TRANSIENT_TASK_CREATE_FAILURE";
     private static final String PERMANENT_TASK_CREATE_FAILURE = "PERMANENT_TASK_CREATE_FAILURE";
     private static final String UNEXPECTED_TASK_CREATE_FAILURE = "UNEXPECTED_TASK_CREATE_FAILURE";
+    private static final String DEV_MODE_USER_FILTERED = "DEV_MODE_USER_FILTERED";
+    private static final String DEV_MODE_TEST_USER_NOT_CONFIGURED = "DEV_MODE_TEST_USER_NOT_CONFIGURED";
 
     private final ProcessedCallRepository processedCallRepository;
     private final FollowUpBossClient followUpBossClient;
     private final CallPreValidationService callPreValidationService;
     private final CallDecisionEngine callDecisionEngine;
     private final CallbackTaskCommandFactory callbackTaskCommandFactory;
+    private final FubRetryProperties fubRetryProperties;
+    private final CallOutcomeRulesProperties callOutcomeRulesProperties;
+    private final Environment environment;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
             FollowUpBossClient followUpBossClient,
             CallPreValidationService callPreValidationService,
             CallDecisionEngine callDecisionEngine,
-            CallbackTaskCommandFactory callbackTaskCommandFactory) {
+            CallbackTaskCommandFactory callbackTaskCommandFactory,
+            FubRetryProperties fubRetryProperties,
+            CallOutcomeRulesProperties callOutcomeRulesProperties,
+            Environment environment) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
         this.callPreValidationService = callPreValidationService;
         this.callDecisionEngine = callDecisionEngine;
         this.callbackTaskCommandFactory = callbackTaskCommandFactory;
+        this.fubRetryProperties = fubRetryProperties;
+        this.callOutcomeRulesProperties = callOutcomeRulesProperties;
+        this.environment = environment;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -100,7 +117,7 @@ public class WebhookEventProcessorService {
         }
 
         try {
-            CallDetails callDetails = followUpBossClient.getCallById(callId);
+            CallDetails callDetails = executeWithRetry(entity, "GET_CALL", () -> followUpBossClient.getCallById(callId));
             log.info("Fetched call details from FUB callId={}", callId);
             Optional<PreValidationResult> preValidationResult = callPreValidationService.validate(callDetails);
             if (preValidationResult.isPresent()) {
@@ -167,7 +184,18 @@ public class WebhookEventProcessorService {
 
         try {
             CreateTaskCommand command = callbackTaskCommandFactory.fromDecision(decision, callContext);
-            CreatedTask task = followUpBossClient.createTask(command);
+            Optional<String> devGuardReason = evaluateDevGuard(command.assignedUserId());
+            if (devGuardReason.isPresent()) {
+                log.info(
+                        "Skipping task creation due to local dev guard callId={} assignedUserId={} reason={}",
+                        entity.getCallId(),
+                        command.assignedUserId(),
+                        devGuardReason.get());
+                markSkipped(entity, devGuardReason.get());
+                return;
+            }
+
+            CreatedTask task = executeWithRetry(entity, "CREATE_TASK", () -> followUpBossClient.createTask(command));
             markTaskCreated(entity, decision.ruleApplied(), task.id());
         } catch (FubTransientException ex) {
             log.warn("Transient FUB task create failure callId={} status={}", entity.getCallId(), stringifyStatus(ex.getStatusCode()));
@@ -178,6 +206,89 @@ public class WebhookEventProcessorService {
         } catch (RuntimeException ex) {
             log.error("Unexpected task create failure callId={}", entity.getCallId(), ex);
             markFailed(entity, UNEXPECTED_TASK_CREATE_FAILURE);
+        }
+    }
+
+    private Optional<String> evaluateDevGuard(Long assignedUserId) {
+        if (!environment.acceptsProfiles(Profiles.of("local"))) {
+            return Optional.empty();
+        }
+        Long devTestUserId = callOutcomeRulesProperties.getDevTestUserId();
+        if (devTestUserId == null || devTestUserId <= 0) {
+            return Optional.of(DEV_MODE_TEST_USER_NOT_CONFIGURED);
+        }
+        if (!devTestUserId.equals(assignedUserId)) {
+            return Optional.of(DEV_MODE_USER_FILTERED);
+        }
+        return Optional.empty();
+    }
+
+    private <T> T executeWithRetry(ProcessedCallEntity entity, String operation, Supplier<T> action) {
+        int maxAttempts = Math.max(1, fubRetryProperties.getMaxAttempts());
+        int attempt = 1;
+        while (true) {
+            try {
+                return action.get();
+            } catch (FubTransientException ex) {
+                if (attempt >= maxAttempts) {
+                    throw ex;
+                }
+
+                incrementRetryCount(entity);
+                long delayMs = calculateDelayWithJitter(attempt);
+                log.warn(
+                        "Transient operation failed; scheduling retry callId={} operation={} attempt={} maxAttempts={} nextDelayMs={}",
+                        entity.getCallId(),
+                        operation,
+                        attempt,
+                        maxAttempts,
+                        delayMs);
+                sleepBackoff(delayMs);
+                attempt++;
+            }
+        }
+    }
+
+    private void incrementRetryCount(ProcessedCallEntity entity) {
+        int current = entity.getRetryCount() == null ? 0 : entity.getRetryCount();
+        entity.setRetryCount(current + 1);
+        entity.setUpdatedAt(OffsetDateTime.now());
+        processedCallRepository.save(entity);
+    }
+
+    private long calculateDelayWithJitter(int attempt) {
+        // Exponential backoff with jitter avoids synchronized retries across workers
+        // ("thundering herd") and reduces repeated pressure on downstream FUB APIs.
+        long initialDelayMs = Math.max(0L, fubRetryProperties.getInitialDelayMs());
+        long maxDelayMs = Math.max(initialDelayMs, fubRetryProperties.getMaxDelayMs());
+        double multiplier = Math.max(1.0d, fubRetryProperties.getMultiplier());
+
+        double unbounded = initialDelayMs * Math.pow(multiplier, Math.max(0, attempt - 1));
+        long baseDelay = (long) Math.min(unbounded, maxDelayMs);
+
+        double jitterFactor = Math.max(0.0d, fubRetryProperties.getJitterFactor());
+        if (jitterFactor == 0.0d || baseDelay == 0L) {
+            return baseDelay;
+        }
+
+        double jitterRange = baseDelay * jitterFactor;
+        double randomJitter = ThreadLocalRandom.current().nextDouble(-jitterRange, jitterRange);
+        long jitteredDelay = Math.round(baseDelay + randomJitter);
+        if (jitteredDelay < 0L) {
+            return 0L;
+        }
+        return Math.min(jitteredDelay, maxDelayMs);
+    }
+
+    private void sleepBackoff(long delayMs) {
+        if (delayMs <= 0L) {
+            return;
+        }
+        try {
+            Thread.sleep(delayMs);
+        } catch (InterruptedException ex) {
+            Thread.currentThread().interrupt();
+            throw new RuntimeException("Interrupted while waiting for retry backoff", ex);
         }
     }
 
