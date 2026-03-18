@@ -6,6 +6,7 @@ MODE="${1:-}"
 shift || true
 
 PORT=8080
+UI_PORT=5173
 DEV_PROFILE="local"
 PROD_PROFILE="prod"
 TUNNEL_LOG="$(mktemp -t cloudflared-log.XXXXXX)"
@@ -89,6 +90,22 @@ wait_for_tunnel_url() {
     sleep 1
     elapsed=$((elapsed + 1))
   done
+  return 1
+}
+
+wait_for_ui_url() {
+  local url="$1"
+  local timeout_seconds="$2"
+  local elapsed=0
+
+  while [[ "${elapsed}" -lt "${timeout_seconds}" ]]; do
+    if curl -sS --fail "${url}" >/dev/null 2>&1; then
+      return 0
+    fi
+    sleep 1
+    elapsed=$((elapsed + 1))
+  done
+
   return 1
 }
 
@@ -208,6 +225,7 @@ fi
 init_startup_log
 log_info "run-app.sh started mode=${MODE} port=${PORT}"
 require_cmd "$ROOT_DIR/mvnw"
+require_cmd curl
 load_env_file
 cd "$ROOT_DIR"
 
@@ -251,6 +269,12 @@ fi
 
 log_info "App started (pid=${APP_PID})."
 log_info "Frontend started (pid=${UI_PID})."
+if wait_for_ui_url "http://localhost:${UI_PORT}" 30; then
+  log_info "Frontend ready at http://localhost:${UI_PORT}/admin-ui/webhooks"
+else
+  log_error "Frontend process started but UI readiness check failed. Check logs at ${UI_LOG_FILE}."
+  exit 1
+fi
 start_tunnel "${PORT}"
 
 if ! kill -0 "${CLOUDFLARED_PID}" >/dev/null 2>&1; then

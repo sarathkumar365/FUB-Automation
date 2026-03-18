@@ -25,6 +25,7 @@ class RunAppScriptTest {
         assertTrue(content.contains(": > \"${UI_LOG_FILE}\""), "script should clear frontend log file on each dev start");
         assertTrue(content.contains("run dev --prefix"), "script should start the Vite dev server in dev mode");
         assertTrue(content.contains("UI_PID"), "script should track frontend process id for cleanup");
+        assertTrue(content.contains("Frontend ready at"), "script should log a frontend-ready message after startup check");
         assertTrue(content.contains("STARTUP_LOG_FILE"), "script should define a startup log file");
         assertTrue(content.contains(": > \"${STARTUP_LOG_FILE}\""), "script should clear startup log file on each start");
         assertTrue(content.contains("Cloudflare tunnel URL"), "script should log the generated tunnel URL");
