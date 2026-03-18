@@ -27,7 +27,10 @@ import org.hibernate.type.SqlTypes;
                 @UniqueConstraint(name = "uk_webhook_events_source_event_id", columnNames = {"source", "event_id"})
         },
         indexes = {
-                @Index(name = "idx_webhook_events_status_received_at", columnList = "status, received_at")
+                @Index(name = "idx_webhook_events_status_received_at", columnList = "status, received_at"),
+                @Index(name = "idx_webhook_events_source_event_type_received_at_id", columnList = "source, event_type, received_at, id"),
+                @Index(name = "idx_webhook_events_status_received_at_id", columnList = "status, received_at, id"),
+                @Index(name = "idx_webhook_events_received_at_id", columnList = "received_at, id")
         })
 public class WebhookEventEntity {
 
@@ -41,6 +44,9 @@ public class WebhookEventEntity {
 
     @Column(name = "event_id")
     private String eventId;
+
+    @Column(name = "event_type", nullable = false)
+    private String eventType;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

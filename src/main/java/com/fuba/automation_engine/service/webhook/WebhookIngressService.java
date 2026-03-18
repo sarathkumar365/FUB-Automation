@@ -7,8 +7,10 @@ import com.fuba.automation_engine.exception.webhook.UnsupportedWebhookSourceExce
 import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.service.webhook.dispatch.WebhookDispatcher;
+import com.fuba.automation_engine.service.webhook.live.WebhookLiveFeedPublisher;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookIngressResult;
+import com.fuba.automation_engine.service.webhook.model.WebhookLiveFeedEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import com.fuba.automation_engine.service.webhook.parse.WebhookParser;
 import com.fuba.automation_engine.service.webhook.security.WebhookSignatureVerifier;
@@ -25,11 +27,13 @@ public class WebhookIngressService {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookIngressService.class);
     private static final String EVENT_CALLS_CREATED = "callsCreated";
+    private static final String EVENT_TYPE_UNKNOWN = "UNKNOWN";
 
     private final List<WebhookSignatureVerifier> signatureVerifiers;
     private final List<WebhookParser> parsers;
     private final WebhookEventRepository webhookEventRepository;
     private final WebhookDispatcher webhookDispatcher;
+    private final WebhookLiveFeedPublisher webhookLiveFeedPublisher;
     private final WebhookProperties webhookProperties;
 
     public WebhookIngressService(
@@ -37,11 +41,13 @@ public class WebhookIngressService {
             List<WebhookParser> parsers,
             WebhookEventRepository webhookEventRepository,
             WebhookDispatcher webhookDispatcher,
+            WebhookLiveFeedPublisher webhookLiveFeedPublisher,
             WebhookProperties webhookProperties) {
         this.signatureVerifiers = signatureVerifiers;
         this.parsers = parsers;
         this.webhookEventRepository = webhookEventRepository;
         this.webhookDispatcher = webhookDispatcher;
+        this.webhookLiveFeedPublisher = webhookLiveFeedPublisher;
         this.webhookProperties = webhookProperties;
     }
 
@@ -79,13 +85,11 @@ public class WebhookIngressService {
 
         NormalizedWebhookEvent event = parser.parse(rawBody, headers);
         String eventType = extractEventType(event);
-        int resourceIdCount = countResourceIds(event);
         log.info(
-                "Webhook normalized source={} eventId={} eventType={} resourceIdCount={}",
+                "Webhook normalized source={} eventId={} eventType={}",
                 event.source(),
                 event.eventId(),
-                eventType,
-                resourceIdCount);
+                eventType);
         String acceptedMessage = EVENT_CALLS_CREATED.equals(eventType)
                 ? "Webhook accepted for async processing"
                 : "Event type not supported yet: " + eventType;
@@ -106,17 +110,24 @@ public class WebhookIngressService {
         WebhookEventEntity entity = new WebhookEventEntity();
         entity.setSource(event.source());
         entity.setEventId(event.eventId());
+        entity.setEventType(eventType);
         entity.setStatus(event.status());
         entity.setPayload(event.payload());
         entity.setPayloadHash(event.payloadHash());
         entity.setReceivedAt(event.receivedAt());
 
+        WebhookEventEntity savedEntity;
         try {
-            webhookEventRepository.save(entity);
+            savedEntity = webhookEventRepository.save(entity);
         } catch (DataIntegrityViolationException ignored) {
+            // TODO: Narrow duplicate handling to unique-key violations only.
+            // Other integrity failures (for example, event_type column length mismatch)
+            // should not be classified as duplicates because they can hide data loss.
             log.info("Duplicate webhook ignored during save source={} eventId={}", event.source(), event.eventId());
             return new WebhookIngressResult("Duplicate webhook ignored");
         }
+
+        publishLiveFeed(savedEntity);
 
         log.info("Dispatching webhook event asynchronously source={} eventId={}", event.source(), event.eventId());
         webhookDispatcher.dispatch(event);
@@ -125,18 +136,33 @@ public class WebhookIngressService {
 
     private String extractEventType(NormalizedWebhookEvent event) {
         if (event == null || event.payload() == null || event.payload().get("eventType") == null) {
-            return "";
+            return EVENT_TYPE_UNKNOWN;
         }
-        return event.payload().get("eventType").asText("");
+        String eventType = event.payload().get("eventType").asText("").trim();
+        if (eventType.isBlank()) {
+            return EVENT_TYPE_UNKNOWN;
+        }
+        return eventType;
     }
 
-    private int countResourceIds(NormalizedWebhookEvent event) {
-        if (event == null
-                || event.payload() == null
-                || event.payload().get("resourceIds") == null
-                || !event.payload().get("resourceIds").isArray()) {
-            return 0;
+    private void publishLiveFeed(WebhookEventEntity entity) {
+        WebhookLiveFeedEvent liveFeedEvent = new WebhookLiveFeedEvent(
+                entity.getId(),
+                entity.getEventId(),
+                entity.getSource(),
+                entity.getEventType(),
+                entity.getStatus(),
+                entity.getReceivedAt());
+
+        try {
+            webhookLiveFeedPublisher.publish(liveFeedEvent);
+        } catch (RuntimeException ex) {
+            log.warn(
+                    "Live feed publish failed but webhook ingest will continue id={} eventId={} source={}",
+                    entity.getId(),
+                    entity.getEventId(),
+                    entity.getSource(),
+                    ex);
         }
-        return event.payload().get("resourceIds").size();
     }
 }

@@ -32,6 +32,7 @@ class WebhookEventRepositoryTest {
         WebhookEventEntity saved = repository.saveAndFlush(entity);
 
         assertEquals(WebhookEventStatus.RECEIVED, saved.getStatus());
+        assertEquals("callsCreated", saved.getEventType());
         assertTrue(repository.existsBySourceAndEventId(WebhookSource.FUB, "evt-1"));
     }
 
@@ -62,6 +63,7 @@ class WebhookEventRepositoryTest {
         WebhookEventEntity entity = new WebhookEventEntity();
         entity.setSource(WebhookSource.FUB);
         entity.setEventId(eventId);
+        entity.setEventType("callsCreated");
         entity.setStatus(WebhookEventStatus.RECEIVED);
         entity.setPayload(payload);
         entity.setPayloadHash(payloadHash);
