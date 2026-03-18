@@ -56,6 +56,16 @@ class WebhookEventRepositoryTest {
                 || events.get(0).getReceivedAt().isEqual(events.get(1).getReceivedAt()));
     }
 
+    @Test
+    void shouldFindBySourceAndEventId() {
+        repository.saveAndFlush(buildEntity("evt-find", "hash-find", OffsetDateTime.now()));
+
+        WebhookEventEntity found = repository.findBySourceAndEventId(WebhookSource.FUB, "evt-find").orElseThrow();
+
+        assertEquals("evt-find", found.getEventId());
+        assertEquals("callsCreated", found.getEventType());
+    }
+
     private WebhookEventEntity buildEntity(String eventId, String payloadHash, OffsetDateTime receivedAt) {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("eventType", "callsCreated");

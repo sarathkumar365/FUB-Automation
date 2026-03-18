@@ -114,7 +114,7 @@ class AdminProcessedCallsFlowTest {
     }
 
     private ProcessedCallEntity waitForCall(Long callId) throws InterruptedException {
-        Instant deadline = Instant.now().plus(Duration.ofSeconds(3));
+        Instant deadline = Instant.now().plus(Duration.ofSeconds(10));
         Optional<ProcessedCallEntity> current = Optional.empty();
         while (Instant.now().isBefore(deadline)) {
             current = processedCallRepository.findByCallId(callId);

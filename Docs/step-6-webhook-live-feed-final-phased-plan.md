@@ -24,6 +24,8 @@ Primary goal: when a webhook is persisted, UI receives a live `webhook.received`
 - Duplicate ingests (pre-check or DB unique conflict) must not publish.
 
 ## Phase 2: Snapshot + Detail APIs
+Status: Complete (2026-03-18)
+
 1. Add `GET /admin/webhooks`:
 - Supports `limit`, `cursor`, `source`, `status`, `eventType`, `from`, `to`, `includePayload`.
 - `includePayload` default is `false`.
