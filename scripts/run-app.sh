@@ -15,6 +15,10 @@ APP_LOG_DIR="logs"
 APP_LOG_FILE="${APP_LOG_DIR}/backend.log"
 UI_LOG_FILE="${APP_LOG_DIR}/frontend.log"
 STARTUP_LOG_FILE="${APP_LOG_DIR}/startup.log"
+COLOR_RESET=""
+COLOR_INFO=""
+COLOR_WARN=""
+COLOR_ERROR=""
 
 usage() {
   cat <<'EOF'
@@ -41,19 +45,55 @@ init_startup_log() {
   : > "${STARTUP_LOG_FILE}"
 }
 
+init_colors() {
+  if [[ -t 1 ]]; then
+    COLOR_RESET="$(printf '\033[0m')"
+    COLOR_INFO="$(printf '\033[32m')"
+    COLOR_WARN="$(printf '\033[33m')"
+    COLOR_ERROR="$(printf '\033[31m')"
+  fi
+}
+
 log_info() {
   local message="$1"
-  printf '%s [INFO] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${message}" | tee -a "${STARTUP_LOG_FILE}"
+  local timestamp
+  local line
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+  line="${timestamp} [INFO] ${message}"
+  printf '%s\n' "${line}" >> "${STARTUP_LOG_FILE}"
+  if [[ -n "${COLOR_INFO}" ]]; then
+    printf '%b%s%b\n' "${COLOR_INFO}" "${line}" "${COLOR_RESET}"
+  else
+    printf '%s\n' "${line}"
+  fi
 }
 
 log_warn() {
   local message="$1"
-  printf '%s [WARN] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${message}" | tee -a "${STARTUP_LOG_FILE}"
+  local timestamp
+  local line
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+  line="${timestamp} [WARN] ${message}"
+  printf '%s\n' "${line}" >> "${STARTUP_LOG_FILE}"
+  if [[ -n "${COLOR_WARN}" ]]; then
+    printf '%b%s%b\n' "${COLOR_WARN}" "${line}" "${COLOR_RESET}"
+  else
+    printf '%s\n' "${line}"
+  fi
 }
 
 log_error() {
   local message="$1"
-  printf '%s [ERROR] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "${message}" | tee -a "${STARTUP_LOG_FILE}" >&2
+  local timestamp
+  local line
+  timestamp="$(date '+%Y-%m-%d %H:%M:%S')"
+  line="${timestamp} [ERROR] ${message}"
+  printf '%s\n' "${line}" >> "${STARTUP_LOG_FILE}"
+  if [[ -n "${COLOR_ERROR}" ]]; then
+    printf '%b%s%b\n' "${COLOR_ERROR}" "${line}" "${COLOR_RESET}" >&2
+  else
+    printf '%s\n' "${line}" >&2
+  fi
 }
 
 load_env_file() {
@@ -178,8 +218,16 @@ sync_fub_webhook_url() {
 APP_PID=""
 UI_PID=""
 TAIL_PID=""
+APP_TAIL_PID=""
+UI_TAIL_PID=""
 
 cleanup() {
+  if [[ -n "${APP_TAIL_PID}" ]] && kill -0 "${APP_TAIL_PID}" >/dev/null 2>&1; then
+    kill "${APP_TAIL_PID}" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${UI_TAIL_PID}" ]] && kill -0 "${UI_TAIL_PID}" >/dev/null 2>&1; then
+    kill "${UI_TAIL_PID}" >/dev/null 2>&1 || true
+  fi
   if [[ -n "${TAIL_PID}" ]] && kill -0 "${TAIL_PID}" >/dev/null 2>&1; then
     kill "${TAIL_PID}" >/dev/null 2>&1 || true
   fi
@@ -223,6 +271,7 @@ if [[ "$MODE" != "dev" && "$MODE" != "prod" ]]; then
 fi
 
 init_startup_log
+init_colors
 log_info "run-app.sh started mode=${MODE} port=${PORT}"
 require_cmd "$ROOT_DIR/mvnw"
 require_cmd curl
@@ -250,9 +299,9 @@ ACTIVE_DEV_PROFILES="local"
 if [[ "${DEV_PROFILE}" != "local" ]]; then
   ACTIVE_DEV_PROFILES="${ACTIVE_DEV_PROFILES},${DEV_PROFILE}"
 fi
-SERVER_PORT="${PORT}" SPRING_PROFILES_ACTIVE="${ACTIVE_DEV_PROFILES}" APP_LOG_FILE="${APP_LOG_FILE}" ./mvnw spring-boot:run &
+SERVER_PORT="${PORT}" SPRING_PROFILES_ACTIVE="${ACTIVE_DEV_PROFILES}" SPRING_OUTPUT_ANSI_ENABLED=ALWAYS APP_LOG_FILE="${APP_LOG_FILE}" ./mvnw spring-boot:run &
 APP_PID=$!
-"$(command -v npm)" run dev --prefix "${ROOT_DIR}/ui" >"${UI_LOG_FILE}" 2>&1 &
+FORCE_COLOR=1 "$(command -v npm)" run dev --prefix "${ROOT_DIR}/ui" >"${UI_LOG_FILE}" 2>&1 &
 UI_PID=$!
 
 trap cleanup EXIT INT TERM
@@ -293,7 +342,11 @@ fi
 log_info "Cloudflare tunnel URL: ${TUNNEL_URL}"
 sync_fub_webhook_url "${TUNNEL_URL}"
 
-log_info "Streaming cloudflared logs. Press Ctrl+C to stop."
+log_info "Streaming backend/frontend/cloudflared logs. Press Ctrl+C to stop."
+tail -f "${APP_LOG_FILE}" | tee -a "${STARTUP_LOG_FILE}" &
+APP_TAIL_PID=$!
+tail -f "${UI_LOG_FILE}" | tee -a "${STARTUP_LOG_FILE}" &
+UI_TAIL_PID=$!
 tail -f "${TUNNEL_LOG}" | tee -a "${STARTUP_LOG_FILE}" &
 TAIL_PID=$!
 wait "${CLOUDFLARED_PID}"
