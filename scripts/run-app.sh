@@ -12,6 +12,7 @@ TUNNEL_LOG="$(mktemp -t cloudflared-log.XXXXXX)"
 CLOUDFLARED_PID=""
 APP_LOG_DIR="logs"
 APP_LOG_FILE="${APP_LOG_DIR}/backend.log"
+UI_LOG_FILE="${APP_LOG_DIR}/frontend.log"
 STARTUP_LOG_FILE="${APP_LOG_DIR}/startup.log"
 
 usage() {
@@ -158,8 +159,16 @@ sync_fub_webhook_url() {
 }
 
 APP_PID=""
+UI_PID=""
+TAIL_PID=""
 
 cleanup() {
+  if [[ -n "${TAIL_PID}" ]] && kill -0 "${TAIL_PID}" >/dev/null 2>&1; then
+    kill "${TAIL_PID}" >/dev/null 2>&1 || true
+  fi
+  if [[ -n "${UI_PID}" ]] && kill -0 "${UI_PID}" >/dev/null 2>&1; then
+    kill "${UI_PID}" >/dev/null 2>&1 || true
+  fi
   if [[ -n "${APP_PID}" ]] && kill -0 "${APP_PID}" >/dev/null 2>&1; then
     kill "${APP_PID}" >/dev/null 2>&1 || true
   fi
@@ -210,14 +219,23 @@ fi
 
 log_info "Starting app in DEV mode on port ${PORT} with profile '${DEV_PROFILE}'"
 : > "${APP_LOG_FILE}"
+: > "${UI_LOG_FILE}"
 log_info "Dev log file: ${APP_LOG_FILE} (cleared on startup)"
+log_info "Frontend log file: ${UI_LOG_FILE} (cleared on startup)"
 log_info "Startup log file: ${STARTUP_LOG_FILE} (cleared on startup)"
+require_cmd npm
+if [[ ! -f "${ROOT_DIR}/ui/package.json" ]]; then
+  log_error "Missing UI workspace at ${ROOT_DIR}/ui/package.json"
+  exit 1
+fi
 ACTIVE_DEV_PROFILES="local"
 if [[ "${DEV_PROFILE}" != "local" ]]; then
   ACTIVE_DEV_PROFILES="${ACTIVE_DEV_PROFILES},${DEV_PROFILE}"
 fi
 SERVER_PORT="${PORT}" SPRING_PROFILES_ACTIVE="${ACTIVE_DEV_PROFILES}" APP_LOG_FILE="${APP_LOG_FILE}" ./mvnw spring-boot:run &
 APP_PID=$!
+"$(command -v npm)" run dev --prefix "${ROOT_DIR}/ui" >"${UI_LOG_FILE}" 2>&1 &
+UI_PID=$!
 
 trap cleanup EXIT INT TERM
 
@@ -226,8 +244,13 @@ if ! kill -0 "${APP_PID}" >/dev/null 2>&1; then
   log_error "App failed to start. Check logs above."
   exit 1
 fi
+if ! kill -0 "${UI_PID}" >/dev/null 2>&1; then
+  log_error "Frontend dev server failed to start. Check logs at ${UI_LOG_FILE}."
+  exit 1
+fi
 
 log_info "App started (pid=${APP_PID})."
+log_info "Frontend started (pid=${UI_PID})."
 start_tunnel "${PORT}"
 
 if ! kill -0 "${CLOUDFLARED_PID}" >/dev/null 2>&1; then
@@ -250,4 +273,3 @@ log_info "Streaming cloudflared logs. Press Ctrl+C to stop."
 tail -f "${TUNNEL_LOG}" | tee -a "${STARTUP_LOG_FILE}" &
 TAIL_PID=$!
 wait "${CLOUDFLARED_PID}"
-kill "${TAIL_PID}" >/dev/null 2>&1 || true

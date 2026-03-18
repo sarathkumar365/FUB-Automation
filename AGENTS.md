@@ -12,10 +12,12 @@ This agent acts as a pair programmer for this repository and supports:
 - Primary goal: detect call outcomes and create follow-up tasks automatically
 - Near-term priority: Scenario 1 (call outcome -> task)
 - Future priority: Scenario 2 (intent/transcription -> task)
+- UI priority (v0.1): internal admin UI for webhook operations visibility and replay workflows
 
 ## Rules reference
 - Implementation and structure rules source of truth: `developer-rules.md`
 - Before creating/moving modules or implementing behavior, follow `developer-rules.md`
+- UI implementation plan source of truth: `docs/ui-0.1-plan.md`
 
 ## Delivery style and workflow
 - Make only small, reviewable, incremental changes.
@@ -102,9 +104,57 @@ This project uses a pragmatic combination of:
 - `spring-boot-starter-validation-test`
 - `spring-boot-starter-webmvc-test`
 
+### Frontend stack (UI 0.1)
+- React + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- React Router
+- TanStack Query
+- Zod
+- Native `EventSource` for SSE
+- Vitest + Testing Library
+- Playwright (smoke/e2e)
+
 ### External integration target
 - Follow Up Boss REST API (`/v1`) via Basic Auth
 - Webhook ingestion and signature verification for event-driven automation
+
+## UI architecture and delivery model (must follow)
+- Frontend root must remain `ui/` and be treated as a standalone app module.
+- Use a hybrid model:
+  - Dev: run Vite (`:5173`) and Spring (`:8080`) together with proxy-based API access.
+  - Prod: package built UI assets into Spring static output and serve under `/admin-ui/*`.
+- Keep frontend API paths relative (`/admin/*`, `/webhooks/*`) to avoid environment-specific hardcoding.
+- Do not couple UI code to server-side templates; UI must consume HTTP contracts only.
+- Keep module boundaries in UI clear:
+  - `ui/src/app`: router/providers/layout
+  - `ui/src/platform`: API client/session boundary/query setup/error mapping
+  - `ui/src/modules/webhooks`: webhook list/live/detail features
+  - `ui/src/modules/processed-calls`: processed calls list/replay features
+  - `ui/src/shared`: reusable types/utilities/primitives
+
+## UI engineering rules for smooth development
+- Build UI in small vertical slices (feature + tests + docs/runbook update where needed).
+- Reuse existing backend endpoints and DTO contracts; do not invent UI-only backend behavior.
+- Use Zod at API boundaries to validate response shapes before data enters feature state.
+- Keep server state in TanStack Query; avoid duplicating fetched data in local component state.
+- Keep SSE handling isolated in a small platform wrapper/hook; include:
+  - explicit event-name handling (`webhook.received`, `heartbeat`)
+  - deduplication by stable identifier (`id`)
+  - reconnect-safe behavior and connection state reporting
+- Keep form/filter state serializable and URL-friendly where practical.
+- Prefer composition over large page components; separate data hooks, view components, and mapping utilities.
+- Keep UI accessible by default:
+  - semantic elements, labels, keyboard-accessible controls, and focus-safe modals/drawers
+  - color contrast and status indicators that are not color-only
+- Keep styling consistent via design tokens/CSS variables and shared primitives; avoid ad-hoc one-off styles.
+- Never log secrets or sensitive payloads in browser console output.
+- For replay/destructive-like actions, require explicit user confirmation and clear success/error feedback.
+
+## UI test policy additions
+- For each UI behavior change, add at least one new frontend test.
+- Run new frontend tests and existing frontend suite before marking UI work complete.
+- For hybrid/runtime changes (scripts/build wiring), include at least one smoke validation path.
+- Preserve backend test validation requirement for cross-layer changes.
 
 ## Code quality expectations
 - Add or update tests with behavior changes.
