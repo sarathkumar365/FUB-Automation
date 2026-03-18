@@ -7,6 +7,11 @@ Build `ui` as an internal admin frontend using a frontend port-adapter architect
 - Prod model: packaged static assets served by Spring under `/admin-ui/*`.
 - UI component strategy: prioritize reusable components and shared primitives first; avoid page-specific one-off implementations unless reuse is not practical.
 
+## UI Source of Truth
+- Style rules: `docs/ui-style-guide-v1.md`
+- Figma references: `docs/ui-figma-reference.md`
+- Code-level tokens: `ui/src/styles/tokens.css`
+
 ## Status (as of 2026-03-18)
 ### Completed
 - `ui/` workspace scaffolded with React + TypeScript + Vite.

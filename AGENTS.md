@@ -18,6 +18,7 @@ This agent acts as a pair programmer for this repository and supports:
 - Implementation and structure rules source of truth: `developer-rules.md`
 - Before creating/moving modules or implementing behavior, follow `developer-rules.md`
 - UI implementation plan source of truth: `docs/ui-0.1-plan.md`
+- UI style source of truth: `docs/ui-style-guide-v1.md` + `docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
 
 ## Delivery style and workflow
 - Make only small, reviewable, incremental changes.
