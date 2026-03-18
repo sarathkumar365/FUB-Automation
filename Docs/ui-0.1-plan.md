@@ -5,6 +5,7 @@ Build `ui` as an internal admin frontend using a frontend port-adapter architect
 
 - Dev model: Vite (`:5173`) + Spring (`:8080`) in parallel with proxy.
 - Prod model: packaged static assets served by Spring under `/admin-ui/*`.
+- UI component strategy: prioritize reusable components and shared primitives first; avoid page-specific one-off implementations unless reuse is not practical.
 
 ## Status (as of 2026-03-18)
 ### Completed
