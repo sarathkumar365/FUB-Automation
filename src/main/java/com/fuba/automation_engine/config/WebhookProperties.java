@@ -11,6 +11,7 @@ public class WebhookProperties {
 
     private int maxBodyBytes = 1024 * 1024;
     private Sources sources = new Sources();
+    private LiveFeed liveFeed = new LiveFeed();
 
     @Getter
     @Setter
@@ -23,5 +24,12 @@ public class WebhookProperties {
     public static class Fub {
         private boolean enabled = true;
         private String signingKey = "";
+    }
+
+    @Getter
+    @Setter
+    public static class LiveFeed {
+        private int heartbeatSeconds = 15;
+        private long emitterTimeoutMs = 30L * 60L * 1000L;
     }
 }

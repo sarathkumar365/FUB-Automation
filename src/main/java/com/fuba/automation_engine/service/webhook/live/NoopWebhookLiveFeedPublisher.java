@@ -3,9 +3,7 @@ package com.fuba.automation_engine.service.webhook.live;
 import com.fuba.automation_engine.service.webhook.model.WebhookLiveFeedEvent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.stereotype.Component;
 
-@Component
 public class NoopWebhookLiveFeedPublisher implements WebhookLiveFeedPublisher {
 
     private static final Logger log = LoggerFactory.getLogger(NoopWebhookLiveFeedPublisher.class);

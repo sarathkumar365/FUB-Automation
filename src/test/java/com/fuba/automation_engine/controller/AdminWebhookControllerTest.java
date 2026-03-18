@@ -113,6 +113,12 @@ class AdminWebhookControllerTest {
                 .andExpect(status().isNotFound());
     }
 
+    @Test
+    void shouldReturnBadRequestForMalformedEnumFiltersOnStream() throws Exception {
+        mockMvc.perform(get("/admin/webhooks/stream").param("status", "BROKEN"))
+                .andExpect(status().isBadRequest());
+    }
+
     private WebhookEventEntity buildEntity(String eventId, String eventType, OffsetDateTime receivedAt) {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("eventType", eventType);

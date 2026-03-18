@@ -23,6 +23,9 @@ Primary goal: when a webhook is persisted, UI receives a live `webhook.received`
 - Publish failures are non-fatal and must not fail webhook ingest.
 - Duplicate ingests (pre-check or DB unique conflict) must not publish.
 
+## Phase 3: SSE Live Stream
+Status: Complete (2026-03-18)
+
 ## Phase 2: Snapshot + Detail APIs
 Status: Complete (2026-03-18)
 
