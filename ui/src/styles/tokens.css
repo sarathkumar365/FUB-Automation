@@ -1,0 +1,58 @@
+:root {
+  /* Typography */
+  --font-ui: 'Manrope', 'Inter', 'Segoe UI', sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+
+  /* Core surfaces */
+  --color-bg: #f7f9fc;
+  --color-surface: #ffffff;
+  --color-surface-alt: #fbfdff;
+  --color-border: #dde6f2;
+
+  /* Text */
+  --color-text: #0f172a;
+  --color-text-muted: #64748b;
+
+  /* Brand */
+  --color-brand: #0f9fb8;
+  --color-brand-soft: #e3f7fb;
+  --color-brand-2: #0d9488;
+
+  /* Semantic status */
+  --color-status-ok: #0f766e;
+  --color-status-ok-bg: #ccfbf1;
+  --color-status-warn: #b45309;
+  --color-status-warn-bg: #fef3c7;
+  --color-status-bad: #be123c;
+  --color-status-bad-bg: #ffe4e6;
+
+  /* Live indicator */
+  --color-live: #10b981;
+
+  /* Radius */
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-pill: 999px;
+
+  /* Spacing */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+
+  /* Elevation */
+  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08);
+}
+
+@keyframes heartbeat-flash {
+  0% {
+    opacity: 0;
+  }
+  30% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}

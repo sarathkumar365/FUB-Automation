@@ -72,6 +72,17 @@ class AdminProcessedCallsFlowTest {
     }
 
     @Test
+    void shouldListProcessedCallsWithoutOptionalFilters() throws Exception {
+        saveProcessedCall(2101L, ProcessedCallStatus.FAILED, "TRANSIENT_FETCH_FAILURE:503", 1, OffsetDateTime.now().minusMinutes(1));
+        saveProcessedCall(2102L, ProcessedCallStatus.TASK_CREATED, null, 0, OffsetDateTime.now());
+
+        mockMvc.perform(get("/admin/processed-calls")
+                        .param("limit", "25"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2));
+    }
+
+    @Test
     void shouldReplayFailedCall() throws Exception {
         saveProcessedCall(2003L, ProcessedCallStatus.FAILED, "TRANSIENT_TASK_CREATE_FAILURE:503", 1, OffsetDateTime.now());
 
