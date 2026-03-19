@@ -83,3 +83,12 @@ export function ResumeIcon(props: IconProps) {
     </SvgIcon>
   )
 }
+
+export function ReplayIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M3 12a9 9 0 1 0 2.64-6.36" />
+      <path d="M3 4v5h5" />
+    </SvgIcon>
+  )
+}

@@ -67,6 +67,32 @@ const defaultFetchMock = vi.fn(async (input: RequestInfo | URL) => {
     )
   }
 
+  if (url.startsWith('/admin/processed-calls/') && url.endsWith('/replay')) {
+    return new Response(
+      JSON.stringify({
+        message: 'Replay accepted',
+      }),
+      { status: 202 },
+    )
+  }
+
+  if (url.startsWith('/admin/processed-calls')) {
+    return new Response(
+      JSON.stringify([
+        {
+          callId: 2001,
+          status: 'FAILED',
+          ruleApplied: null,
+          taskId: null,
+          failureReason: 'TRANSIENT_FETCH_FAILURE:503',
+          retryCount: 2,
+          updatedAt: '2026-03-19T00:00:00Z',
+        },
+      ]),
+      { status: 200 },
+    )
+  }
+
   return new Response(JSON.stringify({}), { status: 200 })
 })
 

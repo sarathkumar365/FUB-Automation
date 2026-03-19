@@ -12,9 +12,12 @@ import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -38,7 +41,10 @@ public class ProcessedCallAdminService {
 
     public List<ProcessedCallEntity> list(ProcessedCallStatus status, OffsetDateTime from, OffsetDateTime to, Integer limit) {
         int normalizedLimit = normalizeLimit(limit);
-        return processedCallRepository.findForAdmin(status, from, to, PageRequest.of(0, normalizedLimit));
+        Specification<ProcessedCallEntity> filter = buildFilter(status, from, to);
+        return processedCallRepository
+                .findAll(filter, PageRequest.of(0, normalizedLimit, Sort.by(Sort.Direction.DESC, "updatedAt")))
+                .getContent();
     }
 
     public ReplayOutcome replay(long callId) {
@@ -88,6 +94,25 @@ public class ProcessedCallAdminService {
             return DEFAULT_LIMIT;
         }
         return Math.min(limit, MAX_LIMIT);
+    }
+
+    private Specification<ProcessedCallEntity> buildFilter(
+            ProcessedCallStatus status,
+            OffsetDateTime from,
+            OffsetDateTime to) {
+        return (root, query, criteriaBuilder) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+            if (from != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("updatedAt"), from));
+            }
+            if (to != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("updatedAt"), to));
+            }
+            return criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     public enum ReplayOutcome {

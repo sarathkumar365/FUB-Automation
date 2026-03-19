@@ -122,6 +122,14 @@ Status: Complete
 - Handle `webhook.received` and `heartbeat`, prepend new items, and deduplicate by stable `id`.
 - Show connection/live state clearly in the page.
 
+#### Step 3 implementation checkpoint (as of 2026-03-19)
+Status: Complete
+- Connected page-level live stream handling through `useWebhookStream` for `GET /admin/webhooks/stream`.
+- Implemented `webhook.received` prepend + dedup behavior with merged table rendering and buffered "View latest" flow for cursor pages.
+- Implemented live connection state UI (connecting/live/error/paused), pause-resume control, heartbeat timestamp display, and activity tick strip heartbeat pulse indicator.
+- Normalized webhook table/detail display values for readability (`eventType` and `receivedAt`).
+- Added/updated Step 3 tests and validated UI checks (`npm run test`, `npm run lint`, `npm run build`).
+
 ### Step 4: Implement page 2 (Processed calls + replay)
 - Build processed-calls list and filters with `GET /admin/processed-calls`.
 - Add replay action via `POST /admin/processed-calls/{callId}/replay`.

@@ -1,5 +1,7 @@
+export type ProcessedCallStatus = 'RECEIVED' | 'PROCESSING' | 'SKIPPED' | 'TASK_CREATED' | 'FAILED'
+
 export type ProcessedCallFilters = {
-  status?: 'RECEIVED' | 'PROCESSING' | 'SKIPPED' | 'TASK_CREATED' | 'FAILED'
+  status?: ProcessedCallStatus
   from?: string
   to?: string
   limit?: number
@@ -7,7 +9,7 @@ export type ProcessedCallFilters = {
 
 export type ProcessedCallSummary = {
   callId: number
-  status: ProcessedCallFilters['status']
+  status: ProcessedCallStatus
   ruleApplied?: string | null
   taskId?: number | null
   failureReason?: string | null
