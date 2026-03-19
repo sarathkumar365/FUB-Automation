@@ -1,11 +1,14 @@
+import { useMemo } from 'react'
 import { RouterProvider } from 'react-router-dom'
 import { AppProviders } from './AppProviders'
-import { appRouter } from './router'
+import { createAppRouter } from './router'
 
 export default function App() {
+  const router = useMemo(() => createAppRouter(), [])
+
   return (
     <AppProviders>
-      <RouterProvider router={appRouter} />
+      <RouterProvider router={router} />
     </AppProviders>
   )
 }

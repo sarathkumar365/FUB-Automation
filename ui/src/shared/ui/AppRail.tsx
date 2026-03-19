@@ -1,5 +1,5 @@
 import { NavLink } from 'react-router-dom'
-import { appNavItems } from '../constants/routes'
+import { appNavItems, routes } from '../constants/routes'
 import { uiText } from '../constants/uiText'
 
 export function AppRail() {
@@ -8,7 +8,13 @@ export function AppRail() {
       className="hidden w-16 flex-col items-center border-r border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-4 md:flex"
       aria-label={uiText.app.shell.railAriaLabel}
     >
-      <div className="mb-4 h-9 w-9 rounded-md bg-[var(--color-brand)] text-center text-sm font-bold leading-9 text-white">AE</div>
+      <NavLink
+        to={routes.root}
+        aria-label={uiText.app.nav.home}
+        className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-brand)] text-sm font-bold text-white"
+      >
+        AE
+      </NavLink>
       <nav className="mt-2 flex w-full flex-col items-center gap-2" aria-label={uiText.app.nav.ariaLabel}>
         {appNavItems.map((item) => (
           <NavLink
