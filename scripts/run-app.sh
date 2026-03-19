@@ -220,27 +220,41 @@ UI_PID=""
 TAIL_PID=""
 APP_TAIL_PID=""
 UI_TAIL_PID=""
+CLEANUP_DONE=0
+
+stop_process() {
+  local pid="$1"
+  if [[ -z "${pid}" ]]; then
+    return 0
+  fi
+  if ! kill -0 "${pid}" >/dev/null 2>&1; then
+    return 0
+  fi
+  kill "${pid}" >/dev/null 2>&1 || true
+  wait "${pid}" >/dev/null 2>&1 || true
+}
 
 cleanup() {
-  if [[ -n "${APP_TAIL_PID}" ]] && kill -0 "${APP_TAIL_PID}" >/dev/null 2>&1; then
-    kill "${APP_TAIL_PID}" >/dev/null 2>&1 || true
+  if [[ "${CLEANUP_DONE}" -eq 1 ]]; then
+    return 0
   fi
-  if [[ -n "${UI_TAIL_PID}" ]] && kill -0 "${UI_TAIL_PID}" >/dev/null 2>&1; then
-    kill "${UI_TAIL_PID}" >/dev/null 2>&1 || true
-  fi
-  if [[ -n "${TAIL_PID}" ]] && kill -0 "${TAIL_PID}" >/dev/null 2>&1; then
-    kill "${TAIL_PID}" >/dev/null 2>&1 || true
-  fi
-  if [[ -n "${UI_PID}" ]] && kill -0 "${UI_PID}" >/dev/null 2>&1; then
-    kill "${UI_PID}" >/dev/null 2>&1 || true
-  fi
-  if [[ -n "${APP_PID}" ]] && kill -0 "${APP_PID}" >/dev/null 2>&1; then
-    kill "${APP_PID}" >/dev/null 2>&1 || true
-  fi
-  if [[ -n "${CLOUDFLARED_PID}" ]] && kill -0 "${CLOUDFLARED_PID}" >/dev/null 2>&1; then
-    kill "${CLOUDFLARED_PID}" >/dev/null 2>&1 || true
+  CLEANUP_DONE=1
+
+  stop_process "${APP_TAIL_PID}"
+  stop_process "${UI_TAIL_PID}"
+  stop_process "${TAIL_PID}"
+  stop_process "${UI_PID}"
+  stop_process "${APP_PID}"
+  if [[ -n "${CLOUDFLARED_PID}" ]]; then
+    stop_process "${CLOUDFLARED_PID}"
   fi
   rm -f "${TUNNEL_LOG}"
+}
+
+handle_interrupt() {
+  local signal_name="$1"
+  log_info "Received ${signal_name}; stopping backend/frontend/tunnel processes."
+  exit 130
 }
 
 while [[ $# -gt 0 ]]; do
@@ -304,7 +318,9 @@ APP_PID=$!
 FORCE_COLOR=1 "$(command -v npm)" run dev --prefix "${ROOT_DIR}/ui" >"${UI_LOG_FILE}" 2>&1 &
 UI_PID=$!
 
-trap cleanup EXIT INT TERM
+trap cleanup EXIT
+trap 'handle_interrupt INT' INT
+trap 'handle_interrupt TERM' TERM
 
 sleep 2
 if ! kill -0 "${APP_PID}" >/dev/null 2>&1; then
