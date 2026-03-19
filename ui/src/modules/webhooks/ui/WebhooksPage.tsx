@@ -4,6 +4,7 @@ import { useShellRegionRegistration } from '../../../app/useShellRegionRegistrat
 import { useWebhookStream } from '../../../platform/stream/useWebhookStream'
 import { uiText } from '../../../shared/constants/uiText'
 import { formatDateTime } from '../../../shared/lib/date'
+import { formatWebhookEventType, formatWebhookReceivedAt } from '../../../shared/lib/webhookDisplay'
 import { Button } from '../../../shared/ui/button'
 import { DataTable, type ColumnDef } from '../../../shared/ui/DataTable'
 import { DateInput } from '../../../shared/ui/DateInput'
@@ -90,7 +91,7 @@ export function WebhooksPage() {
       {
         key: 'eventType',
         header: uiText.webhooks.tableEventTypeHeader,
-        render: (row) => row.eventType,
+        render: (row) => formatWebhookEventType(row.eventType),
       },
       {
         key: 'status',
@@ -100,7 +101,7 @@ export function WebhooksPage() {
       {
         key: 'receivedAt',
         header: uiText.webhooks.tableReceivedAtHeader,
-        render: (row) => row.receivedAt,
+        render: (row) => formatWebhookReceivedAt(row.receivedAt),
       },
     ],
     [],
@@ -367,7 +368,7 @@ export function WebhooksPage() {
       </FilterBar>
 
       <PageCard title={uiText.webhooks.tableTitle}>
-        <ActivityTickStrip ticks={activityTicks} />
+        <ActivityTickStrip ticks={activityTicks} heartbeatPulseToken={stream.lastHeartbeatAt} />
 
         {showErrorState ? (
           <ErrorState message={uiText.states.errorMessage} />
@@ -413,18 +414,29 @@ function ControlGroup({ label, children }: { label: string; children: ReactNode 
   )
 }
 
-function ActivityTickStrip({ ticks }: { ticks: number[] }) {
+function ActivityTickStrip({ ticks, heartbeatPulseToken }: { ticks: number[]; heartbeatPulseToken: string | null }) {
   const filledCount = Math.min(ticks.length, MAX_ACTIVITY_TICKS)
   const totalSlots = MAX_ACTIVITY_TICKS
+  const pulseIndex = Math.min(filledCount, totalSlots - 1)
   return (
     <div data-testid="activity-tick-strip" className="mb-3 flex w-full items-center gap-1" aria-hidden="true">
       {Array.from({ length: totalSlots }, (_, index) => (
         <span
-          key={`tick-${index}`}
+          key={`tick-${index}-${index === pulseIndex ? (heartbeatPulseToken ?? 'idle') : 'idle'}`}
           className={`h-1.5 min-w-0 flex-1 rounded-full ${
             index < filledCount ? 'bg-[var(--color-live)]/60' : 'bg-[var(--color-border)]'
           }`}
-        />
+        >
+          {heartbeatPulseToken && index === pulseIndex ? (
+            <span
+              key={`heartbeat-pulse-${heartbeatPulseToken}`}
+              data-testid="heartbeat-pulse-tick"
+              // TODO: Limit this pulse to the heartbeat update cycle only. With a persistent
+              // token, unrelated re-renders (for example row-count changes) can retrigger a flash.
+              className="block h-full w-full rounded-full bg-[var(--color-status-warn)] animate-[heartbeat-flash_900ms_ease-out_1_forwards]"
+            />
+          ) : null}
+        </span>
       ))}
     </div>
   )
@@ -514,10 +526,10 @@ function buildInspectorBody({
       <DetailRow label={uiText.webhooks.detailIdLabel} value={String(detail.id)} mono />
       <DetailRow label={uiText.webhooks.detailEventIdLabel} value={detail.eventId} mono />
       <DetailRow label={uiText.webhooks.detailSourceLabel} value={detail.source} />
-      <DetailRow label={uiText.webhooks.detailEventTypeLabel} value={detail.eventType} />
+      <DetailRow label={uiText.webhooks.detailEventTypeLabel} value={formatWebhookEventType(detail.eventType)} />
       <DetailRow label={uiText.webhooks.detailStatusLabel} value={detail.status} />
       <DetailRow label={uiText.webhooks.detailPayloadHashLabel} value={detail.payloadHash ?? '-'} mono />
-      <DetailRow label={uiText.webhooks.detailReceivedAtLabel} value={detail.receivedAt} mono />
+      <DetailRow label={uiText.webhooks.detailReceivedAtLabel} value={formatWebhookReceivedAt(detail.receivedAt)} mono />
       <div className="space-y-1">
         <p className="text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">{uiText.webhooks.detailPayloadLabel}</p>
         <pre className="max-h-64 overflow-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface-alt)] p-2 text-xs text-[var(--color-text)]">

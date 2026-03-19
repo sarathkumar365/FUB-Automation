@@ -154,6 +154,7 @@ describe('Webhooks page Step 3', () => {
       getStreamCallbacks()?.onEvent('heartbeat', { serverTime: '2026-03-19T12:00:00Z' })
     })
     expect(screen.getByTestId('webhook-live-state')).toHaveTextContent(uiText.webhooks.liveStateLive)
+    expect(screen.getByTestId('heartbeat-pulse-tick')).toBeInTheDocument()
 
     act(() => {
       getStreamCallbacks()?.onError?.(new Event('error'))

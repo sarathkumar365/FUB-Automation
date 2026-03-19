@@ -8,6 +8,7 @@ import { PortsContext } from '../app/portsContextValue'
 import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
 import type { AppPorts } from '../platform/container'
 import { uiText } from '../shared/constants/uiText'
+import { formatWebhookReceivedAt } from '../shared/lib/webhookDisplay'
 
 function renderWebhooksPage(initialPath = '/admin-ui/webhooks') {
   window.history.pushState({}, '', initialPath)
@@ -184,5 +185,12 @@ describe('Webhooks page Step 2', () => {
     await screen.findByText('evt-1')
 
     expect(container.querySelectorAll('[data-testid="webhook-filter-icon"]')).toHaveLength(1)
+  })
+
+  it('normalizes event type and received-at values in table rows', async () => {
+    renderWebhooksPage()
+
+    await screen.findByText('Calls Updated')
+    expect(screen.getByText(formatWebhookReceivedAt('2026-03-19T12:00:00Z'))).toBeInTheDocument()
   })
 })
