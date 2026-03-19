@@ -36,7 +36,7 @@ Build `ui` as an internal admin frontend using a frontend port-adapter architect
 - `scripts/run-app.sh` dev mode updated to run backend + frontend together and stream logs.
 
 ### In Progress / Pending
-- Webhooks feature behavior (real list/filter/pagination/detail/live state updates in UI).
+- Webhooks live behavior (stream updates + connection state in page).
 - Processed-calls feature behavior (real list/replay UX).
 - Production packaging integration (copy `ui/dist` into build output + Spring SPA fallback wiring).
 
@@ -108,6 +108,14 @@ Status: Complete
 - Build filters, history table, and pagination with `GET /admin/webhooks`.
 - Add row selection and detail inspector with `GET /admin/webhooks/{id}`.
 - Keep filter/apply/reset flow URL-friendly and predictable.
+
+#### Step 2 implementation checkpoint (as of 2026-03-19)
+Status: Complete
+- Implemented structured filter controls (`source`, `status`, `eventType`, `from`, `to`) with explicit Apply/Reset behavior.
+- Implemented URL search-param mapping for list state (`source`, `status`, `eventType`, `from`, `to`, `cursor`, `selectedId`).
+- Implemented webhook list query hook with platform defaults (`limit=25`) and cursor-based pagination.
+- Implemented selectable history table rows and inspector detail loading via `GET /admin/webhooks/{id}`.
+- Added/updated Step 2 tests and validated UI checks (`npm run test`, `npm run lint`, `npm run build`).
 
 ### Step 3: Add live behavior to page 1
 - Connect `GET /admin/webhooks/stream` for live updates.

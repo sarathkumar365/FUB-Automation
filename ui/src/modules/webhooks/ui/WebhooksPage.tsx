@@ -158,8 +158,9 @@ export function WebhooksPage() {
           </>
         }
       >
+        <FilterIcon data-testid="webhook-filter-icon" className="text-[var(--color-text-muted)]" />
+
         <ControlGroup label={uiText.webhooks.filterSourceLabel}>
-          <FilterIcon className="text-[var(--color-text-muted)]" />
           <Select
             aria-label={uiText.webhooks.filterSourceLabel}
             value={draftFilters.source}
@@ -172,7 +173,6 @@ export function WebhooksPage() {
         </ControlGroup>
 
         <ControlGroup label={uiText.webhooks.filterStatusLabel}>
-          <FilterIcon className="text-[var(--color-text-muted)]" />
           <Select
             aria-label={uiText.webhooks.filterStatusLabel}
             value={draftFilters.status}
@@ -185,7 +185,6 @@ export function WebhooksPage() {
         </ControlGroup>
 
         <ControlGroup label={uiText.webhooks.filterEventTypeLabel}>
-          <FilterIcon className="text-[var(--color-text-muted)]" />
           <Input
             aria-label={uiText.webhooks.filterEventTypeLabel}
             placeholder={uiText.webhooks.filterEventTypePlaceholder}

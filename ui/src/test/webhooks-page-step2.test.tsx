@@ -62,7 +62,7 @@ function renderWebhooksPage(initialPath = '/admin-ui/webhooks') {
     },
   })
 
-  render(
+  const rendered = render(
     <PortsContext.Provider value={ports}>
       <QueryClientProvider client={queryClient}>
         <BrowserRouter>
@@ -76,7 +76,7 @@ function renderWebhooksPage(initialPath = '/admin-ui/webhooks') {
     </PortsContext.Provider>,
   )
 
-  return { listWebhooks, getWebhookDetail }
+  return { ...rendered, listWebhooks, getWebhookDetail }
 }
 
 describe('Webhooks page Step 2', () => {
@@ -176,5 +176,13 @@ describe('Webhooks page Step 2', () => {
     await waitFor(() => {
       expect(getWebhookDetail).toHaveBeenCalledWith(1)
     })
+  })
+
+  it('renders a single filter icon at the start of the filter bar', async () => {
+    const { container } = renderWebhooksPage()
+
+    await screen.findByText('evt-1')
+
+    expect(container.querySelectorAll('[data-testid="webhook-filter-icon"]')).toHaveLength(1)
   })
 })
