@@ -1,36 +1,83 @@
-import { NavLink, Outlet } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet } from 'react-router-dom'
+import { uiText } from '../shared/constants/uiText'
+import { AppContentFrame } from '../shared/ui/AppContentFrame'
+import { AppPanel } from '../shared/ui/AppPanel'
+import { AppRail } from '../shared/ui/AppRail'
+import { PanelNav } from '../shared/ui/PanelNav'
+import { Button } from '../shared/ui/button'
+import { InspectorPanel } from '../shared/ui/InspectorPanel'
+import { ShellRegionsProvider } from './ShellRegionsProvider'
+import { useShellRegions } from './useShellRegions'
 
 export function AppShell() {
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <div className="mx-auto grid min-h-screen max-w-7xl grid-cols-1 md:grid-cols-[240px_1fr]">
-        <aside className="border-b border-slate-200 bg-white p-4 md:border-b-0 md:border-r">
-          <h1 className="text-lg font-semibold">Automation Engine Admin</h1>
-          <nav className="mt-4 space-y-1">
-            <NavItem to="/admin-ui/webhooks" label="Webhooks" />
-            <NavItem to="/admin-ui/processed-calls" label="Processed Calls" />
-          </nav>
-        </aside>
-        <main className="p-4 md:p-8">
-          <Outlet />
-        </main>
-      </div>
-    </div>
+    <ShellRegionsProvider>
+      <ShellLayout />
+    </ShellRegionsProvider>
   )
 }
 
-function NavItem({ to, label }: { to: string; label: string }) {
+function ShellLayout() {
+  const [isPanelOpen, setPanelOpen] = useState(false)
+  const [isInspectorOpen, setInspectorOpen] = useState(false)
+  const { panelContent, inspectorContent } = useShellRegions()
+  const hasDesktopPanel = Boolean(panelContent?.title || panelContent?.body)
+  const hasPanelBody = Boolean(panelContent?.body)
+
   return (
-    <NavLink
-      to={to}
-      className={({ isActive }) =>
-        [
-          'block rounded-md px-3 py-2 text-sm transition-colors',
-          isActive ? 'bg-slate-900 text-white' : 'text-slate-700 hover:bg-slate-100',
-        ].join(' ')
-      }
-    >
-      {label}
-    </NavLink>
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
+      <div className="flex min-h-screen w-full">
+        <AppRail />
+
+        {hasDesktopPanel ? (
+          <AppPanel title={panelContent?.title} className="hidden lg:block">
+            {panelContent?.body}
+          </AppPanel>
+        ) : null}
+
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 lg:hidden">
+            <Button variant="outline" size="sm" onClick={() => setPanelOpen((value) => !value)}>
+              {isPanelOpen ? uiText.app.shell.closePanel : uiText.app.shell.openPanel}
+            </Button>
+            <p className="text-sm font-semibold">{uiText.app.title}</p>
+            <Button variant="outline" size="sm" onClick={() => setInspectorOpen((value) => !value)}>
+              {isInspectorOpen ? uiText.app.shell.closeInspector : uiText.app.shell.openInspector}
+            </Button>
+          </header>
+
+          <AppContentFrame>
+            <Outlet />
+          </AppContentFrame>
+        </div>
+
+        <InspectorPanel title={inspectorContent?.title} className="hidden w-[320px] lg:block">
+          {inspectorContent?.body}
+        </InspectorPanel>
+      </div>
+
+      {isPanelOpen ? (
+        <div className="fixed inset-0 z-50 bg-black/30 lg:hidden" onClick={() => setPanelOpen(false)}>
+          <div onClick={(event) => event.stopPropagation()}>
+            <AppPanel title={panelContent?.title} className="h-full max-w-[280px]">
+              <PanelNav onNavigate={() => setPanelOpen(false)} />
+              {hasPanelBody ? <div className="my-3 border-t border-[var(--color-border)]" /> : null}
+              {panelContent?.body}
+            </AppPanel>
+          </div>
+        </div>
+      ) : null}
+
+      {isInspectorOpen ? (
+        <div className="fixed inset-0 z-50 bg-black/30 lg:hidden" onClick={() => setInspectorOpen(false)}>
+          <div onClick={(event) => event.stopPropagation()}>
+            <InspectorPanel title={inspectorContent?.title} className="ml-auto h-full w-[min(85vw,320px)] border-l border-[var(--color-border)]">
+              {inspectorContent?.body}
+            </InspectorPanel>
+          </div>
+        </div>
+      ) : null}
+    </div>
   )
 }
