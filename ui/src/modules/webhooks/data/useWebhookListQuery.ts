@@ -4,7 +4,7 @@ import { queryKeys } from '../../../platform/query/queryKeys'
 import { queryDefaults } from '../../../shared/constants/queryDefaults'
 import type { WebhookListFilters } from '../../../shared/types/webhook'
 
-export function useWebhookListQuery(filters: Omit<WebhookListFilters, 'limit'>) {
+export function useWebhookListQuery(filters: Omit<WebhookListFilters, 'limit'>, enabled = true) {
   const { adminWebhookPort } = useAppPorts()
   const queryFilters: WebhookListFilters = {
     ...filters,
@@ -14,5 +14,6 @@ export function useWebhookListQuery(filters: Omit<WebhookListFilters, 'limit'>) 
   return useQuery({
     queryKey: queryKeys.webhooks.list(queryFilters),
     queryFn: () => adminWebhookPort.listWebhooks(queryFilters),
+    enabled,
   })
 }

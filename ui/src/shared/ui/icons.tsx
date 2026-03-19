@@ -66,3 +66,20 @@ export function NextIcon(props: IconProps) {
     </SvgIcon>
   )
 }
+
+export function PauseIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M9 5v14" />
+      <path d="M15 5v14" />
+    </SvgIcon>
+  )
+}
+
+export function ResumeIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="m8 5 11 7-11 7z" />
+    </SvgIcon>
+  )
+}

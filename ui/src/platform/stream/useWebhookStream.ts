@@ -11,6 +11,10 @@ type StreamHookResult = {
   lastHeartbeatAt: string | null
 }
 
+type UseWebhookStreamOptions = {
+  enabled?: boolean
+}
+
 type StreamEventState = {
   key: string
   state: StreamConnectionState
@@ -31,6 +35,7 @@ const MAX_STREAM_EVENTS = 100
 
 const webhookStreamPayloadSchema = z.object({
   id: z.union([z.string(), z.number()]),
+  eventId: z.string().nullable().optional(),
   receivedAt: z.string(),
   source: z.custom<WebhookSource>((value) => value === 'FUB'),
   eventType: z.string(),
@@ -51,6 +56,7 @@ function normalizeWebhookStreamEvent(payload: unknown): WebhookStreamEvent | nul
   const value = parsed.data
   return {
     id: String(value.id),
+    eventId: value.eventId ?? null,
     receivedAt: value.receivedAt,
     source: value.source,
     eventType: value.eventType,
@@ -59,8 +65,9 @@ function normalizeWebhookStreamEvent(payload: unknown): WebhookStreamEvent | nul
   }
 }
 
-export function useWebhookStream(filters: WebhookStreamFilters = {}): StreamHookResult {
+export function useWebhookStream(filters: WebhookStreamFilters = {}, options: UseWebhookStreamOptions = {}): StreamHookResult {
   const { webhookStreamPort } = useAppPorts()
+  const enabled = options.enabled ?? true
   const source = filters.source
   const status = filters.status
   const eventType = filters.eventType
@@ -79,6 +86,10 @@ export function useWebhookStream(filters: WebhookStreamFilters = {}): StreamHook
   const [heartbeatState, setHeartbeatState] = useState<HeartbeatState | null>(null)
 
   useEffect(() => {
+    if (!enabled) {
+      return
+    }
+
     const close = webhookStreamPort.openWebhookStream(normalizedFilters, {
       onEvent: (eventName, payload) => {
         setStreamEventState({
@@ -132,9 +143,11 @@ export function useWebhookStream(filters: WebhookStreamFilters = {}): StreamHook
     })
 
     return () => {
-      close()
+      if (typeof close === 'function') {
+        close()
+      }
     }
-  }, [filtersKey, normalizedFilters, webhookStreamPort])
+  }, [enabled, filtersKey, normalizedFilters, webhookStreamPort])
 
   const state = streamEventState && streamEventState.key === filtersKey ? streamEventState.state : 'connecting'
   const events = streamCacheState && streamCacheState.key === filtersKey ? streamCacheState.events : []

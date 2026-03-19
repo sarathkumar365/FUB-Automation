@@ -1,14 +1,16 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
+import { useWebhookStream } from '../../../platform/stream/useWebhookStream'
 import { uiText } from '../../../shared/constants/uiText'
+import { formatDateTime } from '../../../shared/lib/date'
 import { Button } from '../../../shared/ui/button'
 import { DataTable, type ColumnDef } from '../../../shared/ui/DataTable'
 import { DateInput } from '../../../shared/ui/DateInput'
-import { FilterBar } from '../../../shared/ui/FilterBar'
 import { ErrorState } from '../../../shared/ui/ErrorState'
+import { FilterBar } from '../../../shared/ui/FilterBar'
 import { Input } from '../../../shared/ui/input'
-import { ApplyIcon, FilterIcon, NextIcon, ResetIcon } from '../../../shared/ui/icons'
+import { ApplyIcon, FilterIcon, NextIcon, PauseIcon, ResetIcon, ResumeIcon } from '../../../shared/ui/icons'
 import { LoadingState } from '../../../shared/ui/LoadingState'
 import { PageCard } from '../../../shared/ui/PageCard'
 import { PageHeader } from '../../../shared/ui/PageHeader'
@@ -17,6 +19,7 @@ import { StatusBadge } from '../../../shared/ui/StatusBadge'
 import type { WebhookFeedItem } from '../../../shared/types/webhook'
 import { useWebhookDetailQuery } from '../data/useWebhookDetailQuery'
 import { useWebhookListQuery } from '../data/useWebhookListQuery'
+import { filterWebhookRows, mergeWebhookRows, toWebhookFeedItems } from '../lib/webhookLiveRows'
 import {
   createSearchParamsFromState,
   parseWebhookSearchParams,
@@ -25,20 +28,52 @@ import {
   type WebhookPageSearchState,
 } from '../lib/webhookSearchParams'
 
+const MAX_ACTIVITY_TICKS = 20
+
 export function WebhooksPage() {
   const [searchParams, setSearchParams] = useSearchParams()
   const searchState = useMemo(() => parseWebhookSearchParams(searchParams), [searchParams])
-  const [draftFilters, setDraftFilters] = useState<WebhookFilterDraft>(() => toDraftFilters(searchState))
+  const [isPaused, setIsPaused] = useState(false)
+  const filterDraftKey = useMemo(
+    () => [searchState.source ?? '', searchState.status ?? '', searchState.eventType ?? '', searchState.from ?? '', searchState.to ?? ''].join('|'),
+    [searchState.eventType, searchState.from, searchState.source, searchState.status, searchState.to],
+  )
+  const [draftFilterState, setDraftFilterState] = useState<{ key: string; value: WebhookFilterDraft }>(() => ({
+    key: filterDraftKey,
+    value: toDraftFilters(searchState),
+  }))
+  const draftFilters = draftFilterState.key === filterDraftKey ? draftFilterState.value : toDraftFilters(searchState)
 
-  const listQuery = useWebhookListQuery({
-    source: searchState.source,
-    status: searchState.status,
-    eventType: searchState.eventType,
-    from: searchState.from,
-    to: searchState.to,
-    cursor: searchState.cursor,
-  })
+  const [pausedBaseRows, setPausedBaseRows] = useState<WebhookFeedItem[]>([])
+  const [pausedAppliedFilters, setPausedAppliedFilters] = useState<WebhookPageSearchState>(() => extractFilterState(searchState))
+
+  const listQuery = useWebhookListQuery(
+    {
+      source: searchState.source,
+      status: searchState.status,
+      eventType: searchState.eventType,
+      from: searchState.from,
+      to: searchState.to,
+      cursor: searchState.cursor,
+    },
+    !isPaused,
+  )
   const detailQuery = useWebhookDetailQuery(searchState.selectedId)
+  const stream = useWebhookStream(
+    {
+      source: searchState.source,
+      status: searchState.status,
+      eventType: searchState.eventType,
+    },
+    { enabled: !isPaused },
+  )
+  const streamRows = useMemo(() => toWebhookFeedItems(stream.events), [stream.events])
+  const activityTicks = useMemo(() => streamRows.slice(0, MAX_ACTIVITY_TICKS).map((row) => row.id), [streamRows])
+
+  const serverRows = listQuery.data?.items ?? []
+  const unpausedRows = searchState.cursor ? serverRows : mergeWebhookRows(streamRows, serverRows)
+  const tableRows = isPaused ? filterWebhookRows(pausedBaseRows, pausedAppliedFilters) : unpausedRows
+  const hasBufferedRows = searchState.cursor !== undefined && streamRows.length > 0
 
   const columns = useMemo<ColumnDef<WebhookFeedItem>[]>(
     () => [
@@ -91,6 +126,17 @@ export function WebhooksPage() {
     inspector: inspectorRegion,
   })
 
+  const handlePauseResume = () => {
+    if (isPaused) {
+      setIsPaused(false)
+      return
+    }
+
+    setPausedBaseRows(mergeWebhookRows(streamRows, unpausedRows))
+    setPausedAppliedFilters(extractFilterState(searchState))
+    setIsPaused(true)
+  }
+
   const handleApply = () => {
     const nextState: WebhookPageSearchState = {
       source: draftFilters.source === 'ALL' ? undefined : draftFilters.source,
@@ -102,21 +148,54 @@ export function WebhooksPage() {
       selectedId: undefined,
     }
 
+    if (isPaused) {
+      setPausedAppliedFilters(extractFilterState(nextState))
+    }
+
     setSearchParams(createSearchParamsFromState(nextState))
   }
 
   const handleReset = () => {
-    setDraftFilters({
-      source: 'ALL',
-      status: 'ALL',
-      eventType: '',
-      from: '',
-      to: '',
+    setDraftFilterState({
+      key: filterDraftKey,
+      value: {
+        source: 'ALL',
+        status: 'ALL',
+        eventType: '',
+        from: '',
+        to: '',
+      },
     })
+
+    if (isPaused) {
+      setPausedAppliedFilters({})
+    }
+
     setSearchParams(new URLSearchParams())
   }
 
+  const handleViewLatest = () => {
+    if (!hasBufferedRows) {
+      return
+    }
+
+    if (isPaused) {
+      setPausedBaseRows((existing) => mergeWebhookRows(streamRows, existing))
+    }
+    setSearchParams(
+      createSearchParamsFromState({
+        ...searchState,
+        cursor: undefined,
+        selectedId: undefined,
+      }),
+    )
+  }
+
   const handleNext = () => {
+    if (isPaused) {
+      return
+    }
+
     const nextCursor = listQuery.data?.nextCursor
     if (!nextCursor) {
       return
@@ -140,13 +219,47 @@ export function WebhooksPage() {
     )
   }
 
+  const liveStatus = getLiveStatus(isPaused, stream.state)
+  const showLoadingState = !isPaused && listQuery.isPending
+  const showErrorState = !isPaused && listQuery.isError
+
   return (
     <div className="space-y-4">
-      <PageHeader title={uiText.webhooks.title} subtitle={uiText.webhooks.subtitle} />
+      <PageHeader title={uiText.webhooks.title} subtitle={uiText.webhooks.subtitle}>
+        <div data-testid="webhook-live-controls" className="flex flex-col items-end gap-1">
+          <div className="flex items-center gap-2">
+            <div
+              data-testid="webhook-live-state"
+              className={`inline-flex items-center gap-2 rounded-full border px-2.5 py-1 text-xs font-semibold ${liveStatus.className}`}
+            >
+              <span className={`inline-block h-2 w-2 rounded-full ${liveStatus.dotClassName}`} />
+              {liveStatus.label}
+            </div>
+            <Button
+              type="button"
+              size="icon"
+              variant="outline"
+              onClick={handlePauseResume}
+              aria-label={isPaused ? uiText.webhooks.resumeStreamAria : uiText.webhooks.pauseStreamAria}
+            >
+              {isPaused ? <ResumeIcon /> : <PauseIcon />}
+            </Button>
+          </div>
+          <span data-testid="webhook-heartbeat" className="font-mono text-xs text-[var(--color-text-muted)]">
+            {uiText.webhooks.heartbeatLabel}:{' '}
+            {stream.lastHeartbeatAt ? formatDateTime(stream.lastHeartbeatAt) : '-'}
+          </span>
+        </div>
+      </PageHeader>
 
       <FilterBar
         actions={
           <>
+            {hasBufferedRows ? (
+              <Button type="button" size="sm" variant="secondary" onClick={handleViewLatest} aria-label={uiText.webhooks.viewLatestAria}>
+                {uiText.webhooks.viewLatest} ({streamRows.length})
+              </Button>
+            ) : null}
             <Button type="button" size="sm" onClick={handleApply} aria-label={uiText.filters.apply}>
               <ApplyIcon className="mr-1.5" />
               {uiText.filters.apply}
@@ -164,7 +277,15 @@ export function WebhooksPage() {
           <Select
             aria-label={uiText.webhooks.filterSourceLabel}
             value={draftFilters.source}
-            onChange={(event) => setDraftFilters((existing) => ({ ...existing, source: event.target.value as WebhookFilterDraft['source'] }))}
+            onChange={(event) =>
+              setDraftFilterState((existing) => ({
+                key: filterDraftKey,
+                value: {
+                  ...(existing.key === filterDraftKey ? existing.value : draftFilters),
+                  source: event.target.value as WebhookFilterDraft['source'],
+                },
+              }))
+            }
             className="w-[138px]"
           >
             <option value="ALL">{uiText.webhooks.filterSourceAll}</option>
@@ -176,7 +297,15 @@ export function WebhooksPage() {
           <Select
             aria-label={uiText.webhooks.filterStatusLabel}
             value={draftFilters.status}
-            onChange={(event) => setDraftFilters((existing) => ({ ...existing, status: event.target.value as WebhookFilterDraft['status'] }))}
+            onChange={(event) =>
+              setDraftFilterState((existing) => ({
+                key: filterDraftKey,
+                value: {
+                  ...(existing.key === filterDraftKey ? existing.value : draftFilters),
+                  status: event.target.value as WebhookFilterDraft['status'],
+                },
+              }))
+            }
             className="w-[138px]"
           >
             <option value="ALL">{uiText.webhooks.filterStatusAll}</option>
@@ -189,7 +318,15 @@ export function WebhooksPage() {
             aria-label={uiText.webhooks.filterEventTypeLabel}
             placeholder={uiText.webhooks.filterEventTypePlaceholder}
             value={draftFilters.eventType}
-            onChange={(event) => setDraftFilters((existing) => ({ ...existing, eventType: event.target.value }))}
+            onChange={(event) =>
+              setDraftFilterState((existing) => ({
+                key: filterDraftKey,
+                value: {
+                  ...(existing.key === filterDraftKey ? existing.value : draftFilters),
+                  eventType: event.target.value,
+                },
+              }))
+            }
             className="w-[180px]"
           />
         </ControlGroup>
@@ -198,7 +335,15 @@ export function WebhooksPage() {
           <DateInput
             aria-label={uiText.webhooks.filterFromLabel}
             value={draftFilters.from}
-            onChange={(event) => setDraftFilters((existing) => ({ ...existing, from: event.target.value }))}
+            onChange={(event) =>
+              setDraftFilterState((existing) => ({
+                key: filterDraftKey,
+                value: {
+                  ...(existing.key === filterDraftKey ? existing.value : draftFilters),
+                  from: event.target.value,
+                },
+              }))
+            }
             className="w-[170px]"
           />
         </ControlGroup>
@@ -207,22 +352,32 @@ export function WebhooksPage() {
           <DateInput
             aria-label={uiText.webhooks.filterToLabel}
             value={draftFilters.to}
-            onChange={(event) => setDraftFilters((existing) => ({ ...existing, to: event.target.value }))}
+            onChange={(event) =>
+              setDraftFilterState((existing) => ({
+                key: filterDraftKey,
+                value: {
+                  ...(existing.key === filterDraftKey ? existing.value : draftFilters),
+                  to: event.target.value,
+                },
+              }))
+            }
             className="w-[170px]"
           />
         </ControlGroup>
       </FilterBar>
 
       <PageCard title={uiText.webhooks.tableTitle}>
-        {listQuery.isError ? (
+        <ActivityTickStrip ticks={activityTicks} />
+
+        {showErrorState ? (
           <ErrorState message={uiText.states.errorMessage} />
-        ) : listQuery.isPending ? (
+        ) : showLoadingState ? (
           <LoadingState />
         ) : (
           <>
             <DataTable
               columns={columns}
-              rows={listQuery.data?.items ?? []}
+              rows={tableRows}
               getRowKey={(row) => row.id}
               getRowAriaLabel={(row) => `${uiText.webhooks.rowAriaLabelPrefix} ${row.eventId}`}
               onRowClick={handleSelectRow}
@@ -235,7 +390,7 @@ export function WebhooksPage() {
                 size="sm"
                 variant="outline"
                 onClick={handleNext}
-                disabled={!listQuery.data?.nextCursor}
+                disabled={isPaused || !listQuery.data?.nextCursor}
                 aria-label={uiText.webhooks.paginationNextAria}
               >
                 <NextIcon className="mr-1.5" />
@@ -256,6 +411,65 @@ function ControlGroup({ label, children }: { label: string; children: ReactNode 
       {children}
     </label>
   )
+}
+
+function ActivityTickStrip({ ticks }: { ticks: number[] }) {
+  const filledCount = Math.min(ticks.length, MAX_ACTIVITY_TICKS)
+  const totalSlots = MAX_ACTIVITY_TICKS
+  return (
+    <div data-testid="activity-tick-strip" className="mb-3 flex w-full items-center gap-1" aria-hidden="true">
+      {Array.from({ length: totalSlots }, (_, index) => (
+        <span
+          key={`tick-${index}`}
+          className={`h-1.5 min-w-0 flex-1 rounded-full ${
+            index < filledCount ? 'bg-[var(--color-live)]/60' : 'bg-[var(--color-border)]'
+          }`}
+        />
+      ))}
+    </div>
+  )
+}
+
+function getLiveStatus(isPaused: boolean, streamState: 'connecting' | 'open' | 'error') {
+  if (isPaused) {
+    return {
+      label: uiText.webhooks.liveStatePaused,
+      className: 'border-[var(--color-border)] bg-[var(--color-surface-alt)] text-[var(--color-text-muted)]',
+      dotClassName: 'bg-[var(--color-text-muted)]',
+    }
+  }
+
+  if (streamState === 'open') {
+    return {
+      label: uiText.webhooks.liveStateLive,
+      className: 'border-[var(--color-status-ok)]/30 bg-[var(--color-status-ok-bg)] text-[var(--color-status-ok)]',
+      dotClassName: 'bg-[var(--color-live)]',
+    }
+  }
+
+  if (streamState === 'error') {
+    return {
+      label: uiText.webhooks.liveStateError,
+      className: 'border-[var(--color-status-bad)]/30 bg-[var(--color-status-bad-bg)] text-[var(--color-status-bad)]',
+      dotClassName: 'bg-[var(--color-status-bad)]',
+    }
+  }
+
+  return {
+    label: uiText.webhooks.liveStateConnecting,
+    className: 'border-[var(--color-status-warn)]/30 bg-[var(--color-status-warn-bg)] text-[var(--color-status-warn)]',
+    dotClassName: 'bg-[var(--color-status-warn)]',
+  }
+}
+
+function extractFilterState(state: WebhookPageSearchState): WebhookPageSearchState {
+  return {
+    source: state.source,
+    status: state.status,
+    eventType: state.eventType,
+    from: state.from,
+    to: state.to,
+  }
 }
 
 function buildInspectorBody({

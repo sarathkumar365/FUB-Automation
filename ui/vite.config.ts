@@ -5,7 +5,7 @@ export default defineConfig({
   plugins: [react()],
   server: {
     proxy: {
-      '/admin': {
+      '/admin/': {
         target: 'http://localhost:8080',
         changeOrigin: true,
       },
