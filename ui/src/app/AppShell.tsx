@@ -26,8 +26,8 @@ function ShellLayout() {
   const hasPanelBody = Boolean(panelContent?.body)
 
   return (
-    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)]">
-      <div className="flex min-h-screen w-full">
+    <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] lg:h-screen lg:overflow-hidden">
+      <div className="flex min-h-screen w-full lg:h-full">
         <AppRail />
 
         {hasDesktopPanel ? (
@@ -36,7 +36,7 @@ function ShellLayout() {
           </AppPanel>
         ) : null}
 
-        <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <header className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 lg:hidden">
             <Button variant="outline" size="sm" onClick={() => setPanelOpen((value) => !value)}>
               {isPanelOpen ? uiText.app.shell.closePanel : uiText.app.shell.openPanel}
@@ -47,12 +47,12 @@ function ShellLayout() {
             </Button>
           </header>
 
-          <AppContentFrame>
+          <AppContentFrame className="min-h-0 flex-1 overflow-auto">
             <Outlet />
           </AppContentFrame>
         </div>
 
-        <InspectorPanel title={inspectorContent?.title} className="hidden w-[320px] lg:block">
+        <InspectorPanel title={inspectorContent?.title} className="hidden w-[320px] lg:block lg:overflow-y-auto">
           {inspectorContent?.body}
         </InspectorPanel>
       </div>

@@ -36,4 +36,18 @@ describe('Option 1 shell regions', () => {
     expect(screen.getByRole('button', { name: uiText.app.shell.openInspector })).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.inspectorAriaLabel).className).toContain('lg:block')
   })
+
+  it('keeps inspector in a dedicated desktop sibling region while content uses bounded scrolling', async () => {
+    window.history.pushState({}, '', '/admin-ui/processed-calls')
+
+    render(<App />)
+
+    const inspector = await screen.findByLabelText(uiText.app.shell.inspectorAriaLabel)
+    const content = screen.getByLabelText(uiText.app.shell.contentAriaLabel)
+
+    expect(inspector.className).toContain('lg:block')
+    expect(inspector.className).toContain('lg:overflow-y-auto')
+    expect(content.className).toContain('overflow-auto')
+    expect(content.className).toContain('min-h-0')
+  })
 })

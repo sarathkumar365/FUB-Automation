@@ -201,4 +201,14 @@ describe('Processed Calls page Step 4', () => {
     await user.click(screen.getByRole('button', { name: uiText.processedCalls.replayConfirmAction }))
     expect(await screen.findByText(uiText.processedCalls.replayNotReplayableMessage)).toBeInTheDocument()
   })
+
+  it('keeps page layout height-bounded and scrolls only history region', async () => {
+    renderProcessedCallsPage()
+
+    await screen.findByText('2001')
+
+    expect(screen.getByTestId('processed-calls-page-layout').className).toContain('h-full')
+    expect(screen.getByTestId('processed-calls-page-layout').className).toContain('min-h-0')
+    expect(screen.getByTestId('processed-calls-history-scroll').className).toContain('overflow-y-auto')
+  })
 })

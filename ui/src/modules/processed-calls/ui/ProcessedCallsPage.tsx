@@ -193,7 +193,7 @@ export function ProcessedCallsPage() {
   const showErrorState = listQuery.isError
 
   return (
-    <div className="space-y-4">
+    <div className="flex h-full min-h-0 flex-col gap-4" data-testid="processed-calls-page-layout">
       <PageHeader title={uiText.processedCalls.title} subtitle={uiText.processedCalls.subtitle} />
 
       <FilterBar
@@ -271,23 +271,25 @@ export function ProcessedCallsPage() {
         </ControlGroup>
       </FilterBar>
 
-      <PageCard title={uiText.processedCalls.tableTitle}>
-        {showErrorState ? (
-          <ErrorState message={uiText.states.errorMessage} />
-        ) : showLoadingState ? (
-          <LoadingState />
-        ) : (
-          <DataTable
-            columns={columns}
-            rows={rows}
-            getRowKey={(row) => row.callId}
-            onRowClick={handleSelectRow}
-            selectedRowKey={searchState.selectedCallId ?? null}
-            getRowAriaLabel={(row) => `${uiText.processedCalls.rowAriaLabelPrefix} ${row.callId}`}
-            emptyMessage={uiText.processedCalls.emptyMessage}
-          />
-        )}
-      </PageCard>
+      <div className="min-h-0 flex-1 overflow-y-auto" data-testid="processed-calls-history-scroll">
+        <PageCard title={uiText.processedCalls.tableTitle}>
+          {showErrorState ? (
+            <ErrorState message={uiText.states.errorMessage} />
+          ) : showLoadingState ? (
+            <LoadingState />
+          ) : (
+            <DataTable
+              columns={columns}
+              rows={rows}
+              getRowKey={(row) => row.callId}
+              onRowClick={handleSelectRow}
+              selectedRowKey={searchState.selectedCallId ?? null}
+              getRowAriaLabel={(row) => `${uiText.processedCalls.rowAriaLabelPrefix} ${row.callId}`}
+              emptyMessage={uiText.processedCalls.emptyMessage}
+            />
+          )}
+        </PageCard>
+      </div>
 
       <ConfirmDialog
         open={pendingReplayCallId !== null}
