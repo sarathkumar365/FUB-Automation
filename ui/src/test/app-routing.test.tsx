@@ -1,6 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import App from '../app/App'
+import { uiText } from '../shared/constants/uiText'
 
 describe('App routing and shell', () => {
   it('redirects root to webhooks and renders shell', async () => {
@@ -9,7 +10,11 @@ describe('App routing and shell', () => {
     render(<App />)
 
     expect(await screen.findByText('Automation Engine Admin')).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { name: 'Webhooks' })).toBeInTheDocument()
-    expect(await screen.findByText('Phase 1 foundation is wired with port-adapter boundaries.')).toBeInTheDocument()
+    expect(await screen.findAllByRole('heading', { name: 'Webhooks' })).toHaveLength(2)
+    expect(await screen.findByText(uiText.webhooks.subtitle)).toBeInTheDocument()
+    expect(screen.getByLabelText(uiText.app.shell.railAriaLabel)).toBeInTheDocument()
+    expect(screen.queryByLabelText(uiText.app.shell.panelAriaLabel)).not.toBeInTheDocument()
+    expect(screen.getByLabelText(uiText.app.shell.contentAriaLabel)).toBeInTheDocument()
+    expect(screen.getByLabelText(uiText.app.shell.inspectorAriaLabel)).toBeInTheDocument()
   })
 })

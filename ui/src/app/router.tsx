@@ -1,4 +1,5 @@
 import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { routes } from '../shared/constants/routes'
 import { AppShell } from './AppShell'
 import { SessionGuard } from './SessionGuard'
 import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
@@ -7,19 +8,19 @@ import { SessionDisabledPage } from './SessionDisabledPage'
 
 export const appRouter = createBrowserRouter([
   {
-    path: '/',
-    element: <Navigate to="/admin-ui/webhooks" replace />,
+    path: routes.root,
+    element: <Navigate to={routes.webhooks} replace />,
   },
   {
-    path: '/admin-ui/session-disabled',
-    element: <SessionDisabledPage />,
-  },
-  {
-    element: <SessionGuard />,
+    path: routes.adminUi,
+    element: <AppShell />,
     children: [
       {
-        path: '/admin-ui',
-        element: <AppShell />,
+        path: 'session-disabled',
+        element: <SessionDisabledPage />,
+      },
+      {
+        element: <SessionGuard />,
         children: [
           {
             index: true,

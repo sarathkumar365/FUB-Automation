@@ -1,6 +1,7 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import type { PropsWithChildren } from 'react'
 import { useState } from 'react'
+import { NotifyProvider } from '../shared/notifications/NotifyProvider'
 import { AppPortsProvider } from './portsContext'
 
 export function AppProviders({ children }: PropsWithChildren) {
@@ -18,7 +19,9 @@ export function AppProviders({ children }: PropsWithChildren) {
 
   return (
     <AppPortsProvider>
-      <QueryClientProvider client={queryClient}>{children}</QueryClientProvider>
+      <QueryClientProvider client={queryClient}>
+        <NotifyProvider>{children}</NotifyProvider>
+      </QueryClientProvider>
     </AppPortsProvider>
   )
 }

@@ -14,8 +14,9 @@
   --color-text-muted: #64748b;
 
   /* Brand */
-  --color-brand: #0b6bcb;
-  --color-brand-soft: #e9f2fd;
+  --color-brand: #0f9fb8;
+  --color-brand-soft: #e3f7fb;
+  --color-brand-2: #0d9488;
 
   /* Semantic status */
   --color-status-ok: #0f766e;

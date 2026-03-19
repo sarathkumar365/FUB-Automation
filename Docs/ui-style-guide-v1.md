@@ -8,7 +8,12 @@ Use this together with:
 - `ui/src/styles/tokens.css` (code-level design tokens)
 
 ## Canonical layout
-- Shell: left rail + primary content workspace.
+- Shell: Rail + Panel + Content + Inspector.
+- Region intent:
+  - Rail: global icon-level navigation
+  - Panel: section/context navigation and quick controls
+  - Content: page workspace
+  - Inspector: contextual detail/actions
 - Primary page composition:
   - Filter toolbar (top)
   - Live feed list/table (main)
@@ -68,7 +73,7 @@ Processed-call views should prioritize:
 - Surface model: light UI, subtle borders, low-elevation cards/panels.
 - Color model:
   - Neutral base for structure and text.
-  - One primary brand accent.
+  - Primary brand palette: cyan + teal.
   - Semantic status colors (`ok`, `warn`, `bad`).
 - Typography:
   - UI text: `Manrope`-first stack.
@@ -84,3 +89,7 @@ Processed-call views should prioritize:
   1. Add/adjust a Figma frame under the canonical file.
   2. Update this document if decision-level rules changed.
   3. Keep `ui/src/styles/tokens.css` aligned with approved tokens.
+
+## Legacy layout note
+- The earlier `left rail + workspace` shell is deprecated.
+- New work must use the Option 1 shell (Rail + Panel + Content + Inspector).

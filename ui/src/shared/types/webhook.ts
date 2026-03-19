@@ -41,3 +41,12 @@ export type WebhookListFilters = {
 }
 
 export type WebhookStreamFilters = Pick<WebhookListFilters, 'source' | 'status' | 'eventType'>
+
+export type WebhookStreamEvent = {
+  id: string
+  receivedAt: string
+  source: WebhookSource
+  eventType: string
+  status: WebhookEventStatus
+  payload: unknown
+}
