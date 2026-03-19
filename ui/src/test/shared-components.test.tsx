@@ -2,6 +2,7 @@ import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
 import { ConfirmDialog } from '../shared/ui/ConfirmDialog'
 import { DataTable, type ColumnDef } from '../shared/ui/DataTable'
+import { DateInput } from '../shared/ui/DateInput'
 import { EmptyState } from '../shared/ui/EmptyState'
 import { ErrorState } from '../shared/ui/ErrorState'
 import { FilterBar } from '../shared/ui/FilterBar'
@@ -62,5 +63,11 @@ describe('shared UI components', () => {
     expect(screen.getByRole('dialog')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: 'Confirm' })).toBeInTheDocument()
     expect(screen.getByText('Are you sure')).toBeInTheDocument()
+  })
+
+  it('renders date input as native date control without icon overlay wrapper', () => {
+    render(<DateInput aria-label="From date" />)
+
+    expect(screen.getByLabelText('From date')).toHaveAttribute('type', 'date')
   })
 })

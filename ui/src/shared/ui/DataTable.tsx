@@ -15,9 +15,21 @@ type DataTableProps<T> = {
   getRowKey: (row: T) => string | number
   loading?: boolean
   emptyMessage?: string
+  onRowClick?: (row: T) => void
+  selectedRowKey?: string | number | null
+  getRowAriaLabel?: (row: T) => string
 }
 
-export function DataTable<T>({ columns, rows, getRowKey, loading = false, emptyMessage }: DataTableProps<T>) {
+export function DataTable<T>({
+  columns,
+  rows,
+  getRowKey,
+  loading = false,
+  emptyMessage,
+  onRowClick,
+  selectedRowKey = null,
+  getRowAriaLabel,
+}: DataTableProps<T>) {
   const normalizedRows = useMemo(() => rows, [rows])
 
   if (loading) {
@@ -41,15 +53,41 @@ export function DataTable<T>({ columns, rows, getRowKey, loading = false, emptyM
           </tr>
         </thead>
         <tbody>
-          {normalizedRows.map((row) => (
-            <tr key={getRowKey(row)} className="border-t border-[var(--color-border)]">
-              {columns.map((column) => (
-                <td key={column.key} className={`px-3 py-2 ${column.className ?? ''}`}>
-                  {column.render(row)}
-                </td>
-              ))}
-            </tr>
-          ))}
+          {normalizedRows.map((row) => {
+            const rowKey = getRowKey(row)
+            const isSelected = selectedRowKey !== null && selectedRowKey === rowKey
+
+            return (
+              <tr
+                key={rowKey}
+                // TODO: Replace row-level button semantics with a focusable cell control to preserve native table navigation semantics.
+                className={`border-t border-[var(--color-border)] ${onRowClick ? 'cursor-pointer hover:bg-[var(--color-surface-alt)] focus-within:bg-[var(--color-surface-alt)]' : ''} ${
+                  isSelected ? 'bg-[var(--color-brand-soft)]' : ''
+                }`}
+                role={onRowClick ? 'button' : undefined}
+                tabIndex={onRowClick ? 0 : undefined}
+                aria-label={onRowClick ? (getRowAriaLabel?.(row) ?? undefined) : undefined}
+                aria-pressed={onRowClick ? isSelected : undefined}
+                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                onKeyDown={
+                  onRowClick
+                    ? (event) => {
+                        if (event.key === 'Enter' || event.key === ' ') {
+                          event.preventDefault()
+                          onRowClick(row)
+                        }
+                      }
+                    : undefined
+                }
+              >
+                {columns.map((column) => (
+                  <td key={column.key} className={`px-3 py-2 ${column.className ?? ''}`}>
+                    {column.render(row)}
+                  </td>
+                ))}
+              </tr>
+            )
+          })}
         </tbody>
       </table>
     </div>

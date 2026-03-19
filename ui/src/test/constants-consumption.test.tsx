@@ -12,6 +12,6 @@ describe('centralized text usage', () => {
     expect(await screen.findByText(uiText.app.title)).toBeInTheDocument()
     expect(screen.getByRole('link', { name: uiText.app.nav.webhooks })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: uiText.app.nav.processedCalls })).toBeInTheDocument()
-    expect(screen.getAllByRole('heading', { name: uiText.webhooks.title })).toHaveLength(2)
+    expect(screen.getByRole('heading', { name: uiText.webhooks.title })).toBeInTheDocument()
   })
 })

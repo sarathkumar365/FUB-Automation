@@ -10,7 +10,7 @@ describe('App routing and shell', () => {
     render(<App />)
 
     expect(await screen.findByText('Automation Engine Admin')).toBeInTheDocument()
-    expect(await screen.findAllByRole('heading', { name: 'Webhooks' })).toHaveLength(2)
+    expect(await screen.findByRole('heading', { name: 'Webhooks' })).toBeInTheDocument()
     expect(await screen.findByText(uiText.webhooks.subtitle)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.railAriaLabel)).toBeInTheDocument()
     expect(screen.queryByLabelText(uiText.app.shell.panelAriaLabel)).not.toBeInTheDocument()

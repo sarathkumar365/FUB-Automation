@@ -11,7 +11,7 @@ describe('Option 1 shell regions', () => {
 
     expect(screen.queryByText(uiText.app.shell.panelTitle)).not.toBeInTheDocument()
     expect(screen.getByText(uiText.webhooks.inspectorTitle)).toBeInTheDocument()
-    expect(screen.getByText(uiText.webhooks.inspectorDescription)).toBeInTheDocument()
+    expect(screen.getByText(uiText.webhooks.inspectorEmpty)).toBeInTheDocument()
   })
 
   it('renders session-disabled route inside the same shell', async () => {

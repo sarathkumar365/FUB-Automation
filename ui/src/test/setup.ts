@@ -36,3 +36,38 @@ class TestEventSource implements EventSource {
 if (typeof globalThis.EventSource === 'undefined') {
   vi.stubGlobal('EventSource', TestEventSource)
 }
+
+const defaultFetchMock = vi.fn(async (input: RequestInfo | URL) => {
+  const url = typeof input === 'string' ? input : input.toString()
+
+  if (url.startsWith('/admin/webhooks/')) {
+    return new Response(
+      JSON.stringify({
+        id: 1,
+        eventId: 'evt-default',
+        source: 'FUB',
+        eventType: 'callsUpdated',
+        status: 'RECEIVED',
+        payloadHash: null,
+        payload: {},
+        receivedAt: '2026-03-19T00:00:00Z',
+      }),
+      { status: 200 },
+    )
+  }
+
+  if (url.startsWith('/admin/webhooks')) {
+    return new Response(
+      JSON.stringify({
+        items: [],
+        nextCursor: null,
+        serverTime: '2026-03-19T00:00:00Z',
+      }),
+      { status: 200 },
+    )
+  }
+
+  return new Response(JSON.stringify({}), { status: 200 })
+})
+
+vi.stubGlobal('fetch', defaultFetchMock)
