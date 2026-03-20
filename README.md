@@ -10,17 +10,17 @@ This repository is built as a showcase of a production-style architecture (contr
 1. A call happens, and the team wants to know what comes next.  
    The project opens with a simple operations view that sets the context for the workflow.
 
-![Landing page](docs/images/landing%20page.png)
+![Landing page](Docs/images/landing%20page.png)
 
 2. As webhooks arrive, the system captures each event and shows live activity so nothing feels like a black box.  
    You can watch what is coming in, in near real time.
 
-![Live webhook ingestion](docs/images/live%20webhook%20ingestion.png)
+![Live webhook ingestion](Docs/images/live%20webhook%20ingestion.png)
 
 3. Once calls are processed, the team gets a clear status view of outcomes and can replay failed ones quickly.  
    The goal is to close the loop from missed call to follow-up action.
 
-![Processed calls](docs/images/processed%20call.png)
+![Processed calls](Docs/images/processed%20call.png)
 
 ## What It Does Today (Scenario 1)
 
