@@ -1,3 +1,69 @@
+// This is the data available after a person is created via the API.
+// When a new lead comes, peopleCreated event is triggered and we collect it, grab its resource id and fetch from the people endpoint. 
+// That will give us this.
+{
+  "id": 18665,
+  "created": "2026-03-23T21:07:10Z",
+  "updated": "2026-03-23T21:07:10Z",
+  "createdVia": "API",
+  "lastActivity": "2026-03-23T21:07:10Z",
+  "name": "Test Lead",
+  "firstName": "Test",
+  "lastName": "Lead",
+  "stage": "Lead",
+  "stageId": 2,
+  "type": "Buyer",
+  "source": "Integration",
+  "sourceId": 398,
+  "sourceUrl": "",
+  "leadFlowId": null,
+  "delayed": false,
+  "contacted": 0,
+  "price": null,
+  "assignedLenderId": null,
+  "assignedLenderName": null,
+  "assignedUserId": 1,
+  "assignedPondId": null,
+  "assignedTo": "Mandeep Dhesi",
+  "tags": [],
+  "emails": [],
+  "phones": [],
+  "addresses": [],
+  "picture": null,
+  "socialData": [],
+  "websiteVisits": 0,
+  "timeframeId": null,
+  "timeframeUpdated": null,
+  "timeframeStatus": null,
+  "timeframeDateRange": null,
+  "claimed": true,
+  "dealStatus": null,
+  "dealStage": null,
+  "dealName": null,
+  "dealCloseDate": null,
+  "dealPrice": null,
+  "firstToClaimOffer": false,
+  "collaborators": [
+    {
+      "id": 1,
+      "name": "Mandeep Dhesi",
+      "assigned": true,
+      "role": "Broker"
+    }
+  ],
+  "teamLeaders": [],
+  "pondMembers": []
+}
+
+
+
+
+
+
+
+
+
+// CALL API RESPONSE DATA
 {
   "id": 18399,
   "created": "2026-03-11T16:48:12Z",
