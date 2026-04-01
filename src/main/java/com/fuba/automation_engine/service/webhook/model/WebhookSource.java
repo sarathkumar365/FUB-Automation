@@ -1,7 +1,8 @@
 package com.fuba.automation_engine.service.webhook.model;
 
 public enum WebhookSource {
-    FUB("fub");
+    FUB("fub"),
+    INTERNAL("internal");
 
     private final String pathValue;
 

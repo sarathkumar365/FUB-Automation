@@ -82,7 +82,7 @@ public class WebhookEventProcessorService {
         log.info(
                 "Processing webhook event eventId={} source={} eventType={} callIdCount={}",
                 event.eventId(),
-                event.source(),
+                event.sourceSystem(),
                 eventType,
                 callIds.size());
         if (callIds.isEmpty()) {

@@ -13,6 +13,6 @@ public class NoopWebhookDispatcher implements WebhookDispatcher {
 
     @Override
     public void dispatch(NormalizedWebhookEvent event) {
-        log.info("Noop dispatch for webhook eventId={}, source={}", event.eventId(), event.source());
+        log.info("Noop dispatch for webhook eventId={}, source={}", event.eventId(), event.sourceSystem());
     }
 }

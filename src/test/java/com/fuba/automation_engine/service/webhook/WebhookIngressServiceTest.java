@@ -7,6 +7,8 @@ import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.service.webhook.dispatch.WebhookDispatcher;
 import com.fuba.automation_engine.service.webhook.live.WebhookLiveFeedPublisher;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookIngressResult;
@@ -62,6 +64,12 @@ class WebhookIngressServiceTest {
         parser.eventToReturn = new NormalizedWebhookEvent(
                 WebhookSource.FUB,
                 "evt-missing-event-type",
+                "",
+                null,
+                null,
+                NormalizedDomain.UNKNOWN,
+                NormalizedAction.UNKNOWN,
+                null,
                 WebhookEventStatus.RECEIVED,
                 OBJECT_MAPPER.createObjectNode(),
                 OffsetDateTime.now(),
@@ -155,6 +163,12 @@ class WebhookIngressServiceTest {
         return new NormalizedWebhookEvent(
                 WebhookSource.FUB,
                 eventId,
+                eventType,
+                null,
+                null,
+                NormalizedDomain.CALL,
+                NormalizedAction.CREATED,
+                null,
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(),

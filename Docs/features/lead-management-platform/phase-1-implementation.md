@@ -1,6 +1,6 @@
 # Phase 1 Implementation Log
 
-Status: Not started
+Status: In progress (Step 1 and Step 2 completed)
 
 ## Preconditions (must be true before code changes)
 - Sprint 0 RFC pack is approved:
@@ -39,7 +39,7 @@ Status: Not started
 
 ### Step 2: Add Catalog State Domain Model and Resolver
 - Introduce explicit types:
-  - `CatalogState`: `SUPPORTED`, `STAGED`, `IGNORED`
+  - `EventSupportState`: `SUPPORTED`, `STAGED`, `IGNORED`
   - normalized domain and normalized action enums/types
 - Add deterministic resolver boundary keyed by `(sourceSystem, sourceEventType)`.
 - Phase 1 catalog map:
@@ -101,12 +101,59 @@ Status: Not started
   - admin list/detail regression coverage retained
 
 ## Changes
-- Planning only: detailed 5-step vertical implementation plan added for Phase 1 execution.
+- Step 1 completed: normalized event contract expanded with top-level semantic fields while keeping compatibility payload fields for current call flow.
+- Added normalized enums/types:
+  - `NormalizedDomain` (`CALL`, `ASSIGNMENT`, `UNKNOWN`)
+  - `NormalizedAction` (`CREATED`, `UPDATED`, `ASSIGNED`, `UNKNOWN`)
+- Added `WebhookSource.INTERNAL` readiness in source enum (no new active ingress path introduced).
+- Updated FUB parser to map:
+  - top-level `sourceEventType`, `normalizedDomain`, `normalizedAction`, `providerMeta`
+  - compatibility payload dual-write keys (`eventType`, `resourceIds`, `uri`, `headers`, `rawBody`)
+- Updated ingress `eventType` extraction precedence:
+  - top-level `sourceEventType` first
+  - payload `eventType` fallback for compatibility safety
+- Added explicit deferred TODO issue in parser:
+  - `TODO(step1-followup): finalize sourceLeadId extraction rule by event semantics`
+  - issue id: `LMP-STEP1-SOURCE-LEADID-RULE`
+- Updated replay dispatch construction and impacted call sites for enriched `NormalizedWebhookEvent` signature.
+- Added new dedicated test suites:
+  - `NormalizedWebhookEventContractTest`
+  - `FubWebhookParserNormalizedContractTest`
+  - `WebhookIngressEventTypePrecedenceTest`
+  - `WebhookSourceInternalReadinessTest`
+- Step 2 completed as non-runtime foundation:
+  - Added `EventSupportState` enum (`SUPPORTED`, `STAGED`, `IGNORED`) as canonical state naming.
+  - Added resolver contract and static in-code resolver implementation:
+    - `WebhookEventSupportResolver`
+    - `EventSupportResolution`
+    - `StaticWebhookEventSupportResolver`
+  - Centralized source-event semantic ownership in resolver mapping table for:
+    - `fub:callsCreated`
+    - `fub:peopleCreated`
+    - `fub:peopleUpdated`
+    - fallback to `IGNORED/UNKNOWN/UNKNOWN`
+  - Added parser TODO markers clarifying parser semantic mapping is temporary compatibility and should be deprecated after Step 3 resolver wiring.
+  - No ingress/dispatch/persistence/admin contract runtime behavior was changed in this step.
+- Added new dedicated Step 2 test suites:
+  - `WebhookEventSupportResolverTest`
+  - `EventSupportStateContractTest`
 
 ## Validation
-- Planning-only update; no runtime code changes executed in this step.
+- Executed new dedicated and impacted suites:
+  - `./mvnw test -Dtest=NormalizedWebhookEventContractTest,FubWebhookParserNormalizedContractTest,WebhookIngressEventTypePrecedenceTest,WebhookSourceInternalReadinessTest,FubWebhookParserTest,WebhookIngressServiceTest,WebhookIngressFlowTest,WebhookProcessingFlowTest`
+  - Result: pass (31 tests, 0 failures, 0 errors)
+- Executed full backend suite:
+  - `./mvnw test`
+  - Result: pass (107 tests run, 0 failures, 0 errors, 2 skipped)
+- Executed Step 2 dedicated and compatibility guard suites:
+  - `./mvnw test -Dtest=WebhookEventSupportResolverTest,EventSupportStateContractTest,WebhookIngressServiceTest,WebhookIngressFlowTest,WebhookProcessingFlowTest`
+  - Result: pass (24 tests, 0 failures, 0 errors)
+- Re-executed full backend suite after Step 2:
+  - `./mvnw test`
+  - Result: pass (112 tests run, 0 failures, 0 errors, 2 skipped)
 
 ## Notes for Next Agent
 - Before coding, re-read all Sprint 0 RFC files and ensure no drift with `lead-management-platform-plan.md`.
 - Follow layered boundary rule for every slice: `controller -> service -> port -> adapter -> repository/rules`.
 - Keep Phase 1 strictly foundation-level; defer assignment action execution, delayed worker, and policy control-plane persistence to later phases.
+- Step 3 should wire resolver outcomes into ingress/persistence/dispatch gating; Step 2 intentionally did not add runtime routing behavior.

@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.exception.webhook.MalformedWebhookPayloadException;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
@@ -52,18 +54,31 @@ public class FubWebhookParser implements WebhookParser {
         if (eventNode == null || eventNode.asText().isBlank()) {
             throw new MalformedWebhookPayloadException("Webhook payload missing 'event'");
         }
-        if (resourceIdsNode == null || !resourceIdsNode.isArray()) {
+        String sourceEventType = eventNode.asText().trim();
+        boolean callCreatedEvent = "callsCreated".equals(sourceEventType);
+        if (callCreatedEvent && (resourceIdsNode == null || !resourceIdsNode.isArray())) {
             throw new MalformedWebhookPayloadException("Webhook payload missing 'resourceIds' array");
         }
 
         String eventId = json.hasNonNull(EVENT_ID) ? json.get(EVENT_ID).asText() : null;
         String payloadHash = calculatePayloadHash(rawBody == null ? "" : rawBody);
+        // TODO(step2-followup): parser semantic mapping is temporary compatibility logic.
+        // Semantic ownership should move to WebhookEventSupportResolver when Step 3 wiring lands.
+        // Track in issue: LMP-STEP3-RESOLVER-SEMANTIC-OWNERSHIP.
+        NormalizedDomain normalizedDomain = resolveDomain(sourceEventType);
+        NormalizedAction normalizedAction = resolveAction(sourceEventType);
+        // TODO(step1-followup): finalize sourceLeadId extraction rule by event semantics.
+        // Current intent: derive only for peopleCreated/peopleUpdated, keep null for callsCreated.
+        // Track in issue: LMP-STEP1-SOURCE-LEADID-RULE.
+        String sourceLeadId = null;
 
         ObjectNode payloadNode = objectMapper.createObjectNode();
-        payloadNode.put("eventType", eventNode.asText());
+        payloadNode.put("eventType", sourceEventType);
 
         ArrayNode resourceIds = payloadNode.putArray("resourceIds");
-        resourceIdsNode.forEach(resourceIds::add);
+        if (resourceIdsNode != null && resourceIdsNode.isArray()) {
+            resourceIdsNode.forEach(resourceIds::add);
+        }
 
         if (json.has(URI) && !json.get(URI).isNull()) {
             payloadNode.put("uri", json.get(URI).asText());
@@ -78,13 +93,52 @@ public class FubWebhookParser implements WebhookParser {
 
         payloadNode.put("rawBody", rawBody);
 
+        ObjectNode providerMetaNode = objectMapper.createObjectNode();
+        if (resourceIdsNode != null && resourceIdsNode.isArray()) {
+            ArrayNode providerMetaResourceIds = providerMetaNode.putArray("resourceIds");
+            resourceIdsNode.forEach(providerMetaResourceIds::add);
+        }
+        if (json.has(URI) && !json.get(URI).isNull()) {
+            providerMetaNode.put("uri", json.get(URI).asText());
+        } else {
+            providerMetaNode.putNull("uri");
+        }
+        ObjectNode providerMetaHeaders = providerMetaNode.putObject("headers");
+        addHeader(providerMetaHeaders, headers, "FUB-Signature");
+        addHeader(providerMetaHeaders, headers, "User-Agent");
+        addHeader(providerMetaHeaders, headers, "Content-Type");
+
         return new NormalizedWebhookEvent(
                 WebhookSource.FUB,
                 eventId,
+                sourceEventType,
+                null,
+                sourceLeadId,
+                normalizedDomain,
+                normalizedAction,
+                providerMetaNode,
                 WebhookEventStatus.RECEIVED,
                 payloadNode,
                 OffsetDateTime.now(),
                 payloadHash);
+    }
+
+    private NormalizedDomain resolveDomain(String sourceEventType) {
+        // TODO(step2-followup): deprecate parser-owned domain mapping after resolver-driven routing is wired.
+        return switch (sourceEventType) {
+            case "callsCreated" -> NormalizedDomain.CALL;
+            case "peopleCreated", "peopleUpdated" -> NormalizedDomain.ASSIGNMENT;
+            default -> NormalizedDomain.UNKNOWN;
+        };
+    }
+
+    private NormalizedAction resolveAction(String sourceEventType) {
+        // TODO(step2-followup): deprecate parser-owned action mapping after resolver-driven routing is wired.
+        return switch (sourceEventType) {
+            case "callsCreated", "peopleCreated" -> NormalizedAction.CREATED;
+            case "peopleUpdated" -> NormalizedAction.UPDATED;
+            default -> NormalizedAction.UNKNOWN;
+        };
     }
 
     private void addHeader(ObjectNode selectedHeaders, Map<String, String> headers, String name) {

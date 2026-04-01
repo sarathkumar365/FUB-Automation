@@ -87,7 +87,7 @@ public class WebhookIngressService {
         String eventType = extractEventType(event);
         log.info(
                 "Webhook normalized source={} eventId={} eventType={}",
-                event.source(),
+                event.sourceSystem(),
                 event.eventId(),
                 eventType);
         String acceptedMessage = EVENT_CALLS_CREATED.equals(eventType)
@@ -95,20 +95,20 @@ public class WebhookIngressService {
                 : "Event type not supported yet: " + eventType;
 
         if (event.eventId() != null && !event.eventId().isBlank()
-                && webhookEventRepository.existsBySourceAndEventId(event.source(), event.eventId())) {
-            log.info("Duplicate webhook ignored by eventId source={} eventId={}", event.source(), event.eventId());
+                && webhookEventRepository.existsBySourceAndEventId(event.sourceSystem(), event.eventId())) {
+            log.info("Duplicate webhook ignored by eventId source={} eventId={}", event.sourceSystem(), event.eventId());
             return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         if ((event.eventId() == null || event.eventId().isBlank())
                 && event.payloadHash() != null
-                && webhookEventRepository.existsBySourceAndPayloadHash(event.source(), event.payloadHash())) {
-            log.info("Duplicate webhook ignored by payloadHash source={} payloadHash={}", event.source(), event.payloadHash());
+                && webhookEventRepository.existsBySourceAndPayloadHash(event.sourceSystem(), event.payloadHash())) {
+            log.info("Duplicate webhook ignored by payloadHash source={} payloadHash={}", event.sourceSystem(), event.payloadHash());
             return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         WebhookEventEntity entity = new WebhookEventEntity();
-        entity.setSource(event.source());
+        entity.setSource(event.sourceSystem());
         entity.setEventId(event.eventId());
         entity.setEventType(eventType);
         entity.setStatus(event.status());
@@ -123,26 +123,30 @@ public class WebhookIngressService {
             // TODO: Narrow duplicate handling to unique-key violations only.
             // Other integrity failures (for example, event_type column length mismatch)
             // should not be classified as duplicates because they can hide data loss.
-            log.info("Duplicate webhook ignored during save source={} eventId={}", event.source(), event.eventId());
+            log.info("Duplicate webhook ignored during save source={} eventId={}", event.sourceSystem(), event.eventId());
             return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         publishLiveFeed(savedEntity);
 
-        log.info("Dispatching webhook event asynchronously source={} eventId={}", event.source(), event.eventId());
+        log.info("Dispatching webhook event asynchronously source={} eventId={}", event.sourceSystem(), event.eventId());
         webhookDispatcher.dispatch(event);
         return new WebhookIngressResult(acceptedMessage);
     }
 
     private String extractEventType(NormalizedWebhookEvent event) {
-        if (event == null || event.payload() == null || event.payload().get("eventType") == null) {
+        if (event == null) {
             return EVENT_TYPE_UNKNOWN;
         }
-        String eventType = event.payload().get("eventType").asText("").trim();
-        if (eventType.isBlank()) {
+        String sourceEventType = event.sourceEventType();
+        if (sourceEventType != null && !sourceEventType.isBlank()) {
+            return sourceEventType.trim();
+        }
+        if (event.payload() == null || event.payload().get("eventType") == null) {
             return EVENT_TYPE_UNKNOWN;
         }
-        return eventType;
+        String fallbackPayloadEventType = event.payload().get("eventType").asText("").trim();
+        return fallbackPayloadEventType.isBlank() ? EVENT_TYPE_UNKNOWN : fallbackPayloadEventType;
     }
 
     private void publishLiveFeed(WebhookEventEntity entity) {
