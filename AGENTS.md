@@ -26,6 +26,15 @@ This agent acts as a pair programmer for this repository and supports:
 - Keep each increment coherent: code + config + tests + docs where needed.
 - Prefer vertical slices (small end-to-end behavior) over broad incomplete scaffolding.
 
+## Branch strategy (must follow)
+- Treat `main` as production-only; do not use `main` as the base branch for feature or bug-fix work.
+- Use `dev` as the default base branch for all implementation work.
+- For any new feature/bug-fix/code-change task:
+  - create a new branch from `dev`
+  - implement and validate on that new branch
+  - merge back into `dev` through normal review flow
+- Keep work branches short-lived and purpose-specific.
+
 ## Engineering and architecture standards
 - Follow clean code and SOLID principles.
 - Keep module boundaries clear (controller, service, client, repository, model).
