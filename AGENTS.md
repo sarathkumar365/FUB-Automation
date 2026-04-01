@@ -46,6 +46,9 @@ This agent acts as a pair programmer for this repository and supports:
 - After completing a phase, update:
   - the corresponding `phase-<n>-implementation.md`
   - `phases.md` status
+- After completing any implementation step (not just full phases), update the corresponding feature docs immediately:
+  - mark the step as completed in the relevant doc/checklist
+  - keep status/progress current so the next agent can continue without re-discovery
 - Keep entries concise, chronological, and handoff-friendly so the next agent can continue without rediscovery.
 - Before implementing any feature/code change, read in this order:
   1. `Docs/repo-decisions/README.md`
