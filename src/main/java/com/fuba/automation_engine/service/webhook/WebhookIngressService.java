@@ -8,12 +8,15 @@ import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.service.webhook.dispatch.WebhookDispatcher;
 import com.fuba.automation_engine.service.webhook.live.WebhookLiveFeedPublisher;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookIngressResult;
 import com.fuba.automation_engine.service.webhook.model.WebhookLiveFeedEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import com.fuba.automation_engine.service.webhook.parse.WebhookParser;
 import com.fuba.automation_engine.service.webhook.security.WebhookSignatureVerifier;
+import com.fuba.automation_engine.service.webhook.support.EventSupportResolution;
+import com.fuba.automation_engine.service.webhook.support.WebhookEventSupportResolver;
 import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
@@ -26,12 +29,12 @@ import org.springframework.stereotype.Service;
 public class WebhookIngressService {
 
     private static final Logger log = LoggerFactory.getLogger(WebhookIngressService.class);
-    private static final String EVENT_CALLS_CREATED = "callsCreated";
     private static final String EVENT_TYPE_UNKNOWN = "UNKNOWN";
 
     private final List<WebhookSignatureVerifier> signatureVerifiers;
     private final List<WebhookParser> parsers;
     private final WebhookEventRepository webhookEventRepository;
+    private final WebhookEventSupportResolver webhookEventSupportResolver;
     private final WebhookDispatcher webhookDispatcher;
     private final WebhookLiveFeedPublisher webhookLiveFeedPublisher;
     private final WebhookProperties webhookProperties;
@@ -40,12 +43,14 @@ public class WebhookIngressService {
             List<WebhookSignatureVerifier> signatureVerifiers,
             List<WebhookParser> parsers,
             WebhookEventRepository webhookEventRepository,
+            WebhookEventSupportResolver webhookEventSupportResolver,
             WebhookDispatcher webhookDispatcher,
             WebhookLiveFeedPublisher webhookLiveFeedPublisher,
             WebhookProperties webhookProperties) {
         this.signatureVerifiers = signatureVerifiers;
         this.parsers = parsers;
         this.webhookEventRepository = webhookEventRepository;
+        this.webhookEventSupportResolver = webhookEventSupportResolver;
         this.webhookDispatcher = webhookDispatcher;
         this.webhookLiveFeedPublisher = webhookLiveFeedPublisher;
         this.webhookProperties = webhookProperties;
@@ -82,35 +87,43 @@ public class WebhookIngressService {
                 .filter(it -> it.supports(source))
                 .findFirst()
                 .orElseThrow(() -> new UnsupportedWebhookSourceException("No parser configured for source: " + source));
-
+        // parse -> resolve catalog -> persist -> live feed -> dispatch only if SUPPORTED.
         NormalizedWebhookEvent event = parser.parse(rawBody, headers);
         String eventType = extractEventType(event);
+        EventSupportResolution resolution = webhookEventSupportResolver.resolve(event.sourceSystem(), eventType);
         log.info(
-                "Webhook normalized source={} eventId={} eventType={}",
-                event.source(),
+                "Webhook normalized source={} eventId={} eventType={} supportState={} normalizedDomain={} normalizedAction={}",
+                event.sourceSystem(),
                 event.eventId(),
-                eventType);
-        String acceptedMessage = EVENT_CALLS_CREATED.equals(eventType)
+                eventType,
+                resolution.supportState(),
+                resolution.normalizedDomain(),
+                resolution.normalizedAction());
+        String acceptedMessage = resolution.supportState() == EventSupportState.SUPPORTED
                 ? "Webhook accepted for async processing"
                 : "Event type not supported yet: " + eventType;
 
         if (event.eventId() != null && !event.eventId().isBlank()
-                && webhookEventRepository.existsBySourceAndEventId(event.source(), event.eventId())) {
-            log.info("Duplicate webhook ignored by eventId source={} eventId={}", event.source(), event.eventId());
+                && webhookEventRepository.existsBySourceAndEventId(event.sourceSystem(), event.eventId())) {
+            log.info("Duplicate webhook ignored by eventId source={} eventId={}", event.sourceSystem(), event.eventId());
             return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         if ((event.eventId() == null || event.eventId().isBlank())
                 && event.payloadHash() != null
-                && webhookEventRepository.existsBySourceAndPayloadHash(event.source(), event.payloadHash())) {
-            log.info("Duplicate webhook ignored by payloadHash source={} payloadHash={}", event.source(), event.payloadHash());
+                && webhookEventRepository.existsBySourceAndPayloadHash(event.sourceSystem(), event.payloadHash())) {
+            log.info("Duplicate webhook ignored by payloadHash source={} payloadHash={}", event.sourceSystem(), event.payloadHash());
             return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         WebhookEventEntity entity = new WebhookEventEntity();
-        entity.setSource(event.source());
+        entity.setSource(event.sourceSystem());
         entity.setEventId(event.eventId());
         entity.setEventType(eventType);
+        entity.setCatalogState(resolution.supportState());
+        entity.setNormalizedDomain(resolution.normalizedDomain());
+        entity.setNormalizedAction(resolution.normalizedAction());
+        entity.setSourceLeadId(event.sourceLeadId());
         entity.setStatus(event.status());
         entity.setPayload(event.payload());
         entity.setPayloadHash(event.payloadHash());
@@ -123,26 +136,39 @@ public class WebhookIngressService {
             // TODO: Narrow duplicate handling to unique-key violations only.
             // Other integrity failures (for example, event_type column length mismatch)
             // should not be classified as duplicates because they can hide data loss.
-            log.info("Duplicate webhook ignored during save source={} eventId={}", event.source(), event.eventId());
+            log.info("Duplicate webhook ignored during save source={} eventId={}", event.sourceSystem(), event.eventId());
             return new WebhookIngressResult("Duplicate webhook ignored");
         }
 
         publishLiveFeed(savedEntity);
 
-        log.info("Dispatching webhook event asynchronously source={} eventId={}", event.source(), event.eventId());
-        webhookDispatcher.dispatch(event);
+        if (resolution.supportState() == EventSupportState.SUPPORTED) {
+            log.info("Dispatching webhook event asynchronously source={} eventId={}", event.sourceSystem(), event.eventId());
+            webhookDispatcher.dispatch(event);
+        } else {
+            log.info(
+                    "Skipping dispatch for non-supported event source={} eventId={} eventType={} supportState={}",
+                    event.sourceSystem(),
+                    event.eventId(),
+                    eventType,
+                    resolution.supportState());
+        }
         return new WebhookIngressResult(acceptedMessage);
     }
 
     private String extractEventType(NormalizedWebhookEvent event) {
-        if (event == null || event.payload() == null || event.payload().get("eventType") == null) {
+        if (event == null) {
             return EVENT_TYPE_UNKNOWN;
         }
-        String eventType = event.payload().get("eventType").asText("").trim();
-        if (eventType.isBlank()) {
+        String sourceEventType = event.sourceEventType();
+        if (sourceEventType != null && !sourceEventType.isBlank()) {
+            return sourceEventType.trim();
+        }
+        if (event.payload() == null || event.payload().get("eventType") == null) {
             return EVENT_TYPE_UNKNOWN;
         }
-        return eventType;
+        String fallbackPayloadEventType = event.payload().get("eventType").asText("").trim();
+        return fallbackPayloadEventType.isBlank() ? EVENT_TYPE_UNKNOWN : fallbackPayloadEventType;
     }
 
     private void publishLiveFeed(WebhookEventEntity entity) {

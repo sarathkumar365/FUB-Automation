@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
@@ -43,6 +46,9 @@ class AdminWebhookControllerTest {
         mockMvc.perform(get("/admin/webhooks"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].eventId").value("evt-ctrl-1"))
+                .andExpect(jsonPath("$.items[0].catalogState").value("SUPPORTED"))
+                .andExpect(jsonPath("$.items[0].normalizedDomain").value("CALL"))
+                .andExpect(jsonPath("$.items[0].normalizedAction").value("CREATED"))
                 .andExpect(jsonPath("$.items[0].payload").doesNotExist())
                 .andExpect(jsonPath("$.serverTime").exists());
     }
@@ -102,6 +108,9 @@ class AdminWebhookControllerTest {
         mockMvc.perform(get("/admin/webhooks/" + saved.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.catalogState").value("SUPPORTED"))
+                .andExpect(jsonPath("$.normalizedDomain").value("CALL"))
+                .andExpect(jsonPath("$.normalizedAction").value("CREATED"))
                 .andExpect(jsonPath("$.payloadHash").value(saved.getPayloadHash()))
                 .andExpect(jsonPath("$.payload.nodeType").value("OBJECT"))
                 .andExpect(jsonPath("$.payload.object").value(true));
@@ -127,6 +136,9 @@ class AdminWebhookControllerTest {
         entity.setSource(WebhookSource.FUB);
         entity.setEventId(eventId);
         entity.setEventType(eventType);
+        entity.setCatalogState(EventSupportState.SUPPORTED);
+        entity.setNormalizedDomain(NormalizedDomain.CALL);
+        entity.setNormalizedAction(NormalizedAction.CREATED);
         entity.setStatus(WebhookEventStatus.RECEIVED);
         entity.setPayload(payload);
         entity.setPayloadHash("hash-" + eventId);

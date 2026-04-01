@@ -1,6 +1,9 @@
 package com.fuba.automation_engine.persistence.entity;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import jakarta.persistence.Column;
@@ -47,6 +50,21 @@ public class WebhookEventEntity {
 
     @Column(name = "event_type", nullable = false)
     private String eventType;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "catalog_state", nullable = false)
+    private EventSupportState catalogState = EventSupportState.IGNORED;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "normalized_domain", nullable = false)
+    private NormalizedDomain normalizedDomain = NormalizedDomain.UNKNOWN;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "normalized_action", nullable = false)
+    private NormalizedAction normalizedAction = NormalizedAction.UNKNOWN;
+
+    @Column(name = "source_lead_id")
+    private String sourceLeadId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

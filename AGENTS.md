@@ -46,7 +46,18 @@ This agent acts as a pair programmer for this repository and supports:
 - After completing a phase, update:
   - the corresponding `phase-<n>-implementation.md`
   - `phases.md` status
+- After completing any implementation step (not just full phases), update the corresponding feature docs immediately:
+  - mark the step as completed in the relevant doc/checklist
+  - keep status/progress current so the next agent can continue without re-discovery
 - Keep entries concise, chronological, and handoff-friendly so the next agent can continue without rediscovery.
+- Before implementing any feature/code change, read in this order:
+  1. `Docs/repo-decisions/README.md`
+  2. all `Accepted` repo decisions relevant to touched modules
+  3. feature docs under `Docs/features/<feature-slug>/`
+- If a feature RFC introduces a repo-wide decision, promote it to `Docs/repo-decisions/` in the same phase.
+- If a user request does not mention this documentation workflow, the agent must still follow it and briefly remind the user that the repo uses:
+  - repo-wide decisions in `Docs/repo-decisions/`
+  - feature workflow docs in `Docs/features/<feature-slug>/`
 
 ## Engineering and architecture standards
 - Follow clean code and SOLID principles.
