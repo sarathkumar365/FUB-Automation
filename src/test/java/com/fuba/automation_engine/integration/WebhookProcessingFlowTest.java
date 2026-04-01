@@ -4,7 +4,9 @@ import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
+import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
+import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.rules.CallDecisionEngine;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
@@ -12,6 +14,8 @@ import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
+import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
@@ -51,6 +55,9 @@ class WebhookProcessingFlowTest {
 
     @Autowired
     private ProcessedCallRepository processedCallRepository;
+
+    @Autowired
+    private WebhookEventRepository webhookEventRepository;
 
     @Autowired
     private TestFollowUpBossClient followUpBossClient;
@@ -157,14 +164,17 @@ class WebhookProcessingFlowTest {
     }
 
     @Test
-    void shouldMarkUnsupportedCallsUpdatedAsFailedWithMessage() throws Exception {
+    void shouldPersistUnsupportedCallsUpdatedWithoutDispatch() throws Exception {
         sendWebhook("evt-step4-8", "callsUpdated", "[555]")
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.message").value("Event type not supported yet: callsUpdated"));
 
-        ProcessedCallEntity processedCall = waitForCall(555L);
-        assertEquals(ProcessedCallStatus.FAILED, processedCall.getStatus());
-        assertEquals("EVENT_TYPE_NOT_SUPPORTED_IN_STEP3:callsUpdated", processedCall.getFailureReason());
+        Optional<WebhookEventEntity> persistedEvent = webhookEventRepository.findBySourceAndEventId(
+                WebhookSource.FUB,
+                "evt-step4-8");
+        assertTrue(persistedEvent.isPresent());
+        assertEquals(EventSupportState.IGNORED, persistedEvent.orElseThrow().getCatalogState());
+        assertTrue(processedCallRepository.findByCallId(555L).isEmpty());
         assertTrue(followUpBossClient.calledCallIds().isEmpty());
     }
 

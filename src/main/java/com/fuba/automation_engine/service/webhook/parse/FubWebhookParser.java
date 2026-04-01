@@ -62,9 +62,9 @@ public class FubWebhookParser implements WebhookParser {
 
         String eventId = json.hasNonNull(EVENT_ID) ? json.get(EVENT_ID).asText() : null;
         String payloadHash = calculatePayloadHash(rawBody == null ? "" : rawBody);
-        // TODO(step2-followup): parser semantic mapping is temporary compatibility logic.
-        // Semantic ownership should move to WebhookEventSupportResolver when Step 3 wiring lands.
-        // Track in issue: LMP-STEP3-RESOLVER-SEMANTIC-OWNERSHIP.
+        // Step 3 note: runtime routing/persistence semantic ownership is resolver-driven.
+        // Parser semantic mapping remains as compatibility metadata for downstream consumers.
+        // Track eventual parser semantic deprecation in issue: LMP-STEP3-RESOLVER-SEMANTIC-OWNERSHIP.
         NormalizedDomain normalizedDomain = resolveDomain(sourceEventType);
         NormalizedAction normalizedAction = resolveAction(sourceEventType);
         // TODO(step1-followup): finalize sourceLeadId extraction rule by event semantics.
@@ -124,7 +124,7 @@ public class FubWebhookParser implements WebhookParser {
     }
 
     private NormalizedDomain resolveDomain(String sourceEventType) {
-        // TODO(step2-followup): deprecate parser-owned domain mapping after resolver-driven routing is wired.
+        // TODO(step3-followup): deprecate parser-owned domain compatibility mapping once consumers migrate.
         return switch (sourceEventType) {
             case "callsCreated" -> NormalizedDomain.CALL;
             case "peopleCreated", "peopleUpdated" -> NormalizedDomain.ASSIGNMENT;
@@ -133,7 +133,7 @@ public class FubWebhookParser implements WebhookParser {
     }
 
     private NormalizedAction resolveAction(String sourceEventType) {
-        // TODO(step2-followup): deprecate parser-owned action mapping after resolver-driven routing is wired.
+        // TODO(step3-followup): deprecate parser-owned action compatibility mapping once consumers migrate.
         return switch (sourceEventType) {
             case "callsCreated", "peopleCreated" -> NormalizedAction.CREATED;
             case "peopleUpdated" -> NormalizedAction.UPDATED;

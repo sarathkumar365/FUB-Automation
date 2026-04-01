@@ -15,6 +15,7 @@ import com.fuba.automation_engine.service.webhook.model.WebhookLiveFeedEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import com.fuba.automation_engine.service.webhook.parse.WebhookParser;
 import com.fuba.automation_engine.service.webhook.security.WebhookSignatureVerifier;
+import com.fuba.automation_engine.service.webhook.support.StaticWebhookEventSupportResolver;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.time.OffsetDateTime;
@@ -47,6 +48,7 @@ class WebhookIngressEventTypePrecedenceTest {
                 List.of(new AlwaysValidSignatureVerifier()),
                 List.of(parser),
                 createRepositoryProxy(repositoryState),
+                new StaticWebhookEventSupportResolver(),
                 new NoopDispatcher(),
                 new NoopLiveFeedPublisher(),
                 webhookProperties);

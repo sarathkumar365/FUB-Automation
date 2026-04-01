@@ -10,6 +10,9 @@ import com.fuba.automation_engine.persistence.repository.WebhookFeedReadReposito
 import com.fuba.automation_engine.persistence.repository.WebhookFeedReadRepository.WebhookFeedReadQuery;
 import com.fuba.automation_engine.persistence.repository.WebhookFeedReadRepository.WebhookFeedRow;
 import com.fuba.automation_engine.service.webhook.AdminWebhookService.WebhookFeedQuery;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.Clock;
@@ -104,9 +107,12 @@ class AdminWebhookServiceTest {
     @Test
     void shouldGenerateNextCursorAndContinueWithoutOverlap() {
         OffsetDateTime sameTime = OffsetDateTime.parse("2026-03-17T18:00:00Z");
-        feedReadRepository.rows.add(new WebhookFeedRow(105L, "evt-105", WebhookSource.FUB, "callsCreated", WebhookEventStatus.RECEIVED, sameTime, payload("A")));
-        feedReadRepository.rows.add(new WebhookFeedRow(104L, "evt-104", WebhookSource.FUB, "callsCreated", WebhookEventStatus.RECEIVED, sameTime, payload("B")));
-        feedReadRepository.rows.add(new WebhookFeedRow(103L, "evt-103", WebhookSource.FUB, "callsCreated", WebhookEventStatus.RECEIVED, sameTime.minusMinutes(1), payload("C")));
+        feedReadRepository.rows.add(new WebhookFeedRow(
+                105L, "evt-105", WebhookSource.FUB, "callsCreated", EventSupportState.SUPPORTED, NormalizedDomain.CALL, NormalizedAction.CREATED, WebhookEventStatus.RECEIVED, sameTime, payload("A")));
+        feedReadRepository.rows.add(new WebhookFeedRow(
+                104L, "evt-104", WebhookSource.FUB, "callsCreated", EventSupportState.SUPPORTED, NormalizedDomain.CALL, NormalizedAction.CREATED, WebhookEventStatus.RECEIVED, sameTime, payload("B")));
+        feedReadRepository.rows.add(new WebhookFeedRow(
+                103L, "evt-103", WebhookSource.FUB, "callsCreated", EventSupportState.SUPPORTED, NormalizedDomain.CALL, NormalizedAction.CREATED, WebhookEventStatus.RECEIVED, sameTime.minusMinutes(1), payload("C")));
 
         WebhookFeedPageResponse firstPage = service.list(new WebhookFeedQuery(
                 null, null, null, null, null, 2, null, false));
@@ -127,6 +133,9 @@ class AdminWebhookServiceTest {
                 "evt-90",
                 WebhookSource.FUB,
                 "callsCreated",
+                EventSupportState.SUPPORTED,
+                NormalizedDomain.CALL,
+                NormalizedAction.CREATED,
                 WebhookEventStatus.RECEIVED,
                 OffsetDateTime.parse("2026-03-17T10:00:00Z"),
                 payload("X")));
@@ -146,6 +155,9 @@ class AdminWebhookServiceTest {
         entity.setEventId("evt-42");
         entity.setSource(WebhookSource.FUB);
         entity.setEventType("callsCreated");
+        entity.setCatalogState(EventSupportState.SUPPORTED);
+        entity.setNormalizedDomain(NormalizedDomain.CALL);
+        entity.setNormalizedAction(NormalizedAction.CREATED);
         entity.setStatus(WebhookEventStatus.RECEIVED);
         entity.setPayloadHash("hash-42");
         entity.setPayload(payload("detail"));
@@ -153,6 +165,7 @@ class AdminWebhookServiceTest {
         Mockito.when(webhookEventRepository.findById(42L)).thenReturn(Optional.of(entity));
 
         assertEquals("evt-42", service.findDetail(42L).orElseThrow().eventId());
+        assertEquals(EventSupportState.SUPPORTED, service.findDetail(42L).orElseThrow().catalogState());
     }
 
     private List<WebhookFeedRow> buildRows(int count, OffsetDateTime start, String eventType) {
@@ -164,6 +177,9 @@ class AdminWebhookServiceTest {
                     "evt-" + id,
                     WebhookSource.FUB,
                     eventType,
+                    EventSupportState.SUPPORTED,
+                    NormalizedDomain.CALL,
+                    NormalizedAction.CREATED,
                     WebhookEventStatus.RECEIVED,
                     start.minusSeconds(i),
                     payload("m-" + id)));
@@ -198,6 +214,9 @@ class AdminWebhookServiceTest {
                             row.eventId(),
                             row.source(),
                             row.eventType(),
+                            row.catalogState(),
+                            row.normalizedDomain(),
+                            row.normalizedAction(),
                             row.status(),
                             row.receivedAt(),
                             null))

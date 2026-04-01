@@ -7,6 +7,7 @@ import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.service.webhook.dispatch.WebhookDispatcher;
 import com.fuba.automation_engine.service.webhook.live.WebhookLiveFeedPublisher;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
 import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
@@ -16,6 +17,7 @@ import com.fuba.automation_engine.service.webhook.model.WebhookLiveFeedEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import com.fuba.automation_engine.service.webhook.parse.WebhookParser;
 import com.fuba.automation_engine.service.webhook.security.WebhookSignatureVerifier;
+import com.fuba.automation_engine.service.webhook.support.StaticWebhookEventSupportResolver;
 import java.lang.reflect.InvocationHandler;
 import java.lang.reflect.Proxy;
 import java.time.OffsetDateTime;
@@ -54,6 +56,7 @@ class WebhookIngressServiceTest {
                 List.of(new AlwaysValidSignatureVerifier()),
                 List.of(parser),
                 createRepositoryProxy(repositoryState),
+                new StaticWebhookEventSupportResolver(),
                 dispatcher,
                 liveFeedPublisher,
                 webhookProperties);
@@ -79,7 +82,10 @@ class WebhookIngressServiceTest {
 
         assertEquals("Event type not supported yet: UNKNOWN", result.message());
         assertEquals("UNKNOWN", repositoryState.lastSavedEntity.getEventType());
-        assertEquals(1, dispatcher.dispatchCount);
+        assertEquals(0, dispatcher.dispatchCount);
+        assertEquals(EventSupportState.IGNORED, repositoryState.lastSavedEntity.getCatalogState());
+        assertEquals(NormalizedDomain.UNKNOWN, repositoryState.lastSavedEntity.getNormalizedDomain());
+        assertEquals(NormalizedAction.UNKNOWN, repositoryState.lastSavedEntity.getNormalizedAction());
         assertNotNull(liveFeedPublisher.lastPublishedEvent);
     }
 
@@ -93,6 +99,36 @@ class WebhookIngressServiceTest {
         assertEquals(1, liveFeedPublisher.publishCount);
         assertEquals("callsCreated", liveFeedPublisher.lastPublishedEvent.eventType());
         assertEquals(1, dispatcher.dispatchCount);
+        assertEquals(EventSupportState.SUPPORTED, repositoryState.lastSavedEntity.getCatalogState());
+        assertEquals(NormalizedDomain.CALL, repositoryState.lastSavedEntity.getNormalizedDomain());
+        assertEquals(NormalizedAction.CREATED, repositoryState.lastSavedEntity.getNormalizedAction());
+    }
+
+    @Test
+    void shouldPersistStagedEventsWithoutDispatch() {
+        parser.eventToReturn = new NormalizedWebhookEvent(
+                WebhookSource.FUB,
+                "evt-staged-1",
+                "peopleCreated",
+                null,
+                "lead-123",
+                NormalizedDomain.UNKNOWN,
+                NormalizedAction.UNKNOWN,
+                null,
+                WebhookEventStatus.RECEIVED,
+                OBJECT_MAPPER.createObjectNode(),
+                OffsetDateTime.now(),
+                "payload-hash-staged-1");
+
+        WebhookIngressResult result = webhookIngressService.ingest("fub", "{\"event\":\"peopleCreated\"}", Map.of("FUB-Signature", "sig"));
+
+        assertEquals("Event type not supported yet: peopleCreated", result.message());
+        assertEquals(1, liveFeedPublisher.publishCount);
+        assertEquals(0, dispatcher.dispatchCount);
+        assertEquals(EventSupportState.STAGED, repositoryState.lastSavedEntity.getCatalogState());
+        assertEquals(NormalizedDomain.ASSIGNMENT, repositoryState.lastSavedEntity.getNormalizedDomain());
+        assertEquals(NormalizedAction.CREATED, repositoryState.lastSavedEntity.getNormalizedAction());
+        assertEquals("lead-123", repositoryState.lastSavedEntity.getSourceLeadId());
     }
 
     @Test

@@ -1,6 +1,6 @@
 # Phase 1 Implementation Log
 
-Status: In progress (Step 1 and Step 2 completed)
+Status: In progress (Step 1, Step 2, and Step 3 completed)
 
 ## Preconditions (must be true before code changes)
 - Sprint 0 RFC pack is approved:
@@ -134,6 +134,27 @@ Status: In progress (Step 1 and Step 2 completed)
     - fallback to `IGNORED/UNKNOWN/UNKNOWN`
   - Added parser TODO markers clarifying parser semantic mapping is temporary compatibility and should be deprecated after Step 3 resolver wiring.
   - No ingress/dispatch/persistence/admin contract runtime behavior was changed in this step.
+- Step 3 completed: catalog resolution is now wired into runtime persistence and dispatch gating.
+  - Added Flyway migration:
+    - `V4__add_catalog_resolution_fields_to_webhook_events.sql`
+    - additive columns: `catalog_state`, `normalized_domain`, `normalized_action`, `source_lead_id`
+  - Extended webhook event persistence model:
+    - `WebhookEventEntity` now stores catalog state and normalized domain/action plus optional source lead id
+  - Updated ingress orchestration:
+    - parse normalized event
+    - resolve support with `WebhookEventSupportResolver`
+    - persist resolved values
+    - publish live feed
+    - dispatch only when support state is `SUPPORTED`
+  - Preserved duplicate detection behavior for `eventId` and `payloadHash`.
+  - Extended admin read model and DTO contracts with additive fields:
+    - `catalogState`, `normalizedDomain`, `normalizedAction`
+  - Updated parser semantic ownership notes:
+    - resolver is runtime source of truth
+    - parser semantic mapping remains compatibility metadata
+  - Updated regression/integration expectations for unsupported events:
+    - unsupported events are persisted and non-executing in ingress
+    - no processed-call execution side effects for non-supported event types
 - Added new dedicated Step 2 test suites:
   - `WebhookEventSupportResolverTest`
   - `EventSupportStateContractTest`
@@ -151,9 +172,19 @@ Status: In progress (Step 1 and Step 2 completed)
 - Re-executed full backend suite after Step 2:
   - `./mvnw test`
   - Result: pass (112 tests run, 0 failures, 0 errors, 2 skipped)
+- Executed Step 3 targeted suites:
+  - `./mvnw test -Dtest=WebhookIngressServiceTest,WebhookIngressEventTypePrecedenceTest,AdminWebhookServiceTest,AdminWebhookControllerTest,JdbcWebhookFeedReadRepositoryTest`
+  - Result: pass (31 tests, 0 failures, 0 errors)
+- Executed newly added/updated integration guard for non-supported dispatch behavior:
+  - `./mvnw test -Dtest=WebhookProcessingFlowTest`
+  - Result: pass (13 tests, 0 failures, 0 errors)
+- Re-executed full backend suite after Step 3:
+  - `./mvnw test`
+  - Result: pass (113 tests run, 0 failures, 0 errors, 2 skipped)
 
 ## Notes for Next Agent
 - Before coding, re-read all Sprint 0 RFC files and ensure no drift with `lead-management-platform-plan.md`.
 - Follow layered boundary rule for every slice: `controller -> service -> port -> adapter -> repository/rules`.
 - Keep Phase 1 strictly foundation-level; defer assignment action execution, delayed worker, and policy control-plane persistence to later phases.
 - Step 3 should wire resolver outcomes into ingress/persistence/dispatch gating; Step 2 intentionally did not add runtime routing behavior.
+- Step 4 remains next: split runtime processing by normalized domain with safe assignment placeholder behavior.
