@@ -1,6 +1,6 @@
 # Phase 1 Implementation Log
 
-Status: In progress (Step 1, Step 2, Step 3, and Step 4 completed)
+Status: Completed (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
 
 ## Preconditions (must be true before code changes)
 - Sprint 0 RFC pack is approved:
@@ -172,6 +172,12 @@ Status: In progress (Step 1, Step 2, Step 3, and Step 4 completed)
 - Added new dedicated Step 2 test suites:
   - `WebhookEventSupportResolverTest`
   - `EventSupportStateContractTest`
+- Step 5 completed: Phase 1 observability exposure and closure artifacts validated.
+  - Performed Step 5 gap check across admin read path (`controller -> service -> repository projection`) and confirmed `catalogState`, `normalizedDomain`, and `normalizedAction` are exposed in list/detail contracts.
+  - Confirmed response compatibility posture remains additive (no breaking contract changes required).
+  - Finalized Phase 1 closure artifacts:
+    - updated this file with Step 5 completion + validation results
+    - updated `phases.md` Phase 1 status to `Completed`
 
 ## Validation
 - Executed new dedicated and impacted suites:
@@ -201,10 +207,16 @@ Status: In progress (Step 1, Step 2, Step 3, and Step 4 completed)
 - Re-executed full backend suite after Step 4:
   - `./mvnw test`
   - Result: pass (117 tests run, 0 failures, 0 errors, 2 skipped)
+- Executed Step 5 targeted suites:
+  - `./mvnw test -Dtest=AdminWebhookServiceTest,AdminWebhookControllerTest,JdbcWebhookFeedReadRepositoryTest,AdminWebhooksFlowTest,AdminWebhooksPostgresRegressionTest`
+  - Result: pass (27 tests run, 0 failures, 0 errors, 1 skipped)
+- Re-executed full backend suite for Phase 1 closure:
+  - `./mvnw test`
+  - Result: pass (117 tests run, 0 failures, 0 errors, 2 skipped)
 
 ## Notes for Next Agent
 - Before coding, re-read all Sprint 0 RFC files and ensure no drift with `lead-management-platform-plan.md`.
 - Follow layered boundary rule for every slice: `controller -> service -> port -> adapter -> repository/rules`.
 - Keep Phase 1 strictly foundation-level; defer assignment action execution, delayed worker, and policy control-plane persistence to later phases.
 - Step 3 should wire resolver outcomes into ingress/persistence/dispatch gating; Step 2 intentionally did not add runtime routing behavior.
-- Step 5 remains next: finalize Phase 1 observability artifacts and close phase status.
+- Phase 1 is closed; next execution track starts at Phase 2 (`phase-2-implementation.md`).
