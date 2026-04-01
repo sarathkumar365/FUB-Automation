@@ -1,6 +1,6 @@
 # Phase 1 Implementation Log
 
-Status: In progress (Step 1, Step 2, and Step 3 completed)
+Status: In progress (Step 1, Step 2, Step 3, and Step 4 completed)
 
 ## Preconditions (must be true before code changes)
 - Sprint 0 RFC pack is approved:
@@ -155,6 +155,20 @@ Status: In progress (Step 1, Step 2, and Step 3 completed)
   - Updated regression/integration expectations for unsupported events:
     - unsupported events are persisted and non-executing in ingress
     - no processed-call execution side effects for non-supported event types
+- Step 4 completed: runtime processing is now routed by normalized domain with safe non-call placeholders.
+  - Refactored webhook processor entrypoint to route by `NormalizedDomain`:
+    - `CALL` -> existing call processing flow
+    - `ASSIGNMENT` -> explicit Phase 1 no-op placeholder
+    - `UNKNOWN` -> explicit safe no-op
+  - Extracted existing call execution flow into dedicated call-domain processing path while preserving behavior:
+    - resource id extraction and iteration
+    - processed-call lifecycle transitions
+    - retry/backoff behavior
+    - decision engine + task creation outcomes
+  - Added explicit observability logging for assignment/unknown placeholder routing.
+  - Added staged assignment integration guard:
+    - `peopleCreated` persists as staged and remains non-executing (no processed-call/FUB side effects)
+  - Added dedicated service-level routing tests for call/assignment/unknown domain behavior.
 - Added new dedicated Step 2 test suites:
   - `WebhookEventSupportResolverTest`
   - `EventSupportStateContractTest`
@@ -181,10 +195,16 @@ Status: In progress (Step 1, Step 2, and Step 3 completed)
 - Re-executed full backend suite after Step 3:
   - `./mvnw test`
   - Result: pass (113 tests run, 0 failures, 0 errors, 2 skipped)
+- Executed Step 4 targeted suites:
+  - `./mvnw test -Dtest=WebhookEventProcessorServiceTest,WebhookProcessingFlowTest,WebhookIngressServiceTest`
+  - Result: pass (23 tests, 0 failures, 0 errors)
+- Re-executed full backend suite after Step 4:
+  - `./mvnw test`
+  - Result: pass (117 tests run, 0 failures, 0 errors, 2 skipped)
 
 ## Notes for Next Agent
 - Before coding, re-read all Sprint 0 RFC files and ensure no drift with `lead-management-platform-plan.md`.
 - Follow layered boundary rule for every slice: `controller -> service -> port -> adapter -> repository/rules`.
 - Keep Phase 1 strictly foundation-level; defer assignment action execution, delayed worker, and policy control-plane persistence to later phases.
 - Step 3 should wire resolver outcomes into ingress/persistence/dispatch gating; Step 2 intentionally did not add runtime routing behavior.
-- Step 4 remains next: split runtime processing by normalized domain with safe assignment placeholder behavior.
+- Step 5 remains next: finalize Phase 1 observability artifacts and close phase status.

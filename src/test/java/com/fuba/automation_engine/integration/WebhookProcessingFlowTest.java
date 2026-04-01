@@ -179,6 +179,21 @@ class WebhookProcessingFlowTest {
     }
 
     @Test
+    void shouldPersistStagedPeopleCreatedWithoutProcessingSideEffects() throws Exception {
+        sendWebhook("evt-step4-11", "peopleCreated", "[556]")
+                .andExpect(status().isAccepted())
+                .andExpect(jsonPath("$.message").value("Event type not supported yet: peopleCreated"));
+
+        Optional<WebhookEventEntity> persistedEvent = webhookEventRepository.findBySourceAndEventId(
+                WebhookSource.FUB,
+                "evt-step4-11");
+        assertTrue(persistedEvent.isPresent());
+        assertEquals(EventSupportState.STAGED, persistedEvent.orElseThrow().getCatalogState());
+        assertTrue(processedCallRepository.findByCallId(556L).isEmpty());
+        assertTrue(followUpBossClient.calledCallIds().isEmpty());
+    }
+
+    @Test
     void shouldProcessMultipleResourceIdsIndependently() throws Exception {
         followUpBossClient.setCallDetails(901L, new CallDetails(901L, 10L, 0, 20L, "No Answer"));
         followUpBossClient.setCallDetails(902L, new CallDetails(902L, 10L, 31, 20L, "Connected"));

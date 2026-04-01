@@ -19,6 +19,7 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -77,10 +78,26 @@ public class WebhookEventProcessorService {
     }
 
     public void process(NormalizedWebhookEvent event) {
+        NormalizedDomain domain = event.normalizedDomain() == null ? NormalizedDomain.UNKNOWN : event.normalizedDomain();
+        log.info(
+                "Processing webhook event eventId={} source={} normalizedDomain={} normalizedAction={} sourceEventType={}",
+                event.eventId(),
+                event.sourceSystem(),
+                domain,
+                event.normalizedAction(),
+                event.sourceEventType());
+        switch (domain) {
+            case CALL -> processCallDomainEvent(event);
+            case ASSIGNMENT -> processAssignmentDomainEvent(event);
+            case UNKNOWN -> processUnknownDomainEvent(event);
+        }
+    }
+
+    private void processCallDomainEvent(NormalizedWebhookEvent event) {
         String eventType = extractEventType(event.payload());
         List<Long> callIds = extractResourceIds(event.payload());
         log.info(
-                "Processing webhook event eventId={} source={} eventType={} callIdCount={}",
+                "Processing CALL domain event eventId={} source={} eventType={} callIdCount={}",
                 event.eventId(),
                 event.sourceSystem(),
                 eventType,
@@ -94,6 +111,24 @@ public class WebhookEventProcessorService {
         for (Long callId : callIds) {
             processCall(event, eventType, callId, supportedEventType);
         }
+    }
+
+    private void processAssignmentDomainEvent(NormalizedWebhookEvent event) {
+        log.info(
+                "Assignment domain processing is deferred in Phase 1 eventId={} source={} normalizedAction={} sourceEventType={}",
+                event.eventId(),
+                event.sourceSystem(),
+                event.normalizedAction(),
+                event.sourceEventType());
+    }
+
+    private void processUnknownDomainEvent(NormalizedWebhookEvent event) {
+        log.info(
+                "Skipping UNKNOWN domain event eventId={} source={} normalizedAction={} sourceEventType={}",
+                event.eventId(),
+                event.sourceSystem(),
+                event.normalizedAction(),
+                event.sourceEventType());
     }
 
     private void processCall(NormalizedWebhookEvent event, String eventType, Long callId, boolean supportedEventType) {
