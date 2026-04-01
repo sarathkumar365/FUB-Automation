@@ -8,6 +8,16 @@
 - Delayed execution model: **DB-backed worker**.
 - Policy storage: **DB + Admin API**.
 
+**Prework (must complete before Phase 1 implementation)**
+- Reframe core contracts from FUB-centric terms to lead-domain terms so the platform can support:
+  - internal lead inflow
+  - external lead inflow from FUB and future CRMs.
+- Add/lock source-agnostic normalized fields in event contracts:
+  - `sourceSystem`
+  - `sourceLeadId`
+  - internal lead identity mapping reference.
+- Keep provider-specific details in adapter boundaries only; domain decisions must operate on normalized lead facts.
+
 **Validated Current Platform Areas**
 1. **Webhook ingestion platform (reusable)**
 - Source-based webhook ingress, signature verification, persistence, async dispatch already exist.

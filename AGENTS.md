@@ -35,6 +35,19 @@ This agent acts as a pair programmer for this repository and supports:
   - merge back into `dev` through normal review flow
 - Keep work branches short-lived and purpose-specific.
 
+## Feature documentation workflow (must follow)
+- For every new feature, create a dedicated folder under `Docs/features/<feature-slug>/`.
+- Each feature folder must include:
+  - `research.md` for discovery, analysis, and references
+  - `plan.md` for the approved implementation plan
+  - `phases.md` for phase definitions and status tracking
+  - `phase-<n>-implementation.md` files to document what was implemented in each phase
+- Before implementing any code change, read the feature's `research.md`, `plan.md`, and current phase docs.
+- After completing a phase, update:
+  - the corresponding `phase-<n>-implementation.md`
+  - `phases.md` status
+- Keep entries concise, chronological, and handoff-friendly so the next agent can continue without rediscovery.
+
 ## Engineering and architecture standards
 - Follow clean code and SOLID principles.
 - Keep module boundaries clear (controller, service, client, repository, model).
