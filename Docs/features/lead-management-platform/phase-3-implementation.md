@@ -1,6 +1,6 @@
 # Phase 3 Implementation Plan
 
-Status: Not started
+Status: In progress (Step 1 and Step 2 completed)
 
 ## What This Phase Is
 Phase 3 is the runtime planning and persistence phase for assignment SLA automation.
@@ -81,8 +81,61 @@ Phase split:
    - handoff note for Phase 4 worker contract
 
 ## Validation
-- Run all newly added Phase 3 tests.
-- Run existing backend suite and confirm no regressions in call-domain behavior.
+- Step 1 validation completed:
+  - targeted tests:
+    - `PolicyBlueprintValidatorTest`
+    - `PolicyStepTransitionContractTest`
+    - `AutomationPolicyServiceTest`
+    - `AdminPolicyControllerTest`
+    - `AutomationPolicyMigrationPostgresRegressionTest` (skipped without Docker as expected)
+  - full backend suite:
+    - `./mvnw test`
+    - result: pass
+- Step 2 validation completed:
+  - targeted tests:
+    - `PolicyExecutionRuntimeRepositoryTest`
+    - `AutomationPolicyRuntimeSchemaMigrationTest`
+    - `PolicyExecutionMaterializationContractTest`
+  - full backend suite:
+    - `./mvnw test`
+    - result: pass
+
+## Changes
+- Step 1 completed: policy blueprint contract + bootstrap behavior implemented.
+- `automation_policies` now carries blueprint definition payload (`blueprint` JSON).
+- Added contract artifacts:
+  - `PolicyStepType`
+  - `PolicyStepResultCode`
+  - `PolicyTerminalOutcome`
+  - `PolicyStepTransitionContract`
+  - `PolicyBlueprintValidator`
+- `AutomationPolicyService` now validates blueprint on create/update/activate and reports policy-invalid active lookup deterministically.
+- Admin policy DTO/controller/service responses now carry blueprint payload.
+- Added Flyway migration `V6__add_policy_blueprint_and_remove_seed.sql`:
+  - add `blueprint` column
+  - remove previous default seeded policy row for bootstrap-by-admin flow.
+- Added/updated tests for contract validation, transition mapping, controller behavior, service behavior, and activation concurrency flow with blueprint-aware fixtures.
+- Step 2 completed: runtime persistence substrate + contract cleanup implemented.
+- Added Flyway migration `V7__create_policy_execution_runtime_and_drop_due_after_minutes.sql`:
+  - create `policy_execution_runs`
+  - create `policy_execution_steps`
+  - drop `automation_policies.due_after_minutes`
+- Policy API/model cleanup completed:
+  - removed `dueAfterMinutes` from entity, service commands/views, DTOs, and controller mapping
+  - policy timing is now sourced from blueprint step delays only
+- Added runtime persistence contracts:
+  - entities: `PolicyExecutionRunEntity`, `PolicyExecutionStepEntity`
+  - enums: `PolicyExecutionRunStatus`, `PolicyExecutionStepStatus`
+  - repositories: `PolicyExecutionRunRepository`, `PolicyExecutionStepRepository`
+- Locked initial runtime materialization contract for Phase 4 handoff:
+  - step 1 `WAIT_AND_CHECK_CLAIM` -> `PENDING`
+  - step 2 `WAIT_AND_CHECK_COMMUNICATION` -> `WAITING_DEPENDENCY`
+  - step 3 `ON_FAILURE_EXECUTE_ACTION` -> `WAITING_DEPENDENCY`
+  - contract utility: `PolicyExecutionMaterializationContract`
+- Added Step 2 runtime tests:
+  - migration/schema assertions (`AutomationPolicyRuntimeSchemaMigrationTest`)
+  - repository constraints/queries (`PolicyExecutionRuntimeRepositoryTest`)
+  - initial materialization contract (`PolicyExecutionMaterializationContractTest`)
 
 ## Phase 4 Handoff Contract
 - Worker source of truth: `policy_execution_steps` due pending rows.

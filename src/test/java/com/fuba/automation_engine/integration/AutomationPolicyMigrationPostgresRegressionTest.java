@@ -3,6 +3,7 @@ package com.fuba.automation_engine.integration;
 import com.fuba.automation_engine.persistence.entity.AutomationPolicyEntity;
 import com.fuba.automation_engine.persistence.entity.PolicyStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationPolicyRepository;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -16,6 +17,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @SpringBootTest
 @Testcontainers(disabledWithoutDocker = true)
@@ -40,25 +42,32 @@ class AutomationPolicyMigrationPostgresRegressionTest {
 
     @Autowired
     private AutomationPolicyRepository repository;
+    @Autowired
+    private JdbcTemplate jdbcTemplate;
 
     @Test
-    void shouldSeedDefaultActivePolicy() {
-        AutomationPolicyEntity active = repository
-                .findFirstByDomainAndPolicyKeyAndStatusOrderByIdDesc("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE)
-                .orElseThrow();
+    void shouldNotSeedDefaultActivePolicy() {
+        var active = repository.findFirstByDomainAndPolicyKeyAndStatusOrderByIdDesc(
+                "ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE);
 
-        assertEquals(true, active.isEnabled());
-        assertEquals(15, active.getDueAfterMinutes());
-        assertEquals(PolicyStatus.ACTIVE, active.getStatus());
+        assertTrue(active.isEmpty());
     }
 
     @Test
     void shouldRejectSecondActivePolicyForSameScope() {
+        AutomationPolicyEntity firstActive = new AutomationPolicyEntity();
+        firstActive.setDomain("ASSIGNMENT");
+        firstActive.setPolicyKey("FOLLOW_UP_SLA");
+        firstActive.setEnabled(true);
+        firstActive.setBlueprint(validBlueprint());
+        firstActive.setStatus(PolicyStatus.ACTIVE);
+        repository.saveAndFlush(firstActive);
+
         AutomationPolicyEntity duplicateActive = new AutomationPolicyEntity();
         duplicateActive.setDomain("ASSIGNMENT");
         duplicateActive.setPolicyKey("FOLLOW_UP_SLA");
         duplicateActive.setEnabled(true);
-        duplicateActive.setDueAfterMinutes(20);
+        duplicateActive.setBlueprint(validBlueprint());
         duplicateActive.setStatus(PolicyStatus.ACTIVE);
 
         assertThrows(DataIntegrityViolationException.class, () -> repository.saveAndFlush(duplicateActive));
@@ -70,7 +79,7 @@ class AutomationPolicyMigrationPostgresRegressionTest {
         otherScopeActive.setDomain("CALL");
         otherScopeActive.setPolicyKey("CALLBACK_SLA");
         otherScopeActive.setEnabled(true);
-        otherScopeActive.setDueAfterMinutes(10);
+        otherScopeActive.setBlueprint(validBlueprint());
         otherScopeActive.setStatus(PolicyStatus.ACTIVE);
 
         AutomationPolicyEntity saved = repository.saveAndFlush(otherScopeActive);
@@ -78,14 +87,43 @@ class AutomationPolicyMigrationPostgresRegressionTest {
     }
 
     @Test
-    void shouldRejectInvalidDueAfterMinutes() {
-        AutomationPolicyEntity invalid = new AutomationPolicyEntity();
-        invalid.setDomain("ASSIGNMENT");
-        invalid.setPolicyKey("FOLLOW_UP_SLA");
-        invalid.setEnabled(true);
-        invalid.setDueAfterMinutes(0);
-        invalid.setStatus(PolicyStatus.INACTIVE);
+    void shouldCreateRuntimeTablesAndDropDueAfterMinutesColumn() {
+        Integer dueAfterColumnCount = jdbcTemplate.queryForObject(
+                """
+                select count(*)
+                from information_schema.columns
+                where lower(table_name) = 'automation_policies'
+                  and lower(column_name) = 'due_after_minutes'
+                """,
+                Integer.class);
+        assertEquals(0, dueAfterColumnCount);
 
-        assertThrows(DataIntegrityViolationException.class, () -> repository.saveAndFlush(invalid));
+        Integer runsTableCount = jdbcTemplate.queryForObject(
+                "select count(*) from information_schema.tables where lower(table_name) = 'policy_execution_runs'",
+                Integer.class);
+        Integer stepsTableCount = jdbcTemplate.queryForObject(
+                "select count(*) from information_schema.tables where lower(table_name) = 'policy_execution_steps'",
+                Integer.class);
+        assertEquals(1, runsTableCount);
+        assertEquals(1, stepsTableCount);
+    }
+
+    private java.util.Map<String, Object> validBlueprint() {
+        return java.util.Map.of(
+                "templateKey",
+                "assignment_followup_sla_v1",
+                "steps",
+                java.util.List.of(
+                        java.util.Map.of("type", "WAIT_AND_CHECK_CLAIM", "delayMinutes", 5),
+                        java.util.Map.of(
+                                "type",
+                                "WAIT_AND_CHECK_COMMUNICATION",
+                                "delayMinutes",
+                                10,
+                                "dependsOn",
+                                "WAIT_AND_CHECK_CLAIM"),
+                        java.util.Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
+                "actionConfig",
+                java.util.Map.of("actionType", "REASSIGN"));
     }
 }
