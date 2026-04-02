@@ -28,12 +28,14 @@ This agent acts as a pair programmer for this repository and supports:
 
 ## Branch strategy (must follow)
 - Treat `main` as production-only; do not use `main` as the base branch for feature or bug-fix work.
-- Use `dev` as the default base branch for all implementation work.
-- For any new feature/bug-fix/code-change task:
-  - create a new branch from `dev`
-  - implement and validate on that new branch
-  - merge back into `dev` through normal review flow
-- Keep work branches short-lived and purpose-specific.
+- Use `dev` as the base only for creating a feature parent branch.
+- Required branch hierarchy for all new feature work:
+  - create one feature parent branch from `dev`
+  - create phase planning and phase implementation branches from that feature parent branch
+  - do not create phase branches directly from `dev`
+  - merge phase branches back into the feature parent branch first
+  - merge the completed feature parent branch into `dev` through normal review flow
+- Keep feature and phase branches short-lived and purpose-specific.
 
 ## Feature documentation workflow (must follow)
 - For every new feature, create a dedicated folder under `Docs/features/<feature-slug>/`.
