@@ -20,6 +20,7 @@ Log: `phase-2-implementation.md`
 ## Phase 3
 Status: Completed (Step 1 through Step 12 completed)
 Log: `phase-3-implementation.md`
+Support artifact: `current-state-implementation-deep-dive.md` (branch vs main + code-flow/method deep dive)
 Planned scope alignment (assignment SLA example):
 - Persist pending checks for assignment events with first checkpoint step `WAIT_AND_CHECK_CLAIM` due in 5 minutes (configurable).
 - Persist follow-up checkpoint intent for step `WAIT_AND_CHECK_COMMUNICATION` at +10 minutes after claimed check pass (configurable).
