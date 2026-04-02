@@ -31,6 +31,9 @@ This agent acts as a pair programmer for this repository and supports:
 - Use `dev` as the base only for creating a feature parent branch.
 - Required branch hierarchy for all new feature work:
   - create one feature parent branch from `dev`
+  - feature parent branch names must be feature-only (no phase identifiers), for example:
+    - `feature/lead-management-platform`
+    - not `feature/lead-management-platform-phase-3`
   - create phase planning and phase implementation branches from that feature parent branch
   - do not create phase branches directly from `dev`
   - merge phase branches back into the feature parent branch first
