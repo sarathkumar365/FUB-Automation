@@ -4,6 +4,7 @@ import com.fuba.automation_engine.persistence.entity.AutomationPolicyEntity;
 import com.fuba.automation_engine.persistence.entity.PolicyStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationPolicyRepository;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,9 +35,9 @@ class AdminPolicyActivationConcurrencyFlowTest {
     @Test
     void shouldKeepSingleActivePolicyWhenCompetingActivationsOccur() throws Exception {
         repository.saveAndFlush(
-                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true, 15));
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true));
         AutomationPolicyEntity second = repository.saveAndFlush(
-                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 25));
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true));
 
         // Intentionally sequential: verifies stale expectedVersion conflict mapping (200 then 409)
         // and preserves the single-active invariant for the scope without introducing flaky timing races.
@@ -68,14 +69,28 @@ class AdminPolicyActivationConcurrencyFlowTest {
             String domain,
             String policyKey,
             PolicyStatus status,
-            boolean enabled,
-            int dueAfterMinutes) {
+            boolean enabled) {
         AutomationPolicyEntity policy = new AutomationPolicyEntity();
         policy.setDomain(domain);
         policy.setPolicyKey(policyKey);
         policy.setStatus(status);
         policy.setEnabled(enabled);
-        policy.setDueAfterMinutes(dueAfterMinutes);
+        policy.setBlueprint(Map.of(
+                "templateKey",
+                "assignment_followup_sla_v1",
+                "steps",
+                List.of(
+                        Map.of("type", "WAIT_AND_CHECK_CLAIM", "delayMinutes", 5),
+                        Map.of(
+                                "type",
+                                "WAIT_AND_CHECK_COMMUNICATION",
+                                "delayMinutes",
+                                10,
+                                "dependsOn",
+                                "WAIT_AND_CHECK_CLAIM"),
+                        Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
+                "actionConfig",
+                Map.of("actionType", "REASSIGN")));
         return policy;
     }
 }

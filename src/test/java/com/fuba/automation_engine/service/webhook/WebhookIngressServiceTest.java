@@ -105,7 +105,7 @@ class WebhookIngressServiceTest {
     }
 
     @Test
-    void shouldPersistStagedEventsWithoutDispatch() {
+    void shouldDispatchAssignmentEventsWhenSupported() {
         parser.eventToReturn = new NormalizedWebhookEvent(
                 WebhookSource.FUB,
                 "evt-staged-1",
@@ -122,10 +122,10 @@ class WebhookIngressServiceTest {
 
         WebhookIngressResult result = webhookIngressService.ingest("fub", "{\"event\":\"peopleCreated\"}", Map.of("FUB-Signature", "sig"));
 
-        assertEquals("Event type not supported yet: peopleCreated", result.message());
+        assertEquals("Webhook accepted for async processing", result.message());
         assertEquals(1, liveFeedPublisher.publishCount);
-        assertEquals(0, dispatcher.dispatchCount);
-        assertEquals(EventSupportState.STAGED, repositoryState.lastSavedEntity.getCatalogState());
+        assertEquals(1, dispatcher.dispatchCount);
+        assertEquals(EventSupportState.SUPPORTED, repositoryState.lastSavedEntity.getCatalogState());
         assertEquals(NormalizedDomain.ASSIGNMENT, repositoryState.lastSavedEntity.getNormalizedDomain());
         assertEquals(NormalizedAction.CREATED, repositoryState.lastSavedEntity.getNormalizedAction());
         assertEquals("lead-123", repositoryState.lastSavedEntity.getSourceLeadId());

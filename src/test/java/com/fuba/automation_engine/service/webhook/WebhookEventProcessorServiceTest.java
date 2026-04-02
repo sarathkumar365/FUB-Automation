@@ -13,6 +13,9 @@ import com.fuba.automation_engine.rules.CallbackTaskCommandFactory;
 import com.fuba.automation_engine.rules.PreValidationResult;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.policy.PolicyExecutionManager;
+import com.fuba.automation_engine.service.policy.PolicyExecutionPlanRequest;
+import com.fuba.automation_engine.service.policy.PolicyExecutionPlanningResult;
 import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
@@ -20,6 +23,7 @@ import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
 import java.util.Optional;
+import com.fuba.automation_engine.persistence.entity.PolicyExecutionRunStatus;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.Environment;
@@ -41,6 +45,7 @@ class WebhookEventProcessorServiceTest {
     private CallPreValidationService callPreValidationService;
     private CallDecisionEngine callDecisionEngine;
     private CallbackTaskCommandFactory callbackTaskCommandFactory;
+    private PolicyExecutionManager policyExecutionManager;
     private Environment environment;
     private WebhookEventProcessorService service;
 
@@ -51,6 +56,7 @@ class WebhookEventProcessorServiceTest {
         callPreValidationService = mock(CallPreValidationService.class);
         callDecisionEngine = mock(CallDecisionEngine.class);
         callbackTaskCommandFactory = mock(CallbackTaskCommandFactory.class);
+        policyExecutionManager = mock(PolicyExecutionManager.class);
         environment = mock(Environment.class);
 
         FubRetryProperties retryProperties = new FubRetryProperties();
@@ -60,6 +66,8 @@ class WebhookEventProcessorServiceTest {
 
         CallOutcomeRulesProperties callOutcomeRulesProperties = new CallOutcomeRulesProperties();
         callOutcomeRulesProperties.setDevTestUserId(0L);
+        when(policyExecutionManager.plan(any(PolicyExecutionPlanRequest.class)))
+                .thenReturn(new PolicyExecutionPlanningResult(PolicyExecutionRunStatus.PENDING, 1L, null));
 
         service = new WebhookEventProcessorService(
                 processedCallRepository,
@@ -69,7 +77,8 @@ class WebhookEventProcessorServiceTest {
                 callbackTaskCommandFactory,
                 retryProperties,
                 callOutcomeRulesProperties,
-                environment);
+                environment,
+                policyExecutionManager);
     }
 
     @Test
@@ -94,10 +103,11 @@ class WebhookEventProcessorServiceTest {
         verify(followUpBossClient).getCallById(123L);
         verify(processedCallRepository).findByCallId(123L);
         verify(processedCallRepository, never()).findByCallId(999L);
+        verify(policyExecutionManager, never()).plan(any(PolicyExecutionPlanRequest.class));
     }
 
     @Test
-    void shouldNotExecuteSideEffectsForAssignmentDomain() {
+    void shouldPlanExecutionForAssignmentDomain() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment",
                 NormalizedDomain.ASSIGNMENT,
@@ -110,6 +120,7 @@ class WebhookEventProcessorServiceTest {
         verify(processedCallRepository, never()).save(any());
         verify(followUpBossClient, never()).getCallById(anyLong());
         verify(followUpBossClient, never()).createTask(any());
+        verify(policyExecutionManager).plan(any(PolicyExecutionPlanRequest.class));
     }
 
     @Test
@@ -126,6 +137,7 @@ class WebhookEventProcessorServiceTest {
         verify(processedCallRepository, never()).save(any());
         verify(followUpBossClient, never()).getCallById(anyLong());
         verify(followUpBossClient, never()).createTask(any());
+        verify(policyExecutionManager, never()).plan(any(PolicyExecutionPlanRequest.class));
     }
 
     private NormalizedWebhookEvent eventWithPayload(

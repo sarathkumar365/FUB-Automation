@@ -179,16 +179,16 @@ class WebhookProcessingFlowTest {
     }
 
     @Test
-    void shouldPersistStagedPeopleCreatedWithoutProcessingSideEffects() throws Exception {
+    void shouldPersistSupportedPeopleCreatedWithoutCallProcessingSideEffects() throws Exception {
         sendWebhook("evt-step4-11", "peopleCreated", "[556]")
                 .andExpect(status().isAccepted())
-                .andExpect(jsonPath("$.message").value("Event type not supported yet: peopleCreated"));
+                .andExpect(jsonPath("$.message").value("Webhook accepted for async processing"));
 
         Optional<WebhookEventEntity> persistedEvent = webhookEventRepository.findBySourceAndEventId(
                 WebhookSource.FUB,
                 "evt-step4-11");
         assertTrue(persistedEvent.isPresent());
-        assertEquals(EventSupportState.STAGED, persistedEvent.orElseThrow().getCatalogState());
+        assertEquals(EventSupportState.SUPPORTED, persistedEvent.orElseThrow().getCatalogState());
         assertTrue(processedCallRepository.findByCallId(556L).isEmpty());
         assertTrue(followUpBossClient.calledCallIds().isEmpty());
     }

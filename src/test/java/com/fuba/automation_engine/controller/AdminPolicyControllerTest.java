@@ -9,6 +9,7 @@ import com.fuba.automation_engine.service.policy.AutomationPolicyService.Mutatio
 import com.fuba.automation_engine.service.policy.AutomationPolicyService.PolicyView;
 import com.fuba.automation_engine.service.policy.AutomationPolicyService.ReadStatus;
 import java.util.List;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
@@ -45,7 +46,7 @@ class AdminPolicyControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(10))
                 .andExpect(jsonPath("$.status").value("ACTIVE"))
-                .andExpect(jsonPath("$.dueAfterMinutes").value(15));
+                .andExpect(jsonPath("$.blueprint.templateKey").value("assignment_followup_sla_v1"));
     }
 
     @Test
@@ -64,6 +65,15 @@ class AdminPolicyControllerTest {
 
         mockMvc.perform(get("/admin/policies/ASSIGNMENT/MISSING/active"))
                 .andExpect(status().isNotFound());
+    }
+
+    @Test
+    void shouldReturnUnprocessableEntityForInvalidActivePolicyBlueprint() throws Exception {
+        when(automationPolicyService.getActivePolicy("ASSIGNMENT", "FOLLOW_UP_SLA"))
+                .thenReturn(new LookupResult(ReadStatus.POLICY_INVALID, null));
+
+        mockMvc.perform(get("/admin/policies/ASSIGNMENT/FOLLOW_UP_SLA/active"))
+                .andExpect(status().isUnprocessableEntity());
     }
 
     @Test
@@ -98,7 +108,12 @@ class AdminPolicyControllerTest {
                 .thenReturn(new MutationResult(MutationStatus.SUCCESS, samplePolicy(30L, PolicyStatus.INACTIVE, 0L)));
 
         String requestJson = """
-                {"domain":"assignment","policyKey":"follow_up_sla","enabled":true,"dueAfterMinutes":25}
+                {"domain":"assignment","policyKey":"follow_up_sla","enabled":true,
+                "blueprint":{"templateKey":"assignment_followup_sla_v1","steps":[
+                  {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
+                  {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
+                  {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
+                "actionConfig":{"actionType":"REASSIGN"}}}
                 """;
 
         mockMvc.perform(post("/admin/policies").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -113,7 +128,12 @@ class AdminPolicyControllerTest {
         when(automationPolicyService.createPolicy(any())).thenReturn(new MutationResult(MutationStatus.INVALID_INPUT, null));
 
         String requestJson = """
-                {"domain":" ","policyKey":"follow_up_sla","enabled":true,"dueAfterMinutes":10}
+                {"domain":" ","policyKey":"follow_up_sla","enabled":true,
+                "blueprint":{"templateKey":"assignment_followup_sla_v1","steps":[
+                  {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
+                  {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
+                  {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
+                "actionConfig":{"actionType":"REASSIGN"}}}
                 """;
 
         mockMvc.perform(post("/admin/policies").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -126,7 +146,12 @@ class AdminPolicyControllerTest {
                 .thenReturn(new MutationResult(MutationStatus.SUCCESS, samplePolicy(99L, PolicyStatus.INACTIVE, 3L)));
 
         String requestJson = """
-                {"enabled":false,"dueAfterMinutes":20,"expectedVersion":2}
+                {"enabled":false,"expectedVersion":2,
+                "blueprint":{"templateKey":"assignment_followup_sla_v1","steps":[
+                  {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
+                  {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
+                  {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
+                "actionConfig":{"actionType":"REASSIGN"}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -141,7 +166,12 @@ class AdminPolicyControllerTest {
                 .thenReturn(new MutationResult(MutationStatus.STALE_VERSION, null));
 
         String requestJson = """
-                {"enabled":false,"dueAfterMinutes":20,"expectedVersion":2}
+                {"enabled":false,"expectedVersion":2,
+                "blueprint":{"templateKey":"assignment_followup_sla_v1","steps":[
+                  {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
+                  {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
+                  {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
+                "actionConfig":{"actionType":"REASSIGN"}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -154,7 +184,12 @@ class AdminPolicyControllerTest {
                 .thenReturn(new MutationResult(MutationStatus.NOT_FOUND, null));
 
         String requestJson = """
-                {"enabled":false,"dueAfterMinutes":20,"expectedVersion":2}
+                {"enabled":false,"expectedVersion":2,
+                "blueprint":{"templateKey":"assignment_followup_sla_v1","steps":[
+                  {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
+                  {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
+                  {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
+                "actionConfig":{"actionType":"REASSIGN"}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -167,7 +202,12 @@ class AdminPolicyControllerTest {
                 .thenReturn(new MutationResult(MutationStatus.INVALID_INPUT, null));
 
         String requestJson = """
-                {"enabled":false,"dueAfterMinutes":0,"expectedVersion":2}
+                {"enabled":false,"expectedVersion":2,
+                "blueprint":{"templateKey":"assignment_followup_sla_v1","steps":[
+                  {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
+                  {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
+                  {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
+                "actionConfig":{"actionType":"REASSIGN"}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -255,8 +295,41 @@ class AdminPolicyControllerTest {
                 .andExpect(status().isBadRequest());
     }
 
+    @Test
+    void shouldReturnBadRequestForInvalidPolicyBlueprint() throws Exception {
+        when(automationPolicyService.createPolicy(any()))
+                .thenReturn(new MutationResult(MutationStatus.INVALID_POLICY_BLUEPRINT, null));
+
+        String requestJson = """
+                {"domain":"assignment","policyKey":"follow_up_sla","enabled":true,"blueprint":{}}
+                """;
+
+        mockMvc.perform(post("/admin/policies").contentType(MediaType.APPLICATION_JSON).content(requestJson))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("Invalid policy blueprint"));
+    }
+
     private PolicyView samplePolicy(long id, PolicyStatus status, long version) {
-        return new PolicyView(id, "ASSIGNMENT", "FOLLOW_UP_SLA", true, 15, status, version);
+        return new PolicyView(id, "ASSIGNMENT", "FOLLOW_UP_SLA", true, validBlueprint(), status, version);
+    }
+
+    private Map<String, Object> validBlueprint() {
+        return Map.of(
+                "templateKey",
+                "assignment_followup_sla_v1",
+                "steps",
+                List.of(
+                        Map.of("type", "WAIT_AND_CHECK_CLAIM", "delayMinutes", 5),
+                        Map.of(
+                                "type",
+                                "WAIT_AND_CHECK_COMMUNICATION",
+                                "delayMinutes",
+                                10,
+                                "dependsOn",
+                                "WAIT_AND_CHECK_CLAIM"),
+                        Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
+                "actionConfig",
+                Map.of("actionType", "REASSIGN"));
     }
 
 }

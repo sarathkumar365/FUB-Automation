@@ -15,6 +15,7 @@ APP_LOG_DIR="logs"
 APP_LOG_FILE="${APP_LOG_DIR}/backend.log"
 UI_LOG_FILE="${APP_LOG_DIR}/frontend.log"
 STARTUP_LOG_FILE="${APP_LOG_DIR}/startup.log"
+FUB_WEBHOOK_EVENTS_FILE="${ROOT_DIR}/config/fub-webhook-events.txt"
 COLOR_RESET=""
 COLOR_INFO=""
 COLOR_WARN=""
@@ -155,12 +156,82 @@ build_auth_header() {
   printf 'Authorization: Basic %s' "${encoded}"
 }
 
+load_managed_fub_events() {
+  local events_file="${FUB_WEBHOOK_EVENTS_FILE}"
+  if [[ ! -f "${events_file}" ]]; then
+    return 0
+  fi
+
+  local -a events=()
+  local line trimmed existing already_seen
+  while IFS= read -r line || [[ -n "${line}" ]]; do
+    trimmed="$(echo "${line}" | sed -E 's/^[[:space:]]+//; s/[[:space:]]+$//')"
+    if [[ -z "${trimmed}" || "${trimmed}" == \#* ]]; then
+      continue
+    fi
+
+    already_seen=0
+    for existing in "${events[@]:-}"; do
+      if [[ "${existing}" == "${trimmed}" ]]; then
+        already_seen=1
+        break
+      fi
+    done
+    if [[ "${already_seen}" -eq 1 ]]; then
+      continue
+    fi
+
+    events+=("${trimmed}")
+  done < "${events_file}"
+
+  if [[ "${#events[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  printf '%s\n' "${events[@]}"
+}
+
+create_fub_webhook() {
+  local event_name="$1"
+  local target_url="$2"
+  local auth_header="$3"
+  local response
+
+  if ! response="$(curl -sS --fail -X POST "https://api.followupboss.com/v1/webhooks" \
+    -H "${auth_header}" \
+    -H "X-System: ${FUB_X_SYSTEM}" \
+    -H "X-System-Key: ${FUB_X_SYSTEM_KEY}" \
+    -H "Accept: application/json" \
+    -H "Content-Type: application/json" \
+    --data "{\"event\":\"${event_name}\",\"url\":\"${target_url}\"}")"; then
+    return 1
+  fi
+
+  printf '%s\n' "${response}"
+}
+
 sync_fub_webhook_url() {
   local tunnel_url="$1"
   local target_url="${tunnel_url}/webhooks/fub"
 
+  if [[ ! -f "${FUB_WEBHOOK_EVENTS_FILE}" ]]; then
+    log_warn "Webhook events config missing at ${FUB_WEBHOOK_EVENTS_FILE}; skipping webhook sync."
+    return 0
+  fi
+
+  local -a managed_events=()
+  local loaded_event
+  while IFS= read -r loaded_event; do
+    managed_events+=("${loaded_event}")
+  done < <(load_managed_fub_events)
+
   if [[ -z "${FUB_API_KEY:-}" || -z "${FUB_X_SYSTEM:-}" || -z "${FUB_X_SYSTEM_KEY:-}" ]]; then
     log_warn "FUB credentials not fully set; skipping webhook sync."
+    return 0
+  fi
+
+  if [[ "${#managed_events[@]}" -eq 0 ]]; then
+    log_warn "No valid events found in ${FUB_WEBHOOK_EVENTS_FILE}; skipping webhook sync."
     return 0
   fi
 
@@ -170,49 +241,88 @@ sync_fub_webhook_url() {
   local auth_header
   auth_header="$(build_auth_header)"
   local webhook_list
-  webhook_list="$(curl -sS --fail https://api.followupboss.com/v1/webhooks \
+  if ! webhook_list="$(curl -sS --fail https://api.followupboss.com/v1/webhooks \
     -H "${auth_header}" \
     -H "X-System: ${FUB_X_SYSTEM}" \
-    -H "X-System-Key: ${FUB_X_SYSTEM_KEY}")"
-
-  local webhook_id current_url
-  webhook_id="$(echo "${webhook_list}" | jq -r '
-    if type == "array" then
-      (map(select(.event == "callsCreated")) | first | .id)
-    elif has("webhooks") then
-      (.webhooks | map(select(.event == "callsCreated")) | first | .id)
-    else
-      empty
-    end // empty
-  ')"
-  current_url="$(echo "${webhook_list}" | jq -r '
-    if type == "array" then
-      (map(select(.event == "callsCreated")) | first | .url)
-    elif has("webhooks") then
-      (.webhooks | map(select(.event == "callsCreated")) | first | .url)
-    else
-      empty
-    end // empty
-  ')"
-
-  if [[ -z "${webhook_id}" ]]; then
-    log_warn "No callsCreated webhook found in FUB; skipping update."
+    -H "X-System-Key: ${FUB_X_SYSTEM_KEY}")"; then
+    log_warn "Failed to fetch FUB webhooks; skipping webhook sync."
     return 0
   fi
 
-  if [[ "${current_url}" == "${target_url}" ]]; then
-    log_info "FUB webhook URL already up to date: ${target_url}"
-    return 0
-  fi
+  local event_name webhook_id current_url created_webhook created_id created_event created_url
+  for event_name in "${managed_events[@]}"; do
+    webhook_id="$(echo "${webhook_list}" | jq -r --arg event "${event_name}" '
+      if type == "array" then
+        (map(select(.event == $event)) | first | .id)
+      elif has("webhooks") then
+        (.webhooks | map(select(.event == $event)) | first | .id)
+      else
+        empty
+      end // empty
+    ')"
+    current_url="$(echo "${webhook_list}" | jq -r --arg event "${event_name}" '
+      if type == "array" then
+        (map(select(.event == $event)) | first | .url)
+      elif has("webhooks") then
+        (.webhooks | map(select(.event == $event)) | first | .url)
+      else
+        empty
+      end // empty
+    ')"
 
-  curl -sS --fail -X PUT "https://api.followupboss.com/v1/webhooks/${webhook_id}" \
-    -H "${auth_header}" \
-    -H "X-System: ${FUB_X_SYSTEM}" \
-    -H "X-System-Key: ${FUB_X_SYSTEM_KEY}" \
-    -H "Content-Type: application/json" \
-    --data "{\"url\":\"${target_url}\"}" >/dev/null
+    if [[ -z "${webhook_id}" ]]; then
+      if ! created_webhook="$(create_fub_webhook "${event_name}" "${target_url}" "${auth_header}")"; then
+        log_warn "No ${event_name} webhook found and create failed; continuing."
+        continue
+      fi
+      created_id="$(echo "${created_webhook}" | jq -r '
+        if type == "object" and has("id") then
+          .id
+        elif has("webhook") and (.webhook | type == "object") and (.webhook | has("id")) then
+          .webhook.id
+        else
+          empty
+        end // empty
+      ')"
+      created_event="$(echo "${created_webhook}" | jq -r '
+        if type == "object" and has("event") then
+          .event
+        elif has("webhook") and (.webhook | type == "object") and (.webhook | has("event")) then
+          .webhook.event
+        else
+          empty
+        end // empty
+      ')"
+      created_url="$(echo "${created_webhook}" | jq -r '
+        if type == "object" and has("url") then
+          .url
+        elif has("webhook") and (.webhook | type == "object") and (.webhook | has("url")) then
+          .webhook.url
+        else
+          empty
+        end // empty
+      ')"
+      log_info "Created FUB webhook event=${created_event:-${event_name}} id=${created_id:-unknown} url=${created_url:-${target_url}}"
+      continue
+    fi
 
-  log_info "Updated FUB callsCreated webhook URL -> ${target_url}"
+    if [[ "${current_url}" == "${target_url}" ]]; then
+      log_info "FUB ${event_name} webhook URL already up to date: ${target_url}"
+      continue
+    fi
+
+    if ! curl -sS --fail -X PUT "https://api.followupboss.com/v1/webhooks/${webhook_id}" \
+      -H "${auth_header}" \
+      -H "X-System: ${FUB_X_SYSTEM}" \
+      -H "X-System-Key: ${FUB_X_SYSTEM_KEY}" \
+      -H "Content-Type: application/json" \
+      --data "{\"url\":\"${target_url}\"}" >/dev/null; then
+      log_warn "Failed to update FUB ${event_name} webhook id=${webhook_id}; continuing."
+      continue
+    fi
+
+    log_info "Updated FUB ${event_name} webhook URL -> ${target_url}"
+  done
 }
 
 APP_PID=""
