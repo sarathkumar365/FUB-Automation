@@ -5,6 +5,7 @@ import com.fuba.automation_engine.persistence.entity.PolicyStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationPolicyRepository;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
@@ -17,6 +18,9 @@ public class AutomationPolicyService {
     private static final int DOMAIN_MAX_LENGTH = 64;
     private static final int POLICY_KEY_MAX_LENGTH = 128;
     private static final String ACTIVE_SCOPE_CONSTRAINT = "uk_automation_policies_active_per_scope";
+    // TODO(phase-next): replace direct calls to PolicyBlueprintValidator with a
+    // PolicyBlueprintValidationService that routes by templateKey to per-template
+    // PolicyTemplateValidator implementations.
 
     private final AutomationPolicyRepository repository;
 
@@ -36,6 +40,11 @@ public class AutomationPolicyService {
                 normalizedDomain, normalizedPolicyKey, PolicyStatus.ACTIVE);
         if (found.isEmpty()) {
             return new LookupResult(ReadStatus.NOT_FOUND, null);
+        }
+        PolicyBlueprintValidator.ValidationResult blueprintValidation =
+                PolicyBlueprintValidator.validate(found.get().getBlueprint());
+        if (!blueprintValidation.valid()) {
+            return new LookupResult(ReadStatus.POLICY_INVALID, null);
         }
 
         return new LookupResult(ReadStatus.SUCCESS, toView(found.get()));
@@ -61,14 +70,14 @@ public class AutomationPolicyService {
     public MutationResult createPolicy(CreatePolicyCommand command) {
         ValidationResult validation = validateCreate(command);
         if (!validation.valid()) {
-            return new MutationResult(MutationStatus.INVALID_INPUT, null);
+            return new MutationResult(validation.status(), null);
         }
 
         AutomationPolicyEntity entity = new AutomationPolicyEntity();
         entity.setDomain(validation.domain());
         entity.setPolicyKey(validation.policyKey());
         entity.setEnabled(command.enabled());
-        entity.setDueAfterMinutes(command.dueAfterMinutes());
+        entity.setBlueprint(command.blueprint());
         entity.setStatus(PolicyStatus.INACTIVE);
 
         try {
@@ -81,8 +90,12 @@ public class AutomationPolicyService {
 
     @Transactional
     public MutationResult updatePolicy(long id, UpdatePolicyCommand command) {
-        if (command == null || command.expectedVersion() == null || command.dueAfterMinutes() < 1) {
+        if (command == null || command.expectedVersion() == null) {
             return new MutationResult(MutationStatus.INVALID_INPUT, null);
+        }
+        PolicyBlueprintValidator.ValidationResult blueprintValidation = PolicyBlueprintValidator.validate(command.blueprint());
+        if (!blueprintValidation.valid()) {
+            return new MutationResult(MutationStatus.INVALID_POLICY_BLUEPRINT, null);
         }
 
         Optional<AutomationPolicyEntity> existing = repository.findById(id);
@@ -96,7 +109,7 @@ public class AutomationPolicyService {
         }
 
         entity.setEnabled(command.enabled());
-        entity.setDueAfterMinutes(command.dueAfterMinutes());
+        entity.setBlueprint(command.blueprint());
 
         try {
             AutomationPolicyEntity saved = repository.saveAndFlush(entity);
@@ -123,6 +136,10 @@ public class AutomationPolicyService {
         if (!command.expectedVersion().equals(target.getVersion())) {
             return new MutationResult(MutationStatus.STALE_VERSION, null);
         }
+        PolicyBlueprintValidator.ValidationResult blueprintValidation = PolicyBlueprintValidator.validate(target.getBlueprint());
+        if (!blueprintValidation.valid()) {
+            return new MutationResult(MutationStatus.INVALID_POLICY_BLUEPRINT, null);
+        }
 
         try {
             repository.deactivateActivePoliciesInScopeExcludingId(
@@ -143,17 +160,22 @@ public class AutomationPolicyService {
     }
 
     private ValidationResult validateCreate(CreatePolicyCommand command) {
-        if (command == null || command.dueAfterMinutes() < 1) {
-            return ValidationResult.invalid();
+        if (command == null) {
+            return ValidationResult.invalid(MutationStatus.INVALID_INPUT);
         }
 
         String normalizedDomain = normalizeToken(command.domain(), DOMAIN_MAX_LENGTH);
         String normalizedPolicyKey = normalizeToken(command.policyKey(), POLICY_KEY_MAX_LENGTH);
         if (normalizedDomain == null || normalizedPolicyKey == null) {
-            return ValidationResult.invalid();
+            return ValidationResult.invalid(MutationStatus.INVALID_INPUT);
         }
 
-        return ValidationResult.valid(normalizedDomain, normalizedPolicyKey);
+        PolicyBlueprintValidator.ValidationResult blueprintValidation = PolicyBlueprintValidator.validate(command.blueprint());
+        if (!blueprintValidation.valid()) {
+            return ValidationResult.invalid(MutationStatus.INVALID_POLICY_BLUEPRINT);
+        }
+
+        return ValidationResult.valid(normalizedDomain, normalizedPolicyKey, MutationStatus.SUCCESS);
     }
 
     private String normalizeToken(String input, int maxLength) {
@@ -199,24 +221,25 @@ public class AutomationPolicyService {
                 entity.getDomain(),
                 entity.getPolicyKey(),
                 entity.isEnabled(),
-                entity.getDueAfterMinutes(),
+                entity.getBlueprint(),
                 entity.getStatus(),
                 entity.getVersion());
     }
 
-    private record ValidationResult(boolean valid, String domain, String policyKey) {
-        static ValidationResult invalid() {
-            return new ValidationResult(false, null, null);
+    private record ValidationResult(boolean valid, String domain, String policyKey, MutationStatus status) {
+        static ValidationResult invalid(MutationStatus status) {
+            return new ValidationResult(false, null, null, status);
         }
 
-        static ValidationResult valid(String domain, String policyKey) {
-            return new ValidationResult(true, domain, policyKey);
+        static ValidationResult valid(String domain, String policyKey, MutationStatus status) {
+            return new ValidationResult(true, domain, policyKey, status);
         }
     }
 
     public enum MutationStatus {
         SUCCESS,
         INVALID_INPUT,
+        INVALID_POLICY_BLUEPRINT,
         NOT_FOUND,
         STALE_VERSION,
         ACTIVE_CONFLICT
@@ -225,6 +248,7 @@ public class AutomationPolicyService {
     public enum ReadStatus {
         SUCCESS,
         INVALID_INPUT,
+        POLICY_INVALID,
         NOT_FOUND
     }
 
@@ -233,7 +257,7 @@ public class AutomationPolicyService {
             String domain,
             String policyKey,
             boolean enabled,
-            int dueAfterMinutes,
+            Map<String, Object> blueprint,
             PolicyStatus status,
             Long version) {
     }
@@ -247,10 +271,17 @@ public class AutomationPolicyService {
     public record ListResult(ReadStatus status, List<PolicyView> policies) {
     }
 
-    public record CreatePolicyCommand(String domain, String policyKey, boolean enabled, int dueAfterMinutes) {
+    public record CreatePolicyCommand(
+            String domain,
+            String policyKey,
+            boolean enabled,
+            Map<String, Object> blueprint) {
     }
 
-    public record UpdatePolicyCommand(boolean enabled, int dueAfterMinutes, Long expectedVersion) {
+    public record UpdatePolicyCommand(
+            boolean enabled,
+            Long expectedVersion,
+            Map<String, Object> blueprint) {
     }
 
     public record ActivatePolicyCommand(Long expectedVersion) {

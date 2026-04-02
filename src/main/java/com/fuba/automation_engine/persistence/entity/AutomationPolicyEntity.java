@@ -10,8 +10,11 @@ import jakarta.persistence.Id;
 import jakarta.persistence.Index;
 import jakarta.persistence.Table;
 import jakarta.persistence.Version;
+import java.util.Map;
 import lombok.Getter;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 @Getter
 @Setter
@@ -36,8 +39,9 @@ public class AutomationPolicyEntity {
     @Column(nullable = false)
     private boolean enabled = true;
 
-    @Column(name = "due_after_minutes", nullable = false)
-    private int dueAfterMinutes;
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "blueprint")
+    private Map<String, Object> blueprint;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 16)

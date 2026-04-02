@@ -29,8 +29,8 @@ class AutomationPolicyRepositoryTest {
 
     @Test
     void shouldFindActivePolicyByScope() {
-        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true, 15));
-        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, false, 20));
+        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true));
+        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, false));
 
         AutomationPolicyEntity active = repository
                 .findFirstByDomainAndPolicyKeyAndStatusOrderByIdDesc("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE)
@@ -38,13 +38,12 @@ class AutomationPolicyRepositoryTest {
 
         assertEquals(PolicyStatus.ACTIVE, active.getStatus());
         assertTrue(active.isEnabled());
-        assertEquals(15, active.getDueAfterMinutes());
     }
 
     @Test
     void shouldReturnPoliciesNewestFirstWithinScope() {
-        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 20));
-        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, false, 30));
+        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true));
+        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, false));
 
         List<AutomationPolicyEntity> policies =
                 repository.findByDomainAndPolicyKeyOrderByIdDesc("ASSIGNMENT", "FOLLOW_UP_SLA");
@@ -56,10 +55,10 @@ class AutomationPolicyRepositoryTest {
     @Test
     void shouldIncrementVersionOnSuccessfulUpdate() {
         AutomationPolicyEntity saved = repository.saveAndFlush(
-                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 18));
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true));
         Long before = saved.getVersion();
 
-        saved.setDueAfterMinutes(19);
+        saved.setEnabled(false);
         AutomationPolicyEntity updated = repository.saveAndFlush(saved);
 
         assertEquals(before + 1, updated.getVersion());
@@ -68,31 +67,31 @@ class AutomationPolicyRepositoryTest {
     @Test
     void shouldRejectStaleVersionUpdate() {
         AutomationPolicyEntity created = repository.saveAndFlush(
-                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 22));
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true));
 
         AutomationPolicyEntity stale = new AutomationPolicyEntity();
         stale.setId(created.getId());
         stale.setDomain(created.getDomain());
         stale.setPolicyKey(created.getPolicyKey());
         stale.setEnabled(created.isEnabled());
-        stale.setDueAfterMinutes(created.getDueAfterMinutes());
+        stale.setBlueprint(created.getBlueprint());
         stale.setStatus(created.getStatus());
         stale.setVersion(created.getVersion());
 
-        created.setDueAfterMinutes(23);
+        created.setEnabled(false);
         repository.saveAndFlush(created);
 
-        stale.setDueAfterMinutes(24);
+        stale.setEnabled(true);
         assertThrows(ObjectOptimisticLockingFailureException.class, () -> repository.saveAndFlush(stale));
     }
 
     @Test
     void shouldDeactivateActivePoliciesInScopeExcludingTarget() {
         AutomationPolicyEntity active = repository.saveAndFlush(
-                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true, 15));
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true));
         AutomationPolicyEntity target = repository.saveAndFlush(
-                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 20));
-        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "OTHER_POLICY", PolicyStatus.ACTIVE, true, 10));
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true));
+        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "OTHER_POLICY", PolicyStatus.ACTIVE, true));
 
         int changed = repository.deactivateActivePoliciesInScopeExcludingId(
                 "ASSIGNMENT",
@@ -110,14 +109,28 @@ class AutomationPolicyRepositoryTest {
             String domain,
             String policyKey,
             PolicyStatus status,
-            boolean enabled,
-            int dueAfterMinutes) {
+            boolean enabled) {
         AutomationPolicyEntity policy = new AutomationPolicyEntity();
         policy.setDomain(domain);
         policy.setPolicyKey(policyKey);
         policy.setStatus(status);
         policy.setEnabled(enabled);
-        policy.setDueAfterMinutes(dueAfterMinutes);
+        policy.setBlueprint(java.util.Map.of(
+                "templateKey",
+                "assignment_followup_sla_v1",
+                "steps",
+                java.util.List.of(
+                        java.util.Map.of("type", "WAIT_AND_CHECK_CLAIM", "delayMinutes", 5),
+                        java.util.Map.of(
+                                "type",
+                                "WAIT_AND_CHECK_COMMUNICATION",
+                                "delayMinutes",
+                                10,
+                                "dependsOn",
+                                "WAIT_AND_CHECK_CLAIM"),
+                        java.util.Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
+                "actionConfig",
+                java.util.Map.of("actionType", "REASSIGN")));
         return policy;
     }
 }

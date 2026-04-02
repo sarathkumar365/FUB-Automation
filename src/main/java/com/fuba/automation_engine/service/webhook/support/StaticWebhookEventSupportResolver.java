@@ -25,16 +25,16 @@ public class StaticWebhookEventSupportResolver implements WebhookEventSupportRes
                     "Batch 1 supported call event"),
             new ResolverKey(WebhookSource.FUB, "peopleCreated"),
             new EventSupportResolution(
-                    EventSupportState.STAGED,
+                    EventSupportState.SUPPORTED,
                     NormalizedDomain.ASSIGNMENT,
                     NormalizedAction.CREATED,
-                    "Batch 1 staged assignment create event"),
+                    "Batch 1 supported assignment create event"),
             new ResolverKey(WebhookSource.FUB, "peopleUpdated"),
             new EventSupportResolution(
-                    EventSupportState.STAGED,
+                    EventSupportState.SUPPORTED,
                     NormalizedDomain.ASSIGNMENT,
                     NormalizedAction.UPDATED,
-                    "Batch 1 staged assignment update event"));
+                    "Batch 1 supported assignment update event"));
 
     @Override
     public EventSupportResolution resolve(WebhookSource sourceSystem, String sourceEventType) {

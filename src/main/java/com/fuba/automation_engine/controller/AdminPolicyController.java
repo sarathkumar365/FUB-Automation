@@ -40,6 +40,9 @@ public class AdminPolicyController {
         if (result.status() == ReadStatus.SUCCESS) {
             return ResponseEntity.ok(toResponse(result.policy()));
         }
+        if (result.status() == ReadStatus.POLICY_INVALID) {
+            return ResponseEntity.status(HttpStatus.UNPROCESSABLE_ENTITY).body("Active policy blueprint is invalid");
+        }
         if (result.status() == ReadStatus.NOT_FOUND) {
             return ResponseEntity.status(HttpStatus.NOT_FOUND).body("Active policy not found");
         }
@@ -62,7 +65,11 @@ public class AdminPolicyController {
             return ResponseEntity.badRequest().body("Invalid policy request");
         }
         MutationResult result = automationPolicyService.createPolicy(
-                new CreatePolicyCommand(request.domain(), request.policyKey(), request.enabled(), request.dueAfterMinutes()));
+                new CreatePolicyCommand(
+                        request.domain(),
+                        request.policyKey(),
+                        request.enabled(),
+                        request.blueprint()));
         return toMutationResponse(result, HttpStatus.CREATED);
     }
 
@@ -73,7 +80,10 @@ public class AdminPolicyController {
         }
         MutationResult result = automationPolicyService.updatePolicy(
                 id,
-                new UpdatePolicyCommand(request.enabled(), request.dueAfterMinutes(), request.expectedVersion()));
+                new UpdatePolicyCommand(
+                        request.enabled(),
+                        request.expectedVersion(),
+                        request.blueprint()));
         return toMutationResponse(result, HttpStatus.OK);
     }
 
@@ -99,6 +109,9 @@ public class AdminPolicyController {
         if (result.status() == MutationStatus.ACTIVE_CONFLICT) {
             return ResponseEntity.status(HttpStatus.CONFLICT).body("Policy activation conflict");
         }
+        if (result.status() == MutationStatus.INVALID_POLICY_BLUEPRINT) {
+            return ResponseEntity.badRequest().body("Invalid policy blueprint");
+        }
         return ResponseEntity.badRequest().body("Invalid policy request");
     }
 
@@ -108,7 +121,7 @@ public class AdminPolicyController {
                 view.domain(),
                 view.policyKey(),
                 view.enabled(),
-                view.dueAfterMinutes(),
+                view.blueprint(),
                 view.status(),
                 view.version());
     }
