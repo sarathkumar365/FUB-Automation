@@ -91,6 +91,23 @@ class AutomationPolicyServiceTest {
     }
 
     @Test
+    void shouldMapOptimisticLockConflictOnUpdateToStaleVersion() {
+        AutomationPolicyRepository mocked = Mockito.mock(AutomationPolicyRepository.class);
+        AutomationPolicyService conflictedService = new AutomationPolicyService(mocked);
+
+        AutomationPolicyEntity target = policy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 10);
+        target.setId(110L);
+        target.setVersion(4L);
+        Mockito.when(mocked.findById(110L)).thenReturn(Optional.of(target));
+        Mockito.when(mocked.saveAndFlush(Mockito.any(AutomationPolicyEntity.class)))
+                .thenThrow(new ObjectOptimisticLockingFailureException(AutomationPolicyEntity.class, 110L));
+
+        var result = conflictedService.updatePolicy(110L, new UpdatePolicyCommand(false, 12, 4L));
+
+        assertEquals(MutationStatus.STALE_VERSION, result.status());
+    }
+
+    @Test
     void shouldActivatePolicyAndDeactivatePreviousActiveInScope() {
         AutomationPolicyEntity active = repository.saveAndFlush(policy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true, 15));
         AutomationPolicyEntity target = repository.saveAndFlush(policy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 25));
@@ -188,6 +205,23 @@ class AutomationPolicyServiceTest {
                 .thenThrow(new DataIntegrityViolationException("value too long for type character varying(64)"));
 
         var result = conflictedService.createPolicy(new CreatePolicyCommand("ASSIGNMENT", "FOLLOW_UP_SLA", true, 15));
+
+        assertEquals(MutationStatus.INVALID_INPUT, result.status());
+    }
+
+    @Test
+    void shouldMapNonScopeDataIntegrityViolationOnActivateToInvalidInput() {
+        AutomationPolicyRepository mocked = Mockito.mock(AutomationPolicyRepository.class);
+        AutomationPolicyService conflictedService = new AutomationPolicyService(mocked);
+
+        AutomationPolicyEntity target = policy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 10);
+        target.setId(220L);
+        target.setVersion(1L);
+        Mockito.when(mocked.findById(220L)).thenReturn(Optional.of(target));
+        Mockito.when(mocked.saveAndFlush(Mockito.any(AutomationPolicyEntity.class)))
+                .thenThrow(new DataIntegrityViolationException("check constraint violation"));
+
+        var result = conflictedService.activatePolicy(220L, new ActivatePolicyCommand(1L));
 
         assertEquals(MutationStatus.INVALID_INPUT, result.status());
     }

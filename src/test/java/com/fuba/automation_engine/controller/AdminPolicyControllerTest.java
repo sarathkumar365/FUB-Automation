@@ -24,6 +24,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest(AdminPolicyController.class)
@@ -212,6 +213,20 @@ class AdminPolicyControllerTest {
 
         mockMvc.perform(post("/admin/policies/99/activate").contentType(MediaType.APPLICATION_JSON).content(requestJson))
                 .andExpect(status().isConflict());
+    }
+
+    @Test
+    void shouldReturnConflictMessageForActivationConflict() throws Exception {
+        when(automationPolicyService.activatePolicy(eq(99L), any()))
+                .thenReturn(new MutationResult(MutationStatus.ACTIVE_CONFLICT, null));
+
+        String requestJson = """
+                {"expectedVersion":3}
+                """;
+
+        mockMvc.perform(post("/admin/policies/99/activate").contentType(MediaType.APPLICATION_JSON).content(requestJson))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("Policy activation conflict"));
     }
 
     @Test

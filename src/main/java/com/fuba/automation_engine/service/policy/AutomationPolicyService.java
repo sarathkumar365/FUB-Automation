@@ -125,15 +125,12 @@ public class AutomationPolicyService {
         }
 
         try {
-            Optional<AutomationPolicyEntity> active = repository.findFirstByDomainAndPolicyKeyAndStatusOrderByIdDesc(
+            repository.deactivateActivePoliciesInScopeExcludingId(
                     target.getDomain(),
                     target.getPolicyKey(),
-                    PolicyStatus.ACTIVE);
-            if (active.isPresent() && !active.get().getId().equals(target.getId())) {
-                AutomationPolicyEntity currentActive = active.get();
-                currentActive.setStatus(PolicyStatus.INACTIVE);
-                repository.save(currentActive);
-            }
+                    target.getId(),
+                    PolicyStatus.ACTIVE,
+                    PolicyStatus.INACTIVE);
 
             target.setStatus(PolicyStatus.ACTIVE);
             AutomationPolicyEntity saved = repository.saveAndFlush(target);

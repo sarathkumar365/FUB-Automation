@@ -1,6 +1,6 @@
 # Phase 2 Implementation Log
 
-Status: In progress (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
+Status: Completed (Step 1 through Step 7 completed)
 
 ## Scope
 - Deliver persistent runtime policy control for assignment-SLA behavior (DB + service + admin API).
@@ -174,6 +174,22 @@ Status: In progress (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
     - mutation: `SUCCESS -> 201 (create) / 200 (update, activate)`, `INVALID_INPUT -> 400`, `NOT_FOUND -> 404`, `STALE_VERSION -> 409`, `ACTIVE_CONFLICT -> 409`
   - Added controller test coverage:
     - `AdminPolicyControllerTest`
+- Step 6 completed: reliability and governance guards hardened for policy mutation concurrency.
+  - Added repository scoped mutation helper:
+    - `deactivateActivePoliciesInScopeExcludingId(domain, policyKey, excludedId, activeStatus, inactiveStatus)`
+  - Activation flow hardening in `AutomationPolicyService.activatePolicy`:
+    - scoped deactivation now runs as a single repository update operation
+    - target activation still uses `saveAndFlush` for deterministic in-transaction constraint evaluation
+  - Conflict/status mapping contract preserved:
+    - optimistic lock conflicts -> `STALE_VERSION`
+    - active scope unique conflicts -> `ACTIVE_CONFLICT`
+    - non-scope integrity violations -> `INVALID_INPUT`
+  - Added Step 6 reliability tests:
+    - `AutomationPolicyRepositoryTest`: scoped deactivation helper behavior
+    - `AutomationPolicyServiceTest`: update optimistic-lock conflict mapping; activate non-scope integrity mapping
+    - `AdminPolicyActivationConcurrencyFlowTest`: competing stale activation semantics (`200` then `409`) + single-active invariant assertion
+    - `AdminPolicyControllerTest`: explicit conflict message assertion for activation conflict path
+- Step 7 completed: validation gate and phase artifact updates recorded.
 
 ## Validation
 - Docs consistency check completed:
@@ -204,8 +220,14 @@ Status: In progress (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
 - Re-executed full backend suite after Step 5:
   - `./mvnw test`
   - Result: pass (155 tests run, 0 failures, 0 errors, 6 skipped)
+- Executed Step 6 targeted suite:
+  - `./mvnw test -Dtest=AutomationPolicyServiceTest,AutomationPolicyRepositoryTest,AdminPolicyControllerTest,AdminPolicyActivationConcurrencyFlowTest`
+  - Result: pass (39 tests run, 0 failures, 0 errors, 0 skipped)
+- Re-executed full backend suite after Step 6/7 closure:
+  - `./mvnw test`
+  - Result: pass (160 tests run, 0 failures, 0 errors, 6 skipped)
 
 ## Notes for Next Agent
-- Step 6 is next: add explicit reliability/governance guards and conflict-path hardening coverage.
-- Keep all Phase 2 changes additive and backward-compatible.
-- Defer decision execution and due-worker behavior to Phase 4.
+- Phase 2 is complete; Phase 3 is next.
+- Keep Phase 3 implementation aligned to routed assignment event expansion and pending-check creation only.
+- Defer due-worker execution and adapter mutation actions to Phase 4.

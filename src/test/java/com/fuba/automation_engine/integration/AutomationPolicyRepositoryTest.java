@@ -86,6 +86,26 @@ class AutomationPolicyRepositoryTest {
         assertThrows(ObjectOptimisticLockingFailureException.class, () -> repository.saveAndFlush(stale));
     }
 
+    @Test
+    void shouldDeactivateActivePoliciesInScopeExcludingTarget() {
+        AutomationPolicyEntity active = repository.saveAndFlush(
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true, 15));
+        AutomationPolicyEntity target = repository.saveAndFlush(
+                buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 20));
+        repository.saveAndFlush(buildPolicy("ASSIGNMENT", "OTHER_POLICY", PolicyStatus.ACTIVE, true, 10));
+
+        int changed = repository.deactivateActivePoliciesInScopeExcludingId(
+                "ASSIGNMENT",
+                "FOLLOW_UP_SLA",
+                target.getId(),
+                PolicyStatus.ACTIVE,
+                PolicyStatus.INACTIVE);
+
+        assertEquals(1, changed);
+        AutomationPolicyEntity refreshedActive = repository.findById(active.getId()).orElseThrow();
+        assertEquals(PolicyStatus.INACTIVE, refreshedActive.getStatus());
+    }
+
     private AutomationPolicyEntity buildPolicy(
             String domain,
             String policyKey,
