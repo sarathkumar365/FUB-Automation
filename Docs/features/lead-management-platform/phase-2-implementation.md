@@ -1,6 +1,6 @@
 # Phase 2 Implementation Log
 
-Status: In progress (Step 1 completed)
+Status: In progress (Step 1, Step 2, and Step 3 completed)
 
 ## Scope
 - Deliver persistent runtime policy control for assignment-SLA behavior (DB + service + admin API).
@@ -13,6 +13,8 @@ Status: In progress (Step 1 completed)
 - Finalize v1 policy contract in this document before code changes.
 - Lock policy fields:
   - `id`
+  - `domain`
+  - `policyKey`
   - `enabled`
   - `dueAfterMinutes`
   - `version`
@@ -20,19 +22,20 @@ Status: In progress (Step 1 completed)
 - Lock defaults/validation:
   - default `enabled=true`
   - default `dueAfterMinutes=15`
+  - create default `status=INACTIVE`
   - `dueAfterMinutes >= 1`
-  - exactly one policy may be `ACTIVE` at a time
+  - exactly one policy may be `ACTIVE` per (`domain`, `policyKey`) pair
 - Lock API contract (including creation/activation):
-  - `GET /admin/policies/assignment-sla/active` (get active policy)
-  - `GET /admin/policies/assignment-sla` (list policies, newest first)
-  - `POST /admin/policies/assignment-sla` (create policy, default `INACTIVE`)
-  - `PUT /admin/policies/assignment-sla/{id}` (update with `expectedVersion`)
-  - `POST /admin/policies/assignment-sla/{id}/activate` (activate with `expectedVersion`)
+  - `GET /admin/policies/{domain}/{policyKey}/active` (get active policy)
+  - `GET /admin/policies?domain=&policyKey=` (list policies, newest first)
+  - `POST /admin/policies` (create policy, default `INACTIVE`)
+  - `PUT /admin/policies/{id}` (update with `expectedVersion`)
+  - `POST /admin/policies/{id}/activate` (activate with `expectedVersion`)
 - Lock validation/API semantics:
   - invalid input -> `400`
   - not found -> `404`
   - stale version -> `409`
-  - activation conflict violating single-active invariant -> `409`
+  - activation conflict violating single-active-per-scope invariant -> `409`
 - Lock out-of-scope for Phase 2:
   - due-worker runtime execution
   - assignment decision execution
@@ -40,17 +43,19 @@ Status: In progress (Step 1 completed)
   - policy audit metadata/history beyond row state
 
 ### Step 2: Add Policy Schema, Seed, and Invariants
-- Add Flyway migration: `V5__create_assignment_sla_policy.sql`.
+- Add Flyway migration: `V5__create_automation_policies.sql`.
 - Include DB constraints:
   - positive `dueAfterMinutes`
   - version column for optimistic concurrency
   - enforce allowed `status` values (`ACTIVE`, `INACTIVE`)
-- Enable multi-policy storage with a single-active-policy invariant.
-- Seed one deterministic default policy row.
+- Enable multi-policy storage keyed by (`domain`, `policyKey`).
+- Enforce a single-active-policy invariant per (`domain`, `policyKey`) scope.
+- Seed one deterministic default policy row for assignment SLA:
+  - (`ASSIGNMENT`, `FOLLOW_UP_SLA`) -> `ACTIVE`, `enabled=true`, `dueAfterMinutes=15`.
 
 ### Step 3: Add Persistence Model and Repository
 - Add policy entity and repository behind existing persistence boundaries.
-- Support deterministic read of active policy.
+- Support deterministic read of active policy by (`domain`, `policyKey`).
 - Support version-aware updates for optimistic concurrency.
 - Tests:
   - seeded policy read behavior
@@ -69,12 +74,14 @@ Status: In progress (Step 1 completed)
 
 ### Step 5: Add Admin Policy API
 - Add admin endpoints:
-  - `GET /admin/policies/assignment-sla/active`
-  - `GET /admin/policies/assignment-sla`
-  - `POST /admin/policies/assignment-sla`
-  - `PUT /admin/policies/assignment-sla/{id}` (requires `expectedVersion`)
-  - `POST /admin/policies/assignment-sla/{id}/activate` (requires `expectedVersion`)
+  - `GET /admin/policies/{domain}/{policyKey}/active`
+  - `GET /admin/policies?domain=&policyKey=`
+  - `POST /admin/policies`
+  - `PUT /admin/policies/{id}` (requires `expectedVersion`)
+  - `POST /admin/policies/{id}/activate` (requires `expectedVersion`)
 - Add request/response DTOs exposing:
+  - `domain`
+  - `policyKey`
   - policy fields
   - `version`
   - `status`
@@ -82,7 +89,7 @@ Status: In progress (Step 1 completed)
 
 ### Step 6: Add Reliability and Governance Guards
 - Ensure update path is atomic and cannot overwrite newer concurrent updates silently.
-- Ensure activation path preserves the single-active invariant.
+- Ensure activation path preserves the single-active-per-scope invariant.
 - Tests:
   - concurrent/stale update behavior
   - conflict-path status mapping including activation conflicts
@@ -95,28 +102,79 @@ Status: In progress (Step 1 completed)
 
 ## Changes
 - Step 1 completed as docs-only contract lock.
-- Locked Phase 2 v1 policy contract to minimal multi-policy fields:
-  - `id`, `enabled`, `dueAfterMinutes`, `version`, `status`
+- Locked Phase 2 v1 policy contract to generic multi-policy fields:
+  - `id`, `domain`, `policyKey`, `enabled`, `dueAfterMinutes`, `version`, `status`
 - Locked defaults/validation:
-  - `enabled=true`, `dueAfterMinutes=15`, `dueAfterMinutes >= 1`
-  - single-active-policy invariant
+  - `enabled=true`, `dueAfterMinutes=15`, create default `status=INACTIVE`, `dueAfterMinutes >= 1`
+  - single-active-policy invariant per (`domain`, `policyKey`)
 - Locked API contract:
-  - `GET /admin/policies/assignment-sla/active`
-  - `GET /admin/policies/assignment-sla`
-  - `POST /admin/policies/assignment-sla`
-  - `PUT /admin/policies/assignment-sla/{id}`
-  - `POST /admin/policies/assignment-sla/{id}/activate`
+  - `GET /admin/policies/{domain}/{policyKey}/active`
+  - `GET /admin/policies?domain=&policyKey=`
+  - `POST /admin/policies`
+  - `PUT /admin/policies/{id}`
+  - `POST /admin/policies/{id}/activate`
 - Locked error semantics:
   - `400` invalid input
   - `404` not found
   - `409` stale version / activation conflict
+- Step 2 completed: persistence foundation implemented for generic policy storage.
+  - Added migration `V5__create_automation_policies.sql` with:
+    - `automation_policies` table
+    - scoped active invariant per (`domain`, `policy_key`) using partial unique index
+    - default seed row for (`ASSIGNMENT`, `FOLLOW_UP_SLA`)
+  - Added persistence types:
+    - `AutomationPolicyEntity`
+    - `PolicyStatus`
+    - `AutomationPolicyRepository`
+  - Added repository/invariant test coverage:
+    - `AutomationPolicyRepositoryTest`
+- Step 3 completed: generic policy service boundary implemented.
+  - Added service:
+    - `AutomationPolicyService`
+  - Added service command/result/view models:
+    - `PolicyView`
+    - `CreatePolicyCommand`
+    - `UpdatePolicyCommand`
+    - `ActivatePolicyCommand`
+    - `MutationStatus` / `MutationResult`
+  - Added service behavior:
+    - domain/policyKey normalization (trim + uppercase)
+    - validation for domain/policyKey non-blank and `dueAfterMinutes >= 1`
+    - `expectedVersion` required for update/activate
+    - deterministic mapping for `INVALID_INPUT`, `NOT_FOUND`, `STALE_VERSION`, `ACTIVE_CONFLICT`
+    - transactional activation flow that deactivates prior active policy in-scope and activates target policy
+  - Added service test coverage:
+    - `AutomationPolicyServiceTest`
+  - Service hardening refinement:
+    - read methods now return explicit read statuses (`SUCCESS`, `INVALID_INPUT`, `NOT_FOUND`)
+    - create-path validation now enforces normalized scope length limits before persistence
+    - integrity exceptions are now classified by active-scope constraint name so non-scope violations map to invalid input instead of false `ACTIVE_CONFLICT`
 
 ## Validation
 - Docs consistency check completed:
   - Phase 2 contract in this file now aligns with policy-storage direction in `lead-management-platform-plan.md`.
   - No runtime tests required for Step 1 (docs-only gate).
+- Executed Step 2 targeted suite:
+  - `./mvnw test -Dtest=AutomationPolicyRepositoryTest,AutomationPolicyMigrationPostgresRegressionTest`
+  - Result: pass (8 tests run, 0 failures, 0 errors, 4 skipped)
+  - Note: postgres migration regression test is docker-gated and skipped when Docker is unavailable.
+- Re-executed full backend suite after Step 2:
+  - `./mvnw test`
+  - Result: pass (125 tests run, 0 failures, 0 errors, 6 skipped)
+- Executed Step 3 targeted suite:
+  - `./mvnw test -Dtest=AutomationPolicyServiceTest,AutomationPolicyRepositoryTest,AutomationPolicyMigrationPostgresRegressionTest`
+  - Result: pass (18 tests run, 0 failures, 0 errors, 4 skipped)
+  - Note: postgres migration regression tests remain docker-gated and are skipped when Docker is unavailable.
+- Re-executed full backend suite after Step 3:
+  - `./mvnw test`
+  - Result: pass (135 tests run, 0 failures, 0 errors, 6 skipped)
+- Re-validated Step 3 hardening update:
+  - `./mvnw test -Dtest=AutomationPolicyServiceTest`
+  - Result: pass (14 tests run, 0 failures, 0 errors, 0 skipped)
+  - `./mvnw test`
+  - Result: pass (139 tests run, 0 failures, 0 errors, 6 skipped)
 
 ## Notes for Next Agent
-- Step 2 is next: start DB migration for multi-policy storage and enforce single-active invariant.
+- Step 4 is next: keep policy service generic but align naming and semantics in docs/service for the upcoming admin API slice.
 - Keep all Phase 2 changes additive and backward-compatible.
 - Defer decision execution and due-worker behavior to Phase 4.
