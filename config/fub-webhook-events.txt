@@ -1,0 +1,4 @@
+# Follow Up Boss webhook events managed by startup sync
+callsCreated
+peopleCreated
+peopleUpdated
