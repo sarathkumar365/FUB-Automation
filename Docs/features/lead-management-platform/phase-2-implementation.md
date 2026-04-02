@@ -1,6 +1,6 @@
 # Phase 2 Implementation Log
 
-Status: In progress (Step 1, Step 2, and Step 3 completed)
+Status: In progress (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
 
 ## Scope
 - Deliver persistent runtime policy control for assignment-SLA behavior (DB + service + admin API).
@@ -63,13 +63,15 @@ Status: In progress (Step 1, Step 2, and Step 3 completed)
   - stale update is rejected
 
 ### Step 4: Add Policy Service Boundary
-- Add `AssignmentSlaPolicyService` with:
-  - `getActivePolicy()`
-  - `updatePolicy(command)`
-- Centralize validation and map outcomes to typed service results:
-  - `UPDATED`
-  - `INVALID_INPUT`
-  - `STALE_VERSION`
+- Add generic `AutomationPolicyService` with:
+  - `getActivePolicy(domain, policyKey)`
+  - `listPolicies(domain, policyKey)`
+  - `createPolicy(command)`
+  - `updatePolicy(id, command)`
+  - `activatePolicy(id, command)`
+- Centralize validation and map outcomes to typed read/mutation service results:
+  - read statuses: `SUCCESS`, `INVALID_INPUT`, `NOT_FOUND`
+  - mutation statuses: `SUCCESS`, `INVALID_INPUT`, `NOT_FOUND`, `STALE_VERSION`, `ACTIVE_CONFLICT`
 - Keep service side effects limited to policy persistence.
 
 ### Step 5: Add Admin Policy API
@@ -149,6 +151,29 @@ Status: In progress (Step 1, Step 2, and Step 3 completed)
     - read methods now return explicit read statuses (`SUCCESS`, `INVALID_INPUT`, `NOT_FOUND`)
     - create-path validation now enforces normalized scope length limits before persistence
     - integrity exceptions are now classified by active-scope constraint name so non-scope violations map to invalid input instead of false `ACTIVE_CONFLICT`
+- Step 4 completed: service-boundary semantics and status contracts are now locked to the existing generic `AutomationPolicyService`.
+  - Locked read API semantics:
+    - `getActivePolicy(domain, policyKey)` -> `SUCCESS`/`INVALID_INPUT`/`NOT_FOUND`
+    - `listPolicies(domain, policyKey)` -> `SUCCESS`/`INVALID_INPUT`
+  - Locked mutation API semantics:
+    - `createPolicy`, `updatePolicy`, `activatePolicy` -> `SUCCESS`/`INVALID_INPUT`/`NOT_FOUND`/`STALE_VERSION`/`ACTIVE_CONFLICT`
+- Step 5 completed: admin policy API surface added on top of `AutomationPolicyService`.
+  - Added controller:
+    - `AdminPolicyController` with base route `/admin/policies`
+  - Added endpoints:
+    - `GET /admin/policies/{domain}/{policyKey}/active`
+    - `GET /admin/policies?domain=&policyKey=`
+    - `POST /admin/policies`
+    - `PUT /admin/policies/{id}`
+    - `POST /admin/policies/{id}/activate`
+  - Added DTOs:
+    - requests: `CreatePolicyRequest`, `UpdatePolicyRequest`, `ActivatePolicyRequest`
+    - response: `PolicyResponse`
+  - Added HTTP status mapping:
+    - read: `SUCCESS -> 200`, `INVALID_INPUT -> 400`, `NOT_FOUND -> 404`
+    - mutation: `SUCCESS -> 201 (create) / 200 (update, activate)`, `INVALID_INPUT -> 400`, `NOT_FOUND -> 404`, `STALE_VERSION -> 409`, `ACTIVE_CONFLICT -> 409`
+  - Added controller test coverage:
+    - `AdminPolicyControllerTest`
 
 ## Validation
 - Docs consistency check completed:
@@ -173,8 +198,14 @@ Status: In progress (Step 1, Step 2, and Step 3 completed)
   - Result: pass (14 tests run, 0 failures, 0 errors, 0 skipped)
   - `./mvnw test`
   - Result: pass (139 tests run, 0 failures, 0 errors, 6 skipped)
+- Executed Step 5 targeted suite:
+  - `./mvnw test -Dtest=AdminPolicyControllerTest,AutomationPolicyServiceTest,AutomationPolicyRepositoryTest`
+  - Result: pass (34 tests run, 0 failures, 0 errors, 0 skipped)
+- Re-executed full backend suite after Step 5:
+  - `./mvnw test`
+  - Result: pass (155 tests run, 0 failures, 0 errors, 6 skipped)
 
 ## Notes for Next Agent
-- Step 4 is next: keep policy service generic but align naming and semantics in docs/service for the upcoming admin API slice.
+- Step 6 is next: add explicit reliability/governance guards and conflict-path hardening coverage.
 - Keep all Phase 2 changes additive and backward-compatible.
 - Defer decision execution and due-worker behavior to Phase 4.
