@@ -38,6 +38,8 @@ class AdminPolicyActivationConcurrencyFlowTest {
         AutomationPolicyEntity second = repository.saveAndFlush(
                 buildPolicy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.INACTIVE, true, 25));
 
+        // Intentionally sequential: verifies stale expectedVersion conflict mapping (200 then 409)
+        // and preserves the single-active invariant for the scope without introducing flaky timing races.
         int firstAttemptStatus = activate(second.getId(), second.getVersion());
         int secondAttemptStatus = activate(second.getId(), second.getVersion());
 
