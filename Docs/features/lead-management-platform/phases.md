@@ -18,7 +18,7 @@ Status: Completed (Step 1 through Step 7 completed)
 Log: `phase-2-implementation.md`
 
 ## Phase 3
-Status: In progress (Step 1 and Step 2 completed)
+Status: Completed (Step 1 through Step 12 completed)
 Log: `phase-3-implementation.md`
 Planned scope alignment (assignment SLA example):
 - Persist pending checks for assignment events with first checkpoint step `WAIT_AND_CHECK_CLAIM` due in 5 minutes (configurable).
@@ -29,6 +29,10 @@ Planned scope alignment (assignment SLA example):
   - `policy_execution_runs`
   - `policy_execution_steps`
   - blueprint-only timing contract (`due_after_minutes` removed)
+  - assignment trigger wiring via `WebhookEventProcessorService`
+  - assignment event catalog entries now `SUPPORTED` (`peopleCreated`, `peopleUpdated`)
+  - duplicate semantics finalized with existing-run return (`DUPLICATE_IGNORED` + stable runId)
+  - operator read APIs available under `/admin/policy-executions` (list/detail)
 
 ## Phase 4
 Status: Planned

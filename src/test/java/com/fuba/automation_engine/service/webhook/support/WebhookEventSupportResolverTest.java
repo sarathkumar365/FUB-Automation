@@ -22,11 +22,11 @@ class WebhookEventSupportResolverTest {
         assertEquals(NormalizedDomain.CALL, callsCreated.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, callsCreated.normalizedAction());
 
-        assertEquals(EventSupportState.STAGED, peopleCreated.supportState());
+        assertEquals(EventSupportState.SUPPORTED, peopleCreated.supportState());
         assertEquals(NormalizedDomain.ASSIGNMENT, peopleCreated.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, peopleCreated.normalizedAction());
 
-        assertEquals(EventSupportState.STAGED, peopleUpdated.supportState());
+        assertEquals(EventSupportState.SUPPORTED, peopleUpdated.supportState());
         assertEquals(NormalizedDomain.ASSIGNMENT, peopleUpdated.normalizedDomain());
         assertEquals(NormalizedAction.UPDATED, peopleUpdated.normalizedAction());
     }

@@ -19,11 +19,15 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.policy.PolicyExecutionManager;
+import com.fuba.automation_engine.service.policy.PolicyExecutionPlanRequest;
+import com.fuba.automation_engine.service.policy.PolicyExecutionPlanningResult;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
@@ -48,6 +52,8 @@ public class WebhookEventProcessorService {
     private static final String UNEXPECTED_TASK_CREATE_FAILURE = "UNEXPECTED_TASK_CREATE_FAILURE";
     private static final String DEV_MODE_USER_FILTERED = "DEV_MODE_USER_FILTERED";
     private static final String DEV_MODE_TEST_USER_NOT_CONFIGURED = "DEV_MODE_TEST_USER_NOT_CONFIGURED";
+    private static final String ASSIGNMENT_POLICY_DOMAIN = "ASSIGNMENT";
+    private static final String ASSIGNMENT_POLICY_KEY = "FOLLOW_UP_SLA";
 
     private final ProcessedCallRepository processedCallRepository;
     private final FollowUpBossClient followUpBossClient;
@@ -57,6 +63,7 @@ public class WebhookEventProcessorService {
     private final FubRetryProperties fubRetryProperties;
     private final CallOutcomeRulesProperties callOutcomeRulesProperties;
     private final Environment environment;
+    private final PolicyExecutionManager policyExecutionManager;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
@@ -66,7 +73,8 @@ public class WebhookEventProcessorService {
             CallbackTaskCommandFactory callbackTaskCommandFactory,
             FubRetryProperties fubRetryProperties,
             CallOutcomeRulesProperties callOutcomeRulesProperties,
-            Environment environment) {
+            Environment environment,
+            PolicyExecutionManager policyExecutionManager) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
         this.callPreValidationService = callPreValidationService;
@@ -75,6 +83,7 @@ public class WebhookEventProcessorService {
         this.fubRetryProperties = fubRetryProperties;
         this.callOutcomeRulesProperties = callOutcomeRulesProperties;
         this.environment = environment;
+        this.policyExecutionManager = policyExecutionManager;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -114,12 +123,28 @@ public class WebhookEventProcessorService {
     }
 
     private void processAssignmentDomainEvent(NormalizedWebhookEvent event) {
+        PolicyExecutionPlanRequest request = new PolicyExecutionPlanRequest(
+                event.sourceSystem(),
+                event.eventId(),
+                event.payloadHash(),
+                event.sourceLeadId(),
+                event.normalizedDomain(),
+                event.normalizedAction(),
+                ASSIGNMENT_POLICY_DOMAIN,
+                ASSIGNMENT_POLICY_KEY,
+                null,
+                Map.of("sourceEventType", event.sourceEventType() == null ? "" : event.sourceEventType()));
+
+        PolicyExecutionPlanningResult result = policyExecutionManager.plan(request);
         log.info(
-                "Assignment domain processing is deferred in Phase 1 eventId={} source={} normalizedAction={} sourceEventType={}",
+                "Assignment policy execution planned eventId={} source={} normalizedAction={} sourceEventType={} planningStatus={} runId={} reasonCode={}",
                 event.eventId(),
                 event.sourceSystem(),
                 event.normalizedAction(),
-                event.sourceEventType());
+                event.sourceEventType(),
+                result.status(),
+                result.runId(),
+                result.reasonCode());
     }
 
     private void processUnknownDomainEvent(NormalizedWebhookEvent event) {

@@ -1,6 +1,6 @@
 # Phase 3 Implementation Plan
 
-Status: In progress (Step 1 through Step 6 completed; Step 7 next)
+Status: Completed (Step 1 through Step 12 completed)
 
 ## What This Phase Is
 Phase 3 is the runtime planning and persistence phase for assignment SLA automation.
@@ -87,14 +87,14 @@ Phase split:
 4. Step 4: Completed
 5. Step 5: Completed
 6. Step 6: Completed
-7. Step 7: Not completed
-8. Step 8: Not completed
-9. Step 9: Not completed
-10. Step 10: Not completed
-11. Step 11: Not completed
-12. Step 12: Not completed
+7. Step 7: Completed
+8. Step 8: Completed
+9. Step 9: Completed
+10. Step 10: Completed
+11. Step 11: Completed
+12. Step 12: Completed
 
-Next step to complete: Step 7 (`PolicyExecutionManager` implementation).
+Next phase focus: Phase 4 worker execution flow.
 
 ## Validation
 - Step 1 validation completed:
@@ -112,6 +112,22 @@ Next step to complete: Step 7 (`PolicyExecutionManager` implementation).
     - `PolicyExecutionRuntimeRepositoryTest`
     - `AutomationPolicyRuntimeSchemaMigrationTest`
     - `PolicyExecutionMaterializationContractTest`
+  - full backend suite:
+    - `./mvnw test`
+    - result: pass
+- Step 7/8/11 validation completed:
+  - targeted tests:
+    - `PolicyExecutionManagerIntegrationTest`
+    - `WebhookIngressServiceTest`
+    - `WebhookEventSupportResolverTest`
+  - backend suite:
+    - `./mvnw test`
+    - result: pass
+- Step 9/10/12 validation completed:
+  - targeted tests:
+    - `PolicyExecutionManagerIntegrationTest`
+    - `AdminPolicyExecutionServiceTest`
+    - `AdminPolicyExecutionControllerTest`
   - full backend suite:
     - `./mvnw test`
     - result: pass
@@ -152,6 +168,37 @@ Next step to complete: Step 7 (`PolicyExecutionManager` implementation).
   - migration/schema assertions (`AutomationPolicyRuntimeSchemaMigrationTest`)
   - repository constraints/queries (`PolicyExecutionRuntimeRepositoryTest`)
   - initial materialization contract (`PolicyExecutionMaterializationContractTest`)
+- Step 7 completed: generic runtime planning orchestration implemented via `PolicyExecutionManager`.
+  - new generic request contract: `PolicyExecutionPlanRequest`
+  - new planning result contract: `PolicyExecutionPlanningResult`
+  - new identity boundary port: `LeadIdentityResolver` (with default unresolved adapter)
+  - run planning behavior now persists:
+    - `PENDING` runs + initial runtime steps
+    - `BLOCKED_POLICY` for missing/invalid policy
+    - `BLOCKED_IDENTITY` for unresolved identity
+    - duplicate conflict returns `DUPLICATE_IGNORED`
+- Step 8 completed: assignment trigger ownership wired in `WebhookEventProcessorService`.
+  - processor now builds planning request and invokes `PolicyExecutionManager` for assignment domain events.
+  - call and unknown domain paths remain unchanged.
+- Event catalog progression completed for assignment onboarding:
+  - `peopleCreated` and `peopleUpdated` moved from `STAGED` to `SUPPORTED` in resolver mapping to enable dispatch to planning flow.
+- Step 11 completed: planning runtime tests added for:
+  - happy path run + step materialization
+  - blocked policy
+  - blocked identity
+  - duplicate suppression
+  - snapshot immutability
+- Step 9 completed: duplicate/idempotency semantics finalized.
+  - duplicate detection now returns `DUPLICATE_IGNORED` with the existing persisted `runId`.
+  - no extra run/step rows are created for duplicates.
+  - race-safe behavior implemented: unique-key conflict fallback re-reads existing run deterministically.
+- Step 10 completed: runtime execution ops read surface added with a dedicated application boundary.
+  - added `AdminPolicyExecutionService` for list/detail orchestration.
+  - added `AdminPolicyExecutionController` endpoints:
+    - `GET /admin/policy-executions`
+    - `GET /admin/policy-executions/{id}`
+  - added cursor pagination + filters (`status`, `policyKey`, `from`, `to`) and ordered step detail projection.
+- Step 12 completed: phase artifacts and status updated for handoff readiness.
 
 ## Phase 4 Handoff Contract
 - Worker source of truth: `policy_execution_steps` due pending rows.
