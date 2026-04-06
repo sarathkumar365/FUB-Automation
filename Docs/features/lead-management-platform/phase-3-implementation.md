@@ -131,6 +131,13 @@ Next phase focus: Phase 4 worker execution flow.
   - full backend suite:
     - `./mvnw test`
     - result: pass
+- Post-completion maintenance validation (2026-04-06):
+  - targeted suites:
+    - `./mvnw test -Dtest=AdminPolicyExecutionServiceTest,AdminPolicyExecutionControllerTest`
+    - result: pass (8 tests run, 0 failures, 0 errors)
+  - full backend suite:
+    - `./mvnw test`
+    - result: pass (194 tests run, 0 failures, 0 errors, 6 skipped)
 
 ## Changes
 - Step 1 completed: policy blueprint contract + bootstrap behavior implemented.
@@ -199,6 +206,11 @@ Next phase focus: Phase 4 worker execution flow.
     - `GET /admin/policy-executions/{id}`
   - added cursor pagination + filters (`status`, `policyKey`, `from`, `to`) and ordered step detail projection.
 - Step 12 completed: phase artifacts and status updated for handoff readiness.
+- Post-completion maintenance update (2026-04-06):
+  - fixed `GET /admin/policy-executions` null-filter query failure on PostgreSQL (`could not determine data type of parameter`).
+  - replaced static nullable JPQL query path with dynamic Specification-based filtering in `AdminPolicyExecutionService`.
+  - `PolicyExecutionRunRepository` now uses `JpaSpecificationExecutor` for null-safe predicate composition.
+  - added regression test `AdminPolicyExecutionServiceTest.shouldListWithoutOptionalFilters`.
 
 ## Phase 4 Handoff Contract
 - Worker source of truth: `policy_execution_steps` due pending rows.

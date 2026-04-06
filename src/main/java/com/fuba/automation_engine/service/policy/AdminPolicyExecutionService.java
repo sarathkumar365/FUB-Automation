@@ -12,10 +12,14 @@ import com.fuba.automation_engine.persistence.repository.PolicyExecutionRunRepos
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepRepository;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Locale;
 import java.util.Optional;
+import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -46,14 +50,17 @@ public class AdminPolicyExecutionService {
         String normalizedPolicyKey = normalizePolicyKey(query.policyKey());
         PolicyExecutionCursorCodec.Cursor cursor = cursorCodec.decode(query.cursor());
 
-        List<PolicyExecutionRunEntity> rows = runRepository.findForAdminFeed(
+        Specification<PolicyExecutionRunEntity> spec = buildFeedSpecification(
                 query.status(),
                 normalizedPolicyKey,
                 query.from(),
                 query.to(),
                 cursor.createdAt(),
-                cursor.id(),
-                PageRequest.of(0, limit + 1));
+                cursor.id());
+        Page<PolicyExecutionRunEntity> page = runRepository.findAll(
+                spec,
+                PageRequest.of(0, limit + 1, Sort.by(Sort.Order.desc("createdAt"), Sort.Order.desc("id"))));
+        List<PolicyExecutionRunEntity> rows = page.getContent();
 
         boolean hasNext = rows.size() > limit;
         List<PolicyExecutionRunEntity> pageRows = hasNext ? rows.subList(0, limit) : rows;
@@ -148,6 +155,41 @@ public class AdminPolicyExecutionService {
         if (from != null && to != null && from.isAfter(to)) {
             throw new InvalidPolicyExecutionQueryException("'from' must be before or equal to 'to'");
         }
+    }
+
+    private Specification<PolicyExecutionRunEntity> buildFeedSpecification(
+            PolicyExecutionRunStatus status,
+            String policyKey,
+            OffsetDateTime from,
+            OffsetDateTime to,
+            OffsetDateTime cursorCreatedAt,
+            Long cursorId) {
+        return (root, query, criteriaBuilder) -> {
+            List<jakarta.persistence.criteria.Predicate> predicates = new ArrayList<>();
+
+            if (status != null) {
+                predicates.add(criteriaBuilder.equal(root.get("status"), status));
+            }
+            if (policyKey != null) {
+                predicates.add(criteriaBuilder.equal(root.get("policyKey"), policyKey));
+            }
+            if (from != null) {
+                predicates.add(criteriaBuilder.greaterThanOrEqualTo(root.get("createdAt"), from));
+            }
+            if (to != null) {
+                predicates.add(criteriaBuilder.lessThanOrEqualTo(root.get("createdAt"), to));
+            }
+            if (cursorCreatedAt != null && cursorId != null) {
+                jakarta.persistence.criteria.Predicate olderCreatedAt =
+                        criteriaBuilder.lessThan(root.get("createdAt"), cursorCreatedAt);
+                jakarta.persistence.criteria.Predicate sameCreatedAtOlderId = criteriaBuilder.and(
+                        criteriaBuilder.equal(root.get("createdAt"), cursorCreatedAt),
+                        criteriaBuilder.lessThan(root.get("id"), cursorId));
+                predicates.add(criteriaBuilder.or(olderCreatedAt, sameCreatedAtOlderId));
+            }
+
+            return criteriaBuilder.and(predicates.toArray(jakarta.persistence.criteria.Predicate[]::new));
+        };
     }
 
     public record PolicyExecutionFeedQuery(

@@ -76,9 +76,9 @@ public class PolicyExecutionManager {
 
         PolicyView policy = policyLookup.policy();
         Optional<String> internalLeadRef = leadIdentityResolver.resolveInternalLeadRef(request.sourceSystem(), request.sourceLeadId());
-        if (internalLeadRef.isEmpty()) {
-            return persistBlockedIdentityRun(request, policy, idempotencyKey);
-        }
+        // if (internalLeadRef.isEmpty()) {
+        //     return persistBlockedIdentityRun(request, policy, idempotencyKey);
+        // }
 
         OffsetDateTime now = OffsetDateTime.now();
         PolicyExecutionRunEntity run = new PolicyExecutionRunEntity();

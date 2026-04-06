@@ -76,6 +76,25 @@ class AdminPolicyExecutionServiceTest {
     }
 
     @Test
+    void shouldListWithoutOptionalFilters() {
+        runRepository.saveAndFlush(run(301L, "FOLLOW_UP_SLA", OffsetDateTime.parse("2026-04-02T12:01:00Z")));
+        runRepository.saveAndFlush(run(300L, "FOLLOW_UP_SLA", OffsetDateTime.parse("2026-04-02T12:00:00Z")));
+
+        PolicyExecutionRunPageResponse page = service.list(new PolicyExecutionFeedQuery(
+                null,
+                null,
+                null,
+                null,
+                10,
+                null));
+
+        assertEquals(2, page.items().size());
+        assertEquals("evt-301", page.items().get(0).eventId());
+        assertEquals("evt-300", page.items().get(1).eventId());
+        assertEquals(OffsetDateTime.parse("2026-04-02T20:00:00Z"), page.serverTime());
+    }
+
+    @Test
     void shouldRejectInvalidRange() {
         assertThrows(
                 InvalidPolicyExecutionQueryException.class,
