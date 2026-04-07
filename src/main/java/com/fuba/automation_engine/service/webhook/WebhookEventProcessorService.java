@@ -123,28 +123,74 @@ public class WebhookEventProcessorService {
     }
 
     private void processAssignmentDomainEvent(NormalizedWebhookEvent event) {
-        PolicyExecutionPlanRequest request = new PolicyExecutionPlanRequest(
-                event.sourceSystem(),
-                event.eventId(),
-                event.payloadHash(),
-                event.sourceLeadId(),
-                event.normalizedDomain(),
-                event.normalizedAction(),
-                ASSIGNMENT_POLICY_DOMAIN,
-                ASSIGNMENT_POLICY_KEY,
-                null,
-                Map.of("sourceEventType", event.sourceEventType() == null ? "" : event.sourceEventType()));
-
-        PolicyExecutionPlanningResult result = policyExecutionManager.plan(request);
+        String eventType = extractEventType(event.payload());
+        String sourceEventType = event.sourceEventType() == null || event.sourceEventType().isBlank()
+                ? eventType
+                : event.sourceEventType();
+        List<Long> leadIds = extractResourceIds(event.payload());
         log.info(
-                "Assignment policy execution planned eventId={} source={} normalizedAction={} sourceEventType={} planningStatus={} runId={} reasonCode={}",
+                "Processing ASSIGNMENT domain event eventId={} source={} sourceEventType={} leadIdCount={}",
                 event.eventId(),
                 event.sourceSystem(),
-                event.normalizedAction(),
-                event.sourceEventType(),
-                result.status(),
-                result.runId(),
-                result.reasonCode());
+                sourceEventType,
+                leadIds.size());
+        if (leadIds.isEmpty()) {
+            log.warn(
+                    "No assignment resourceIds present; skipping policy planning eventId={} source={} sourceEventType={}",
+                    event.eventId(),
+                    event.sourceSystem(),
+                    sourceEventType);
+            return;
+        }
+
+        int plannedCount = 0;
+        int failedCount = 0;
+        for (Long leadId : leadIds) {
+            PolicyExecutionPlanRequest request = new PolicyExecutionPlanRequest(
+                    event.sourceSystem(),
+                    event.eventId(),
+                    event.payloadHash(),
+                    String.valueOf(leadId),
+                    event.normalizedDomain(),
+                    event.normalizedAction(),
+                    ASSIGNMENT_POLICY_DOMAIN,
+                    ASSIGNMENT_POLICY_KEY,
+                    null,
+                    Map.of("sourceEventType", sourceEventType == null ? "" : sourceEventType));
+
+            try {
+                PolicyExecutionPlanningResult result = policyExecutionManager.plan(request);
+                plannedCount++;
+                log.info(
+                        "Assignment policy execution planned eventId={} source={} leadId={} normalizedAction={} sourceEventType={} planningStatus={} runId={} reasonCode={}",
+                        event.eventId(),
+                        event.sourceSystem(),
+                        leadId,
+                        event.normalizedAction(),
+                        sourceEventType,
+                        result.status(),
+                        result.runId(),
+                        result.reasonCode());
+            } catch (RuntimeException ex) {
+                failedCount++;
+                log.error(
+                        "Assignment policy planning failed for lead; continuing with remaining leads eventId={} source={} leadId={} normalizedAction={} sourceEventType={}",
+                        event.eventId(),
+                        event.sourceSystem(),
+                        leadId,
+                        event.normalizedAction(),
+                        sourceEventType,
+                        ex);
+            }
+        }
+        log.info(
+                "Assignment policy planning fan-out completed eventId={} source={} sourceEventType={} leadIdCount={} plannedCount={} failedCount={}",
+                event.eventId(),
+                event.sourceSystem(),
+                sourceEventType,
+                leadIds.size(),
+                plannedCount,
+                failedCount);
     }
 
     private void processUnknownDomainEvent(NormalizedWebhookEvent event) {

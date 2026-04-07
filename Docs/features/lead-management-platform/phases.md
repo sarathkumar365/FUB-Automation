@@ -35,7 +35,7 @@ Planned scope alignment (assignment SLA example):
   - operator read APIs available under `/admin/policy-executions` (list/detail)
 
 ## Phase 4
-Status: Planned
+Status: In progress (Step 1 through Step 3 completed; Step 4 and Step 5 planned)
 Log: `phase-4-implementation.md`
 Planned scope alignment (assignment SLA example):
 - Execute `WAIT_AND_CHECK_CLAIM` via due worker.
