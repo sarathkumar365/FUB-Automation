@@ -13,6 +13,25 @@ When `WebhookEventProcessorService.process()` receives an event with `normalized
    - `domain = "ASSIGNMENT"`, `policyKey = "FOLLOW_UP_SLA"`
 4. Calls `PolicyExecutionManager.plan(request)` for each lead (fan-out). Each planning call is wrapped in try/catch — if one lead fails, the remaining leads still proceed. Planned/failed counts are logged at the end.
 
+### sourceLeadId lifecycle — important nuance
+
+`sourceLeadId` goes through two distinct stages:
+
+- **Parser stage** (`FubWebhookParser`): always sets `sourceLeadId = null` for `peopleCreated`/`peopleUpdated`. This is a known deferred TODO (`LMP-STEP1-SOURCE-LEADID-RULE`) — the parser does not derive it from the payload.
+- **Processor stage** (`processAssignmentDomainEvent`): derives `sourceLeadId = String.valueOf(leadId)` from each entry in `resourceIds`. This is where the value first becomes non-null.
+
+Consequence: `webhook_events.source_lead_id` is always `null` for ASSIGNMENT events. But `policy_execution_runs.source_lead_id` has the correct value because it comes from the processor fan-out, not from the parsed webhook entity.
+
+### Retry behaviour — ASSIGNMENT vs CALL domain
+
+| Aspect | CALL domain | ASSIGNMENT domain |
+|--------|-------------|-------------------|
+| Retry mechanism | `executeWithRetry` — exponential backoff with jitter, max 3 attempts | No retry in processor — single attempt per lead |
+| On transient failure | Sleeps and retries up to `fub.retry.max-attempts` | Catches exception, logs, increments `failedCount`, continues fan-out |
+| On permanent failure | Fails immediately, marks entity FAILED | Same — caught and logged |
+| Retry count persisted | Yes (`retryCount` column on `processed_calls`) | No — failure is logged only |
+| Why the difference | Calls are user-visible real-time events — exhausting retries matters | Policy planning is idempotent — a failed plan can safely be triggered again on the next webhook delivery; the idempotency key prevents double-execution |
+
 ## Policy blueprint structure
 
 The policy blueprint defines the step pipeline. Currently the only supported template is `ASSIGNMENT_FOLLOWUP_SLA_V1`:

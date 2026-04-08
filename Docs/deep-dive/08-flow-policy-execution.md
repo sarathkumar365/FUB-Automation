@@ -172,6 +172,13 @@ flowchart TB
 
 **Why it fails deliberately:** Target semantics (which user to reassign to, which pond to move to) are not yet finalized in the policy contract. The executor validates the action type to ensure the blueprint is structurally correct, but defers actual execution until the target wiring is implemented.
 
+**What needs to change when this gets implemented:**
+1. Add `targetUserId` (for REASSIGN) or `targetPondId` (for MOVE_TO_POND) to the `actionConfig` block in the blueprint JSON schema.
+2. Update `PolicyBlueprintValidator` to validate that the relevant target field is present and non-null for each action type.
+3. Implement the actual FUB API calls in `FubFollowUpBossClient` (person reassign or pond move endpoint).
+4. Replace the `ACTION_TARGET_UNCONFIGURED` return in `OnCommunicationMissActionStepExecutor` with the real API call + result mapping to `ACTION_SUCCESS` or `ACTION_FAILED`.
+5. Add tests for both the success and failure paths in `OnCommunicationMissActionStepExecutorTest` — currently only the deliberate-failure paths are tested.
+
 ## Worker exception compensation
 
 **Implementation:** `PolicyExecutionDueWorker.compensateClaimedStepFailure(step, exception)`

@@ -35,14 +35,16 @@
 
 | # | Issue | Impact | Location |
 |---|-------|--------|----------|
-| 1 | `ON_FAILURE_EXECUTE_ACTION` fails with `ACTION_TARGET_UNCONFIGURED` | Action step always fails; no actual reassign/pond-move | `OnCommunicationMissActionStepExecutor` |
+| 1 | `ON_FAILURE_EXECUTE_ACTION` fails with `ACTION_TARGET_UNCONFIGURED` | Action step always fails; no actual reassign/pond-move. See [08-flow-policy-execution.md](08-flow-policy-execution.md#subflow-d3-on_failure_execute_action-executor) for what needs to change | `OnCommunicationMissActionStepExecutor` |
 | 2 | Stale `PROCESSING` watchdog/reaper missing | Orphaned PROCESSING steps after crash are never recovered | `PolicyExecutionDueWorker` |
 | 3 | Call processing non-atomic claim | Duplicate concurrent deliveries can both pass terminal guard | `WebhookEventProcessorService.processCall` |
 | 4 | SSE `Map.of` null safety | `WebhookSseHub.publish` can NPE if `eventId` is null | `WebhookSseHub` |
 | 5 | Replay doesn't reset `retryCount` | Replayed calls show inflated retry counts from previous attempt | `ProcessedCallAdminService.replay` |
 | 6 | Duplicate detection too broad on save | `DataIntegrityViolationException` catch masks non-duplicate integrity failures | `WebhookIngressService.ingest` |
-| 7 | Parser `sourceLeadId` always null | Lead ID not extracted from `peopleCreated`/`peopleUpdated` payloads | `FubWebhookParser` |
+| 7 | Parser `sourceLeadId` always null | Lead ID not extracted from `peopleCreated`/`peopleUpdated` payloads — derived later in processor from `resourceIds` instead. See [07-flow-assignment-policy.md](07-flow-assignment-policy.md#sourcelead-id-lifecycle--important-nuance) | `FubWebhookParser` |
 | 8 | Decision engine outcome-first ordering | Stale outcome labels can trigger tasks on connected calls | `CallDecisionEngine.decide` |
+| 9 | `PolicyStepTransitionContractTest` incomplete | Only 3 of 6 transitions are tested. Missing: `NOT_CLAIMED`, `COMM_NOT_FOUND`, `ACTION_SUCCESS`. All 6 entries exist in `PolicyStepTransitionContract.TRANSITIONS` but the test class only covers `CLAIMED → NEXT`, `COMM_FOUND → TERMINAL`, `ACTION_FAILED → TERMINAL` | `PolicyStepTransitionContractTest` |
+| 10 | No retry in ASSIGNMENT processor fan-out | ASSIGNMENT planning failures are logged but not retried. CALL domain uses exponential backoff. See [07-flow-assignment-policy.md](07-flow-assignment-policy.md#retry-behaviour--assignment-vs-call-domain) | `WebhookEventProcessorService.processAssignmentDomainEvent` |
 
 ---
 

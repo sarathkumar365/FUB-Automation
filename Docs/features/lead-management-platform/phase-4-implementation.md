@@ -206,9 +206,10 @@ Status: Completed (2026-04-08)
   - result: pass (tests green; Postgres/Testcontainers tests skipped when Docker unavailable in local environment)
 - Full backend suite:
   - `./mvnw test`
-  - result: failed due to existing integration issues:
-    - `PolicyExecutionManagerIntegrationTest.shouldPersistBlockedIdentityRunWhenIdentityIsUnresolved`
-    - note: this was tied to identity resolver behavior and is superseded by identity resolver contract removal.
+  - result: failed due to existing integration test that referenced the identity resolver contract:
+    - original failing test: `PolicyExecutionManagerIntegrationTest.shouldPersistBlockedIdentityRunWhenIdentityIsUnresolved`
+    - this test was superseded by V8 identity resolver removal; the test was subsequently renamed to `shouldCreatePendingRunWhenIdentityResolverIsRemoved` to reflect the new expected behavior — a run now goes to `PENDING` (not `BLOCKED_IDENTITY`) when identity resolution is bypassed, because the identity resolver contract no longer exists.
+    - the old `BLOCKED_IDENTITY` status and `BLOCKED_IDENTITY` reason code were removed from the runtime entirely.
 - Targeted Step 4 suites:
   - `./mvnw test -Dtest=WaitAndCheckClaimStepExecutorTest,PolicyStepExecutionServiceTest,PolicyExecutionDueWorkerTest,PolicyExecutionDueWorkerActivationTest,FubFollowUpBossClientTest`
   - result: pass (28 tests, 0 failures)
@@ -218,9 +219,10 @@ Status: Completed (2026-04-08)
 - Targeted reliability-hardening suites:
   - `./mvnw test -Dtest=PolicyExecutionDueWorkerTest,PolicyStepExecutionServiceTest`
   - result: pass (new compensation-retry/isolation scenarios green)
-- Reproduction of failing test:
+- Reproduction of original failing test (now removed):
   - `./mvnw test -Dtest=PolicyExecutionManagerIntegrationTest#shouldPersistBlockedIdentityRunWhenIdentityIsUnresolved`
-  - result: same failure reproduced
+  - result: failure reproduced at the time; test has since been renamed and reworked as part of V8 identity resolver removal
+  - current test name: `PolicyExecutionManagerIntegrationTest#shouldCreatePendingRunWhenIdentityResolverIsRemoved`
 
 ## Notes for Next Agent
 - This phase is where business decisions and adapter actions run.
