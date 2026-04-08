@@ -4,7 +4,7 @@ Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
 
 ## Scope
 - Complete pending policy step executors so runtime no longer fails with `EXECUTOR_NOT_FOUND`.
-- Keep this phase in dev-mode behavior for communication/action execution.
+- Replace temporary dev-mode placeholders with real Follow Up Boss adapter behavior for communication checks and action execution.
 - Explicitly defer hardening and production-readiness work to a later phase.
 
 ## Changes
@@ -29,15 +29,22 @@ Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
      - Fail with explicit reason when config/type is invalid or missing.
    - Ensure both executors are registered and discovered by `PolicyStepExecutionService`.
 
-3. Add/extend tests for executor coverage and transitions
+3. Implement real adapter behavior and extend tests for executor coverage and transitions
+   - Communication adapter implementation:
+     - replace `checkPersonCommunication(...)` placeholder behavior with real FUB endpoint lookup
+     - map FUB HTTP/network failures to transient/permanent error categories
+   - Action adapter implementation:
+     - replace action no-op path with real FUB mutation calls for `REASSIGN` and `MOVE_TO_POND`
+     - validate required action target configuration for each action type
+     - map FUB HTTP/network failures to explicit executor reason codes
    - Communication executor tests:
      - communication found/not found
      - invalid/missing source lead id
      - transient/permanent error mapping
    - Action executor tests:
-     - `REASSIGN` no-op success
-     - `MOVE_TO_POND` no-op success
-     - invalid/missing action config failure
+     - `REASSIGN` success path with real adapter call
+     - `MOVE_TO_POND` success path with real adapter call
+     - invalid/missing action config and target config failure
    - Dispatcher/worker flow tests:
      - claim -> communication execution
      - communication-not-found -> action execution
@@ -101,6 +108,6 @@ Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
 
 ## Notes for Next Agent
 - Locked assumptions for this phase:
-  - Communication-check method is contract-ready but may use placeholder adapter logic in this increment.
-  - Action executor performs no provider writes in this increment; it logs and returns success for supported action types.
+  - Step 3 now includes replacing both communication and action placeholders with real adapter behavior.
+  - Keep adapter calls behind `FollowUpBossClient` port and preserve layered boundaries (`controller -> service -> port -> adapter`).
   - Hardening tasks from `Docs/known-issues.md` stay deferred.
