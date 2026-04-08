@@ -1,6 +1,6 @@
 # Phase 4 Implementation Log
 
-Status: In progress (Step 1 through Step 3 completed)
+Status: Completed (Step 1 through Step 5 completed)
 
 ## Scope
 - Execute assignment SLA due checks prepared in Phase 3:
@@ -19,7 +19,7 @@ Status: In progress (Step 1 through Step 3 completed)
 - Assignment webhook handling: processor fan-out by `resourceIds` (one planning call/run per resource ID).
 - Missing assignment resource IDs: skip planning and log warning (event remains observable).
 - FUB truth source for claim state: live People read (`/v1/people/{id}`) via existing FUB client boundary.
-- Claim semantics: treat lead as claimed only when person payload indicates `claimed == true`.
+- Claim semantics: evaluate `claimed` first when present, fallback to `assignedUserId > 0` when `claimed` is absent.
 - Retry model for claim checks: inline retries using existing `fub.retry.*`; on exhaustion, mark step/run failed.
 
 ## Technical Plan (5 Actionable Steps)
@@ -54,7 +54,7 @@ Status: Completed (2026-04-07)
 - Ensure safe multi-instance execution without duplicate step processing.
 
 ### 4) Implement step execution framework + claim executor
-Status: Planned (Not started)
+Status: Completed (2026-04-07)
 - Add step executor boundary:
   - `PolicyStepExecutor` interface
   - `PolicyStepExecutionService` dispatcher/orchestrator
@@ -64,12 +64,12 @@ Status: Planned (Not started)
   - implement in `client/fub/FubFollowUpBossClient`
   - read person state via FUB People endpoint (`/v1/people/{id}`)
 - Use live person state to determine claim result:
-  - `claimed == true` => `CLAIMED`
-  - otherwise => `NOT_CLAIMED`
+  - if `claimed` exists, use it directly
+  - else fallback to `assignedUserId > 0`
 - On outbound read failures, apply configured inline retries; if exhausted, fail step and run with explicit reason.
 
 ### 5) Persist transitions, validate behavior, and update artifacts
-Status: Planned (Not started)
+Status: Completed (2026-04-08)
 - Claim result transitions:
   - `CLAIMED`: mark claim step complete and activate communication step (`WAITING_DEPENDENCY -> PENDING`) with due time from policy blueprint delay.
   - `NOT_CLAIMED`: mark run terminal non-escalated outcome and mark dependent steps `SKIPPED`.
@@ -149,6 +149,50 @@ Status: Planned (Not started)
   - updated `PolicyExecutionDueWorkerActivationTest` for worker dependencies
 - Updated test profile config:
   - `src/test/resources/application.properties` sets `policy.worker.enabled=false` to avoid scheduled worker DB-claim SQL execution during unrelated H2 test contexts.
+- Step 4 implemented: pluggable step execution framework + first concrete claim executor.
+- Added step executor boundary and dispatcher:
+  - `PolicyStepExecutor`
+  - `PolicyStepExecutionContext`
+  - `PolicyStepExecutionResult`
+  - `PolicyStepExecutionService` registry/dispatch by `PolicyStepType`
+- Added `WaitAndCheckClaimStepExecutor` for `WAIT_AND_CHECK_CLAIM`:
+  - parses `sourceLeadId` as FUB person id
+  - reads person via FUB People API
+  - claim evaluation precedence:
+    - use `claimed` when present
+    - fallback to `assignedUserId > 0` when `claimed` absent
+  - applies inline transient retry using existing `fub.retry.*`
+- Extended FUB client boundary:
+  - `FollowUpBossClient.getPersonById(...)`
+  - `FubFollowUpBossClient` implementation (`GET /people/{id}`)
+  - new DTO/model mapping for people payload (`claimed`, `assignedUserId`)
+- Updated due worker execution path:
+  - after claim batch, dispatch each claimed row through `PolicyStepExecutionService`
+  - per-row failure isolation (continue remaining rows)
+  - execution persistence:
+    - success: step `PROCESSING -> COMPLETED` + `result_code`
+    - failure: step `PROCESSING -> FAILED` + `error_message`, run `FAILED` + `reason_code`
+- Added Step 4 tests:
+  - `PolicyStepExecutionServiceTest` (registry routing, missing executor, runtime failure, missing step)
+  - `WaitAndCheckClaimStepExecutorTest` (claimed/not-claimed/fallback/invalid id/transient/permanent failure)
+  - `FubFollowUpBossClientTest` people fetch success + HTTP/network error mappings
+  - updated `PolicyExecutionDueWorkerTest` for row execution and mixed-failure continuation.
+- Step 5 implemented: transition persistence and next-step activation behavior.
+- Updated `PolicyStepExecutionService` to apply `PolicyStepTransitionContract` after successful step execution:
+  - `CLAIMED` result now activates next step (`WAITING_DEPENDENCY -> PENDING`) and computes `dueAt` from blueprint `delayMinutes`.
+  - `NOT_CLAIMED` terminal transition now marks run `COMPLETED` with terminal reason and marks downstream non-terminal steps `SKIPPED`.
+  - missing/invalid transition targets now fail deterministically with reason codes:
+    - `TRANSITION_NOT_DEFINED`
+    - `TRANSITION_TARGET_NOT_FOUND`
+    - `TRANSITION_TARGET_INVALID_STATE`
+- Added Step 5 coverage in `PolicyStepExecutionServiceTest`:
+  - next-step activation + due-time calculation on `CLAIMED`
+  - terminalization + downstream skip on `NOT_CLAIMED`
+  - missing transition target failure path
+- Reliability hardening increment (dev-phase must-have):
+  - `PolicyExecutionDueWorker` now retries compensation in bounded attempts when `executeClaimedStep(...)` throws.
+  - compensation failures are isolated with nested catch so one broken row cannot abort the poll loop.
+  - added inline TODO linked to known issue #6 for deferred stale-`PROCESSING` watchdog/reaper.
 
 ## Validation
 - Targeted test suite:
@@ -165,8 +209,15 @@ Status: Planned (Not started)
   - result: failed due to existing integration issues:
     - `PolicyExecutionManagerIntegrationTest.shouldPersistBlockedIdentityRunWhenIdentityIsUnresolved`
     - error: `NoSuchElementException` at `PolicyExecutionManager.plan` (`internalLeadRef.get()` on empty optional)
-    - `AdminWebhooksStreamFlowTest.shouldReceiveWebhookEventAndHeartbeatOverStream`
-    - error: `HttpTimeout` during stream assertion in current local run
+- Targeted Step 4 suites:
+  - `./mvnw test -Dtest=WaitAndCheckClaimStepExecutorTest,PolicyStepExecutionServiceTest,PolicyExecutionDueWorkerTest,PolicyExecutionDueWorkerActivationTest,FubFollowUpBossClientTest`
+  - result: pass (28 tests, 0 failures)
+- Targeted Step 5 suites:
+  - `./mvnw test -Dtest=PolicyStepExecutionServiceTest,PolicyExecutionDueWorkerTest,WaitAndCheckClaimStepExecutorTest`
+  - result: pass (18 tests, 0 failures)
+- Targeted reliability-hardening suites:
+  - `./mvnw test -Dtest=PolicyExecutionDueWorkerTest,PolicyStepExecutionServiceTest`
+  - result: pass (new compensation-retry/isolation scenarios green)
 - Reproduction of failing test:
   - `./mvnw test -Dtest=PolicyExecutionManagerIntegrationTest#shouldPersistBlockedIdentityRunWhenIdentityIsUnresolved`
   - result: same failure reproduced

@@ -8,6 +8,7 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.time.Duration;
@@ -167,6 +168,11 @@ class AdminProcessedCallsFlowTest {
         @Override
         public CallDetails getCallById(long callId) {
             return new CallDetails(callId, 50L, 0, 20L, "No Answer");
+        }
+
+        @Override
+        public PersonDetails getPersonById(long personId) {
+            return new PersonDetails(personId, null, null);
         }
 
         @Override

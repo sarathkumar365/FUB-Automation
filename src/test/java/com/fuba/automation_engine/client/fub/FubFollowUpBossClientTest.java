@@ -6,6 +6,7 @@ import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import com.sun.net.httpserver.HttpServer;
@@ -96,6 +97,65 @@ class FubFollowUpBossClientTest {
         assertEquals(429, exception.getStatusCode());
         assertFalse(exception.getMessage().contains("secret-api-key"));
         assertFalse(exception.getMessage().contains("secret-system-key"));
+    }
+
+    @Test
+    void shouldFetchPersonById() {
+        server.createContext("/v1/people/798", exchange -> {
+            byte[] payload = """
+                    {"id":798,"claimed":true,"assignedUserId":1}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        PersonDetails person = client.getPersonById(798L);
+
+        assertEquals(798L, person.id());
+        assertEquals(true, person.claimed());
+        assertEquals(1L, person.assignedUserId());
+    }
+
+    @Test
+    void shouldMapPeople429AsTransientException() {
+        server.createContext("/v1/people/799", exchange -> {
+            exchange.sendResponseHeaders(429, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubTransientException exception = assertThrows(FubTransientException.class, () -> client.getPersonById(799L));
+        assertEquals(429, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldMapPeople400AsPermanentException() {
+        server.createContext("/v1/people/800", exchange -> {
+            exchange.sendResponseHeaders(400, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubPermanentException exception = assertThrows(FubPermanentException.class, () -> client.getPersonById(800L));
+        assertEquals(400, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldMapPeopleNetworkFailureAsTransientException() {
+        // deliberately use an unreachable local port
+        FubClientProperties properties = new FubClientProperties();
+        properties.setBaseUrl("http://localhost:65534/v1");
+        properties.setApiKey("api-key");
+        properties.setXSystem("sys");
+        properties.setXSystemKey("sys-key");
+        FubFollowUpBossClient client = new FubFollowUpBossClient(RestClient.builder(), properties);
+
+        FubTransientException exception = assertThrows(FubTransientException.class, () -> client.getPersonById(801L));
+        assertEquals(null, exception.getStatusCode());
     }
 
     @Test

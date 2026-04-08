@@ -12,6 +12,7 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import com.fuba.automation_engine.service.webhook.model.EventSupportState;
@@ -401,6 +402,11 @@ class WebhookProcessingFlowTest {
                 throw new FubTransientException("Simulated transient fetch failure", fetchTransientStatusCode);
             }
             return callDetails.getOrDefault(callId, new CallDetails(callId, 10L, 5, 20L, "Connected"));
+        }
+
+        @Override
+        public PersonDetails getPersonById(long personId) {
+            return new PersonDetails(personId, null, null);
         }
 
         @Override

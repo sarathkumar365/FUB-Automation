@@ -2,6 +2,7 @@ package com.fuba.automation_engine.client.fub;
 
 import com.fuba.automation_engine.client.fub.dto.FubCallResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubCreateTaskRequestDto;
+import com.fuba.automation_engine.client.fub.dto.FubPersonResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubTaskResponseDto;
 import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
@@ -10,6 +11,7 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.nio.charset.StandardCharsets;
@@ -71,6 +73,31 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
         } catch (ResourceAccessException ex) {
             log.warn("FUB getCallById network error callId={}", callId);
             throw new FubTransientException("FUB network failure on GET /calls/{id}", null, ex);
+        }
+    }
+
+    @Override
+    public PersonDetails getPersonById(long personId) {
+        log.info("Calling FUB getPersonById personId={}", personId);
+        try {
+            FubPersonResponseDto response = restClient.get()
+                    .uri("/people/{id}", personId)
+                    .headers(this::applyDefaultHeaders)
+                    .retrieve()
+                    .body(FubPersonResponseDto.class);
+
+            if (response == null) {
+                throw new FubPermanentException("FUB returned empty body for getPersonById", null);
+            }
+
+            log.info("FUB getPersonById succeeded personId={}", personId);
+            return new PersonDetails(response.id(), response.claimed(), response.assignedUserId());
+        } catch (RestClientResponseException ex) {
+            log.warn("FUB getPersonById returned HTTP error personId={} status={}", personId, ex.getStatusCode().value());
+            throw mapResponseException("GET /people/{id}", ex);
+        } catch (ResourceAccessException ex) {
+            log.warn("FUB getPersonById network error personId={}", personId);
+            throw new FubTransientException("FUB network failure on GET /people/{id}", null, ex);
         }
     }
 

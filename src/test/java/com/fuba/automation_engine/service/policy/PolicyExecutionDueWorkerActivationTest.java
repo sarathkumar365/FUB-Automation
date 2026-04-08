@@ -49,6 +49,11 @@ class PolicyExecutionDueWorkerActivationTest {
         }
 
         @Bean
+        PolicyStepExecutionService policyStepExecutionService() {
+            return mock(PolicyStepExecutionService.class);
+        }
+
+        @Bean
         Clock systemClock() {
             return Clock.systemUTC();
         }

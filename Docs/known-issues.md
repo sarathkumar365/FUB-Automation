@@ -25,3 +25,18 @@ This document tracks currently known issues identified in the codebase.
 - Issue: Replay flow resets status and failure fields but leaves `retryCount` unchanged.
 - Impact: Replay attempts carry stale retry history, which can make diagnostics and retry behavior misleading.
 - Suggested fix direction: Reset `retryCount` to `0` as part of replay reinitialization.
+
+## 5) Missing end-to-end scenario coverage for policy worker execution flow
+- Priority: High
+- Location: `src/main/java/com/fuba/automation_engine/service/policy/` (worker + execution dispatcher + executors + FUB client integration path)
+- Issue: Current tests are mostly unit/integration-at-component level; there is no single scenario-driven test slice that validates the complete flow from claimed DB step to executor dispatch, FUB people fetch, and persisted step/run outcomes.
+- Impact: Cross-component regressions in orchestration flow can pass isolated tests but fail in real execution paths.
+- Suggested fix direction: Add scenario integration tests (test slices) for policy worker flows, starting with `WAIT_AND_CHECK_CLAIM` success/failure scenarios, including DB claim input, executor selection, external client behavior, and final persistence assertions.
+
+## 6) No watchdog for stale `PROCESSING` policy steps after hard process crashes
+- Priority: High
+- Location: `src/main/java/com/fuba/automation_engine/service/policy/PolicyExecutionDueWorker.java`
+- Issue: Worker now compensates unhandled execution exceptions by failing step/run, but this only covers exceptions observed by the running process. A hard crash (JVM kill/node restart) after atomic claim and before compensation can still leave rows stuck in `PROCESSING`.
+- Impact: Rare but possible orphaned executions that require manual DB intervention.
+- Prod-readiness note: This remains a production reliability blocker until a stale-`PROCESSING` watchdog/reaper is implemented.
+- Suggested fix direction: Add stale-processing recovery (heartbeat/timeout reaper) to requeue or fail `PROCESSING` steps older than threshold with explicit reason code.
