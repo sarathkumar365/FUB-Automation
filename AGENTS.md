@@ -17,6 +17,7 @@ This agent acts as a pair programmer for this repository and supports:
 ## Rules reference
 - Implementation and structure rules source of truth: `developer-rules.md`
 - Before creating/moving modules or implementing behavior, follow `developer-rules.md`
+- **System-wide implementation deep-dive:** `Docs/deep-dive/` — 12 documents covering every backend flow, configuration value, database schema, and design decision. Start with `Docs/deep-dive/README.md` for the index and reading order. Read these before making changes to understand how the system works end-to-end.
 - UI implementation plan source of truth: `docs/ui-0.1-plan.md`
 - UI style source of truth: `docs/ui-style-guide-v1.md` + `docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
 
