@@ -1,6 +1,6 @@
 # Phase 5 Implementation Log
 
-Status: In progress (Step 1 through Step 3 completed; Step 4 pending)
+Status: Completed (Step 1 through Step 4 completed)
 
 ## Scope
 - Complete pending policy step executors so runtime no longer fails with `EXECUTOR_NOT_FOUND`.
@@ -54,6 +54,7 @@ Status: In progress (Step 1 through Step 3 completed; Step 4 pending)
      - dispatcher transition failure persisted deterministically while targets are undecided
 
 4. Validate and document
+   - Status: Completed (2026-04-08)
    - Run targeted policy suites for new executors and existing due-worker/dispatcher paths.
    - Update this log with implementation notes and test evidence.
    - Update `phases.md` with Phase 5 progress after completion increments.
@@ -129,8 +130,25 @@ Status: In progress (Step 1 through Step 3 completed; Step 4 pending)
 - Step 3 validation runs:
   - `./mvnw test -Dtest=PolicyStepExecutionServiceTest,OnCommunicationMissActionStepExecutorTest,FubFollowUpBossClientTest,WaitAndCheckCommunicationStepExecutorTest,WaitAndCheckClaimStepExecutorTest`
   - Result: pass (`40` tests, `0` failures, `0` errors)
+- Step 4 validation runs:
+  - `./mvnw test -Dtest=WaitAndCheckCommunicationStepExecutorTest,OnCommunicationMissActionStepExecutorTest,PolicyStepExecutionServiceTest,PolicyExecutionDueWorkerTest,PolicyExecutionDueWorkerActivationTest,FubFollowUpBossClientTest`
+  - Result: pass (`43` tests, `0` failures, `0` errors)
   - `./mvnw test`
   - Result: pass (`246` tests, `0` failures, `0` errors, `8` skipped)
+
+### Step 4 implementation notes (2026-04-08)
+- Re-ran Phase 5 validation in two gates:
+  - Gate A (targeted): communication/action executors, step execution transitions, due-worker paths, and FUB adapter coverage.
+  - Gate B (broad): full regression via `./mvnw test`.
+- Verified locked Phase 5 semantics remain intact:
+  - `WAIT_AND_CHECK_COMMUNICATION` resolves from People `contacted`.
+  - `ON_FAILURE_EXECUTE_ACTION` deterministically fails with `ACTION_TARGET_UNCONFIGURED` until target semantics are finalized.
+  - No missing-executor gap exists for supported policy step types.
+
+## Next Phase Handoff
+- Remaining deferred items for follow-up phase:
+  - Finalize action target semantics (`targetUserId` / `targetPondId`) and wire concrete provider mutation behind `FollowUpBossClient`.
+  - Execute production hardening items deferred from this phase (for example stale `PROCESSING` watchdog/reaper and related reliability controls).
 
 ## Notes for Next Agent
 - Locked assumptions for this phase:
