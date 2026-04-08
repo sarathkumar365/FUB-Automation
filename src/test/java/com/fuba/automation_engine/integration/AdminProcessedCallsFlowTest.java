@@ -173,7 +173,7 @@ class AdminProcessedCallsFlowTest {
 
         @Override
         public PersonDetails getPersonById(long personId) {
-            return new PersonDetails(personId, null, null);
+            return new PersonDetails(personId, null, null, null);
         }
 
         @Override

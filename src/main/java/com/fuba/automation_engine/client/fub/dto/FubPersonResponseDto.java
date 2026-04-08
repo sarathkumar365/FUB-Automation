@@ -6,5 +6,6 @@ import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 public record FubPersonResponseDto(
         Long id,
         Boolean claimed,
-        Long assignedUserId) {
+        Long assignedUserId,
+        Integer contacted) {
 }

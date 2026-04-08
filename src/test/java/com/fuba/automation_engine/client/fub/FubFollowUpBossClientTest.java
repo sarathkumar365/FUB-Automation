@@ -104,7 +104,7 @@ class FubFollowUpBossClientTest {
     void shouldFetchPersonById() {
         server.createContext("/v1/people/798", exchange -> {
             byte[] payload = """
-                    {"id":798,"claimed":true,"assignedUserId":1}
+                    {"id":798,"claimed":true,"assignedUserId":1,"contacted":2}
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
@@ -119,6 +119,7 @@ class FubFollowUpBossClientTest {
         assertEquals(798L, person.id());
         assertEquals(true, person.claimed());
         assertEquals(1L, person.assignedUserId());
+        assertEquals(2, person.contacted());
     }
 
     @Test
@@ -160,19 +161,45 @@ class FubFollowUpBossClientTest {
     }
 
     @Test
-    void shouldReturnPlaceholderCommunicationCheckWithoutHttpCall() {
+    void shouldReturnCommunicationFoundWhenContactedIsGreaterThanZero() {
         AtomicInteger hitCounter = new AtomicInteger();
-        server.createContext("/v1/people/798/communications", exchange -> {
+        server.createContext("/v1/people/798", exchange -> {
             hitCounter.incrementAndGet();
-            exchange.sendResponseHeaders(200, -1);
-            exchange.close();
+            byte[] payload = """
+                    {"id":798,"claimed":true,"assignedUserId":1,"contacted":1}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
         });
 
         FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
         PersonCommunicationCheckResult result = client.checkPersonCommunication(798L);
 
-        assertEquals(0, hitCounter.get());
+        assertEquals(1, hitCounter.get());
         assertEquals(798L, result.personId());
+        assertTrue(result.communicationFound());
+    }
+
+    @Test
+    void shouldReturnCommunicationNotFoundWhenContactedIsNull() {
+        server.createContext("/v1/people/799", exchange -> {
+            byte[] payload = """
+                    {"id":799,"claimed":true,"assignedUserId":1}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        PersonCommunicationCheckResult result = client.checkPersonCommunication(799L);
+
+        assertEquals(799L, result.personId());
         assertFalse(result.communicationFound());
     }
 

@@ -1,10 +1,11 @@
 # Phase 5 Implementation Log
 
-Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
+Status: In progress (Step 1 through Step 3 completed; Step 4 pending)
 
 ## Scope
 - Complete pending policy step executors so runtime no longer fails with `EXECUTOR_NOT_FOUND`.
-- Replace temporary dev-mode placeholders with real Follow Up Boss adapter behavior for communication checks and action execution.
+- Replace temporary communication placeholder with real Follow Up Boss adapter behavior.
+- Keep action execution structure-only and fail explicitly until action-target semantics are finalized.
 - Explicitly defer hardening and production-readiness work to a later phase.
 
 ## Changes
@@ -29,26 +30,28 @@ Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
      - Fail with explicit reason when config/type is invalid or missing.
    - Ensure both executors are registered and discovered by `PolicyStepExecutionService`.
 
-3. Implement real adapter behavior and extend tests for executor coverage and transitions
+3. Implement communication adapter behavior and extend tests for executor coverage and transitions
+   - Status: Completed (2026-04-08)
    - Communication adapter implementation:
-     - replace `checkPersonCommunication(...)` placeholder behavior with real FUB endpoint lookup
-     - map FUB HTTP/network failures to transient/permanent error categories
-   - Action adapter implementation:
-     - replace action no-op path with real FUB mutation calls for `REASSIGN` and `MOVE_TO_POND`
-     - validate required action target configuration for each action type
-     - map FUB HTTP/network failures to explicit executor reason codes
+     - replace `checkPersonCommunication(...)` placeholder behavior by reusing `getPersonById(...)`
+     - evaluate communication from People payload `contacted` (`contacted > 0` => communication found)
+     - reuse existing People HTTP/network error mapping via `getPersonById(...)`
+   - Action executor interim implementation:
+     - replace action no-op success with deterministic explicit failure (`ACTION_TARGET_UNCONFIGURED`)
+     - keep `REASSIGN` and `MOVE_TO_POND` parsing/validation
+     - add TODO anchor for future provider mutation wiring once target semantics are finalized
    - Communication executor tests:
      - communication found/not found
      - invalid/missing source lead id
      - transient/permanent error mapping
    - Action executor tests:
-     - `REASSIGN` success path with real adapter call
-     - `MOVE_TO_POND` success path with real adapter call
-     - invalid/missing action config and target config failure
+     - `REASSIGN` explicit interim failure path
+     - `MOVE_TO_POND` explicit interim failure path
+     - invalid/missing action config failure
    - Dispatcher/worker flow tests:
      - claim -> communication execution
      - communication-not-found -> action execution
-     - action terminal transition final run outcome
+     - dispatcher transition failure persisted deterministically while targets are undecided
 
 4. Validate and document
    - Run targeted policy suites for new executors and existing due-worker/dispatcher paths.
@@ -82,7 +85,7 @@ Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
   - supports `ON_FAILURE_EXECUTE_ACTION`
   - reads `actionConfig.actionType` from policy snapshot in execution context
   - allows only `REASSIGN` and `MOVE_TO_POND`
-  - executes dev-mode no-op action (structured log + `ACTION_SUCCESS`)
+  - initial implementation used dev-mode no-op action (structured log + `ACTION_SUCCESS`)
   - returns explicit failure reason for missing/invalid/unsupported action config
 - Extended `PolicyStepExecutionContext` with `policyBlueprintSnapshot` and wired it from `PolicyStepExecutionService` run context.
 - Removed stale TODO in `PolicyStepExecutionService` missing-executor branch after adding executors.
@@ -90,6 +93,24 @@ Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
   - `WaitAndCheckCommunicationStepExecutorTest`
   - `OnCommunicationMissActionStepExecutorTest`
   - expanded `PolicyStepExecutionServiceTest` transition coverage for communication/action execution paths
+
+### Step 3 implementation notes (2026-04-08)
+- Updated People contract/mapping for communication truth source:
+  - `FubPersonResponseDto` now includes `contacted`
+  - `PersonDetails` now includes `contacted`
+- Implemented real communication check by reusing `getPersonById(...)` in `FubFollowUpBossClient`:
+  - `checkPersonCommunication(personId)` now derives `communicationFound` from `contacted > 0`
+  - no duplicate HTTP/error-mapping path was introduced
+- Updated `OnCommunicationMissActionStepExecutor` interim behavior:
+  - supported action types (`REASSIGN`, `MOVE_TO_POND`) now return explicit failure
+    `ACTION_TARGET_UNCONFIGURED`
+  - added TODO marker for future target-aware provider mutation wiring
+- Updated tests:
+  - `FubFollowUpBossClientTest` verifies contacted mapping and communication check true/false outcomes
+  - `OnCommunicationMissActionStepExecutorTest` now asserts explicit interim failure for supported action types
+  - `PolicyStepExecutionServiceTest` now asserts action-step failure propagates run failure with
+    `ACTION_TARGET_UNCONFIGURED`
+  - adjusted `PersonDetails` constructor usage across tests for new `contacted` field
 
 ## Validation
 - Planned command set:
@@ -105,9 +126,15 @@ Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
 - Step 2 validation run:
   - `./mvnw test -Dtest=WaitAndCheckCommunicationStepExecutorTest,OnCommunicationMissActionStepExecutorTest,PolicyStepExecutionServiceTest,PolicyExecutionDueWorkerTest,PolicyExecutionDueWorkerActivationTest`
   - Result: pass (`31` tests, `0` failures, `0` errors)
+- Step 3 validation runs:
+  - `./mvnw test -Dtest=PolicyStepExecutionServiceTest,OnCommunicationMissActionStepExecutorTest,FubFollowUpBossClientTest,WaitAndCheckCommunicationStepExecutorTest,WaitAndCheckClaimStepExecutorTest`
+  - Result: pass (`40` tests, `0` failures, `0` errors)
+  - `./mvnw test`
+  - Result: pass (`246` tests, `0` failures, `0` errors, `8` skipped)
 
 ## Notes for Next Agent
 - Locked assumptions for this phase:
-  - Step 3 now includes replacing both communication and action placeholders with real adapter behavior.
+  - Communication check now uses People payload `contacted` via `getPersonById(...)`.
+  - Action target semantics are intentionally undecided; action executor fails explicitly with `ACTION_TARGET_UNCONFIGURED` until finalized.
   - Keep adapter calls behind `FollowUpBossClient` port and preserve layered boundaries (`controller -> service -> port -> adapter`).
   - Hardening tasks from `Docs/known-issues.md` stay deferred.

@@ -164,6 +164,25 @@ class PolicyStepExecutionServiceTest {
     }
 
     @Test
+    void shouldFailRunWhenActionExecutorReturnsTargetUnconfigured() {
+        PolicyStepExecutionService service =
+                new PolicyStepExecutionService(runRepository, stepRepository, List.of(new OnCommunicationMissActionStepExecutor()), clock);
+
+        PolicyExecutionStepEntity actionStep = stepEntity(
+                42L, 142L, 3, PolicyStepType.ON_FAILURE_EXECUTE_ACTION, PolicyExecutionStepStatus.PROCESSING);
+        PolicyExecutionRunEntity run = runEntity(142L, "905");
+        run.setPolicyBlueprintSnapshot(Map.of("actionConfig", Map.of("actionType", "REASSIGN")));
+        when(stepRepository.findById(42L)).thenReturn(Optional.of(actionStep));
+        when(runRepository.findById(142L)).thenReturn(Optional.of(run));
+
+        service.executeClaimedStep(claimedRow(42L, 142L, PolicyStepType.ON_FAILURE_EXECUTE_ACTION));
+
+        assertEquals(PolicyExecutionStepStatus.FAILED, actionStep.getStatus());
+        assertEquals(PolicyExecutionRunStatus.FAILED, run.getStatus());
+        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_UNCONFIGURED, run.getReasonCode());
+    }
+
+    @Test
     void shouldMarkStepAndRunFailedWhenExecutorThrows() {
         PolicyStepExecutor executor = mock(PolicyStepExecutor.class);
         when(executor.supports(PolicyStepType.WAIT_AND_CHECK_CLAIM)).thenReturn(true);

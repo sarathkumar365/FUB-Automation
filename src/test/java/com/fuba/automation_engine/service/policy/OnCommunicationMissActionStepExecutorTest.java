@@ -7,28 +7,27 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class OnCommunicationMissActionStepExecutorTest {
 
     private final OnCommunicationMissActionStepExecutor executor = new OnCommunicationMissActionStepExecutor();
 
     @Test
-    void shouldReturnSuccessForReassignInNoopMode() {
+    void shouldFailExplicitlyForReassignWhileActionTargetIsUndecided() {
         PolicyStepExecutionResult result = executor.execute(context(Map.of(
                 "actionConfig", Map.of("actionType", "REASSIGN"))));
 
-        assertTrue(result.success());
-        assertEquals(PolicyStepResultCode.ACTION_SUCCESS, result.resultCode());
+        assertEquals(false, result.success());
+        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_UNCONFIGURED, result.reasonCode());
     }
 
     @Test
-    void shouldReturnSuccessForMoveToPondInNoopMode() {
+    void shouldFailExplicitlyForMoveToPondWhileActionTargetIsUndecided() {
         PolicyStepExecutionResult result = executor.execute(context(Map.of(
                 "actionConfig", Map.of("actionType", "MOVE_TO_POND"))));
 
-        assertTrue(result.success());
-        assertEquals(PolicyStepResultCode.ACTION_SUCCESS, result.resultCode());
+        assertEquals(false, result.success());
+        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_UNCONFIGURED, result.reasonCode());
     }
 
     @Test

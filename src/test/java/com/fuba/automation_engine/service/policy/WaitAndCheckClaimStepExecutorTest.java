@@ -34,7 +34,7 @@ class WaitAndCheckClaimStepExecutorTest {
 
     @Test
     void shouldResolveClaimedWhenClaimedFieldIsTrue() {
-        when(followUpBossClient.getPersonById(798L)).thenReturn(new PersonDetails(798L, true, null));
+        when(followUpBossClient.getPersonById(798L)).thenReturn(new PersonDetails(798L, true, null, null));
 
         PolicyStepExecutionResult result = executor.execute(context("798"));
 
@@ -44,7 +44,7 @@ class WaitAndCheckClaimStepExecutorTest {
 
     @Test
     void shouldResolveNotClaimedWhenClaimedFieldIsFalse() {
-        when(followUpBossClient.getPersonById(799L)).thenReturn(new PersonDetails(799L, false, 10L));
+        when(followUpBossClient.getPersonById(799L)).thenReturn(new PersonDetails(799L, false, 10L, null));
 
         PolicyStepExecutionResult result = executor.execute(context("799"));
 
@@ -54,7 +54,7 @@ class WaitAndCheckClaimStepExecutorTest {
 
     @Test
     void shouldFallbackToAssignedUserIdWhenClaimedFieldIsMissing() {
-        when(followUpBossClient.getPersonById(800L)).thenReturn(new PersonDetails(800L, null, 5L));
+        when(followUpBossClient.getPersonById(800L)).thenReturn(new PersonDetails(800L, null, 5L, null));
 
         PolicyStepExecutionResult result = executor.execute(context("800"));
 
@@ -64,7 +64,7 @@ class WaitAndCheckClaimStepExecutorTest {
 
     @Test
     void shouldReturnNotClaimedWhenClaimedMissingAndAssignedUserIdZero() {
-        when(followUpBossClient.getPersonById(801L)).thenReturn(new PersonDetails(801L, null, 0L));
+        when(followUpBossClient.getPersonById(801L)).thenReturn(new PersonDetails(801L, null, 0L, null));
 
         PolicyStepExecutionResult result = executor.execute(context("801"));
 

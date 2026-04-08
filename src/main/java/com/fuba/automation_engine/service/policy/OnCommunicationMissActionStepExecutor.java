@@ -14,6 +14,7 @@ public class OnCommunicationMissActionStepExecutor implements PolicyStepExecutor
     static final String ACTION_CONFIG_MISSING = "ACTION_CONFIG_MISSING";
     static final String ACTION_TYPE_MISSING = "ACTION_TYPE_MISSING";
     static final String ACTION_TYPE_UNSUPPORTED = "ACTION_TYPE_UNSUPPORTED";
+    static final String ACTION_TARGET_UNCONFIGURED = "ACTION_TARGET_UNCONFIGURED";
     static final String ACTION_EXECUTION_ERROR = "ACTION_EXECUTION_ERROR";
 
     private static final Logger log = LoggerFactory.getLogger(OnCommunicationMissActionStepExecutor.class);
@@ -47,14 +48,17 @@ public class OnCommunicationMissActionStepExecutor implements PolicyStepExecutor
                     "Unsupported actionType for ON_FAILURE_EXECUTE_ACTION: " + actionType);
             }
 
-            // Step 2 scope: no provider mutation yet. Record intent and continue.
-            log.info(
-                    "ON_FAILURE_EXECUTE_ACTION no-op executed stepId={} runId={} sourceLeadId={} actionType={}",
+            // TODO(phase-5-step-4): Wire concrete action target semantics (targetUserId/targetPondId)
+            // and execute provider mutation via FollowUpBossClient once policy contract is finalized.
+            log.warn(
+                    "ON_FAILURE_EXECUTE_ACTION target unconfigured stepId={} runId={} sourceLeadId={} actionType={}",
                     context.stepId(),
                     context.runId(),
                     context.sourceLeadId(),
                     actionType);
-            return PolicyStepExecutionResult.success(PolicyStepResultCode.ACTION_SUCCESS);
+            return PolicyStepExecutionResult.failure(
+                    ACTION_TARGET_UNCONFIGURED,
+                    "Action target configuration is not defined for ON_FAILURE_EXECUTE_ACTION");
         } catch (RuntimeException ex) {
             log.error(
                     "Unexpected on-failure action execution error stepId={} runId={} sourceLeadId={}",

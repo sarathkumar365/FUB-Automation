@@ -92,7 +92,7 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
             }
 
             log.info("FUB getPersonById succeeded personId={}", personId);
-            return new PersonDetails(response.id(), response.claimed(), response.assignedUserId());
+            return new PersonDetails(response.id(), response.claimed(), response.assignedUserId(), response.contacted());
         } catch (RestClientResponseException ex) {
             log.warn("FUB getPersonById returned HTTP error personId={} status={}", personId, ex.getStatusCode().value());
             throw mapResponseException("GET /people/{id}", ex);
@@ -104,10 +104,14 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
 
     @Override
     public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
-        // TODO(phase-5-step-2): Replace placeholder return with real FUB communication lookup contract.
-        // Step 1 scope is contract-only readiness; this method intentionally does not call an endpoint yet.
-        log.info("FUB communication check placeholder personId={} result=NOT_FOUND", personId);
-        return new PersonCommunicationCheckResult(personId, false);
+        PersonDetails person = getPersonById(personId);
+        boolean communicationFound = person.contacted() != null && person.contacted() > 0;
+        log.info(
+                "FUB communication check personId={} contacted={} result={}",
+                personId,
+                person.contacted(),
+                communicationFound ? "FOUND" : "NOT_FOUND");
+        return new PersonCommunicationCheckResult(personId, communicationFound);
     }
 
     @Override
