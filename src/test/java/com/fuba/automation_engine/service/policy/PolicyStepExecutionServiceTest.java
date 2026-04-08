@@ -89,6 +89,81 @@ class PolicyStepExecutionServiceTest {
     }
 
     @Test
+    void shouldExecuteCommunicationStepWithoutExecutorNotFoundFailure() {
+        PolicyStepExecutor communicationExecutor = mock(PolicyStepExecutor.class);
+        when(communicationExecutor.supports(PolicyStepType.WAIT_AND_CHECK_COMMUNICATION)).thenReturn(true);
+        when(communicationExecutor.execute(any())).thenReturn(PolicyStepExecutionResult.success(PolicyStepResultCode.COMM_FOUND));
+
+        PolicyStepExecutionService service =
+                new PolicyStepExecutionService(runRepository, stepRepository, List.of(communicationExecutor), clock);
+
+        PolicyExecutionStepEntity communicationStep = stepEntity(
+                21L, 121L, 2, PolicyStepType.WAIT_AND_CHECK_COMMUNICATION, PolicyExecutionStepStatus.PROCESSING);
+        PolicyExecutionRunEntity run = runEntity(121L, "902");
+        when(stepRepository.findById(21L)).thenReturn(Optional.of(communicationStep));
+        when(runRepository.findById(121L)).thenReturn(Optional.of(run));
+        when(stepRepository.findByRunIdOrderByStepOrderAsc(121L)).thenReturn(List.of(communicationStep));
+
+        service.executeClaimedStep(claimedRow(21L, 121L, PolicyStepType.WAIT_AND_CHECK_COMMUNICATION));
+
+        assertEquals(PolicyExecutionStepStatus.COMPLETED, communicationStep.getStatus());
+        assertEquals(PolicyStepResultCode.COMM_FOUND.name(), communicationStep.getResultCode());
+        assertEquals(PolicyExecutionRunStatus.COMPLETED, run.getStatus());
+        assertEquals(PolicyTerminalOutcome.COMPLIANT_CLOSED.name(), run.getReasonCode());
+    }
+
+    @Test
+    void shouldActivateActionStepWhenCommunicationNotFound() {
+        PolicyStepExecutor communicationExecutor = mock(PolicyStepExecutor.class);
+        when(communicationExecutor.supports(PolicyStepType.WAIT_AND_CHECK_COMMUNICATION)).thenReturn(true);
+        when(communicationExecutor.execute(any())).thenReturn(PolicyStepExecutionResult.success(PolicyStepResultCode.COMM_NOT_FOUND));
+
+        PolicyStepExecutionService service =
+                new PolicyStepExecutionService(runRepository, stepRepository, List.of(communicationExecutor), clock);
+
+        PolicyExecutionStepEntity communicationStep = stepEntity(
+                30L, 130L, 2, PolicyStepType.WAIT_AND_CHECK_COMMUNICATION, PolicyExecutionStepStatus.PROCESSING);
+        PolicyExecutionStepEntity actionStep = stepEntity(
+                31L, 130L, 3, PolicyStepType.ON_FAILURE_EXECUTE_ACTION, PolicyExecutionStepStatus.WAITING_DEPENDENCY);
+        PolicyExecutionRunEntity run = runEntity(130L, "903");
+        when(stepRepository.findById(30L)).thenReturn(Optional.of(communicationStep));
+        when(runRepository.findById(130L)).thenReturn(Optional.of(run));
+        when(stepRepository.findByRunIdOrderByStepOrderAsc(130L)).thenReturn(List.of(communicationStep, actionStep));
+
+        service.executeClaimedStep(claimedRow(30L, 130L, PolicyStepType.WAIT_AND_CHECK_COMMUNICATION));
+
+        assertEquals(PolicyExecutionStepStatus.COMPLETED, communicationStep.getStatus());
+        assertEquals(PolicyStepResultCode.COMM_NOT_FOUND.name(), communicationStep.getResultCode());
+        assertEquals(PolicyExecutionStepStatus.PENDING, actionStep.getStatus());
+        assertEquals(OffsetDateTime.parse("2026-04-08T12:00:00Z"), actionStep.getDueAt());
+        assertEquals(PolicyExecutionRunStatus.PENDING, run.getStatus());
+    }
+
+    @Test
+    void shouldCompleteRunWhenActionExecutorReturnsSuccess() {
+        PolicyStepExecutor actionExecutor = mock(PolicyStepExecutor.class);
+        when(actionExecutor.supports(PolicyStepType.ON_FAILURE_EXECUTE_ACTION)).thenReturn(true);
+        when(actionExecutor.execute(any())).thenReturn(PolicyStepExecutionResult.success(PolicyStepResultCode.ACTION_SUCCESS));
+
+        PolicyStepExecutionService service =
+                new PolicyStepExecutionService(runRepository, stepRepository, List.of(actionExecutor), clock);
+
+        PolicyExecutionStepEntity actionStep = stepEntity(
+                41L, 141L, 3, PolicyStepType.ON_FAILURE_EXECUTE_ACTION, PolicyExecutionStepStatus.PROCESSING);
+        PolicyExecutionRunEntity run = runEntity(141L, "904");
+        when(stepRepository.findById(41L)).thenReturn(Optional.of(actionStep));
+        when(runRepository.findById(141L)).thenReturn(Optional.of(run));
+        when(stepRepository.findByRunIdOrderByStepOrderAsc(141L)).thenReturn(List.of(actionStep));
+
+        service.executeClaimedStep(claimedRow(41L, 141L, PolicyStepType.ON_FAILURE_EXECUTE_ACTION));
+
+        assertEquals(PolicyExecutionStepStatus.COMPLETED, actionStep.getStatus());
+        assertEquals(PolicyStepResultCode.ACTION_SUCCESS.name(), actionStep.getResultCode());
+        assertEquals(PolicyExecutionRunStatus.COMPLETED, run.getStatus());
+        assertEquals(PolicyTerminalOutcome.ACTION_COMPLETED.name(), run.getReasonCode());
+    }
+
+    @Test
     void shouldMarkStepAndRunFailedWhenExecutorThrows() {
         PolicyStepExecutor executor = mock(PolicyStepExecutor.class);
         when(executor.supports(PolicyStepType.WAIT_AND_CHECK_CLAIM)).thenReturn(true);

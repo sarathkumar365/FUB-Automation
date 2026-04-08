@@ -10,7 +10,6 @@ import com.fuba.automation_engine.persistence.repository.AutomationPolicyReposit
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionRunRepository;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepRepository;
 import com.fuba.automation_engine.service.policy.AutomationPolicyService;
-import com.fuba.automation_engine.service.policy.LeadIdentityResolver;
 import com.fuba.automation_engine.service.policy.PolicyExecutionManager;
 import com.fuba.automation_engine.service.policy.PolicyExecutionPlanRequest;
 import com.fuba.automation_engine.service.policy.PolicyExecutionPlanningResult;
@@ -22,14 +21,11 @@ import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
-import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -41,8 +37,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 @DataJpaTest
 @Import({
         AutomationPolicyService.class,
-        PolicyExecutionManager.class,
-        PolicyExecutionManagerIntegrationTest.TestConfig.class
+        PolicyExecutionManager.class
 })
 class PolicyExecutionManagerIntegrationTest {
 
@@ -58,15 +53,11 @@ class PolicyExecutionManagerIntegrationTest {
     @Autowired
     private PolicyExecutionManager manager;
 
-    @Autowired
-    private MutableLeadIdentityResolver leadIdentityResolver;
-
     @BeforeEach
     void setUp() {
         stepRepository.deleteAll();
         runRepository.deleteAll();
         policyRepository.deleteAll();
-        leadIdentityResolver.setResolved(Optional.of("internal-lead-123"));
     }
 
     @Test
@@ -83,7 +74,6 @@ class PolicyExecutionManagerIntegrationTest {
         PolicyExecutionRunEntity run = runRepository.findById(result.runId()).orElseThrow();
         assertEquals("ASSIGNMENT", run.getDomain());
         assertEquals("FOLLOW_UP_SLA", run.getPolicyKey());
-        assertEquals("internal-lead-123", run.getInternalLeadRef());
         assertEquals("source-lead-1", run.getSourceLeadId());
         assertEquals(PolicyExecutionRunStatus.PENDING, run.getStatus());
 
@@ -123,15 +113,14 @@ class PolicyExecutionManagerIntegrationTest {
     }
 
     @Test
-    void shouldPersistBlockedIdentityRunWhenIdentityIsUnresolved() {
+    void shouldCreatePendingRunWhenIdentityResolverIsRemoved() {
         seedActivePolicy(validBlueprint(5, 10));
-        leadIdentityResolver.setResolved(Optional.empty());
 
         PolicyExecutionPlanningResult result = manager.plan(defaultRequest("evt-3", "hash-3"));
 
-        assertEquals(PolicyExecutionRunStatus.BLOCKED_IDENTITY, result.status());
+        assertEquals(PolicyExecutionRunStatus.PENDING, result.status());
         assertNotNull(result.runId());
-        assertEquals(0, stepRepository.findByRunIdOrderByStepOrderAsc(result.runId()).size());
+        assertEquals(3, stepRepository.findByRunIdOrderByStepOrderAsc(result.runId()).size());
     }
 
     @Test
@@ -251,27 +240,5 @@ class PolicyExecutionManagerIntegrationTest {
                         Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
                 "actionConfig",
                 Map.of("actionType", "REASSIGN"));
-    }
-
-    @TestConfiguration
-    static class TestConfig {
-        @Bean
-        MutableLeadIdentityResolver leadIdentityResolver() {
-            return new MutableLeadIdentityResolver();
-        }
-    }
-
-    static class MutableLeadIdentityResolver implements LeadIdentityResolver {
-
-        private Optional<String> resolved = Optional.empty();
-
-        @Override
-        public Optional<String> resolveInternalLeadRef(WebhookSource sourceSystem, String sourceLeadId) {
-            return resolved;
-        }
-
-        void setResolved(Optional<String> resolved) {
-            this.resolved = resolved;
-        }
     }
 }

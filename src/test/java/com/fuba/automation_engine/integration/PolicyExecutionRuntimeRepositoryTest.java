@@ -141,7 +141,6 @@ class PolicyExecutionRuntimeRepositoryTest {
         entity.setEventId("evt-1");
         entity.setWebhookEventId(null);
         entity.setSourceLeadId("source-lead-1");
-        entity.setInternalLeadRef("lead-ref-1");
         entity.setDomain("ASSIGNMENT");
         entity.setPolicyKey("FOLLOW_UP_SLA");
         entity.setPolicyVersion(1L);

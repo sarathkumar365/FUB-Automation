@@ -11,6 +11,7 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -99,6 +100,14 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
             log.warn("FUB getPersonById network error personId={}", personId);
             throw new FubTransientException("FUB network failure on GET /people/{id}", null, ex);
         }
+    }
+
+    @Override
+    public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+        // TODO(phase-5-step-2): Replace placeholder return with real FUB communication lookup contract.
+        // Step 1 scope is contract-only readiness; this method intentionally does not call an endpoint yet.
+        log.info("FUB communication check placeholder personId={} result=NOT_FOUND", personId);
+        return new PersonCommunicationCheckResult(personId, false);
     }
 
     @Override

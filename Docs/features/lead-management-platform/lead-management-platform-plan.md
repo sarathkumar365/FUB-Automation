@@ -17,7 +17,6 @@ V1 delivery remains assignment-SLA-first while keeping architecture source-agnos
 - Standardize normalized event fields:
   - `sourceSystem`
   - `sourceLeadId`
-  - internal lead identity mapping reference
 - Keep provider-specific transport details inside adapter implementations only.
 
 ## Validated Platform Upgrade Areas
@@ -95,7 +94,7 @@ flowchart TB
     A["Assignment Event Received"] --> B["PolicyExecutionManager Resolves Active Policy"]
     B --> B1["Read Step Blueprint From automation_policies Row"]
     B1 --> C{"Identity + Policy Valid?"}
-    C -->|No| D["Create Run: BLOCKED_IDENTITY/BLOCKED_POLICY"]
+    C -->|No| D["Create Run: BLOCKED_POLICY"]
     C -->|Yes| E["Create Run + Snapshot"]
     E --> F["Create Step 1: WAIT_AND_CHECK_CLAIM<br/>status=PENDING due=+5m"]
     E --> G["Create Step 2: WAIT_AND_CHECK_COMMUNICATION<br/>status=WAITING_DEPENDENCY"]

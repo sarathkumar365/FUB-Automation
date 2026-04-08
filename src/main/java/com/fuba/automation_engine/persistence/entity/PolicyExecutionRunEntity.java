@@ -45,9 +45,6 @@ public class PolicyExecutionRunEntity {
     @Column(name = "source_lead_id", length = 255)
     private String sourceLeadId;
 
-    @Column(name = "internal_lead_ref", length = 255)
-    private String internalLeadRef;
-
     @Column(nullable = false, length = 64)
     private String domain;
 

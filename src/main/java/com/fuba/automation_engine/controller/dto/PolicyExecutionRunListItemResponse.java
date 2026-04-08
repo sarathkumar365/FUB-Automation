@@ -9,7 +9,6 @@ public record PolicyExecutionRunListItemResponse(
         WebhookSource source,
         String eventId,
         String sourceLeadId,
-        String internalLeadRef,
         String domain,
         String policyKey,
         Long policyVersion,

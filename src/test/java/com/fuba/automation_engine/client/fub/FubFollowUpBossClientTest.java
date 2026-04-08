@@ -6,6 +6,7 @@ import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -156,6 +157,23 @@ class FubFollowUpBossClientTest {
 
         FubTransientException exception = assertThrows(FubTransientException.class, () -> client.getPersonById(801L));
         assertEquals(null, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldReturnPlaceholderCommunicationCheckWithoutHttpCall() {
+        AtomicInteger hitCounter = new AtomicInteger();
+        server.createContext("/v1/people/798/communications", exchange -> {
+            hitCounter.incrementAndGet();
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        PersonCommunicationCheckResult result = client.checkPersonCommunication(798L);
+
+        assertEquals(0, hitCounter.get());
+        assertEquals(798L, result.personId());
+        assertFalse(result.communicationFound());
     }
 
     @Test

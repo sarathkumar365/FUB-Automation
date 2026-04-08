@@ -31,8 +31,17 @@ class AutomationPolicyRuntimeSchemaMigrationTest {
         Integer stepsTableCount = jdbcTemplate.queryForObject(
                 "select count(*) from information_schema.tables where lower(table_name) = 'policy_execution_steps'",
                 Integer.class);
+        Integer internalLeadRefColumnCount = jdbcTemplate.queryForObject(
+                """
+                select count(*)
+                from information_schema.columns
+                where lower(table_name) = 'policy_execution_runs'
+                  and lower(column_name) = 'internal_lead_ref'
+                """,
+                Integer.class);
 
         assertEquals(1, runsTableCount);
         assertEquals(1, stepsTableCount);
+        assertEquals(0, internalLeadRefColumnCount);
     }
 }

@@ -7,6 +7,7 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -175,6 +176,11 @@ class WebhookProcessingDevGuardFlowTest {
         @Override
         public PersonDetails getPersonById(long personId) {
             return new PersonDetails(personId, null, null);
+        }
+
+        @Override
+        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+            return new PersonCommunicationCheckResult(personId, false);
         }
 
         @Override

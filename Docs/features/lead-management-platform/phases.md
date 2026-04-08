@@ -43,5 +43,5 @@ Planned scope alignment (assignment SLA example):
 - If no communication is detected, execute `ON_FAILURE_EXECUTE_ACTION` using policy-selected action: reassign or move to pond.
 
 ## Phase 5
-Status: Planned
+Status: In progress (Step 1 and Step 2 completed; Step 3 and Step 4 pending)
 Log: `phase-5-implementation.md`

@@ -33,25 +33,21 @@ public class PolicyExecutionManager {
     private static final String POLICY_NOT_FOUND = "POLICY_NOT_FOUND";
     private static final String POLICY_INVALID = "POLICY_INVALID";
     private static final String POLICY_LOOKUP_INVALID_INPUT = "POLICY_LOOKUP_INVALID_INPUT";
-    private static final String IDENTITY_NOT_RESOLVED = "IDENTITY_NOT_RESOLVED";
     private static final String DUPLICATE_IDEMPOTENCY_KEY = "DUPLICATE_IDEMPOTENCY_KEY";
     private static final String IDEMPOTENCY_CONSTRAINT = "uk_policy_execution_runs_idempotency_key";
     private static final String IDEMPOTENCY_KEY_PREFIX = "PEM1|";
 
     private final AutomationPolicyService automationPolicyService;
-    private final LeadIdentityResolver leadIdentityResolver;
     private final PolicyExecutionRunRepository runRepository;
     private final PolicyExecutionStepRepository stepRepository;
     private final EntityManager entityManager;
 
     public PolicyExecutionManager(
             AutomationPolicyService automationPolicyService,
-            LeadIdentityResolver leadIdentityResolver,
             PolicyExecutionRunRepository runRepository,
             PolicyExecutionStepRepository stepRepository,
             EntityManager entityManager) {
         this.automationPolicyService = automationPolicyService;
-        this.leadIdentityResolver = leadIdentityResolver;
         this.runRepository = runRepository;
         this.stepRepository = stepRepository;
         this.entityManager = entityManager;
@@ -75,10 +71,8 @@ public class PolicyExecutionManager {
         }
 
         PolicyView policy = policyLookup.policy();
-        Optional<String> internalLeadRef = leadIdentityResolver.resolveInternalLeadRef(request.sourceSystem(), request.sourceLeadId());
-        // if (internalLeadRef.isEmpty()) {
-        //     return persistBlockedIdentityRun(request, policy, idempotencyKey);
-        // }
+        // Identity resolver is intentionally removed for current assignment flow.
+        // sourceLeadId remains the execution identity for policy runs in this phase.
 
         OffsetDateTime now = OffsetDateTime.now();
         PolicyExecutionRunEntity run = new PolicyExecutionRunEntity();
@@ -86,7 +80,6 @@ public class PolicyExecutionManager {
         run.setEventId(request.eventId());
         run.setWebhookEventId(request.webhookEventId());
         run.setSourceLeadId(request.sourceLeadId());
-        run.setInternalLeadRef(internalLeadRef.get());
         run.setDomain(normalize(request.policyDomain()));
         run.setPolicyKey(normalize(request.policyKey()));
         run.setPolicyVersion(policy.version() == null ? 0L : policy.version());
@@ -113,39 +106,12 @@ public class PolicyExecutionManager {
         run.setEventId(request.eventId());
         run.setWebhookEventId(request.webhookEventId());
         run.setSourceLeadId(request.sourceLeadId());
-        run.setInternalLeadRef(null);
         run.setDomain(normalize(request.policyDomain()));
         run.setPolicyKey(normalize(request.policyKey()));
         run.setPolicyVersion(0L);
         run.setPolicyBlueprintSnapshot(Map.of());
         run.setStatus(PolicyExecutionRunStatus.BLOCKED_POLICY);
         run.setReasonCode(mapPolicyReadStatus(status));
-        run.setIdempotencyKey(idempotencyKey);
-
-        try {
-            PolicyExecutionRunEntity saved = runRepository.saveAndFlush(run);
-            return new PolicyExecutionPlanningResult(saved.getStatus(), saved.getId(), saved.getReasonCode());
-        } catch (DataIntegrityViolationException ex) {
-            return handlePotentialDuplicate(request, idempotencyKey, ex);
-        }
-    }
-
-    private PolicyExecutionPlanningResult persistBlockedIdentityRun(
-            PolicyExecutionPlanRequest request,
-            PolicyView policy,
-            String idempotencyKey) {
-        PolicyExecutionRunEntity run = new PolicyExecutionRunEntity();
-        run.setSource(request.sourceSystem());
-        run.setEventId(request.eventId());
-        run.setWebhookEventId(request.webhookEventId());
-        run.setSourceLeadId(request.sourceLeadId());
-        run.setInternalLeadRef(null);
-        run.setDomain(normalize(request.policyDomain()));
-        run.setPolicyKey(normalize(request.policyKey()));
-        run.setPolicyVersion(policy.version() == null ? 0L : policy.version());
-        run.setPolicyBlueprintSnapshot(policy.blueprint() == null ? Map.of() : policy.blueprint());
-        run.setStatus(PolicyExecutionRunStatus.BLOCKED_IDENTITY);
-        run.setReasonCode(IDENTITY_NOT_RESOLVED);
         run.setIdempotencyKey(idempotencyKey);
 
         try {

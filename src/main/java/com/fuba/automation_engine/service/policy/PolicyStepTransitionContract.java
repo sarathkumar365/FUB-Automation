@@ -12,6 +12,8 @@ public final class PolicyStepTransitionContract {
             TransitionOutcome.terminal(PolicyTerminalOutcome.NON_ESCALATED_CLOSED),
             new TransitionKey(PolicyStepType.WAIT_AND_CHECK_COMMUNICATION, PolicyStepResultCode.COMM_FOUND),
             TransitionOutcome.terminal(PolicyTerminalOutcome.COMPLIANT_CLOSED),
+            // Dependency: ON_FAILURE_EXECUTE_ACTION is only activated when communication check
+            // explicitly returns COMM_NOT_FOUND.
             new TransitionKey(PolicyStepType.WAIT_AND_CHECK_COMMUNICATION, PolicyStepResultCode.COMM_NOT_FOUND),
             TransitionOutcome.next(PolicyStepType.ON_FAILURE_EXECUTE_ACTION),
             new TransitionKey(PolicyStepType.ON_FAILURE_EXECUTE_ACTION, PolicyStepResultCode.ACTION_SUCCESS),

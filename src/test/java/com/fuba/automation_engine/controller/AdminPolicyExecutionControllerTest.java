@@ -55,7 +55,7 @@ class AdminPolicyExecutionControllerTest {
         runRepository.saveAndFlush(buildRun(
                 "evt-pe-2",
                 "FOLLOW_UP_SLA",
-                PolicyExecutionRunStatus.BLOCKED_IDENTITY,
+                PolicyExecutionRunStatus.BLOCKED_POLICY,
                 OffsetDateTime.parse("2026-04-02T12:00:00Z")));
         runRepository.saveAndFlush(buildRun(
                 "evt-pe-3",
@@ -133,7 +133,6 @@ class AdminPolicyExecutionControllerTest {
         run.setEventId(eventId);
         run.setWebhookEventId(null);
         run.setSourceLeadId("lead-" + eventId);
-        run.setInternalLeadRef("internal-" + eventId);
         run.setDomain("ASSIGNMENT");
         run.setPolicyKey(policyKey);
         run.setPolicyVersion(1L);

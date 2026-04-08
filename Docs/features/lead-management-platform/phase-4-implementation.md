@@ -208,7 +208,7 @@ Status: Completed (2026-04-08)
   - `./mvnw test`
   - result: failed due to existing integration issues:
     - `PolicyExecutionManagerIntegrationTest.shouldPersistBlockedIdentityRunWhenIdentityIsUnresolved`
-    - error: `NoSuchElementException` at `PolicyExecutionManager.plan` (`internalLeadRef.get()` on empty optional)
+    - note: this was tied to identity resolver behavior and is superseded by identity resolver contract removal.
 - Targeted Step 4 suites:
   - `./mvnw test -Dtest=WaitAndCheckClaimStepExecutorTest,PolicyStepExecutionServiceTest,PolicyExecutionDueWorkerTest,PolicyExecutionDueWorkerActivationTest,FubFollowUpBossClientTest`
   - result: pass (28 tests, 0 failures)

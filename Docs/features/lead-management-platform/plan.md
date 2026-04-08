@@ -11,7 +11,7 @@
 ## RFC Lock Checklist
 - [x] Normalized event contract locked (required/optional fields, nullability, compatibility mapping)
 - [x] Event catalog states and routing behavior locked
-- [x] Lead identity mapping boundary contract locked
+- [x] Lead identity mapping boundary contract locked (later deferred/removed from active runtime contract)
 - [x] Batch 1 scope locked as assignment-domain-first
 - [x] V1 source systems locked to `internal` and `fub`
 - [x] V1 event contract versioning locked to no explicit version field

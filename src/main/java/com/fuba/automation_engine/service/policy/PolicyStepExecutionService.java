@@ -72,9 +72,6 @@ public class PolicyStepExecutionService {
 
         PolicyStepExecutor executor = executorsByType.get(claimedStep.stepType());
         if (executor == null) {
-            // TODO(phase-4/follow-up): Add concrete executors for remaining policy step types
-            // (WAIT_AND_CHECK_COMMUNICATION, ON_FAILURE_EXECUTE_ACTION). Until then, fail fast so
-            // unsupported activated steps are visible and do not remain stuck in PROCESSING/PENDING.
             markStepAndRunFailed(step, run, EXECUTOR_NOT_FOUND, "No step executor configured for " + claimedStep.stepType());
             return;
         }
@@ -85,6 +82,7 @@ public class PolicyStepExecutionService {
                 claimedStep.stepType(),
                 run.getSource(),
                 run.getSourceLeadId(),
+                run.getPolicyBlueprintSnapshot(),
                 claimedStep);
 
         PolicyStepExecutionResult result;

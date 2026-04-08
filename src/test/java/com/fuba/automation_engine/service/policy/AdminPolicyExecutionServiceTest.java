@@ -130,7 +130,6 @@ class AdminPolicyExecutionServiceTest {
         run.setSource(WebhookSource.FUB);
         run.setEventId("evt-" + suffix);
         run.setSourceLeadId("lead-" + suffix);
-        run.setInternalLeadRef("internal-" + suffix);
         run.setDomain("ASSIGNMENT");
         run.setPolicyKey(policyKey);
         run.setPolicyVersion(1L);

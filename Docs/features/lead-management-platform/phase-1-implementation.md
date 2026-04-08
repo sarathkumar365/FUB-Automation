@@ -10,7 +10,7 @@ Status: Completed (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
 - No open contract ambiguities remain for:
   - normalized event required/optional fields
   - catalog state behavior
-  - identity mapping resolution behavior
+  - identity mapping resolution behavior (later deferred from active runtime contract)
 
 ## Scope
 - Execute Phase 1 through five small vertical slices that establish normalized contracts, catalog-state routing, and observability without introducing assignment execution.

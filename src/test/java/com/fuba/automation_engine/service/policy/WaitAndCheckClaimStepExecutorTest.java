@@ -8,6 +8,7 @@ import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepClai
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
+import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
@@ -117,6 +118,7 @@ class WaitAndCheckClaimStepExecutorTest {
                 PolicyStepType.WAIT_AND_CHECK_CLAIM,
                 WebhookSource.FUB,
                 sourceLeadId,
+                Map.of(),
                 row);
     }
 }

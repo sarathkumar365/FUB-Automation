@@ -135,7 +135,6 @@ class PolicyExecutionStepClaimRepositoryPostgresTest {
         run.setEventId("evt-" + idempotencyKey);
         run.setWebhookEventId(null);
         run.setSourceLeadId("lead-123");
-        run.setInternalLeadRef(null);
         run.setDomain("ASSIGNMENT");
         run.setPolicyKey("FOLLOW_UP_SLA");
         run.setPolicyVersion(1L);
