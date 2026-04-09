@@ -21,7 +21,11 @@ export class HttpJsonClient {
     return this.request('POST', path, schema, body)
   }
 
-  private async request<T>(method: 'GET' | 'POST', path: string, schema: ZodType<T>, body?: unknown): Promise<T> {
+  async put<T>(path: string, schema: ZodType<T>, body?: unknown): Promise<T> {
+    return this.request('PUT', path, schema, body)
+  }
+
+  private async request<T>(method: 'GET' | 'POST' | 'PUT', path: string, schema: ZodType<T>, body?: unknown): Promise<T> {
     const response = await fetch(path, {
       method,
       headers: {
