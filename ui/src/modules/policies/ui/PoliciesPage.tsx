@@ -17,9 +17,11 @@ import {
   type PoliciesPageSearchState,
   type PoliciesTab,
 } from '../lib/policiesSearchParams'
-import type { PolicyExecutionRunListItem, PolicyExecutionRunStatus } from '../lib/policySchemas'
+import type { PolicyExecutionRunListItem, PolicyExecutionRunStatus, PolicyResponse } from '../lib/policySchemas'
 import { runStatusLabel } from '../lib/policiesDisplay'
 import { usePolicyExecutionDetailQuery } from '../data/usePolicyExecutionDetailQuery'
+import { ManageTab } from './ManageTab'
+import { PolicyInspector } from './PolicyInspector'
 import { RunInspector } from './RunInspector'
 import { RunsTab } from './RunsTab'
 
@@ -165,6 +167,23 @@ export function PoliciesPage() {
     )
   }
 
+  const handlePolicyClick = (row: PolicyResponse) => {
+    const nextSelectedPolicy = searchState.selectedPolicy === row.id ? undefined : row.id
+    setSearchParams(
+      createPoliciesSearchParams({
+        ...searchState,
+        selectedPolicy: nextSelectedPolicy,
+        selectedRun: undefined,
+      }),
+    )
+  }
+
+  // Selected policy for inspector
+  const selectedPolicy = useMemo(() => {
+    if (searchState.selectedPolicy === undefined) return undefined
+    return (policiesQuery.data ?? []).find((p) => p.id === searchState.selectedPolicy)
+  }, [searchState.selectedPolicy, policiesQuery.data])
+
   // --- Panel content ---
 
   const panelBody = useMemo(
@@ -295,24 +314,35 @@ export function PoliciesPage() {
   // --- Inspector ---
 
   const inspectorBody = useMemo(() => {
-    if (searchState.selectedRun === undefined) {
-      return null
+    // Run inspector (Runs tab)
+    if (searchState.selectedRun !== undefined) {
+      let body: React.ReactNode
+      if (executionDetailQuery.isPending) {
+        body = <p className="text-sm text-[var(--color-text-muted)]">{uiText.policies.inspectorLoading}</p>
+      } else if (executionDetailQuery.isError || !executionDetailQuery.data) {
+        body = <p className="text-sm text-[var(--color-status-bad)]">{uiText.policies.inspectorError}</p>
+      } else {
+        body = <RunInspector detail={executionDetailQuery.data} />
+      }
+      return { title: uiText.policies.runInspectorTitle, body }
     }
 
-    let body: React.ReactNode
-    if (executionDetailQuery.isPending) {
-      body = <p className="text-sm text-[var(--color-text-muted)]">{uiText.policies.inspectorLoading}</p>
-    } else if (executionDetailQuery.isError || !executionDetailQuery.data) {
-      body = <p className="text-sm text-[var(--color-status-bad)]">{uiText.policies.inspectorError}</p>
-    } else {
-      body = <RunInspector detail={executionDetailQuery.data} />
+    // Policy inspector (Manage tab)
+    if (selectedPolicy !== undefined) {
+      return {
+        title: uiText.policies.policyInspectorTitle,
+        body: <PolicyInspector policy={selectedPolicy} />,
+      }
     }
 
-    return {
-      title: uiText.policies.runInspectorTitle,
-      body,
-    }
-  }, [searchState.selectedRun, executionDetailQuery.isPending, executionDetailQuery.isError, executionDetailQuery.data])
+    return null
+  }, [
+    searchState.selectedRun,
+    executionDetailQuery.isPending,
+    executionDetailQuery.isError,
+    executionDetailQuery.data,
+    selectedPolicy,
+  ])
 
   useShellRegionRegistration({
     panel: { title: uiText.policies.title, body: panelBody },
@@ -351,9 +381,13 @@ export function PoliciesPage() {
           onPrev={handlePrev}
         />
       ) : (
-        <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-6 text-sm text-[var(--color-text-muted)]">
-          Manage tab — Stage 4 will wire the policy list here.
-        </div>
+        <ManageTab
+          rows={policiesQuery.data ?? []}
+          isPending={policiesQuery.isPending}
+          isError={policiesQuery.isError}
+          selectedPolicyId={searchState.selectedPolicy}
+          onRowClick={handlePolicyClick}
+        />
       )}
     </div>
   )
