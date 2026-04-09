@@ -25,6 +25,8 @@ public final class PolicyBlueprintValidator {
     private static final String FIELD_DEPENDS_ON = "dependsOn";
     private static final String FIELD_ACTION_CONFIG = "actionConfig";
     private static final String FIELD_ACTION_TYPE = "actionType";
+    private static final String FIELD_TARGET_USER_ID = "targetUserId";
+    private static final String FIELD_TARGET_POND_ID = "targetPondId";
 
     private static final List<PolicyStepType> EXPECTED_STEP_ORDER = List.of(
             PolicyStepType.WAIT_AND_CHECK_CLAIM,
@@ -93,6 +95,18 @@ public final class PolicyBlueprintValidator {
         if (!ALLOWED_ACTION_TYPES.contains(actionType)) {
             return ValidationResult.failure(ValidationCode.INVALID_ACTION_TYPE);
         }
+        if ("REASSIGN".equals(actionType)) {
+            ValidationCode targetValidation = validatePositiveTarget(actionConfig, FIELD_TARGET_USER_ID);
+            if (targetValidation != null) {
+                return ValidationResult.failure(targetValidation);
+            }
+        }
+        if ("MOVE_TO_POND".equals(actionType)) {
+            ValidationCode targetValidation = validatePositiveTarget(actionConfig, FIELD_TARGET_POND_ID);
+            if (targetValidation != null) {
+                return ValidationResult.failure(targetValidation);
+            }
+        }
 
         return ValidationResult.success();
     }
@@ -102,6 +116,31 @@ public final class PolicyBlueprintValidator {
             return number.intValue();
         }
         return 0;
+    }
+
+    private static Long extractPositiveLong(Object value) {
+        // TODO(known-issues#7): Reject non-integer numeric targets (e.g., 12.9) instead of truncating via longValue().
+        if (value instanceof Number number && number.longValue() > 0) {
+            return number.longValue();
+        }
+        if (value instanceof String text) {
+            try {
+                long parsed = Long.parseLong(text.trim());
+                return parsed > 0 ? parsed : null;
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private static ValidationCode validatePositiveTarget(Map<String, Object> actionConfig, String fieldName) {
+        if (!actionConfig.containsKey(fieldName)) {
+            return ValidationCode.MISSING_ACTION_TARGET;
+        }
+        return extractPositiveLong(actionConfig.get(fieldName)) == null
+                ? ValidationCode.INVALID_ACTION_TARGET
+                : null;
     }
 
     private static String normalizeText(Object value) {
@@ -120,7 +159,9 @@ public final class PolicyBlueprintValidator {
         INVALID_STEP_ORDER,
         INVALID_DELAY,
         INVALID_DEPENDENCY,
-        INVALID_ACTION_TYPE
+        INVALID_ACTION_TYPE,
+        MISSING_ACTION_TARGET,
+        INVALID_ACTION_TARGET
     }
 
     public record ValidationResult(boolean valid, ValidationCode code) {

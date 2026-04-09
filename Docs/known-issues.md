@@ -11,7 +11,9 @@ This document tracks currently known issues identified in the codebase.
 | 3 | SSE publish path can throw on null event fields | Medium | Open |
 | 4 | Replay does not reset retry count | Low | Open |
 | 5 | Missing end-to-end scenario coverage for policy worker execution flow | High | Open |
-| 6 | No watchdog for stale `PROCESSING` policy steps after hard crashes | High | Open — production reliability blocker |
+| 6 | No watchdog for stale `PROCESSING` policy steps after hard crashes | High | Resolved (2026-04-08) |
+| 7 | Action target validation truncates non-integer numeric values | Medium | Open |
+| 8 | Stale recovery can leave requeued steps in runs already failed | Medium | Open |
 
 ---
 
@@ -58,9 +60,27 @@ This document tracks currently known issues identified in the codebase.
 
 ## 6) No watchdog for stale `PROCESSING` policy steps after hard crashes
 
-- **Status:** Open — **production reliability blocker**
+- **Status:** Resolved (2026-04-08)
 - **Priority:** High
 - **Location:** `service/policy/PolicyExecutionDueWorker.java`
-- **Issue:** Worker compensates unhandled execution exceptions, but only covers exceptions observed by the running process. A hard crash (JVM kill/node restart) after atomic claim and before compensation can leave rows stuck in `PROCESSING` indefinitely.
-- **Impact:** Orphaned executions require manual DB intervention to recover.
-- **Suggested fix:** Add stale-processing recovery (heartbeat/timeout reaper) to requeue or fail `PROCESSING` steps older than a configurable threshold with an explicit reason code (`STALE_PROCESSING_RECOVERED`).
+- **Issue (historical):** Worker compensation previously covered only exceptions observed by the running process. A hard crash (JVM kill/node restart) after atomic claim could strand rows in `PROCESSING`.
+- **Resolution:** Added stale-processing watchdog/reaper with bounded redrive semantics (requeue once, then fail deterministically).
+- **Implemented behavior:** stale rows are selected by lease age (`updated_at` threshold), recovered using `FOR UPDATE SKIP LOCKED`, and terminal run failure is marked with reason code `STALE_PROCESSING_TIMEOUT`.
+
+## 7) Action target validation truncates non-integer numeric values
+
+- **Status:** Open
+- **Priority:** Medium
+- **Location:** `service/policy/PolicyBlueprintValidator.java`
+- **Issue:** `extractPositiveLong` accepts generic `Number` values and coerces with `longValue()`, which truncates fractional inputs.
+- **Impact:** JSON payloads with values like `12.9` can pass validation and execute against an unintended target ID (`12`).
+- **Suggested fix:** Only accept integer numeric inputs for action targets (or parse string values strictly as whole numbers) and reject fractional numeric values.
+
+## 8) Stale recovery can leave requeued steps in runs already failed
+
+- **Status:** Open
+- **Priority:** Medium
+- **Location:** `persistence/repository/JdbcPolicyExecutionStepClaimRepository.java`, `service/policy/PolicyStepExecutionService.java`
+- **Issue:** A single stale-recovery pass can requeue some rows and fail others for the same run, after which run status is marked `FAILED` while requeued sibling rows remain claimable.
+- **Impact:** Workers can continue executing pending steps that belong to a run already transitioned to terminal failed state.
+- **Suggested fix:** Ensure stale recovery does not produce mixed outcomes per run (for example, fail all stale rows for runs where any row reaches stale-fail threshold, or suppress requeue for those runs).
