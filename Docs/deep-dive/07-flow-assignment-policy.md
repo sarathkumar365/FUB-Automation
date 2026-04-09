@@ -55,7 +55,8 @@ The policy blueprint defines the step pipeline. Currently the only supported tem
     }
   ],
   "actionConfig": {
-    "actionType": "REASSIGN"
+    "actionType": "REASSIGN",
+    "targetUserId": 77
   }
 }
 ```
@@ -67,6 +68,12 @@ The policy blueprint defines the step pipeline. Currently the only supported tem
 4. Steps 1 and 2 must have `delayMinutes ≥ 1`
 5. Step 2 depends on Step 1; Step 3 depends on Step 2
 6. `actionConfig.actionType` must be `REASSIGN` or `MOVE_TO_POND`
+7. Action target is required by action type:
+   - `REASSIGN` requires `actionConfig.targetUserId` as a positive integer
+   - `MOVE_TO_POND` requires `actionConfig.targetPondId` as a positive integer
+8. Target validation failures use deterministic codes:
+   - `MISSING_ACTION_TARGET`
+   - `INVALID_ACTION_TARGET`
 
 ## Planning flow
 

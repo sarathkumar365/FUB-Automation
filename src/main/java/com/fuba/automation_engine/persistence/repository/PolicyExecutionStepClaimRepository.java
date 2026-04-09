@@ -9,6 +9,12 @@ public interface PolicyExecutionStepClaimRepository {
 
     List<ClaimedStepRow> claimDuePendingSteps(OffsetDateTime now, int limit);
 
+    List<StaleRecoveryRow> recoverStaleProcessingSteps(
+            OffsetDateTime staleBefore,
+            int limit,
+            int requeueLimit,
+            OffsetDateTime now);
+
     record ClaimedStepRow(
             long id,
             long runId,
@@ -16,5 +22,20 @@ public interface PolicyExecutionStepClaimRepository {
             int stepOrder,
             OffsetDateTime dueAt,
             PolicyExecutionStepStatus status) {
+    }
+
+    record StaleRecoveryRow(
+            long id,
+            long runId,
+            PolicyStepType stepType,
+            int stepOrder,
+            PolicyExecutionStepStatus status,
+            int staleRecoveryCount,
+            StaleRecoveryOutcome outcome) {
+    }
+
+    enum StaleRecoveryOutcome {
+        REQUEUED,
+        FAILED
     }
 }

@@ -7,6 +7,8 @@ import com.fuba.automation_engine.persistence.entity.PolicyExecutionStepStatus;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionRunRepository;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepRepository;
+import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.Clock;
 import java.time.Instant;
@@ -165,21 +167,28 @@ class PolicyStepExecutionServiceTest {
 
     @Test
     void shouldFailRunWhenActionExecutorReturnsTargetUnconfigured() {
+        FollowUpBossClient followUpBossClient = mock(FollowUpBossClient.class);
+        when(followUpBossClient.reassignPerson(905L, 77L)).thenReturn(ActionExecutionResult.ok());
         PolicyStepExecutionService service =
-                new PolicyStepExecutionService(runRepository, stepRepository, List.of(new OnCommunicationMissActionStepExecutor()), clock);
+                new PolicyStepExecutionService(
+                        runRepository,
+                        stepRepository,
+                        List.of(new OnCommunicationMissActionStepExecutor(followUpBossClient)),
+                        clock);
 
         PolicyExecutionStepEntity actionStep = stepEntity(
                 42L, 142L, 3, PolicyStepType.ON_FAILURE_EXECUTE_ACTION, PolicyExecutionStepStatus.PROCESSING);
         PolicyExecutionRunEntity run = runEntity(142L, "905");
-        run.setPolicyBlueprintSnapshot(Map.of("actionConfig", Map.of("actionType", "REASSIGN")));
+        run.setPolicyBlueprintSnapshot(Map.of("actionConfig", Map.of("actionType", "REASSIGN", "targetUserId", 77)));
         when(stepRepository.findById(42L)).thenReturn(Optional.of(actionStep));
         when(runRepository.findById(142L)).thenReturn(Optional.of(run));
+        when(stepRepository.findByRunIdOrderByStepOrderAsc(142L)).thenReturn(List.of(actionStep));
 
         service.executeClaimedStep(claimedRow(42L, 142L, PolicyStepType.ON_FAILURE_EXECUTE_ACTION));
 
-        assertEquals(PolicyExecutionStepStatus.FAILED, actionStep.getStatus());
-        assertEquals(PolicyExecutionRunStatus.FAILED, run.getStatus());
-        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_UNCONFIGURED, run.getReasonCode());
+        assertEquals(PolicyExecutionStepStatus.COMPLETED, actionStep.getStatus());
+        assertEquals(PolicyExecutionRunStatus.COMPLETED, run.getStatus());
+        assertEquals(PolicyTerminalOutcome.ACTION_COMPLETED.name(), run.getReasonCode());
     }
 
     @Test
@@ -298,6 +307,49 @@ class PolicyStepExecutionServiceTest {
         verify(runRepository).save(run);
     }
 
+    @Test
+    void shouldFailRunForStaleProcessingRecoveryFailureOutcome() {
+        PolicyStepExecutionService service =
+                new PolicyStepExecutionService(runRepository, stepRepository, List.of(), clock);
+        PolicyExecutionRunEntity run = runEntity(300L, "999");
+        when(runRepository.findById(300L)).thenReturn(Optional.of(run));
+
+        service.applyStaleProcessingRecovery(List.of(
+                new PolicyExecutionStepClaimRepository.StaleRecoveryRow(
+                        11L,
+                        300L,
+                        PolicyStepType.WAIT_AND_CHECK_CLAIM,
+                        1,
+                        PolicyExecutionStepStatus.FAILED,
+                        1,
+                        PolicyExecutionStepClaimRepository.StaleRecoveryOutcome.FAILED)));
+
+        assertEquals(PolicyExecutionRunStatus.FAILED, run.getStatus());
+        assertEquals(PolicyStepExecutionService.STALE_PROCESSING_TIMEOUT, run.getReasonCode());
+        verify(runRepository).save(run);
+    }
+
+    @Test
+    void shouldNotFailRunForRequeuedStaleRecoveryOutcome() {
+        PolicyStepExecutionService service =
+                new PolicyStepExecutionService(runRepository, stepRepository, List.of(), clock);
+        PolicyExecutionRunEntity run = runEntity(301L, "1000");
+        when(runRepository.findById(301L)).thenReturn(Optional.of(run));
+
+        service.applyStaleProcessingRecovery(List.of(
+                new PolicyExecutionStepClaimRepository.StaleRecoveryRow(
+                        12L,
+                        301L,
+                        PolicyStepType.WAIT_AND_CHECK_CLAIM,
+                        1,
+                        PolicyExecutionStepStatus.PENDING,
+                        1,
+                        PolicyExecutionStepClaimRepository.StaleRecoveryOutcome.REQUEUED)));
+
+        assertEquals(PolicyExecutionRunStatus.PENDING, run.getStatus());
+        verify(runRepository, never()).save(any());
+    }
+
     private PolicyExecutionStepClaimRepository.ClaimedStepRow claimedRow(long stepId, long runId, PolicyStepType stepType) {
         return new PolicyExecutionStepClaimRepository.ClaimedStepRow(
                 stepId,
@@ -333,7 +385,8 @@ class PolicyStepExecutionServiceTest {
                 "steps", List.of(
                         Map.of("type", "WAIT_AND_CHECK_CLAIM", "delayMinutes", 5),
                         Map.of("type", "WAIT_AND_CHECK_COMMUNICATION", "delayMinutes", 10),
-                        Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "delayMinutes", 0))));
+                        Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "delayMinutes", 0)),
+                "actionConfig", Map.of("actionType", "REASSIGN", "targetUserId", 77)));
         return run;
     }
 }

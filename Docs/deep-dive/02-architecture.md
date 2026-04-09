@@ -68,7 +68,7 @@ com.fuba.automation_engine/
 │       ├── PolicyExecutionCursorCodec        ← Cursor encoding
 │       ├── WaitAndCheckClaimStepExecutor     ← Claim check executor
 │       ├── WaitAndCheckCommunicationStepExecutor ← Communication check executor
-│       ├── OnCommunicationMissActionStepExecutor ← Action executor (deferred)
+│       ├── OnCommunicationMissActionStepExecutor ← Action executor (target-validated, log-only adapter execution in dev)
 │       └── (context, result, request, outcome records)
 ├── client/fub/
 │   ├── FubFollowUpBossClient                 ← Adapter: FUB REST API client

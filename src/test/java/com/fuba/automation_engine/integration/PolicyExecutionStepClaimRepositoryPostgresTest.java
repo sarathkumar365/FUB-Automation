@@ -7,6 +7,8 @@ import com.fuba.automation_engine.persistence.entity.PolicyExecutionStepStatus;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionRunRepository;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepClaimRepository.ClaimedStepRow;
+import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepClaimRepository.StaleRecoveryOutcome;
+import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepClaimRepository.StaleRecoveryRow;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepRepository;
 import com.fuba.automation_engine.service.policy.PolicyStepType;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
@@ -129,6 +131,92 @@ class PolicyExecutionStepClaimRepositoryPostgresTest {
         }
     }
 
+    @Test
+    void shouldRecoverOnlyStaleProcessingRowsWithRequeueThenFailBehavior() {
+        OffsetDateTime now = OffsetDateTime.parse("2026-04-08T12:00:00Z");
+        PolicyExecutionRunEntity run = runRepository.saveAndFlush(newRun("IDEMP-C"));
+
+        PolicyExecutionStepEntity staleRequeue = step(run.getId(), 1, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(20));
+        staleRequeue.setStaleRecoveryCount(0);
+        PolicyExecutionStepEntity staleFail = step(run.getId(), 2, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(16));
+        staleFail.setStaleRecoveryCount(1);
+        PolicyExecutionStepEntity freshProcessing = step(run.getId(), 3, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(5));
+        freshProcessing.setStaleRecoveryCount(0);
+
+        stepRepository.saveAndFlush(staleRequeue);
+        stepRepository.saveAndFlush(staleFail);
+        stepRepository.saveAndFlush(freshProcessing);
+
+        List<StaleRecoveryRow> recovered = claimRepository.recoverStaleProcessingSteps(
+                now.minusMinutes(15),
+                10,
+                1,
+                now);
+
+        assertEquals(2, recovered.size());
+        assertTrue(recovered.stream().anyMatch(row -> row.id() == staleRequeue.getId()
+                && row.status() == PolicyExecutionStepStatus.PENDING
+                && row.outcome() == StaleRecoveryOutcome.REQUEUED
+                && row.staleRecoveryCount() == 1));
+        assertTrue(recovered.stream().anyMatch(row -> row.id() == staleFail.getId()
+                && row.status() == PolicyExecutionStepStatus.FAILED
+                && row.outcome() == StaleRecoveryOutcome.FAILED
+                && row.staleRecoveryCount() == 1));
+
+        List<PolicyExecutionStepEntity> allSteps = stepRepository.findByRunIdOrderByStepOrderAsc(run.getId());
+        PolicyExecutionStepEntity requeuedStep = allSteps.get(0);
+        PolicyExecutionStepEntity failedStep = allSteps.get(1);
+        PolicyExecutionStepEntity freshStep = allSteps.get(2);
+
+        assertEquals(PolicyExecutionStepStatus.PENDING, requeuedStep.getStatus());
+        assertEquals(now, requeuedStep.getDueAt());
+        assertEquals(1, requeuedStep.getStaleRecoveryCount());
+
+        assertEquals(PolicyExecutionStepStatus.FAILED, failedStep.getStatus());
+        assertEquals(1, failedStep.getStaleRecoveryCount());
+        assertTrue(failedStep.getErrorMessage().contains("Stale processing timeout"));
+
+        assertEquals(PolicyExecutionStepStatus.PROCESSING, freshStep.getStatus());
+    }
+
+    @Test
+    void shouldNotReturnOverlappingRowsAcrossConcurrentStaleRecoveryCalls() throws Exception {
+        OffsetDateTime now = OffsetDateTime.parse("2026-04-08T13:00:00Z");
+        PolicyExecutionRunEntity run = runRepository.saveAndFlush(newRun("IDEMP-D"));
+
+        stepRepository.saveAndFlush(step(run.getId(), 1, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(25)));
+        stepRepository.saveAndFlush(step(run.getId(), 2, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(24)));
+        stepRepository.saveAndFlush(step(run.getId(), 3, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(23)));
+        stepRepository.saveAndFlush(step(run.getId(), 4, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(22)));
+
+        ExecutorService executor = Executors.newFixedThreadPool(2);
+        try {
+            Callable<List<StaleRecoveryRow>> task = () -> claimRepository.recoverStaleProcessingSteps(
+                    now.minusMinutes(15),
+                    2,
+                    1,
+                    now);
+            Future<List<StaleRecoveryRow>> first = executor.submit(task);
+            Future<List<StaleRecoveryRow>> second = executor.submit(task);
+
+            List<StaleRecoveryRow> firstResult = first.get();
+            List<StaleRecoveryRow> secondResult = second.get();
+
+            Set<Long> recoveredIds = new HashSet<>();
+            firstResult.forEach(row -> recoveredIds.add(row.id()));
+            secondResult.forEach(row -> recoveredIds.add(row.id()));
+
+            assertEquals(4, recoveredIds.size());
+            assertTrue(firstResult.stream().allMatch(row -> row.outcome() == StaleRecoveryOutcome.REQUEUED));
+            assertTrue(secondResult.stream().allMatch(row -> row.outcome() == StaleRecoveryOutcome.REQUEUED));
+        } catch (ExecutionException ex) {
+            throw new RuntimeException("Concurrent stale recovery execution failed", ex);
+        } finally {
+            executor.shutdownNow();
+            executor.awaitTermination(1, TimeUnit.SECONDS);
+        }
+    }
+
     private PolicyExecutionRunEntity newRun(String idempotencyKey) {
         PolicyExecutionRunEntity run = new PolicyExecutionRunEntity();
         run.setSource(WebhookSource.FUB);
@@ -159,6 +247,7 @@ class PolicyExecutionStepClaimRepositoryPostgresTest {
         step.setDependsOnStepOrder(null);
         step.setResultCode(null);
         step.setErrorMessage(null);
+        step.setStaleRecoveryCount(0);
         return step;
     }
 }

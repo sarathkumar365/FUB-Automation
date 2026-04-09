@@ -113,7 +113,7 @@ class AdminPolicyControllerTest {
                   {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
                   {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
                   {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
-                "actionConfig":{"actionType":"REASSIGN"}}}
+                "actionConfig":{"actionType":"REASSIGN","targetUserId":77}}}
                 """;
 
         mockMvc.perform(post("/admin/policies").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -133,7 +133,7 @@ class AdminPolicyControllerTest {
                   {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
                   {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
                   {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
-                "actionConfig":{"actionType":"REASSIGN"}}}
+                "actionConfig":{"actionType":"REASSIGN","targetUserId":77}}}
                 """;
 
         mockMvc.perform(post("/admin/policies").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -151,7 +151,7 @@ class AdminPolicyControllerTest {
                   {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
                   {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
                   {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
-                "actionConfig":{"actionType":"REASSIGN"}}}
+                "actionConfig":{"actionType":"REASSIGN","targetUserId":77}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -171,7 +171,7 @@ class AdminPolicyControllerTest {
                   {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
                   {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
                   {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
-                "actionConfig":{"actionType":"REASSIGN"}}}
+                "actionConfig":{"actionType":"REASSIGN","targetUserId":77}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -189,7 +189,7 @@ class AdminPolicyControllerTest {
                   {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
                   {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
                   {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
-                "actionConfig":{"actionType":"REASSIGN"}}}
+                "actionConfig":{"actionType":"REASSIGN","targetUserId":77}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -207,7 +207,7 @@ class AdminPolicyControllerTest {
                   {"type":"WAIT_AND_CHECK_CLAIM","delayMinutes":5},
                   {"type":"WAIT_AND_CHECK_COMMUNICATION","delayMinutes":10,"dependsOn":"WAIT_AND_CHECK_CLAIM"},
                   {"type":"ON_FAILURE_EXECUTE_ACTION","dependsOn":"WAIT_AND_CHECK_COMMUNICATION"}],
-                "actionConfig":{"actionType":"REASSIGN"}}}
+                "actionConfig":{"actionType":"REASSIGN","targetUserId":77}}}
                 """;
 
         mockMvc.perform(put("/admin/policies/99").contentType(MediaType.APPLICATION_JSON).content(requestJson))
@@ -329,7 +329,7 @@ class AdminPolicyControllerTest {
                                 "WAIT_AND_CHECK_CLAIM"),
                         Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
                 "actionConfig",
-                Map.of("actionType", "REASSIGN"));
+                Map.of("actionType", "REASSIGN", "targetUserId", 77));
     }
 
 }

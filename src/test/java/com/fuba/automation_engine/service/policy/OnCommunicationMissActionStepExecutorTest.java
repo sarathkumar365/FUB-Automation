@@ -2,32 +2,49 @@ package com.fuba.automation_engine.service.policy;
 
 import com.fuba.automation_engine.persistence.entity.PolicyExecutionStepStatus;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepClaimRepository;
+import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.util.Map;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 class OnCommunicationMissActionStepExecutorTest {
 
-    private final OnCommunicationMissActionStepExecutor executor = new OnCommunicationMissActionStepExecutor();
+    private FollowUpBossClient followUpBossClient;
+    private OnCommunicationMissActionStepExecutor executor;
 
-    @Test
-    void shouldFailExplicitlyForReassignWhileActionTargetIsUndecided() {
-        PolicyStepExecutionResult result = executor.execute(context(Map.of(
-                "actionConfig", Map.of("actionType", "REASSIGN"))));
-
-        assertEquals(false, result.success());
-        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_UNCONFIGURED, result.reasonCode());
+    @BeforeEach
+    void setUp() {
+        followUpBossClient = mock(FollowUpBossClient.class);
+        executor = new OnCommunicationMissActionStepExecutor(followUpBossClient);
     }
 
     @Test
-    void shouldFailExplicitlyForMoveToPondWhileActionTargetIsUndecided() {
+    void shouldSucceedForReassignWhenTargetUserConfigured() {
+        when(followUpBossClient.reassignPerson(901L, 12L)).thenReturn(ActionExecutionResult.ok());
         PolicyStepExecutionResult result = executor.execute(context(Map.of(
-                "actionConfig", Map.of("actionType", "MOVE_TO_POND"))));
+                "actionConfig", Map.of("actionType", "REASSIGN", "targetUserId", 12))));
 
-        assertEquals(false, result.success());
-        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_UNCONFIGURED, result.reasonCode());
+        assertEquals(true, result.success());
+        assertEquals(PolicyStepResultCode.ACTION_SUCCESS, result.resultCode());
+        verify(followUpBossClient).reassignPerson(901L, 12L);
+    }
+
+    @Test
+    void shouldSucceedForMoveToPondWhenTargetPondConfigured() {
+        when(followUpBossClient.movePersonToPond(901L, 44L)).thenReturn(ActionExecutionResult.ok());
+        PolicyStepExecutionResult result = executor.execute(context(Map.of(
+                "actionConfig", Map.of("actionType", "MOVE_TO_POND", "targetPondId", 44))));
+
+        assertEquals(true, result.success());
+        assertEquals(PolicyStepResultCode.ACTION_SUCCESS, result.resultCode());
+        verify(followUpBossClient).movePersonToPond(901L, 44L);
     }
 
     @Test
@@ -54,6 +71,24 @@ class OnCommunicationMissActionStepExecutorTest {
 
         assertEquals(false, result.success());
         assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TYPE_UNSUPPORTED, result.reasonCode());
+    }
+
+    @Test
+    void shouldFailWhenReassignTargetMissing() {
+        PolicyStepExecutionResult result = executor.execute(context(Map.of(
+                "actionConfig", Map.of("actionType", "REASSIGN"))));
+
+        assertEquals(false, result.success());
+        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_MISSING, result.reasonCode());
+    }
+
+    @Test
+    void shouldFailWhenMoveToPondTargetMissing() {
+        PolicyStepExecutionResult result = executor.execute(context(Map.of(
+                "actionConfig", Map.of("actionType", "MOVE_TO_POND"))));
+
+        assertEquals(false, result.success());
+        assertEquals(OnCommunicationMissActionStepExecutor.ACTION_TARGET_MISSING, result.reasonCode());
     }
 
     private PolicyStepExecutionContext context(Map<String, Object> blueprint) {

@@ -46,10 +46,12 @@ To tie all flows together, here is the complete lifecycle of an assignment event
 7. [Next poll] Due worker claims Step 3
    → OnCommunicationMissActionStepExecutor:
      reads actionConfig.actionType = "REASSIGN"
-     → returns ACTION_TARGET_UNCONFIGURED (deferred)
-   → transition: ACTION_FAILED → terminal
+     reads actionConfig.targetUserId = 77
+     → executes log-only action via FollowUpBossClient.reassignPerson(...)
+     → returns ACTION_SUCCESS
+   → transition: ACTION_SUCCESS → terminal
    → remaining steps: none to skip
-   → run status: COMPLETED, reasonCode = ACTION_FAILED
+   → run status: COMPLETED, reasonCode = ACTION_COMPLETED
 ```
 
 **Alternative paths:**

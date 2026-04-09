@@ -22,6 +22,10 @@ class PolicyWorkerPropertiesBindingTest {
             assertEquals(2000L, properties.getPollIntervalMs());
             assertEquals(50, properties.getClaimBatchSize());
             assertEquals(200, properties.getMaxStepsPerPoll());
+            assertTrue(properties.isStaleProcessingEnabled());
+            assertEquals(15, properties.getStaleProcessingTimeoutMinutes());
+            assertEquals(1, properties.getStaleProcessingRequeueLimit());
+            assertEquals(50, properties.getStaleProcessingBatchSize());
         });
     }
 
@@ -32,13 +36,21 @@ class PolicyWorkerPropertiesBindingTest {
                         "policy.worker.enabled=false",
                         "policy.worker.poll-interval-ms=9000",
                         "policy.worker.claim-batch-size=7",
-                        "policy.worker.max-steps-per-poll=30")
+                        "policy.worker.max-steps-per-poll=30",
+                        "policy.worker.stale-processing-enabled=false",
+                        "policy.worker.stale-processing-timeout-minutes=20",
+                        "policy.worker.stale-processing-requeue-limit=3",
+                        "policy.worker.stale-processing-batch-size=12")
                 .run(context -> {
                     PolicyWorkerProperties properties = context.getBean(PolicyWorkerProperties.class);
                     assertFalse(properties.isEnabled());
                     assertEquals(9000L, properties.getPollIntervalMs());
                     assertEquals(7, properties.getClaimBatchSize());
                     assertEquals(30, properties.getMaxStepsPerPoll());
+                    assertFalse(properties.isStaleProcessingEnabled());
+                    assertEquals(20, properties.getStaleProcessingTimeoutMinutes());
+                    assertEquals(3, properties.getStaleProcessingRequeueLimit());
+                    assertEquals(12, properties.getStaleProcessingBatchSize());
                 });
     }
 

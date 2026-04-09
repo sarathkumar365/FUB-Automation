@@ -26,7 +26,7 @@ A call happens in FUB. FUB fires a `callsCreated` webhook to this app. The app f
 A lead is created or updated in FUB. FUB fires a `peopleCreated` or `peopleUpdated` webhook. The app starts a policy-driven SLA timer:
 1. Wait 5 minutes → check if the lead is still claimed by the assigned agent.
 2. If claimed, wait 10 more minutes → check if the agent has made contact.
-3. If no contact → trigger an action (reassign or move to pond). *Note: the action execution is structurally wired but the target semantics are deferred — it currently fails with `ACTION_TARGET_UNCONFIGURED`.*
+3. If no contact → trigger an action (reassign or move to pond). *Current behavior: action targets are validated from policy (`targetUserId` / `targetPondId`), action execution is log-only in the adapter for dev mode, and the step completes with `ACTION_SUCCESS`.*
 
 ### 1.3 Who uses it
 

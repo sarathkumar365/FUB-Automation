@@ -35,8 +35,8 @@
 
 | # | Issue | Impact | Location |
 |---|-------|--------|----------|
-| 1 | `ON_FAILURE_EXECUTE_ACTION` fails with `ACTION_TARGET_UNCONFIGURED` | Action step always fails; no actual reassign/pond-move. See [08-flow-policy-execution.md](08-flow-policy-execution.md#subflow-d3-on_failure_execute_action-executor) for what needs to change | `OnCommunicationMissActionStepExecutor` |
-| 2 | Stale `PROCESSING` watchdog/reaper missing | Orphaned PROCESSING steps after crash are never recovered | `PolicyExecutionDueWorker` |
+| 1 | Action mutation endpoints still log-only | Execution path is complete and returns `ACTION_SUCCESS`, but external provider mutation is deferred | `OnCommunicationMissActionStepExecutor`, `FubFollowUpBossClient` |
+| 2 | Stale `PROCESSING` watchdog/reaper missing | Resolved in Phase 6 | `PolicyExecutionDueWorker` |
 | 3 | Call processing non-atomic claim | Duplicate concurrent deliveries can both pass terminal guard | `WebhookEventProcessorService.processCall` |
 | 4 | SSE `Map.of` null safety | `WebhookSseHub.publish` can NPE if `eventId` is null | `WebhookSseHub` |
 | 5 | Replay doesn't reset `retryCount` | Replayed calls show inflated retry counts from previous attempt | `ProcessedCallAdminService.replay` |
@@ -58,7 +58,7 @@ This document set was verified in 10 recursive passes against current branch cod
 4. **Assignment-domain planning** — validated `processAssignmentDomainEvent` fan-out, `PolicyExecutionManager.plan` with idempotency key SHA-256 construction, blueprint validation rules (7 checks), `getActivePolicy` lookup, step materialization with PENDING/WAITING_DEPENDENCY initial states, and `dueAt` calculation from blueprint `delayMinutes`.
 5. **Due worker execution** — validated `pollAndProcessDueSteps` cycle/budget algorithm, `JdbcPolicyExecutionStepClaimRepository` SQL (`FOR UPDATE SKIP LOCKED`), `PolicyStepExecutionService.executeClaimedStep` method chain, and `compensateClaimedStepFailure` with `REQUIRES_NEW` and 3-attempt retry.
 6. **Transition contract** — validated all 6 transition entries in `PolicyStepTransitionContract`, terminal transition logic (skip remaining steps, mark run COMPLETED), and next-step activation (WAITING_DEPENDENCY → PENDING with computed `dueAt`).
-7. **Executor implementations** — validated all 3 executors: claim check (`claimed` field with `assignedUserId` fallback), communication check (derived from `contacted > 0`), action executor (validates actionType then fails with `ACTION_TARGET_UNCONFIGURED`). Verified all failure codes per executor.
+7. **Executor implementations** — validated all 3 executors: claim check (`claimed` field with `assignedUserId` fallback), communication check (derived from `contacted > 0`), action executor (validates action type + target and executes log-only adapter methods returning `ACTION_SUCCESS` in dev mode). Verified failure codes for invalid config/targets.
 8. **FUB client adapter** — validated Basic Auth encoding, header construction, exception mapping (429/5xx → transient, 4xx → permanent, network → transient), `checkPersonCommunication` derivation from `getPersonById`, and `registerWebhook` stub status.
 9. **Admin APIs** — validated all 12 endpoints with request/response shapes, cursor-based pagination (Base64 JSON encoding, keyset queries), JPA Specification filtering, replay behavior (field reset, synthetic event dispatch, retryCount TODO), policy CRUD with optimistic locking, activation with deactivation query, and SSE hub implementation (heartbeat, subscriber management, filter matching, event names).
 10. **Database schema** — validated all 8 Flyway migrations (V1–V8) including table structures, column types, indexes, unique constraints, partial indexes, foreign keys, check constraints, and V8 identity resolver removal.

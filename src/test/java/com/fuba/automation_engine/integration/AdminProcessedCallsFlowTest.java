@@ -5,6 +5,7 @@ import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
@@ -179,6 +180,16 @@ class AdminProcessedCallsFlowTest {
         @Override
         public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
             return new PersonCommunicationCheckResult(personId, false);
+        }
+
+        @Override
+        public ActionExecutionResult reassignPerson(long personId, long targetUserId) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
+        public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
+            return ActionExecutionResult.ok();
         }
 
         @Override

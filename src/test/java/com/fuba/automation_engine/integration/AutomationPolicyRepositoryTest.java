@@ -130,7 +130,7 @@ class AutomationPolicyRepositoryTest {
                                 "WAIT_AND_CHECK_CLAIM"),
                         java.util.Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
                 "actionConfig",
-                java.util.Map.of("actionType", "REASSIGN")));
+                java.util.Map.of("actionType", "REASSIGN", "targetUserId", 77L)));
         return policy;
     }
 }

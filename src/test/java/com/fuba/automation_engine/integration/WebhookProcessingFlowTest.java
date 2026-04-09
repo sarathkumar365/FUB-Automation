@@ -9,6 +9,7 @@ import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.rules.CallDecisionEngine;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
@@ -413,6 +414,16 @@ class WebhookProcessingFlowTest {
         @Override
         public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
             return new PersonCommunicationCheckResult(personId, false);
+        }
+
+        @Override
+        public ActionExecutionResult reassignPerson(long personId, long targetUserId) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
+        public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
+            return ActionExecutionResult.ok();
         }
 
         @Override

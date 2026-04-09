@@ -1,6 +1,7 @@
 package com.fuba.automation_engine.service;
 
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
@@ -17,6 +18,10 @@ public interface FollowUpBossClient {
     PersonDetails getPersonById(long personId);
 
     PersonCommunicationCheckResult checkPersonCommunication(long personId);
+
+    ActionExecutionResult reassignPerson(long personId, long targetUserId);
+
+    ActionExecutionResult movePersonToPond(long personId, long targetPondId);
 
     CreatedTask createTask(CreateTaskCommand command);
 }

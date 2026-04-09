@@ -4,6 +4,7 @@ import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
@@ -272,6 +273,24 @@ class FubFollowUpBossClientTest {
         assertEquals("callsCreated", result.event());
         assertEquals("https://example.com/webhook", result.url());
         assertEquals("STUBBED", result.status());
+    }
+
+    @Test
+    void shouldReturnSuccessForLogOnlyReassignAction() {
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        ActionExecutionResult result = client.reassignPerson(19065L, 77L);
+
+        assertTrue(result.success());
+        assertEquals(null, result.reasonCode());
+    }
+
+    @Test
+    void shouldReturnSuccessForLogOnlyMoveToPondAction() {
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        ActionExecutionResult result = client.movePersonToPond(19065L, 44L);
+
+        assertTrue(result.success());
+        assertEquals(null, result.reasonCode());
     }
 
     private FubFollowUpBossClient newClient(String apiKey, String system, String systemKey) {

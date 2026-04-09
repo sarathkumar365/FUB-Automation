@@ -62,6 +62,28 @@ class PolicyBlueprintValidatorTest {
         assertEquals(PolicyBlueprintValidator.ValidationCode.INVALID_ACTION_TYPE, result.code());
     }
 
+    @Test
+    void shouldRejectMissingActionTargetForReassign() {
+        var blueprint = validBlueprint();
+        ((Map<String, Object>) blueprint.get("actionConfig")).remove("targetUserId");
+
+        var result = PolicyBlueprintValidator.validate(blueprint);
+
+        assertFalse(result.valid());
+        assertEquals(PolicyBlueprintValidator.ValidationCode.MISSING_ACTION_TARGET, result.code());
+    }
+
+    @Test
+    void shouldRejectInvalidActionTargetForReassign() {
+        var blueprint = validBlueprint();
+        ((Map<String, Object>) blueprint.get("actionConfig")).put("targetUserId", 0);
+
+        var result = PolicyBlueprintValidator.validate(blueprint);
+
+        assertFalse(result.valid());
+        assertEquals(PolicyBlueprintValidator.ValidationCode.INVALID_ACTION_TARGET, result.code());
+    }
+
     private Map<String, Object> validBlueprint() {
         return new java.util.LinkedHashMap<>(Map.of(
                 "templateKey",
@@ -79,6 +101,6 @@ class PolicyBlueprintValidatorTest {
                         new java.util.LinkedHashMap<>(Map.of(
                                 "type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")))),
                 "actionConfig",
-                new java.util.LinkedHashMap<>(Map.of("actionType", "REASSIGN"))));
+                new java.util.LinkedHashMap<>(Map.of("actionType", "REASSIGN", "targetUserId", 77))));
     }
 }

@@ -11,9 +11,11 @@ import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.Comparator;
 import java.util.EnumMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -33,6 +35,7 @@ public class PolicyStepExecutionService {
     static final String TRANSITION_TARGET_NOT_FOUND = "TRANSITION_TARGET_NOT_FOUND";
     static final String TRANSITION_TARGET_INVALID_STATE = "TRANSITION_TARGET_INVALID_STATE";
     static final String WORKER_UNHANDLED_EXCEPTION = "WORKER_UNHANDLED_EXCEPTION";
+    static final String STALE_PROCESSING_TIMEOUT = "STALE_PROCESSING_TIMEOUT";
 
     private final PolicyExecutionRunRepository runRepository;
     private final PolicyExecutionStepRepository stepRepository;
@@ -159,6 +162,33 @@ public class PolicyStepExecutionService {
                 claimedStep.runId(),
                 claimedStep.stepType(),
                 ex);
+    }
+
+    @Transactional
+    public void applyStaleProcessingRecovery(List<PolicyExecutionStepClaimRepository.StaleRecoveryRow> recoveredRows) {
+        if (recoveredRows == null || recoveredRows.isEmpty()) {
+            return;
+        }
+        Set<Long> failedRunIds = new HashSet<>();
+        for (PolicyExecutionStepClaimRepository.StaleRecoveryRow row : recoveredRows) {
+            if (row == null || row.outcome() != PolicyExecutionStepClaimRepository.StaleRecoveryOutcome.FAILED) {
+                continue;
+            }
+            failedRunIds.add(row.runId());
+        }
+        if (failedRunIds.isEmpty()) {
+            return;
+        }
+        for (Long runId : failedRunIds) {
+            runRepository.findById(runId).ifPresent(run -> {
+                if (run.getStatus() == PolicyExecutionRunStatus.COMPLETED || run.getStatus() == PolicyExecutionRunStatus.FAILED) {
+                    return;
+                }
+                run.setStatus(PolicyExecutionRunStatus.FAILED);
+                run.setReasonCode(STALE_PROCESSING_TIMEOUT);
+                runRepository.save(run);
+            });
+        }
     }
 
     private Map<PolicyStepType, PolicyStepExecutor> indexExecutors(List<PolicyStepExecutor> executors) {

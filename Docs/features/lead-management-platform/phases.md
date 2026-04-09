@@ -45,3 +45,17 @@ Planned scope alignment (assignment SLA example):
 ## Phase 5
 Status: Completed (Step 1 through Step 4 completed)
 Log: `phase-5-implementation.md`
+
+## Phase 6
+Status: Completed (Step 1 completed)
+Log: `phase-6-implementation.md`
+Planned scope alignment (runtime hardening):
+- Add stale `PROCESSING` watchdog/reaper for policy step execution.
+- Requeue stale steps once, then fail deterministically with explicit run reason code.
+
+## Phase 7
+Status: Completed (Step 1 completed)
+Log: `phase-7-implementation.md`
+Planned scope alignment (action execution structure):
+- Finalize action target contract (`targetUserId` / `targetPondId`) in policy blueprint.
+- Execute both `REASSIGN` and `MOVE_TO_POND` through client port in log-only dev mode.

@@ -24,5 +24,7 @@ All phases are **completed**:
 | Phase 3 | Assignment event expansion, policy execution runtime tables | Completed |
 | Phase 4 | Due worker, claim/communication executors, transition engine | Completed |
 | Phase 5 | Action executor, admin execution APIs, expanded admin surfaces | Completed |
+| Phase 6 | Stale `PROCESSING` watchdog/reaper | Completed |
+| Phase 7 | Action target contract + log-only action execution | Completed |
 
-**Current runtime state:** Assignment flow is in planning + execution mode. Due worker claims and executes steps. Action step fails explicitly with `ACTION_TARGET_UNCONFIGURED` until target semantics are finalized.
+**Current runtime state:** Assignment flow is in planning + execution mode. Due worker claims and executes steps. Action step validates required targets and executes through log-only adapter methods, returning `ACTION_SUCCESS` in dev mode.

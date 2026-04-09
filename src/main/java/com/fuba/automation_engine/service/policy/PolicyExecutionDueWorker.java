@@ -37,6 +37,8 @@ public class PolicyExecutionDueWorker {
 
     @Scheduled(fixedDelayString = "${policy.worker.poll-interval-ms:2000}")
     public void pollAndProcessDueSteps() {
+        runStaleProcessingRecovery();
+
         PollGuardrails limits = resolveEffectiveGuardrails();
         int maxCycles = (limits.maxStepsPerPoll() + limits.claimBatchSize() - 1) / limits.claimBatchSize();
         int cycles = 0;
@@ -99,6 +101,46 @@ public class PolicyExecutionDueWorker {
         return new PollGuardrails(claimBatchSize, maxStepsPerPoll);
     }
 
+    StaleRecoveryGuardrails resolveStaleRecoveryGuardrails() {
+        if (!properties.isStaleProcessingEnabled()) {
+            return new StaleRecoveryGuardrails(false, 0, 0, 0);
+        }
+        int timeoutMinutes = Math.max(1, properties.getStaleProcessingTimeoutMinutes());
+        int requeueLimit = Math.max(0, properties.getStaleProcessingRequeueLimit());
+        int batchSize = Math.max(1, properties.getStaleProcessingBatchSize());
+        return new StaleRecoveryGuardrails(true, timeoutMinutes, requeueLimit, batchSize);
+    }
+
+    private void runStaleProcessingRecovery() {
+        StaleRecoveryGuardrails staleGuardrails = resolveStaleRecoveryGuardrails();
+        if (!staleGuardrails.enabled()) {
+            return;
+        }
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        OffsetDateTime staleBefore = now.minusMinutes(staleGuardrails.timeoutMinutes());
+        List<PolicyExecutionStepClaimRepository.StaleRecoveryRow> recoveredRows =
+                claimRepository.recoverStaleProcessingSteps(
+                        staleBefore,
+                        staleGuardrails.batchSize(),
+                        staleGuardrails.requeueLimit(),
+                        now);
+        if (recoveredRows == null || recoveredRows.isEmpty()) {
+            return;
+        }
+        stepExecutionService.applyStaleProcessingRecovery(recoveredRows);
+        long requeuedCount = recoveredRows.stream()
+                .filter(row -> row.outcome() == PolicyExecutionStepClaimRepository.StaleRecoveryOutcome.REQUEUED)
+                .count();
+        long failedCount = recoveredRows.size() - requeuedCount;
+        log.info(
+                "Policy stale-processing recovery applied rows={} requeued={} failed={} timeoutMinutes={} requeueLimit={}",
+                recoveredRows.size(),
+                requeuedCount,
+                failedCount,
+                staleGuardrails.timeoutMinutes(),
+                staleGuardrails.requeueLimit());
+    }
+
     private void compensateClaimedStepFailure(
             PolicyExecutionStepClaimRepository.ClaimedStepRow claimedStep,
             RuntimeException executionException) {
@@ -108,9 +150,8 @@ public class PolicyExecutionDueWorker {
                 return;
             } catch (RuntimeException compensationEx) {
                 if (attempt == COMPENSATION_MAX_ATTEMPTS) {
-                    // TODO(known-issues#6): Add stale PROCESSING watchdog/reaper.
-                    // Even with retries, if both execution and compensation fail due to outage/crash,
-                    // rows can remain stranded in PROCESSING until a watchdog reconciles them.
+                    // Even with retries, compensation can still fail during severe outages; stale-processing
+                    // recovery pass handles eventual reconciliation on subsequent polls.
                     log.error(
                             "Compensation failed after max attempts; continuing poll stepId={} runId={} stepType={} attempts={}",
                             claimedStep.id(),
@@ -143,5 +184,8 @@ public class PolicyExecutionDueWorker {
     }
 
     record PollGuardrails(int claimBatchSize, int maxStepsPerPoll) {
+    }
+
+    record StaleRecoveryGuardrails(boolean enabled, int timeoutMinutes, int requeueLimit, int batchSize) {
     }
 }

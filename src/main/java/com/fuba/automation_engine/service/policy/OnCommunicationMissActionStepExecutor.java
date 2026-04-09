@@ -1,5 +1,7 @@
 package com.fuba.automation_engine.service.policy;
 
+import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import java.util.Locale;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -14,14 +16,24 @@ public class OnCommunicationMissActionStepExecutor implements PolicyStepExecutor
     static final String ACTION_CONFIG_MISSING = "ACTION_CONFIG_MISSING";
     static final String ACTION_TYPE_MISSING = "ACTION_TYPE_MISSING";
     static final String ACTION_TYPE_UNSUPPORTED = "ACTION_TYPE_UNSUPPORTED";
-    static final String ACTION_TARGET_UNCONFIGURED = "ACTION_TARGET_UNCONFIGURED";
+    static final String ACTION_TARGET_MISSING = "ACTION_TARGET_MISSING";
+    static final String ACTION_TARGET_INVALID = "ACTION_TARGET_INVALID";
     static final String ACTION_EXECUTION_ERROR = "ACTION_EXECUTION_ERROR";
+    static final String SOURCE_LEAD_ID_MISSING = "SOURCE_LEAD_ID_MISSING";
+    static final String SOURCE_LEAD_ID_INVALID = "SOURCE_LEAD_ID_INVALID";
 
     private static final Logger log = LoggerFactory.getLogger(OnCommunicationMissActionStepExecutor.class);
     private static final String FIELD_ACTION_CONFIG = "actionConfig";
     private static final String FIELD_ACTION_TYPE = "actionType";
+    private static final String FIELD_TARGET_USER_ID = "targetUserId";
+    private static final String FIELD_TARGET_POND_ID = "targetPondId";
     private static final String ACTION_TYPE_REASSIGN = "REASSIGN";
     private static final String ACTION_TYPE_MOVE_TO_POND = "MOVE_TO_POND";
+    private final FollowUpBossClient followUpBossClient;
+
+    public OnCommunicationMissActionStepExecutor(FollowUpBossClient followUpBossClient) {
+        this.followUpBossClient = followUpBossClient;
+    }
 
     @Override
     public boolean supports(PolicyStepType stepType) {
@@ -31,34 +43,69 @@ public class OnCommunicationMissActionStepExecutor implements PolicyStepExecutor
     @Override
     public PolicyStepExecutionResult execute(PolicyStepExecutionContext context) {
         try {
-            String actionType = extractActionType(context.policyBlueprintSnapshot());
-            if (actionType == null) {
+            ActionConfig actionConfig = extractActionConfig(context.policyBlueprintSnapshot());
+            if (actionConfig == null) {
                 return PolicyStepExecutionResult.failure(
                         ACTION_CONFIG_MISSING,
-                    "Missing actionConfig for ON_FAILURE_EXECUTE_ACTION");
+                        "Missing actionConfig for ON_FAILURE_EXECUTE_ACTION");
             }
-            if (actionType.isBlank()) {
+            if (actionConfig.actionType().isBlank()) {
                 return PolicyStepExecutionResult.failure(
                         ACTION_TYPE_MISSING,
-                    "Missing actionType for ON_FAILURE_EXECUTE_ACTION");
+                        "Missing actionType for ON_FAILURE_EXECUTE_ACTION");
             }
-            if (!ACTION_TYPE_REASSIGN.equals(actionType) && !ACTION_TYPE_MOVE_TO_POND.equals(actionType)) {
+            if (!ACTION_TYPE_REASSIGN.equals(actionConfig.actionType())
+                    && !ACTION_TYPE_MOVE_TO_POND.equals(actionConfig.actionType())) {
                 return PolicyStepExecutionResult.failure(
                         ACTION_TYPE_UNSUPPORTED,
-                    "Unsupported actionType for ON_FAILURE_EXECUTE_ACTION: " + actionType);
+                        "Unsupported actionType for ON_FAILURE_EXECUTE_ACTION: " + actionConfig.actionType());
+            }
+            if (context.sourceLeadId() == null || context.sourceLeadId().isBlank()) {
+                return PolicyStepExecutionResult.failure(SOURCE_LEAD_ID_MISSING, "Missing sourceLeadId for ON_FAILURE_EXECUTE_ACTION");
+            }
+            long personId;
+            try {
+                personId = Long.parseLong(context.sourceLeadId().trim());
+            } catch (NumberFormatException ex) {
+                return PolicyStepExecutionResult.failure(SOURCE_LEAD_ID_INVALID, "Invalid sourceLeadId for ON_FAILURE_EXECUTE_ACTION");
             }
 
-            // TODO(phase-5-step-4): Wire concrete action target semantics (targetUserId/targetPondId)
-            // and execute provider mutation via FollowUpBossClient once policy contract is finalized.
-            log.warn(
-                    "ON_FAILURE_EXECUTE_ACTION target unconfigured stepId={} runId={} sourceLeadId={} actionType={}",
-                    context.stepId(),
-                    context.runId(),
-                    context.sourceLeadId(),
-                    actionType);
-            return PolicyStepExecutionResult.failure(
-                    ACTION_TARGET_UNCONFIGURED,
-                    "Action target configuration is not defined for ON_FAILURE_EXECUTE_ACTION");
+            ActionExecutionResult actionResult;
+            if (ACTION_TYPE_REASSIGN.equals(actionConfig.actionType())) {
+                if (actionConfig.targetUserId() == null) {
+                    return PolicyStepExecutionResult.failure(
+                            ACTION_TARGET_MISSING,
+                            "Missing targetUserId for REASSIGN action");
+                }
+                if (actionConfig.targetUserId() <= 0) {
+                    return PolicyStepExecutionResult.failure(
+                            ACTION_TARGET_INVALID,
+                            "Invalid targetUserId for REASSIGN action");
+                }
+                actionResult = followUpBossClient.reassignPerson(personId, actionConfig.targetUserId());
+            } else {
+                if (actionConfig.targetPondId() == null) {
+                    return PolicyStepExecutionResult.failure(
+                            ACTION_TARGET_MISSING,
+                            "Missing targetPondId for MOVE_TO_POND action");
+                }
+                if (actionConfig.targetPondId() <= 0) {
+                    return PolicyStepExecutionResult.failure(
+                            ACTION_TARGET_INVALID,
+                            "Invalid targetPondId for MOVE_TO_POND action");
+                }
+                actionResult = followUpBossClient.movePersonToPond(personId, actionConfig.targetPondId());
+            }
+            if (actionResult == null || !actionResult.success()) {
+                String reason = actionResult == null || actionResult.reasonCode() == null || actionResult.reasonCode().isBlank()
+                        ? ACTION_EXECUTION_ERROR
+                        : actionResult.reasonCode();
+                String message = actionResult == null || actionResult.message() == null || actionResult.message().isBlank()
+                        ? "Action execution returned unsuccessful result"
+                        : actionResult.message();
+                return PolicyStepExecutionResult.failure(reason, message);
+            }
+            return PolicyStepExecutionResult.success(PolicyStepResultCode.ACTION_SUCCESS);
         } catch (RuntimeException ex) {
             log.error(
                     "Unexpected on-failure action execution error stepId={} runId={} sourceLeadId={}",
@@ -73,7 +120,7 @@ public class OnCommunicationMissActionStepExecutor implements PolicyStepExecutor
     }
 
     @SuppressWarnings("unchecked")
-    private String extractActionType(Map<String, Object> blueprint) {
+    private ActionConfig extractActionConfig(Map<String, Object> blueprint) {
         if (blueprint == null || blueprint.isEmpty()) {
             return null;
         }
@@ -83,9 +130,29 @@ public class OnCommunicationMissActionStepExecutor implements PolicyStepExecutor
         }
         Map<String, Object> actionConfig = (Map<String, Object>) rawActionConfig;
         Object actionTypeObject = actionConfig.get(FIELD_ACTION_TYPE);
-        if (!(actionTypeObject instanceof String actionType)) {
-            return "";
+        String actionType = actionTypeObject instanceof String actionTypeText
+                ? actionTypeText.trim().toUpperCase(Locale.ROOT)
+                : "";
+        return new ActionConfig(
+                actionType,
+                parseLong(actionConfig.get(FIELD_TARGET_USER_ID)),
+                parseLong(actionConfig.get(FIELD_TARGET_POND_ID)));
+    }
+
+    private Long parseLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
         }
-        return actionType.trim().toUpperCase(Locale.ROOT);
+        if (value instanceof String text) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private record ActionConfig(String actionType, Long targetUserId, Long targetPondId) {
     }
 }

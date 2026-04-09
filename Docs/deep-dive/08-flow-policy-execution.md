@@ -163,21 +163,26 @@ flowchart TB
 **Implementation:** `OnCommunicationMissActionStepExecutor.execute(context)`
 
 ```
-1. Extract actionConfig.actionType from blueprint snapshot
+1. Extract actionConfig.actionType + target fields from blueprint snapshot
    → null config: ACTION_CONFIG_MISSING
    → blank type: ACTION_TYPE_MISSING
    → not REASSIGN or MOVE_TO_POND: ACTION_TYPE_UNSUPPORTED
-2. CURRENT BEHAVIOR: always returns failure with ACTION_TARGET_UNCONFIGURED
+2. Validate sourceLeadId and action target:
+   → missing sourceLeadId: SOURCE_LEAD_ID_MISSING
+   → invalid sourceLeadId: SOURCE_LEAD_ID_INVALID
+   → missing target field: ACTION_TARGET_MISSING
+   → invalid target value: ACTION_TARGET_INVALID
+3. Execute through FollowUpBossClient action methods:
+   - REASSIGN -> reassignPerson(personId, targetUserId)
+   - MOVE_TO_POND -> movePersonToPond(personId, targetPondId)
+4. Current adapter mode (dev): log-only success -> ACTION_SUCCESS
 ```
 
-**Why it fails deliberately:** Target semantics (which user to reassign to, which pond to move to) are not yet finalized in the policy contract. The executor validates the action type to ensure the blueprint is structurally correct, but defers actual execution until the target wiring is implemented.
+**Why this is log-only for now:** The execution path is fully wired and contract-validating, but provider mutation endpoints remain deferred for a later increment. This keeps end-to-end flow testable in dev without external side effects.
 
-**What needs to change when this gets implemented:**
-1. Add `targetUserId` (for REASSIGN) or `targetPondId` (for MOVE_TO_POND) to the `actionConfig` block in the blueprint JSON schema.
-2. Update `PolicyBlueprintValidator` to validate that the relevant target field is present and non-null for each action type.
-3. Implement the actual FUB API calls in `FubFollowUpBossClient` (person reassign or pond move endpoint).
-4. Replace the `ACTION_TARGET_UNCONFIGURED` return in `OnCommunicationMissActionStepExecutor` with the real API call + result mapping to `ACTION_SUCCESS` or `ACTION_FAILED`.
-5. Add tests for both the success and failure paths in `OnCommunicationMissActionStepExecutorTest` — currently only the deliberate-failure paths are tested.
+**Next step for full mutation mode:**
+1. Replace log-only adapter methods with concrete FUB mutation endpoint calls.
+2. Preserve result mapping contract (`ACTION_SUCCESS` / `ACTION_FAILED`) and reason-code handling.
 
 ## Worker exception compensation
 
@@ -200,7 +205,7 @@ for attempt = 1 to COMPENSATION_MAX_ATTEMPTS:
 
 **`markClaimedStepFailedAfterWorkerException`:** Checks if step still exists and is in `PROCESSING` status. If not, skips compensation (idempotent). Otherwise marks step `FAILED` with `WORKER_UNHANDLED_EXCEPTION` and marks the run `FAILED`.
 
-**Known gap:** There is no stale `PROCESSING` watchdog/reaper. If compensation also fails (all 3 attempts), the step remains in `PROCESSING` forever. A future reaper should detect and recover these orphaned rows.
+**Recovery behavior:** Stale-processing recovery runs before due-claim polling and reconciles orphaned `PROCESSING` rows using bounded requeue/fail semantics.
 
 ## Files in this flow
 

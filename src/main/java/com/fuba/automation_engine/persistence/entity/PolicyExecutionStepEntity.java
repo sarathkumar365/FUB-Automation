@@ -61,6 +61,9 @@ public class PolicyExecutionStepEntity {
     @Column(name = "error_message", length = 512)
     private String errorMessage;
 
+    @Column(name = "stale_recovery_count", nullable = false)
+    private Integer staleRecoveryCount = 0;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 
@@ -72,6 +75,9 @@ public class PolicyExecutionStepEntity {
         OffsetDateTime now = OffsetDateTime.now();
         if (createdAt == null) {
             createdAt = now;
+        }
+        if (staleRecoveryCount == null) {
+            staleRecoveryCount = 0;
         }
         updatedAt = now;
     }

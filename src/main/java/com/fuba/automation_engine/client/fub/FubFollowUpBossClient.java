@@ -8,6 +8,7 @@ import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
@@ -112,6 +113,24 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
                 person.contacted(),
                 communicationFound ? "FOUND" : "NOT_FOUND");
         return new PersonCommunicationCheckResult(personId, communicationFound);
+    }
+
+    @Override
+    public ActionExecutionResult reassignPerson(long personId, long targetUserId) {
+        log.info(
+                "FUB action simulated: reassign person personId={} targetUserId={} mode=log-only",
+                personId,
+                targetUserId);
+        return ActionExecutionResult.ok();
+    }
+
+    @Override
+    public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
+        log.info(
+                "FUB action simulated: move person to pond personId={} targetPondId={} mode=log-only",
+                personId,
+                targetPondId);
+        return ActionExecutionResult.ok();
     }
 
     @Override

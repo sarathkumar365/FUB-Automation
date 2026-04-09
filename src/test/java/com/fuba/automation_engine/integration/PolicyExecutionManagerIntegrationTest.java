@@ -239,6 +239,6 @@ class PolicyExecutionManagerIntegrationTest {
                                 "WAIT_AND_CHECK_CLAIM"),
                         Map.of("type", "ON_FAILURE_EXECUTE_ACTION", "dependsOn", "WAIT_AND_CHECK_COMMUNICATION")),
                 "actionConfig",
-                Map.of("actionType", "REASSIGN"));
+                Map.of("actionType", "REASSIGN", "targetUserId", 77L));
     }
 }
