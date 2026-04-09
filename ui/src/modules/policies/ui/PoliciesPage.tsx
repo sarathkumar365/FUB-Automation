@@ -19,6 +19,8 @@ import {
 } from '../lib/policiesSearchParams'
 import type { PolicyExecutionRunListItem, PolicyExecutionRunStatus } from '../lib/policySchemas'
 import { runStatusLabel } from '../lib/policiesDisplay'
+import { usePolicyExecutionDetailQuery } from '../data/usePolicyExecutionDetailQuery'
+import { RunInspector } from './RunInspector'
 import { RunsTab } from './RunsTab'
 
 const RUN_STATUS_OPTIONS: PolicyExecutionRunStatus[] = [
@@ -60,6 +62,8 @@ export function PoliciesPage() {
     },
     searchState.tab === 'runs',
   )
+
+  const executionDetailQuery = usePolicyExecutionDetailQuery(searchState.selectedRun)
 
   // Unique policy keys for filter dropdown
   const policyKeyOptions = useMemo(() => {
@@ -288,21 +292,27 @@ export function PoliciesPage() {
     ],
   )
 
-  // --- Inspector (empty for Stage 2 — wired in Stage 3) ---
+  // --- Inspector ---
 
   const inspectorBody = useMemo(() => {
     if (searchState.selectedRun === undefined) {
       return null
     }
+
+    let body: React.ReactNode
+    if (executionDetailQuery.isPending) {
+      body = <p className="text-sm text-[var(--color-text-muted)]">{uiText.policies.inspectorLoading}</p>
+    } else if (executionDetailQuery.isError || !executionDetailQuery.data) {
+      body = <p className="text-sm text-[var(--color-status-bad)]">{uiText.policies.inspectorError}</p>
+    } else {
+      body = <RunInspector detail={executionDetailQuery.data} />
+    }
+
     return {
       title: uiText.policies.runInspectorTitle,
-      body: (
-        <p className="text-sm text-[var(--color-text-muted)]">
-          {uiText.policies.inspectorLoading}
-        </p>
-      ),
+      body,
     }
-  }, [searchState.selectedRun])
+  }, [searchState.selectedRun, executionDetailQuery.isPending, executionDetailQuery.isError, executionDetailQuery.data])
 
   useShellRegionRegistration({
     panel: { title: uiText.policies.title, body: panelBody },
