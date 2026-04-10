@@ -7,6 +7,7 @@ export const queryKeys = {
   webhooks: {
     list: (filters: WebhookListFilters) => ['webhooks', 'list', filters] as const,
     detail: (id: number) => ['webhooks', 'detail', id] as const,
+    eventTypes: () => ['webhooks', 'event-types'] as const,
   },
   processedCalls: {
     list: (filters: ProcessedCallFilters) => ['processed-calls', 'list', filters] as const,

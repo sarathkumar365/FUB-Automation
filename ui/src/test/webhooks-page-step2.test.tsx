@@ -46,6 +46,7 @@ function renderWebhooksPage(initialPath = '/admin-ui/webhooks') {
     adminWebhookPort: {
       listWebhooks,
       getWebhookDetail,
+      listEventTypes: vi.fn(async () => ['callsCreated', 'callsUpdated']),
       buildWebhookStreamRequest: vi.fn(() => '/admin/webhooks/stream'),
     },
     processedCallsPort: {
@@ -101,8 +102,10 @@ describe('Webhooks page Step 2', () => {
 
     await screen.findByText('evt-1')
 
-    await user.clear(screen.getByLabelText(uiText.webhooks.filterEventTypeLabel))
-    await user.type(screen.getByLabelText(uiText.webhooks.filterEventTypeLabel), 'callsCreated')
+    await user.selectOptions(
+      screen.getByLabelText(uiText.webhooks.filterEventTypeLabel),
+      'callsCreated',
+    )
     await user.type(screen.getByLabelText(uiText.webhooks.filterFromLabel), '2026-03-01')
     await user.type(screen.getByLabelText(uiText.webhooks.filterToLabel), '2026-03-19')
     await user.click(screen.getByRole('button', { name: uiText.filters.apply }))
@@ -190,7 +193,7 @@ describe('Webhooks page Step 2', () => {
   it('normalizes event type and received-at values in table rows', async () => {
     renderWebhooksPage()
 
-    await screen.findByText('Calls Updated')
-    expect(screen.getByText(formatWebhookReceivedAt('2026-03-19T12:00:00Z'))).toBeInTheDocument()
+    await screen.findByText(formatWebhookReceivedAt('2026-03-19T12:00:00Z'))
+    expect(screen.getAllByText('Calls Updated').length).toBeGreaterThan(0)
   })
 })

@@ -55,6 +55,7 @@ function renderWebhooksPageStep3(initialPath = '/admin-ui/webhooks') {
     adminWebhookPort: {
       listWebhooks,
       getWebhookDetail,
+      listEventTypes: vi.fn(async () => ['callsCreated', 'callsUpdated']),
       buildWebhookStreamRequest: vi.fn(() => '/admin/webhooks/stream'),
     },
     processedCallsPort: {
@@ -106,8 +107,10 @@ describe('Webhooks page Step 3', () => {
     expect(getLastCloseFn()).toHaveBeenCalledTimes(1)
     expect(screen.getByTestId('webhook-live-state')).toHaveTextContent(uiText.webhooks.liveStatePaused)
 
-    await user.clear(screen.getByLabelText(uiText.webhooks.filterEventTypeLabel))
-    await user.type(screen.getByLabelText(uiText.webhooks.filterEventTypeLabel), 'callsCreated')
+    await user.selectOptions(
+      screen.getByLabelText(uiText.webhooks.filterEventTypeLabel),
+      'callsCreated',
+    )
     await user.click(screen.getByRole('button', { name: uiText.filters.apply }))
 
     await waitFor(() => {

@@ -43,6 +43,9 @@
 
   /* Elevation */
   --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08);
+
+  /* Form controls */
+  --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 8 10 12 14 8'/></svg>");
 }
 
 @keyframes heartbeat-flash {

@@ -16,6 +16,8 @@ export const webhookFeedPageSchema = z.object({
   serverTime: z.string(),
 })
 
+export const webhookEventTypesSchema = z.array(z.string())
+
 export const webhookDetailSchema = z.object({
   id: z.number(),
   eventId: z.string(),

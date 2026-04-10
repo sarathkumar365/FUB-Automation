@@ -149,6 +149,16 @@ class AdminWebhookServiceTest {
     }
 
     @Test
+    void shouldDelegateListDistinctEventTypesToRepository() {
+        Mockito.when(webhookEventRepository.findDistinctEventTypes())
+                .thenReturn(List.of("callsCreated", "callsUpdated"));
+
+        List<String> result = service.listDistinctEventTypes();
+
+        assertEquals(List.of("callsCreated", "callsUpdated"), result);
+    }
+
+    @Test
     void shouldReturnDetailWhenEntityExists() {
         WebhookEventEntity entity = new WebhookEventEntity();
         entity.setId(42L);

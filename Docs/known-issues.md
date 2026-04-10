@@ -2,7 +2,7 @@
 
 This document tracks currently known issues identified in the codebase.
 
-**Last reviewed:** 2026-04-08
+**Last reviewed:** 2026-04-09
 
 | # | Issue | Priority | Status |
 |---|-------|----------|--------|
@@ -14,6 +14,7 @@ This document tracks currently known issues identified in the codebase.
 | 6 | No watchdog for stale `PROCESSING` policy steps after hard crashes | High | Resolved (2026-04-08) |
 | 7 | Action target validation truncates non-integer numeric values | Medium | Open |
 | 8 | Stale recovery can leave requeued steps in runs already failed | Medium | Open |
+| 9 | Active policy blueprint read validation is temporarily bypassed | High | Open (Temporary) |
 
 ---
 
@@ -84,3 +85,12 @@ This document tracks currently known issues identified in the codebase.
 - **Issue:** A single stale-recovery pass can requeue some rows and fail others for the same run, after which run status is marked `FAILED` while requeued sibling rows remain claimable.
 - **Impact:** Workers can continue executing pending steps that belong to a run already transitioned to terminal failed state.
 - **Suggested fix:** Ensure stale recovery does not produce mixed outcomes per run (for example, fail all stale rows for runs where any row reaches stale-fail threshold, or suppress requeue for those runs).
+
+## 9) Active policy blueprint read validation is temporarily bypassed
+
+- **Status:** Open (Temporary)
+- **Priority:** High
+- **Location:** `service/policy/AutomationPolicyService.java` (`getActivePolicy`)
+- **Issue:** Active-policy lookup currently bypasses blueprint validation and returns `SUCCESS` even when the active blueprint is invalid.
+- **Impact:** Invalid policies are no longer blocked at planning time; runs can proceed and fail later during step execution (for example, action step `ACTION_TARGET_MISSING`), increasing runtime noise and delayed failure detection.
+- **Suggested fix:** Remove temporary bypass and restore strict active-policy validation once action config contracts are finalized; keep detailed failure logging for diagnostics.

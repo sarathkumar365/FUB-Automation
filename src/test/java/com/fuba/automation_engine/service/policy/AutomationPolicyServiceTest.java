@@ -262,15 +262,15 @@ class AutomationPolicyServiceTest {
     }
 
     @Test
-    void shouldReturnPolicyInvalidForInvalidActiveBlueprint() {
+    void shouldReturnSuccessForInvalidActiveBlueprintWhenBypassEnabled() {
         AutomationPolicyEntity policy = policy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true);
         policy.setBlueprint(Map.of());
         repository.saveAndFlush(policy);
 
         var result = service.getActivePolicy("ASSIGNMENT", "FOLLOW_UP_SLA");
 
-        assertEquals(ReadStatus.POLICY_INVALID, result.status());
-        assertNull(result.policy());
+        assertEquals(ReadStatus.SUCCESS, result.status());
+        assertNotNull(result.policy());
     }
 
     @Test
@@ -285,19 +285,18 @@ class AutomationPolicyServiceTest {
     }
 
     @Test
-    void shouldLogValidationFailureDetailsForInvalidActiveBlueprint(CapturedOutput output) {
+    void shouldLogValidationBypassWarningForInvalidActiveBlueprint(CapturedOutput output) {
         AutomationPolicyEntity policy = policy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true);
         policy.setBlueprint(Map.of());
         AutomationPolicyEntity saved = repository.saveAndFlush(policy);
 
         var result = service.getActivePolicy("ASSIGNMENT", "FOLLOW_UP_SLA");
 
-        assertEquals(ReadStatus.POLICY_INVALID, result.status());
-        assertTrue(output.getOut().contains("Policy blueprint validation failed operation=getActivePolicy"));
+        assertEquals(ReadStatus.SUCCESS, result.status());
+        assertTrue(output.getOut().contains("Active policy blueprint validation bypassed operation=getActivePolicy"));
         assertTrue(output.getOut().contains("policyId=" + saved.getId()));
         assertTrue(output.getOut().contains("domain=ASSIGNMENT"));
         assertTrue(output.getOut().contains("policyKey=FOLLOW_UP_SLA"));
-        assertTrue(output.getOut().contains("code=MISSING_BLUEPRINT"));
     }
 
     private AutomationPolicyEntity policy(

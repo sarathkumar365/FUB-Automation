@@ -45,6 +45,7 @@ function renderProcessedCallsPage(initialPath = '/admin-ui/processed-calls') {
     adminWebhookPort: {
       listWebhooks: vi.fn(),
       getWebhookDetail: vi.fn(),
+      listEventTypes: vi.fn(async () => []),
       buildWebhookStreamRequest: vi.fn(() => '/admin/webhooks/stream'),
     },
     processedCallsPort: {

@@ -63,7 +63,7 @@ export const uiText = {
     filterToLabel: 'To',
     filterSourceAll: 'All sources',
     filterStatusAll: 'All statuses',
-    filterEventTypePlaceholder: 'Event type',
+    filterEventTypeAll: 'All event types',
     filterDatePlaceholder: 'Pick date',
     tableEventIdHeader: 'Event ID',
     tableSourceHeader: 'Source',

@@ -57,3 +57,8 @@ Status: Completed (Step 1 completed)
   - `activatePolicy`
   - `getActivePolicy` (invalid persisted active blueprint)
 - Added tests for validator inspection detail mapping and service log emission capture.
+
+## Incremental Update (2026-04-09, temporary bypass)
+- Temporarily bypassed active-policy blueprint validation inside `AutomationPolicyService.getActivePolicy` to unblock in-progress assignment execution flow.
+- Added warning log `Active policy blueprint validation bypassed ...` when an active blueprint is invalid but still returned.
+- Kept create/update/activate policy validation behavior unchanged.

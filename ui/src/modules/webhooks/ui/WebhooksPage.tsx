@@ -10,7 +10,6 @@ import { DataTable, type ColumnDef } from '../../../shared/ui/DataTable'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { ErrorState } from '../../../shared/ui/ErrorState'
 import { FilterBar } from '../../../shared/ui/FilterBar'
-import { Input } from '../../../shared/ui/input'
 import { ApplyIcon, FilterIcon, NextIcon, PauseIcon, ResetIcon, ResumeIcon } from '../../../shared/ui/icons'
 import { LoadingState } from '../../../shared/ui/LoadingState'
 import { PageCard } from '../../../shared/ui/PageCard'
@@ -19,6 +18,7 @@ import { Select } from '../../../shared/ui/select'
 import { StatusBadge } from '../../../shared/ui/StatusBadge'
 import type { WebhookFeedItem } from '../../../shared/types/webhook'
 import { useWebhookDetailQuery } from '../data/useWebhookDetailQuery'
+import { useWebhookEventTypesQuery } from '../data/useWebhookEventTypesQuery'
 import { useWebhookListQuery } from '../data/useWebhookListQuery'
 import { filterWebhookRows, mergeWebhookRows, toWebhookFeedItems } from '../lib/webhookLiveRows'
 import {
@@ -60,6 +60,14 @@ export function WebhooksPage() {
     !isPaused,
   )
   const detailQuery = useWebhookDetailQuery(searchState.selectedId)
+  const eventTypesQuery = useWebhookEventTypesQuery()
+  const eventTypeOptions = useMemo(() => {
+    const base = eventTypesQuery.data ?? []
+    if (draftFilters.eventType && !base.includes(draftFilters.eventType)) {
+      return [draftFilters.eventType, ...base]
+    }
+    return base
+  }, [eventTypesQuery.data, draftFilters.eventType])
   const stream = useWebhookStream(
     {
       source: searchState.source,
@@ -315,9 +323,8 @@ export function WebhooksPage() {
         </ControlGroup>
 
         <ControlGroup label={uiText.webhooks.filterEventTypeLabel}>
-          <Input
+          <Select
             aria-label={uiText.webhooks.filterEventTypeLabel}
-            placeholder={uiText.webhooks.filterEventTypePlaceholder}
             value={draftFilters.eventType}
             onChange={(event) =>
               setDraftFilterState((existing) => ({
@@ -328,8 +335,15 @@ export function WebhooksPage() {
                 },
               }))
             }
-            className="w-[180px]"
-          />
+            className="w-[200px]"
+          >
+            <option value="">{uiText.webhooks.filterEventTypeAll}</option>
+            {eventTypeOptions.map((eventType) => (
+              <option key={eventType} value={eventType}>
+                {formatWebhookEventType(eventType)}
+              </option>
+            ))}
+          </Select>
         </ControlGroup>
 
         <ControlGroup label={uiText.webhooks.filterFromLabel}>

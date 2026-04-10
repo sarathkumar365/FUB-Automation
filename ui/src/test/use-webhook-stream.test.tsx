@@ -26,6 +26,7 @@ function setupStreamHook() {
     adminWebhookPort: {
       listWebhooks: vi.fn(),
       getWebhookDetail: vi.fn(),
+      listEventTypes: vi.fn(async () => []),
       buildWebhookStreamRequest: vi.fn(),
     },
     processedCallsPort: {
