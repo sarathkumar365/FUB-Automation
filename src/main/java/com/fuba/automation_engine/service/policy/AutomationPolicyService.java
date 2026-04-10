@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 import org.springframework.stereotype.Service;
@@ -21,6 +23,7 @@ public class AutomationPolicyService {
     // TODO(phase-next): replace direct calls to PolicyBlueprintValidator with a
     // PolicyBlueprintValidationService that routes by templateKey to per-template
     // PolicyTemplateValidator implementations.
+    private static final Logger log = LoggerFactory.getLogger(AutomationPolicyService.class);
 
     private final AutomationPolicyRepository repository;
 
@@ -41,9 +44,15 @@ public class AutomationPolicyService {
         if (found.isEmpty()) {
             return new LookupResult(ReadStatus.NOT_FOUND, null);
         }
-        PolicyBlueprintValidator.ValidationResult blueprintValidation =
-                PolicyBlueprintValidator.validate(found.get().getBlueprint());
-        if (!blueprintValidation.valid()) {
+        PolicyBlueprintValidator.ValidationInspection inspection =
+                PolicyBlueprintValidator.inspect(found.get().getBlueprint());
+        if (!inspection.result().valid()) {
+            logBlueprintValidationFailure(
+                    "getActivePolicy",
+                    found.get().getId(),
+                    found.get().getDomain(),
+                    found.get().getPolicyKey(),
+                    inspection);
             return new LookupResult(ReadStatus.POLICY_INVALID, null);
         }
 
@@ -100,8 +109,14 @@ public class AutomationPolicyService {
         if (command == null || command.expectedVersion() == null) {
             return new MutationResult(MutationStatus.INVALID_INPUT, null);
         }
-        PolicyBlueprintValidator.ValidationResult blueprintValidation = PolicyBlueprintValidator.validate(command.blueprint());
-        if (!blueprintValidation.valid()) {
+        PolicyBlueprintValidator.ValidationInspection inspection = PolicyBlueprintValidator.inspect(command.blueprint());
+        if (!inspection.result().valid()) {
+            logBlueprintValidationFailure(
+                    "updatePolicy",
+                    id,
+                    null,
+                    null,
+                    inspection);
             return new MutationResult(MutationStatus.INVALID_POLICY_BLUEPRINT, null);
         }
 
@@ -143,8 +158,14 @@ public class AutomationPolicyService {
         if (!command.expectedVersion().equals(target.getVersion())) {
             return new MutationResult(MutationStatus.STALE_VERSION, null);
         }
-        PolicyBlueprintValidator.ValidationResult blueprintValidation = PolicyBlueprintValidator.validate(target.getBlueprint());
-        if (!blueprintValidation.valid()) {
+        PolicyBlueprintValidator.ValidationInspection inspection = PolicyBlueprintValidator.inspect(target.getBlueprint());
+        if (!inspection.result().valid()) {
+            logBlueprintValidationFailure(
+                    "activatePolicy",
+                    target.getId(),
+                    target.getDomain(),
+                    target.getPolicyKey(),
+                    inspection);
             return new MutationResult(MutationStatus.INVALID_POLICY_BLUEPRINT, null);
         }
 
@@ -177,8 +198,14 @@ public class AutomationPolicyService {
             return ValidationResult.invalid(MutationStatus.INVALID_INPUT);
         }
 
-        PolicyBlueprintValidator.ValidationResult blueprintValidation = PolicyBlueprintValidator.validate(command.blueprint());
-        if (!blueprintValidation.valid()) {
+        PolicyBlueprintValidator.ValidationInspection inspection = PolicyBlueprintValidator.inspect(command.blueprint());
+        if (!inspection.result().valid()) {
+            logBlueprintValidationFailure(
+                    "createPolicy",
+                    null,
+                    normalizedDomain,
+                    normalizedPolicyKey,
+                    inspection);
             return ValidationResult.invalid(MutationStatus.INVALID_POLICY_BLUEPRINT);
         }
 
@@ -220,6 +247,24 @@ public class AutomationPolicyService {
             current = current.getCause();
         }
         return false;
+    }
+
+    private void logBlueprintValidationFailure(
+            String operation,
+            Long policyId,
+            String domain,
+            String policyKey,
+            PolicyBlueprintValidator.ValidationInspection inspection) {
+        PolicyBlueprintValidator.ValidationFailureDetail detail = inspection.detail();
+        log.warn(
+                "Policy blueprint validation failed operation={} policyId={} domain={} policyKey={} code={} fieldPath={} reason={}",
+                operation,
+                policyId,
+                domain,
+                policyKey,
+                inspection.result().code(),
+                detail == null ? null : detail.fieldPath(),
+                detail == null ? null : detail.reason());
     }
 
     private PolicyView toView(AutomationPolicyEntity entity) {

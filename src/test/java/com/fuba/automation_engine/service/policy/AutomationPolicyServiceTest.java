@@ -15,8 +15,11 @@ import java.util.Map;
 import java.util.Optional;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mockito;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.test.system.CapturedOutput;
+import org.springframework.boot.test.system.OutputCaptureExtension;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.orm.ObjectOptimisticLockingFailureException;
 
@@ -27,6 +30,7 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 @DataJpaTest
+@ExtendWith(OutputCaptureExtension.class)
 class AutomationPolicyServiceTest {
 
     @org.springframework.beans.factory.annotation.Autowired
@@ -267,6 +271,33 @@ class AutomationPolicyServiceTest {
 
         assertEquals(ReadStatus.POLICY_INVALID, result.status());
         assertNull(result.policy());
+    }
+
+    @Test
+    void shouldLogValidationFailureDetailsForCreate(CapturedOutput output) {
+        var result = service.createPolicy(new CreatePolicyCommand("ASSIGNMENT", "FOLLOW_UP_SLA", true, Map.of()));
+
+        assertEquals(MutationStatus.INVALID_POLICY_BLUEPRINT, result.status());
+        assertTrue(output.getOut().contains("Policy blueprint validation failed operation=createPolicy"));
+        assertTrue(output.getOut().contains("code=MISSING_BLUEPRINT"));
+        assertTrue(output.getOut().contains("fieldPath=blueprint"));
+        assertTrue(output.getOut().contains("reason=Blueprint must be present and non-empty."));
+    }
+
+    @Test
+    void shouldLogValidationFailureDetailsForInvalidActiveBlueprint(CapturedOutput output) {
+        AutomationPolicyEntity policy = policy("ASSIGNMENT", "FOLLOW_UP_SLA", PolicyStatus.ACTIVE, true);
+        policy.setBlueprint(Map.of());
+        AutomationPolicyEntity saved = repository.saveAndFlush(policy);
+
+        var result = service.getActivePolicy("ASSIGNMENT", "FOLLOW_UP_SLA");
+
+        assertEquals(ReadStatus.POLICY_INVALID, result.status());
+        assertTrue(output.getOut().contains("Policy blueprint validation failed operation=getActivePolicy"));
+        assertTrue(output.getOut().contains("policyId=" + saved.getId()));
+        assertTrue(output.getOut().contains("domain=ASSIGNMENT"));
+        assertTrue(output.getOut().contains("policyKey=FOLLOW_UP_SLA"));
+        assertTrue(output.getOut().contains("code=MISSING_BLUEPRINT"));
     }
 
     private AutomationPolicyEntity policy(

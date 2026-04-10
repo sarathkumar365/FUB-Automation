@@ -54,8 +54,9 @@ Planned scope alignment (runtime hardening):
 - Requeue stale steps once, then fail deterministically with explicit run reason code.
 
 ## Phase 7
-Status: Completed (Step 1 completed)
+Status: Completed (Step 1 and Step 2 completed)
 Log: `phase-7-implementation.md`
 Planned scope alignment (action execution structure):
 - Finalize action target contract (`targetUserId` / `targetPondId`) in policy blueprint.
 - Execute both `REASSIGN` and `MOVE_TO_POND` through client port in log-only dev mode.
+- Add backend-only policy blueprint validation failure diagnostics in service logs.

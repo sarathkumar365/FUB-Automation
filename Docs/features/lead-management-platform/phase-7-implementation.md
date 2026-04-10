@@ -47,3 +47,13 @@ Status: Completed (Step 1 completed)
 ## Notes for Next Agent
 - Action step is now contract-complete and flow-complete in dev mode.
 - External mutation endpoints for real reassignment/pond movement are still intentionally deferred; current adapter behavior is log-only success.
+
+## Incremental Update (2026-04-09)
+- Added backend-only policy blueprint validation failure logging without changing API/UI response contracts.
+- `PolicyBlueprintValidator` now exposes internal inspection detail (`fieldPath`, `reason`) for deterministic first-failure diagnostics.
+- `AutomationPolicyService` now logs validation failures for:
+  - `createPolicy`
+  - `updatePolicy`
+  - `activatePolicy`
+  - `getActivePolicy` (invalid persisted active blueprint)
+- Added tests for validator inspection detail mapping and service log emission capture.

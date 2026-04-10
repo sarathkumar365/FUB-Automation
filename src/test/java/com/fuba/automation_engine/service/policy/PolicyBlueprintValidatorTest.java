@@ -84,6 +84,31 @@ class PolicyBlueprintValidatorTest {
         assertEquals(PolicyBlueprintValidator.ValidationCode.INVALID_ACTION_TARGET, result.code());
     }
 
+    @Test
+    void shouldExposeFailureDetailForInvalidDependency() {
+        var blueprint = validBlueprint();
+        ((Map<String, Object>) ((List<?>) blueprint.get("steps")).get(1)).put("dependsOn", "ON_FAILURE_EXECUTE_ACTION");
+
+        var inspection = PolicyBlueprintValidator.inspect(blueprint);
+
+        assertFalse(inspection.result().valid());
+        assertEquals(PolicyBlueprintValidator.ValidationCode.INVALID_DEPENDENCY, inspection.result().code());
+        assertEquals("steps[1].dependsOn", inspection.detail().fieldPath());
+        assertEquals(
+                "WAIT_AND_CHECK_COMMUNICATION must depend on WAIT_AND_CHECK_CLAIM.",
+                inspection.detail().reason());
+    }
+
+    @Test
+    void shouldExposeFailureDetailForMissingBlueprint() {
+        var inspection = PolicyBlueprintValidator.inspect(Map.of());
+
+        assertFalse(inspection.result().valid());
+        assertEquals(PolicyBlueprintValidator.ValidationCode.MISSING_BLUEPRINT, inspection.result().code());
+        assertEquals("blueprint", inspection.detail().fieldPath());
+        assertEquals("Blueprint must be present and non-empty.", inspection.detail().reason());
+    }
+
     private Map<String, Object> validBlueprint() {
         return new java.util.LinkedHashMap<>(Map.of(
                 "templateKey",

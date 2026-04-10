@@ -39,24 +39,40 @@ public final class PolicyBlueprintValidator {
     }
 
     public static ValidationResult validate(Map<String, Object> blueprint) {
+        return inspect(blueprint).result();
+    }
+
+    static ValidationInspection inspect(Map<String, Object> blueprint) {
         if (blueprint == null || blueprint.isEmpty()) {
-            return ValidationResult.failure(ValidationCode.MISSING_BLUEPRINT);
+            return ValidationInspection.failure(
+                    ValidationCode.MISSING_BLUEPRINT,
+                    "blueprint",
+                    "Blueprint must be present and non-empty.");
         }
 
         String templateKey = normalizeText(blueprint.get(FIELD_TEMPLATE_KEY));
         if (!TEMPLATE_KEY_ASSIGNMENT_V1.equals(templateKey)) {
-            return ValidationResult.failure(ValidationCode.INVALID_TEMPLATE_KEY);
+            return ValidationInspection.failure(
+                    ValidationCode.INVALID_TEMPLATE_KEY,
+                    FIELD_TEMPLATE_KEY,
+                    "templateKey must be ASSIGNMENT_FOLLOWUP_SLA_V1.");
         }
 
         Object stepsObject = blueprint.get(FIELD_STEPS);
         if (!(stepsObject instanceof List<?> steps) || steps.size() != EXPECTED_STEP_ORDER.size()) {
-            return ValidationResult.failure(ValidationCode.INVALID_STEP_COUNT);
+            return ValidationInspection.failure(
+                    ValidationCode.INVALID_STEP_COUNT,
+                    FIELD_STEPS,
+                    "steps must contain exactly 3 items in the required order.");
         }
 
         for (int i = 0; i < EXPECTED_STEP_ORDER.size(); i++) {
             Object stepObject = steps.get(i);
             if (!(stepObject instanceof Map<?, ?> rawStep)) {
-                return ValidationResult.failure(ValidationCode.INVALID_JSON_SHAPE);
+                return ValidationInspection.failure(
+                        ValidationCode.INVALID_JSON_SHAPE,
+                        stepPath(i),
+                        "Each steps item must be an object.");
             }
 
             @SuppressWarnings("unchecked")
@@ -64,51 +80,71 @@ public final class PolicyBlueprintValidator {
             PolicyStepType expected = EXPECTED_STEP_ORDER.get(i);
             String stepTypeText = normalizeText(step.get(FIELD_TYPE));
             if (!expected.name().equals(stepTypeText)) {
-                return ValidationResult.failure(ValidationCode.INVALID_STEP_ORDER);
+                return ValidationInspection.failure(
+                        ValidationCode.INVALID_STEP_ORDER,
+                        stepPath(i) + "." + FIELD_TYPE,
+                        "Step order/type is invalid. Expected " + expected.name() + ".");
             }
 
             if ((expected == PolicyStepType.WAIT_AND_CHECK_CLAIM
                     || expected == PolicyStepType.WAIT_AND_CHECK_COMMUNICATION)
                     && extractPositiveInt(step.get(FIELD_DELAY_MINUTES)) < 1) {
-                return ValidationResult.failure(ValidationCode.INVALID_DELAY);
+                return ValidationInspection.failure(
+                        ValidationCode.INVALID_DELAY,
+                        stepPath(i) + "." + FIELD_DELAY_MINUTES,
+                        "delayMinutes must be a positive integer.");
             }
 
             if (expected == PolicyStepType.WAIT_AND_CHECK_COMMUNICATION
                     && !PolicyStepType.WAIT_AND_CHECK_CLAIM.name().equals(normalizeText(step.get(FIELD_DEPENDS_ON)))) {
-                return ValidationResult.failure(ValidationCode.INVALID_DEPENDENCY);
+                return ValidationInspection.failure(
+                        ValidationCode.INVALID_DEPENDENCY,
+                        stepPath(i) + "." + FIELD_DEPENDS_ON,
+                        "WAIT_AND_CHECK_COMMUNICATION must depend on WAIT_AND_CHECK_CLAIM.");
             }
 
             if (expected == PolicyStepType.ON_FAILURE_EXECUTE_ACTION
                     && !PolicyStepType.WAIT_AND_CHECK_COMMUNICATION.name().equals(normalizeText(step.get(FIELD_DEPENDS_ON)))) {
-                return ValidationResult.failure(ValidationCode.INVALID_DEPENDENCY);
+                return ValidationInspection.failure(
+                        ValidationCode.INVALID_DEPENDENCY,
+                        stepPath(i) + "." + FIELD_DEPENDS_ON,
+                        "ON_FAILURE_EXECUTE_ACTION must depend on WAIT_AND_CHECK_COMMUNICATION.");
             }
         }
 
         Object actionConfigObject = blueprint.get(FIELD_ACTION_CONFIG);
         if (!(actionConfigObject instanceof Map<?, ?> rawActionConfig)) {
-            return ValidationResult.failure(ValidationCode.INVALID_JSON_SHAPE);
+            return ValidationInspection.failure(
+                    ValidationCode.INVALID_JSON_SHAPE,
+                    FIELD_ACTION_CONFIG,
+                    "actionConfig must be an object.");
         }
         @SuppressWarnings("unchecked")
         Map<String, Object> actionConfig = (Map<String, Object>) rawActionConfig;
 
         String actionType = normalizeText(actionConfig.get(FIELD_ACTION_TYPE));
         if (!ALLOWED_ACTION_TYPES.contains(actionType)) {
-            return ValidationResult.failure(ValidationCode.INVALID_ACTION_TYPE);
+            return ValidationInspection.failure(
+                    ValidationCode.INVALID_ACTION_TYPE,
+                    FIELD_ACTION_CONFIG + "." + FIELD_ACTION_TYPE,
+                    "actionConfig.actionType must be one of: REASSIGN, MOVE_TO_POND.");
         }
         if ("REASSIGN".equals(actionType)) {
-            ValidationCode targetValidation = validatePositiveTarget(actionConfig, FIELD_TARGET_USER_ID);
+            ValidationInspection targetValidation =
+                    validatePositiveTarget(actionConfig, FIELD_TARGET_USER_ID, "REASSIGN requires a positive targetUserId.");
             if (targetValidation != null) {
-                return ValidationResult.failure(targetValidation);
+                return targetValidation;
             }
         }
         if ("MOVE_TO_POND".equals(actionType)) {
-            ValidationCode targetValidation = validatePositiveTarget(actionConfig, FIELD_TARGET_POND_ID);
+            ValidationInspection targetValidation =
+                    validatePositiveTarget(actionConfig, FIELD_TARGET_POND_ID, "MOVE_TO_POND requires a positive targetPondId.");
             if (targetValidation != null) {
-                return ValidationResult.failure(targetValidation);
+                return targetValidation;
             }
         }
 
-        return ValidationResult.success();
+        return ValidationInspection.success();
     }
 
     private static int extractPositiveInt(Object value) {
@@ -134,12 +170,21 @@ public final class PolicyBlueprintValidator {
         return null;
     }
 
-    private static ValidationCode validatePositiveTarget(Map<String, Object> actionConfig, String fieldName) {
+    private static ValidationInspection validatePositiveTarget(
+            Map<String, Object> actionConfig,
+            String fieldName,
+            String invalidMessage) {
         if (!actionConfig.containsKey(fieldName)) {
-            return ValidationCode.MISSING_ACTION_TARGET;
+            return ValidationInspection.failure(
+                    ValidationCode.MISSING_ACTION_TARGET,
+                    FIELD_ACTION_CONFIG + "." + fieldName,
+                    fieldName + " is required.");
         }
         return extractPositiveLong(actionConfig.get(fieldName)) == null
-                ? ValidationCode.INVALID_ACTION_TARGET
+                ? ValidationInspection.failure(
+                        ValidationCode.INVALID_ACTION_TARGET,
+                        FIELD_ACTION_CONFIG + "." + fieldName,
+                        invalidMessage)
                 : null;
     }
 
@@ -148,6 +193,10 @@ public final class PolicyBlueprintValidator {
             return "";
         }
         return text.trim().toUpperCase(Locale.ROOT);
+    }
+
+    private static String stepPath(int index) {
+        return FIELD_STEPS + "[" + index + "]";
     }
 
     public enum ValidationCode {
@@ -171,6 +220,21 @@ public final class PolicyBlueprintValidator {
 
         static ValidationResult failure(ValidationCode code) {
             return new ValidationResult(false, code);
+        }
+    }
+
+    record ValidationFailureDetail(String fieldPath, String reason) {
+    }
+
+    record ValidationInspection(ValidationResult result, ValidationFailureDetail detail) {
+        static ValidationInspection success() {
+            return new ValidationInspection(ValidationResult.success(), null);
+        }
+
+        static ValidationInspection failure(ValidationCode code, String fieldPath, String reason) {
+            return new ValidationInspection(
+                    ValidationResult.failure(code),
+                    new ValidationFailureDetail(fieldPath, reason));
         }
     }
 }
