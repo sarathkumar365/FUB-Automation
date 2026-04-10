@@ -1,5 +1,6 @@
 import { useMemo } from 'react'
 import { uiText } from '../../../shared/constants/uiText'
+import { Button } from '../../../shared/ui/button'
 import { DataTable, type ColumnDef } from '../../../shared/ui/DataTable'
 import { ErrorState } from '../../../shared/ui/ErrorState'
 import { LoadingState } from '../../../shared/ui/LoadingState'
@@ -14,6 +15,7 @@ type ManageTabProps = {
   isError: boolean
   selectedPolicyId: number | undefined
   onRowClick: (row: PolicyResponse) => void
+  onCreateNew: () => void
 }
 
 export function ManageTab({
@@ -22,6 +24,7 @@ export function ManageTab({
   isError,
   selectedPolicyId,
   onRowClick,
+  onCreateNew,
 }: ManageTabProps) {
   const columns = useMemo<ColumnDef<PolicyResponse>[]>(
     () => [
@@ -53,6 +56,11 @@ export function ManageTab({
 
   return (
     <PageCard title={uiText.policies.manageTableTitle}>
+      <div className="mb-3 flex justify-end">
+        <Button size="sm" onClick={onCreateNew}>
+          + New Policy
+        </Button>
+      </div>
       {isError ? (
         <ErrorState message={uiText.states.errorMessage} />
       ) : isPending ? (

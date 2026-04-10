@@ -1,4 +1,5 @@
 import { uiText } from '../../../shared/constants/uiText'
+import { Button } from '../../../shared/ui/button'
 import { StatusBadge } from '../../../shared/ui/StatusBadge'
 import type { PolicyResponse } from '../lib/policySchemas'
 import { policyStatusLabel, policyStatusTone } from '../lib/policiesDisplay'
@@ -6,9 +7,12 @@ import { BlueprintView } from './BlueprintView'
 
 type PolicyInspectorProps = {
   policy: PolicyResponse
+  onEdit: () => void
+  onActivate: () => void
+  isActivating: boolean
 }
 
-export function PolicyInspector({ policy }: PolicyInspectorProps) {
+export function PolicyInspector({ policy, onEdit, onActivate, isActivating }: PolicyInspectorProps) {
   return (
     <section className="space-y-4 text-sm">
       <div className="space-y-3">
@@ -38,6 +42,17 @@ export function PolicyInspector({ policy }: PolicyInspectorProps) {
           {uiText.policies.policyBlueprintTitle}
         </p>
         <BlueprintView blueprint={policy.blueprint} />
+      </div>
+
+      <div className="flex gap-2 border-t border-[var(--color-border)] pt-3">
+        <Button size="sm" variant="outline" onClick={onEdit}>
+          Edit
+        </Button>
+        {policy.status === 'INACTIVE' && (
+          <Button size="sm" onClick={onActivate} disabled={isActivating}>
+            {isActivating ? 'Activating...' : 'Activate'}
+          </Button>
+        )}
       </div>
     </section>
   )

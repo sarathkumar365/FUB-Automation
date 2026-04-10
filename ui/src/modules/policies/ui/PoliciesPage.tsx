@@ -7,6 +7,11 @@ import { DateInput } from '../../../shared/ui/DateInput'
 import { ApplyIcon, FilterIcon, ResetIcon } from '../../../shared/ui/icons'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Select } from '../../../shared/ui/select'
+import { useNotify } from '../../../shared/notifications/useNotify'
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
+import { useActivatePolicyMutation } from '../data/useActivatePolicyMutation'
+import { useCreatePolicyMutation } from '../data/useCreatePolicyMutation'
+import { useUpdatePolicyMutation } from '../data/useUpdatePolicyMutation'
 import { usePoliciesQuery } from '../data/usePoliciesQuery'
 import { usePolicyExecutionsQuery } from '../data/usePolicyExecutionsQuery'
 import {
@@ -21,6 +26,7 @@ import type { PolicyExecutionRunListItem, PolicyExecutionRunStatus, PolicyRespon
 import { runStatusLabel } from '../lib/policiesDisplay'
 import { usePolicyExecutionDetailQuery } from '../data/usePolicyExecutionDetailQuery'
 import { ManageTab } from './ManageTab'
+import { PolicyFormModal, type PolicyFormData } from './PolicyFormModal'
 import { PolicyInspector } from './PolicyInspector'
 import { RunInspector } from './RunInspector'
 import { RunsTab } from './RunsTab'
@@ -66,6 +72,18 @@ export function PoliciesPage() {
   )
 
   const executionDetailQuery = usePolicyExecutionDetailQuery(searchState.selectedRun)
+
+  // Mutations
+  const createMutation = useCreatePolicyMutation()
+  const updateMutation = useUpdatePolicyMutation()
+  const activateMutation = useActivatePolicyMutation()
+  const notify = useNotify()
+
+  // Modal state
+  const [formModalOpen, setFormModalOpen] = useState(false)
+  const [editingPolicy, setEditingPolicy] = useState<PolicyResponse | undefined>(undefined)
+  const [activateConfirmOpen, setActivateConfirmOpen] = useState(false)
+  const [policyToActivate, setPolicyToActivate] = useState<PolicyResponse | undefined>(undefined)
 
   // Unique policy keys for filter dropdown
   const policyKeyOptions = useMemo(() => {
@@ -183,6 +201,76 @@ export function PoliciesPage() {
     if (searchState.selectedPolicy === undefined) return undefined
     return (policiesQuery.data ?? []).find((p) => p.id === searchState.selectedPolicy)
   }, [searchState.selectedPolicy, policiesQuery.data])
+
+  // Mutation handlers
+  const handleCreateNew = () => {
+    setEditingPolicy(undefined)
+    setFormModalOpen(true)
+  }
+
+  const handleEdit = useCallback(() => {
+    if (!selectedPolicy) return
+    setEditingPolicy(selectedPolicy)
+    setFormModalOpen(true)
+  }, [selectedPolicy])
+
+  const handleActivateClick = useCallback(() => {
+    if (!selectedPolicy) return
+    setPolicyToActivate(selectedPolicy)
+    setActivateConfirmOpen(true)
+  }, [selectedPolicy])
+
+  const handleActivateConfirm = () => {
+    if (!policyToActivate) return
+    activateMutation.mutate(
+      { id: policyToActivate.id, cmd: { expectedVersion: policyToActivate.version } },
+      {
+        onSuccess: () => {
+          notify.success('Policy activated')
+          setActivateConfirmOpen(false)
+          setPolicyToActivate(undefined)
+        },
+        onError: () => {
+          notify.error('Failed to activate — policy may have been modified. Please refresh.')
+          setActivateConfirmOpen(false)
+        },
+      },
+    )
+  }
+
+  const handleFormSubmit = (data: PolicyFormData) => {
+    if (editingPolicy) {
+      updateMutation.mutate(
+        {
+          id: editingPolicy.id,
+          cmd: {
+            enabled: data.enabled,
+            expectedVersion: editingPolicy.version,
+            blueprint: data.blueprint,
+          },
+        },
+        {
+          onSuccess: () => {
+            notify.success('Policy updated')
+            setFormModalOpen(false)
+          },
+          onError: () => {
+            notify.error('Failed to update — policy may have been modified. Please refresh.')
+          },
+        },
+      )
+    } else {
+      createMutation.mutate(data, {
+        onSuccess: () => {
+          notify.success('Policy created')
+          setFormModalOpen(false)
+        },
+        onError: () => {
+          notify.error('Failed to create policy.')
+        },
+      })
+    }
+  }
 
   // --- Panel content ---
 
@@ -331,7 +419,14 @@ export function PoliciesPage() {
     if (selectedPolicy !== undefined) {
       return {
         title: uiText.policies.policyInspectorTitle,
-        body: <PolicyInspector policy={selectedPolicy} />,
+        body: (
+          <PolicyInspector
+            policy={selectedPolicy}
+            onEdit={handleEdit}
+            onActivate={handleActivateClick}
+            isActivating={activateMutation.isPending}
+          />
+        ),
       }
     }
 
@@ -342,6 +437,9 @@ export function PoliciesPage() {
     executionDetailQuery.isError,
     executionDetailQuery.data,
     selectedPolicy,
+    handleEdit,
+    handleActivateClick,
+    activateMutation.isPending,
   ])
 
   useShellRegionRegistration({
@@ -387,8 +485,30 @@ export function PoliciesPage() {
           isError={policiesQuery.isError}
           selectedPolicyId={searchState.selectedPolicy}
           onRowClick={handlePolicyClick}
+          onCreateNew={handleCreateNew}
         />
       )}
+
+      <PolicyFormModal
+        open={formModalOpen}
+        onOpenChange={setFormModalOpen}
+        policy={editingPolicy}
+        onSubmit={handleFormSubmit}
+        isPending={editingPolicy ? updateMutation.isPending : createMutation.isPending}
+      />
+
+      <ConfirmDialog
+        open={activateConfirmOpen}
+        title="Activate Policy"
+        description={
+          policyToActivate
+            ? `Activate ${policyToActivate.policyKey} v${policyToActivate.version}? This will deactivate the current active version.`
+            : ''
+        }
+        confirmLabel="Activate"
+        onOpenChange={setActivateConfirmOpen}
+        onConfirm={handleActivateConfirm}
+      />
     </div>
   )
 }
