@@ -430,8 +430,15 @@ export function PoliciesPage() {
       }
     }
 
-    return null
+    // Nothing selected — show hint
+    const hint =
+      searchState.tab === 'runs' ? uiText.policies.inspectorEmptyRuns : uiText.policies.inspectorEmptyManage
+    return {
+      title: uiText.policies.inspectorTitle,
+      body: <p className="text-sm text-[var(--color-text-muted)]">{hint}</p>,
+    }
   }, [
+    searchState.tab,
     searchState.selectedRun,
     executionDetailQuery.isPending,
     executionDetailQuery.isError,
@@ -442,8 +449,13 @@ export function PoliciesPage() {
     activateMutation.isPending,
   ])
 
+  const panelContent = useMemo(
+    () => ({ title: uiText.policies.title, body: panelBody }),
+    [panelBody],
+  )
+
   useShellRegionRegistration({
-    panel: { title: uiText.policies.title, body: panelBody },
+    panel: panelContent,
     inspector: inspectorBody,
   })
 

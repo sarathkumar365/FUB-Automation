@@ -17,8 +17,8 @@ export class HttpPolicyExecutionAdapter implements PolicyExecutionPort {
     const query = toQueryString({
       status: filters.status,
       policyKey: filters.policyKey,
-      from: filters.from,
-      to: filters.to,
+      from: filters.from ? `${filters.from}T00:00:00Z` : undefined,
+      to: filters.to ? `${filters.to}T23:59:59Z` : undefined,
       limit: filters.limit,
       cursor: filters.cursor,
     })

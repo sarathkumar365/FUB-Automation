@@ -50,7 +50,17 @@ public class AdminPolicyController {
     }
 
     @GetMapping
-    public ResponseEntity<?> listPolicies(@RequestParam String domain, @RequestParam String policyKey) {
+    public ResponseEntity<?> listPolicies(
+            @RequestParam(required = false) String domain,
+            @RequestParam(required = false) String policyKey) {
+        if (domain == null && policyKey == null) {
+            List<PolicyResponse> response = automationPolicyService.listAllPolicies()
+                    .stream().map(this::toResponse).toList();
+            return ResponseEntity.ok(response);
+        }
+        if (domain == null || policyKey == null) {
+            return ResponseEntity.badRequest().body("Both domain and policyKey are required when filtering");
+        }
         var result = automationPolicyService.listPolicies(domain, policyKey);
         if (result.status() == ReadStatus.SUCCESS) {
             List<PolicyResponse> response = result.policies().stream().map(this::toResponse).toList();

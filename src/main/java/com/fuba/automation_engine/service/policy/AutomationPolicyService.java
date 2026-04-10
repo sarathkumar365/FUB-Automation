@@ -51,6 +51,13 @@ public class AutomationPolicyService {
     }
 
     @Transactional(readOnly = true)
+    public List<PolicyView> listAllPolicies() {
+        return repository.findAll().stream()
+                .map(this::toView)
+                .toList();
+    }
+
+    @Transactional(readOnly = true)
     public ListResult listPolicies(String domain, String policyKey) {
         String normalizedDomain = normalizeToken(domain, DOMAIN_MAX_LENGTH);
         String normalizedPolicyKey = normalizeToken(policyKey, POLICY_KEY_MAX_LENGTH);

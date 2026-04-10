@@ -212,6 +212,8 @@ export const uiText = {
     summaryFailed: 'Failed',
     // Inspector empty
     inspectorEmpty: 'Select a row to view details.',
+    inspectorEmptyRuns: 'Select an execution run to view step details.',
+    inspectorEmptyManage: 'Select a policy to view its configuration.',
     inspectorLoading: 'Loading details...',
     inspectorError: 'Unable to load details.',
     // Pagination
