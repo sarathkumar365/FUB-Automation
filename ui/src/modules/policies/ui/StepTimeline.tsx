@@ -1,14 +1,23 @@
-import type { PolicyExecutionStep } from '../lib/policySchemas'
+import type { PolicyExecutionRunStatus, PolicyExecutionStep } from '../lib/policySchemas'
 import { stepStatusLabel, stepStatusTone, stepTypeLabel } from '../lib/policiesDisplay'
 import { formatDateTime } from '../../../shared/lib/date'
 
 type StepTimelineProps = {
   steps: PolicyExecutionStep[]
+  runStatus?: PolicyExecutionRunStatus
 }
 
-export function StepTimeline({ steps }: StepTimelineProps) {
+export function StepTimeline({ steps, runStatus }: StepTimelineProps) {
   if (steps.length === 0) {
-    return <p className="text-sm text-[var(--color-text-muted)]">No steps recorded.</p>
+    let message = 'No steps recorded.'
+    if (runStatus === 'BLOCKED_POLICY') {
+      message = 'Run was blocked before execution — no steps were created. Check the outcome code above.'
+    } else if (runStatus === 'DUPLICATE_IGNORED') {
+      message = 'Duplicate run — no steps were created for this entry.'
+    } else if (runStatus === 'PENDING') {
+      message = 'Run is pending — steps will appear once execution begins.'
+    }
+    return <p className="text-sm text-[var(--color-text-muted)]">{message}</p>
   }
 
   const sorted = [...steps].sort((a, b) => a.stepOrder - b.stepOrder)

@@ -50,7 +50,7 @@ export function RunInspector({ detail }: RunInspectorProps) {
         <p className="mb-3 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
           {uiText.policies.runStepsTitle}
         </p>
-        <StepTimeline steps={detail.steps} />
+        <StepTimeline steps={detail.steps} runStatus={detail.status} />
       </div>
     </section>
   )

@@ -66,6 +66,12 @@ public class PolicyExecutionManager {
         }
 
         LookupResult policyLookup = automationPolicyService.getActivePolicy(request.policyDomain(), request.policyKey());
+        log.info(
+                "Policy lookup for domain={} key={} resulted in status={} and policy={}",
+                request.policyDomain(),
+                request.policyKey(),
+                policyLookup.status(),
+                policyLookup.policy() != null ? "version=" + policyLookup.policy().version() : "no policy");
         if (policyLookup.status() != AutomationPolicyService.ReadStatus.SUCCESS || policyLookup.policy() == null) {
             return persistBlockedPolicyRun(request, idempotencyKey, policyLookup.status());
         }
