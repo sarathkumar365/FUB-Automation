@@ -1,10 +1,11 @@
-import { useCallback, useMemo, useState, type ReactNode } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
 import { uiText } from '../../../shared/constants/uiText'
 import { Button } from '../../../shared/ui/button'
 import { DateInput } from '../../../shared/ui/DateInput'
 import { ApplyIcon, FilterIcon, ResetIcon } from '../../../shared/ui/icons'
+import { FilterBar } from '../../../shared/ui/FilterBar'
 import { PageHeader } from '../../../shared/ui/PageHeader'
 import { Select } from '../../../shared/ui/select'
 import { useNotify } from '../../../shared/notifications/useNotify'
@@ -161,7 +162,6 @@ export function PoliciesPage() {
   const handleNext = () => {
     const nextCursor = executionsQuery.data?.nextCursor
     if (!nextCursor) return
-    // Push current cursor onto stack before navigating forward
     setCursorStack((prev) => [...prev, searchState.cursor ?? ''])
     setSearchParams(
       createPoliciesSearchParams({
@@ -272,137 +272,27 @@ export function PoliciesPage() {
     }
   }
 
-  // --- Panel content ---
+  // --- Panel: summary stats only ---
 
   const panelBody = useMemo(
     () => (
-      <div className="space-y-4">
-        <div className="space-y-3">
-          <div className="flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">
-            <FilterIcon />
-            {uiText.policies.panelTitle}
-          </div>
-
-          <ControlGroup label={uiText.policies.filterPolicyLabel}>
-            <Select
-              aria-label={uiText.policies.filterPolicyLabel}
-              value={draftFilters.policyKey || ''}
-              onChange={(e) =>
-                setDraftFilterState((prev) => ({
-                  key: filterDraftKey,
-                  value: {
-                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
-                    policyKey: e.target.value,
-                  },
-                }))
-              }
-              className="w-full"
-            >
-              <option value="">{uiText.policies.filterPolicyAll}</option>
-              {policyKeyOptions.map((key) => (
-                <option key={key} value={key}>
-                  {key}
-                </option>
-              ))}
-            </Select>
-          </ControlGroup>
-
-          <ControlGroup label={uiText.policies.filterStatusLabel}>
-            <Select
-              aria-label={uiText.policies.filterStatusLabel}
-              value={draftFilters.status}
-              onChange={(e) =>
-                setDraftFilterState((prev) => ({
-                  key: filterDraftKey,
-                  value: {
-                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
-                    status: e.target.value as PoliciesFilterDraft['status'],
-                  },
-                }))
-              }
-              className="w-full"
-            >
-              <option value="ALL">{uiText.policies.filterStatusAll}</option>
-              {RUN_STATUS_OPTIONS.map((s) => (
-                <option key={s} value={s}>
-                  {runStatusLabel(s)}
-                </option>
-              ))}
-            </Select>
-          </ControlGroup>
-
-          <ControlGroup label={uiText.policies.filterFromLabel}>
-            <DateInput
-              aria-label={uiText.policies.filterFromLabel}
-              value={draftFilters.from}
-              onChange={(e) =>
-                setDraftFilterState((prev) => ({
-                  key: filterDraftKey,
-                  value: {
-                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
-                    from: e.target.value,
-                  },
-                }))
-              }
-              className="w-full"
-            />
-          </ControlGroup>
-
-          <ControlGroup label={uiText.policies.filterToLabel}>
-            <DateInput
-              aria-label={uiText.policies.filterToLabel}
-              value={draftFilters.to}
-              onChange={(e) =>
-                setDraftFilterState((prev) => ({
-                  key: filterDraftKey,
-                  value: {
-                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
-                    to: e.target.value,
-                  },
-                }))
-              }
-              className="w-full"
-            />
-          </ControlGroup>
-
-          <div className="flex gap-2">
-            <Button type="button" size="sm" onClick={handleApply} className="flex-1">
-              <ApplyIcon className="mr-1.5" />
-              {uiText.filters.apply}
-            </Button>
-            <Button type="button" size="sm" variant="outline" onClick={handleReset} className="flex-1">
-              <ResetIcon className="mr-1.5" />
-              {uiText.filters.reset}
-            </Button>
-          </div>
-        </div>
-
-        <div className="border-t border-[var(--color-border)] pt-3">
-          <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--color-text-muted)]">Summary</p>
-          <div className="space-y-1 text-sm">
-            <SummaryRow label={uiText.policies.summaryActivePolicies} value={activePolicyCount} />
-            <SummaryRow label={uiText.policies.summaryRunsShown} value={runsShown} />
-            <SummaryRow label={uiText.policies.summaryFailed} value={failedCount} highlight={failedCount > 0} />
-          </div>
-        </div>
+      <div className="space-y-1 text-sm">
+        <SummaryRow label={uiText.policies.summaryActivePolicies} value={activePolicyCount} />
+        <SummaryRow label={uiText.policies.summaryRunsShown} value={runsShown} />
+        <SummaryRow label={uiText.policies.summaryFailed} value={failedCount} highlight={failedCount > 0} />
       </div>
     ),
-    [
-      draftFilters,
-      filterDraftKey,
-      policyKeyOptions,
-      activePolicyCount,
-      runsShown,
-      failedCount,
-      handleApply,
-      handleReset,
-    ],
+    [activePolicyCount, runsShown, failedCount],
+  )
+
+  const panelContent = useMemo(
+    () => ({ title: uiText.policies.title, body: panelBody }),
+    [panelBody],
   )
 
   // --- Inspector ---
 
   const inspectorBody = useMemo(() => {
-    // Run inspector (Runs tab)
     if (searchState.selectedRun !== undefined) {
       let body: React.ReactNode
       if (executionDetailQuery.isPending) {
@@ -415,7 +305,6 @@ export function PoliciesPage() {
       return { title: uiText.policies.runInspectorTitle, body }
     }
 
-    // Policy inspector (Manage tab)
     if (selectedPolicy !== undefined) {
       return {
         title: uiText.policies.policyInspectorTitle,
@@ -430,7 +319,6 @@ export function PoliciesPage() {
       }
     }
 
-    // Nothing selected — show hint
     const hint =
       searchState.tab === 'runs' ? uiText.policies.inspectorEmptyRuns : uiText.policies.inspectorEmptyManage
     return {
@@ -448,11 +336,6 @@ export function PoliciesPage() {
     handleActivateClick,
     activateMutation.isPending,
   ])
-
-  const panelContent = useMemo(
-    () => ({ title: uiText.policies.title, body: panelBody }),
-    [panelBody],
-  )
 
   useShellRegionRegistration({
     panel: panelContent,
@@ -477,6 +360,105 @@ export function PoliciesPage() {
           />
         </div>
       </PageHeader>
+
+      {searchState.tab === 'runs' && (
+        <FilterBar
+          actions={
+            <>
+              <Button type="button" size="sm" onClick={handleApply}>
+                <ApplyIcon className="mr-1.5" />
+                {uiText.filters.apply}
+              </Button>
+              <Button type="button" size="sm" variant="outline" onClick={handleReset}>
+                <ResetIcon className="mr-1.5" />
+                {uiText.filters.reset}
+              </Button>
+            </>
+          }
+        >
+          <FilterIcon className="text-[var(--color-text-muted)]" />
+
+          <FilterGroup label={uiText.policies.filterPolicyLabel}>
+            <Select
+              aria-label={uiText.policies.filterPolicyLabel}
+              value={draftFilters.policyKey || ''}
+              onChange={(e) =>
+                setDraftFilterState((prev) => ({
+                  key: filterDraftKey,
+                  value: {
+                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
+                    policyKey: e.target.value,
+                  },
+                }))
+              }
+            >
+              <option value="">{uiText.policies.filterPolicyAll}</option>
+              {policyKeyOptions.map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </Select>
+          </FilterGroup>
+
+          <FilterGroup label={uiText.policies.filterStatusLabel}>
+            <Select
+              aria-label={uiText.policies.filterStatusLabel}
+              value={draftFilters.status}
+              onChange={(e) =>
+                setDraftFilterState((prev) => ({
+                  key: filterDraftKey,
+                  value: {
+                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
+                    status: e.target.value as PoliciesFilterDraft['status'],
+                  },
+                }))
+              }
+            >
+              <option value="ALL">{uiText.policies.filterStatusAll}</option>
+              {RUN_STATUS_OPTIONS.map((s) => (
+                <option key={s} value={s}>
+                  {runStatusLabel(s)}
+                </option>
+              ))}
+            </Select>
+          </FilterGroup>
+
+          <FilterGroup label={uiText.policies.filterFromLabel}>
+            <DateInput
+              aria-label={uiText.policies.filterFromLabel}
+              value={draftFilters.from}
+              onChange={(e) =>
+                setDraftFilterState((prev) => ({
+                  key: filterDraftKey,
+                  value: {
+                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
+                    from: e.target.value,
+                  },
+                }))
+              }
+              className="w-[160px]"
+            />
+          </FilterGroup>
+
+          <FilterGroup label={uiText.policies.filterToLabel}>
+            <DateInput
+              aria-label={uiText.policies.filterToLabel}
+              value={draftFilters.to}
+              onChange={(e) =>
+                setDraftFilterState((prev) => ({
+                  key: filterDraftKey,
+                  value: {
+                    ...(prev.key === filterDraftKey ? prev.value : draftFilters),
+                    to: e.target.value,
+                  },
+                }))
+              }
+              className="w-[160px]"
+            />
+          </FilterGroup>
+        </FilterBar>
+      )}
 
       {searchState.tab === 'runs' ? (
         <RunsTab
@@ -541,10 +523,10 @@ function TabButton({ label, active, onClick }: { label: string; active: boolean;
   )
 }
 
-function ControlGroup({ label, children }: { label: string; children: ReactNode }) {
+function FilterGroup({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <label className="block space-y-1">
-      <span className="text-xs text-[var(--color-text-muted)]">{label}</span>
+    <label className="flex items-center gap-2">
+      <span className="sr-only">{label}</span>
       {children}
     </label>
   )
