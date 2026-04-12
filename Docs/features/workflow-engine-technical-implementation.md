@@ -1280,7 +1280,7 @@ src/main/java/com/fuba/automation_engine/
   service/workflow/
     RunContext.java                           ← trigger payload + prior outputs
     ExpressionEvaluator.java                 ← interface
-    SimpleExpressionEvaluator.java           ← impl (chosen syntax)
+    JsonataExpressionEvaluator.java          ← impl using com.dashjoin:jsonata
     ExpressionScope.java                     ← available variables
   service/workflow/steps/
     WaitAndCheckCommunicationWorkflowStep.java

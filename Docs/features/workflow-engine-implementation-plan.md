@@ -188,13 +188,11 @@ Drag two nodes onto the canvas, connect them via a result-code edge, configure e
 The three sections cannot run strictly sequentially because each one needs the others to validate it works (the engine needs at least one step type to test against; the builder needs the registry endpoint populated). Realistic interleaving in five waves:
 
 ```
-   §1 foundations  →  §1 deepening  →  §1 finishing
-        ↓                  ↓                ↓
-   §2 first steps  →  §2 parity     →  §2 full library
-                                            ↓
-                                      §3 builder UI
-                                            ↓
-                              Migration of existing policy
+Wave 1               Wave 2               Wave 3               Wave 4           Wave 5        Wave 6
+§1 foundations   →  §1 deepening     →  §1 finishing      →                →               →
+     ↓                   ↓                   ↓                  ↓                            
+§2 first steps   →  §2 parity steps  →                    →  §2 full lib  →               →
+                                                                             §3 builder UI →  Migration
 ```
 
 ### Wave 1 — Make the engine run one step
@@ -256,9 +254,40 @@ On the step type side, you fill out the library. Common FUB operations (`fub_add
 
 ---
 
-### Wave 4 — Give users the builder
+### Wave 4 — Step type library (FUB operations + utilities)
 
-**Scope:** All of §3.
+**Scope:** All remaining §2 step types not covered in Waves 1–3.
+
+**What happens:**
+
+Each step type is a thin Java class implementing `WorkflowStepType`. The shared `FubCallHelper` base class (extracted in Wave 2) handles retry, error mapping, and person-ID validation — so each FUB step is ~20 lines of unique logic. Detailed specs (FUB API endpoints, config schemas, result codes, error mapping) will be written per step type as they're implemented.
+
+**Step types to implement:**
+
+FUB operations:
+- `fub_add_tag` / `fub_remove_tag` — POST/DELETE tag on a FUB person
+- `fub_create_task` — POST a task linked to a person
+- `fub_create_note` — POST a note on a person
+- `fub_send_text` — send SMS via FUB API
+- `fub_send_email` — send email via FUB API
+
+Outbound integrations:
+- `http_request` — generic outbound HTTP call (any URL, configurable method/headers/body)
+- `slack_notify` — post a message to a Slack channel via webhook URL
+
+Utility:
+- `branch_on_field` — generic conditional node (evaluates expression, emits result code)
+- `set_variable` — write a value into run context for later steps
+
+**Success criteria:** Each step type has: a working `execute()` method, a JSON Schema for its config, declared result codes, and a unit test. The full catalog shows up in `GET /admin/workflows/step-types` and can be used in workflow graphs.
+
+**What this proves:** the plugin model scales — adding the 10th step type is as easy as adding the 2nd.
+
+---
+
+### Wave 5 — Builder UI (deferred)
+
+**Scope:** All of §3. **Deferred — will be planned in detail when Waves 1–4 are complete.**
 
 **What happens:**
 
@@ -271,24 +300,20 @@ New frontend module `ui/src/modules/workflows/`. Three libraries do the heavy li
 
 1. User opens the Workflows page (new top-level nav, sibling to "Policies").
 2. Clicks "New Workflow." A blank canvas opens with a palette on the left.
-3. The palette is populated from `GET /admin/workflows/step-types` — it shows every registered step type with its name and description. If a developer adds a new step type tomorrow, it appears here automatically without a UI deploy.
-4. User drags "Wait & Check Claim" from the palette onto the canvas. A node appears with output handles labeled by the step type's declared result codes (e.g., `CLAIMED`, `NOT_CLAIMED`).
-5. User clicks the node. A config panel opens on the right — rendered from the step type's JSON Schema by rjsf. For "Wait & Check Claim" it shows a `delayMinutes` field. User fills in `5`. Some fields accept template expressions — typing `{{` triggers autocomplete showing available context variables (`event.*`, `lead.*`, `steps.<previous>.outputs.*`).
-6. User drags another step type onto the canvas — say "FUB Reassign". Its config form shows `targetUserId` (which could be a literal or a template like `{{ event.payload.previousOwnerId }}`).
-7. User draws an edge from the `NOT_CLAIMED` handle on the first node to the second node. This means: "if the lead is not claimed, reassign it."
-8. User draws the `CLAIMED` handle to a terminal outcome node (or selects "terminal: COMPLIANT_CLOSED" from a dropdown).
-9. Inline validation runs continuously — warnings appear for cycles, unreachable nodes, missing required config, undeclared result codes, invalid expressions.
-10. User clicks "Save" → the builder serializes the canvas to the graph JSON schema and POSTs to `/admin/workflows`. Then "Activate" → deactivates any sibling on the same key, marks this one ACTIVE.
-11. User switches to the "Runs" tab. Fires a test webhook (or uses dry-run mode with a mock payload). Watches the run appear. Clicks into the run inspector — sees every step's resolved config (post-templating), outputs, errors, retry attempts, durations.
-12. If a run failed, user clicks "Retry from failed step" to resume without re-running completed steps.
+3. The palette is populated from `GET /admin/workflows/step-types` — shows every registered step type with its name and description. New step types appear automatically without a UI deploy.
+4. User drags a step type onto the canvas. A node appears with output handles labeled by the step type's declared result codes (e.g., `CLAIMED`, `NOT_CLAIMED`).
+5. User clicks the node. A config panel opens on the right — rendered from the step type's JSON Schema by rjsf.
+6. User draws edges from result-code handles to other nodes — this defines transitions.
+7. Inline validation runs continuously.
+8. User clicks Save → Activate. Runs tab shows execution. Run inspector shows step-by-step data.
 
-**Success criteria:** An ops team member who has never touched the codebase can author a 3-node workflow, activate it, fire a test webhook, and debug a failed run — entirely from the browser, without touching JSON or asking a developer for help.
+**Success criteria:** An ops team member can author, activate, and debug a workflow entirely from the browser.
 
-**What this proves:** the `GET /step-types` → palette → JSON Schema → config form pipeline works end-to-end. The builder is truly step-type-agnostic. The run inspector shows useful debugging data.
+**Detailed technical spec for this wave will be written separately before implementation begins.**
 
 ---
 
-### Wave 5 — Migrate and clean up
+### Wave 6 — Migrate and clean up
 
 **Scope:**
 - §1 items **11, 12** (signal/wait primitive only if needed; re-establish validator invariant)
@@ -310,21 +335,19 @@ New frontend module `ui/src/modules/workflows/`. Three libraries do the heavy li
 
 ---
 
-### What stays untouched during Waves 1–4
+### What stays untouched during Waves 1–5
 
-The existing `ASSIGNMENT_FOLLOWUP_SLA_V1` policy keeps running on the old engine (`service/policy/*`, `automation_policies` table, `policy_execution_runs/steps` tables) throughout Waves 1–4. The new module (`service/workflow/*`, `automation_workflows` table, `workflow_runs/steps` tables) is a sibling, not a replacement. The two engines share no tables, no code paths, and no state. The only shared pieces are the `FollowUpBossClient` (which both call) and the `FubCallHelper` (extracted in Wave 2 for reuse). Zero risk to production during the build.
+The existing `ASSIGNMENT_FOLLOWUP_SLA_V1` policy keeps running on the old engine (`service/policy/*`, `automation_policies` table, `policy_execution_runs/steps` tables) throughout Waves 1–5. The new module (`service/workflow/*`, `automation_workflows` table, `workflow_runs/steps` tables) is a sibling, not a replacement. The two engines share no tables, no code paths, and no state. The only shared pieces are the `FollowUpBossClient` (which both call) and the `FubCallHelper` (extracted in Wave 2 for reuse). Zero risk to production during the build.
 
-The old policy module is only touched in Wave 5 (migration), and even then only by flipping `enabled = false` — not by editing its code.
+The old policy module is only touched in Wave 6 (migration), and even then only by flipping `enabled = false` — not by editing its code.
 
 The waves are not calendar time — each wave is "the work that must land before the next wave can start." Pace is up to you.
 
 ---
 
-## Open questions to resolve before Wave 1
+## Decisions (locked in)
 
-These are decisions that affect the shape of the code and should be locked in before implementation:
-
-1. **Expression language choice** — JSONata, Mustache-with-comparisons, SpEL, or hand-rolled. Affects every templated thing. Recommendation: JSONata if you want power, hand-rolled minimal subset if you want safety.
-2. **Module naming** — keep `policy/Policy*` for backward compatibility, or commit to `workflow/Workflow*` for the new module? This document assumes the latter, with the old module untouched until Wave 5 migration.
-3. **Database strategy** — new tables alongside the old, or generalize the old tables in place? This document assumes new tables (greenfield), which is the safer call given the existing engine is in production and shouldn't be disrupted.
-4. **Signal/wait scope** — defer entirely until a step type needs it, or build it in Wave 3 as part of "engine finishing"? Recommendation: defer.
+1. **Module naming** — `workflow/Workflow*` for the new module. Old `policy/Policy*` untouched until decommission.
+2. **Database strategy** — new tables alongside old. Old tables stay until no longer needed, then removed.
+3. **Expression language — JSONata.** Not needed in Wave 1 (all config values are literals), used from Wave 2 onward. Java library: `com.dashjoin:jsonata`. JSON-native, safe by default (no I/O, no Java class access), powerful enough for string ops / math / array queries / conditionals. Used in four places: step config templating, trigger filters, per-edge guards, and the `branch_on_field` step type.
+4. **Signal/wait scope** — deferred until a step type needs it.
