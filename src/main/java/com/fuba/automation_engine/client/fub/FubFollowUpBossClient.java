@@ -134,6 +134,15 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
     }
 
     @Override
+    public ActionExecutionResult addTag(long personId, String tagName) {
+        log.info(
+                "FUB action simulated: add tag personId={} tagName={} mode=log-only",
+                personId,
+                tagName);
+        return ActionExecutionResult.ok();
+    }
+
+    @Override
     public CreatedTask createTask(CreateTaskCommand command) {
         log.info("Calling FUB createTask personId={} assignedUserId={}", command.personId(), command.assignedUserId());
         FubCreateTaskRequestDto request = new FubCreateTaskRequestDto(

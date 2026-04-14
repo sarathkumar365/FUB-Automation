@@ -151,7 +151,11 @@ class AdminWorkflowControllerTest {
         mockMvc.perform(get("/admin/workflows/step-types"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(org.hamcrest.Matchers.greaterThan(0)))
-                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.hasItems("delay", "wait_and_check_claim")))
-                .andExpect(jsonPath("$[*].configSchema").exists());
+                .andExpect(jsonPath("$[*].id", org.hamcrest.Matchers.hasItems(
+                        "delay", "wait_and_check_claim", "fub_add_tag", "http_request", "slack_notify")))
+                .andExpect(jsonPath("$[*].configSchema").exists())
+                .andExpect(jsonPath("$[*].defaultRetryPolicy").exists())
+                .andExpect(jsonPath("$[?(@.id=='delay')].defaultRetryPolicy.maxAttempts", org.hamcrest.Matchers.hasItem(1)))
+                .andExpect(jsonPath("$[?(@.id=='wait_and_check_claim')].defaultRetryPolicy.maxAttempts", org.hamcrest.Matchers.hasItem(3)));
     }
 }

@@ -6,17 +6,22 @@ public record StepExecutionResult(
         boolean success,
         String resultCode,
         Map<String, Object> outputs,
-        String errorMessage) {
+        String errorMessage,
+        boolean transientFailure) {
 
     public static StepExecutionResult success(String resultCode, Map<String, Object> outputs) {
-        return new StepExecutionResult(true, resultCode, outputs, null);
+        return new StepExecutionResult(true, resultCode, outputs, null, false);
     }
 
     public static StepExecutionResult success(String resultCode) {
-        return new StepExecutionResult(true, resultCode, Map.of(), null);
+        return new StepExecutionResult(true, resultCode, Map.of(), null, false);
     }
 
     public static StepExecutionResult failure(String resultCode, String errorMessage) {
-        return new StepExecutionResult(false, resultCode, Map.of(), errorMessage);
+        return new StepExecutionResult(false, resultCode, Map.of(), errorMessage, false);
+    }
+
+    public static StepExecutionResult transientFailure(String resultCode, String errorMessage) {
+        return new StepExecutionResult(false, resultCode, Map.of(), errorMessage, true);
     }
 }

@@ -102,7 +102,7 @@ public class FubReassignWorkflowStep implements WorkflowStepType {
             }
             return StepExecutionResult.success("SUCCESS");
         } catch (FubTransientException ex) {
-            return StepExecutionResult.failure(FUB_REASSIGN_TRANSIENT,
+            return StepExecutionResult.transientFailure(FUB_REASSIGN_TRANSIENT,
                     "Transient failure reassigning person " + personId
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (FubPermanentException ex) {

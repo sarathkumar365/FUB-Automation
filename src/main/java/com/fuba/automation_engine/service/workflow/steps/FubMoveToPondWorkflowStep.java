@@ -102,7 +102,7 @@ public class FubMoveToPondWorkflowStep implements WorkflowStepType {
             }
             return StepExecutionResult.success("SUCCESS");
         } catch (FubTransientException ex) {
-            return StepExecutionResult.failure(FUB_MOVE_TRANSIENT,
+            return StepExecutionResult.transientFailure(FUB_MOVE_TRANSIENT,
                     "Transient failure moving person " + personId + " to pond"
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (FubPermanentException ex) {

@@ -9,6 +9,7 @@ import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRep
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionScope;
+import java.time.Duration;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
@@ -117,6 +118,12 @@ public class WorkflowStepExecutionService {
             applyTransition(step, run, result.resultCode());
             log.info("Workflow step execution succeeded stepId={} runId={} nodeId={} resultCode={}",
                     step.getId(), run.getId(), step.getNodeId(), result.resultCode());
+            return;
+        }
+
+        RetryPolicy retryPolicy = resolveEffectiveRetryPolicy(stepType, rawConfig);
+        if (shouldRetry(result, retryPolicy, step)) {
+            scheduleRetry(step, result, retryPolicy);
             return;
         }
 
@@ -408,5 +415,54 @@ public class WorkflowStepExecutionService {
             return null;
         }
         return value.length() <= maxLength ? value : value.substring(0, maxLength);
+    }
+
+    @SuppressWarnings("unchecked")
+    private RetryPolicy resolveEffectiveRetryPolicy(WorkflowStepType stepType, Map<String, Object> rawConfig) {
+        RetryPolicy fallback = stepType.defaultRetryPolicy();
+        if (rawConfig == null || rawConfig.isEmpty()) {
+            return fallback;
+        }
+        Object retryPolicyObj = rawConfig.get("retryPolicy");
+        if (!(retryPolicyObj instanceof Map<?, ?> retryMap)) {
+            return fallback;
+        }
+        return RetryPolicy.fromMap((Map<String, Object>) retryMap, fallback);
+    }
+
+    private boolean shouldRetry(StepExecutionResult result, RetryPolicy retryPolicy, WorkflowRunStepEntity step) {
+        if (!result.transientFailure() || !retryPolicy.retryOnTransient()) {
+            return false;
+        }
+        int retryCount = step.getRetryCount() != null ? step.getRetryCount() : 0;
+        int maxRetryIndex = retryPolicy.maxAttempts() - 1;
+        return retryCount < maxRetryIndex;
+    }
+
+    private void scheduleRetry(WorkflowRunStepEntity step, StepExecutionResult result, RetryPolicy retryPolicy) {
+        int retryCount = step.getRetryCount() != null ? step.getRetryCount() : 0;
+        long backoffMs = computeBackoffMs(retryPolicy, retryCount);
+
+        step.setRetryCount(retryCount + 1);
+        step.setStatus(WorkflowRunStepStatus.PENDING);
+        step.setResultCode(null);
+        step.setErrorMessage(truncate(result.errorMessage(), 512));
+        step.setDueAt(OffsetDateTime.now(clock).plus(Duration.ofMillis(backoffMs)));
+        stepRepository.save(step);
+
+        log.info(
+                "Workflow step scheduled for retry stepId={} runId={} nodeId={} retryCount={} backoffMs={} resultCode={}",
+                step.getId(),
+                step.getRunId(),
+                step.getNodeId(),
+                step.getRetryCount(),
+                backoffMs,
+                result.resultCode());
+    }
+
+    private long computeBackoffMs(RetryPolicy retryPolicy, int retryCount) {
+        double scaled = retryPolicy.initialBackoffMs() * Math.pow(retryPolicy.backoffMultiplier(), retryCount);
+        long bounded = (long) Math.min(scaled, retryPolicy.maxBackoffMs());
+        return Math.max(0L, bounded);
     }
 }

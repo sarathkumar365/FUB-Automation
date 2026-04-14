@@ -379,6 +379,11 @@ class WorkflowParityTest {
         }
 
         @Override
+        public ActionExecutionResult addTag(long personId, String tagName) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
         public CreatedTask createTask(CreateTaskCommand command) {
             return null;
         }

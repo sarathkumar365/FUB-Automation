@@ -3,7 +3,7 @@
 ## Phase Status
 - Phase 1: `COMPLETED`
 - Phase 2: `IN_PROGRESS` (stabilization in working tree)
-- Phase 3: `NOT_STARTED`
+- Phase 3: `COMPLETED` (Wave 3 Phases 1-4 completed in working tree)
 - Phase 4: `NOT_STARTED`
 
 ## Phase Definitions
@@ -25,6 +25,13 @@
 ### Phase 3 — Trigger Routing
 - Introduce workflow trigger routing from webhook processor path.
 - Define and enforce trigger contract + matching behavior.
+- Wave 3 tracking: [wave-3-dynamic-trigger-routing-retry.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/wave-3-dynamic-trigger-routing-retry.md)
+- Current progress:
+  - Wave 3 Phase 1 (retry primitive) completed and validated.
+  - Wave 3 Phase 2 (trigger plugin infrastructure + router) completed and validated.
+  - Wave 3 Phase 3 (MVP step library: `fub_add_tag`, `http_request`, `slack_notify`) completed and validated.
+  - Wave 3 Phase 4 (end-to-end proof scenarios + docs gate) completed and validated.
+- Implementation notes: [phase-3-implementation.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/phase-3-implementation.md)
 
 ### Phase 4 — Broader Step Library + UI
 - Expand step library and workflow builder UI integration.

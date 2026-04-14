@@ -16,6 +16,7 @@ import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.policy.PolicyExecutionManager;
 import com.fuba.automation_engine.service.policy.PolicyExecutionPlanRequest;
 import com.fuba.automation_engine.service.policy.PolicyExecutionPlanningResult;
+import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
@@ -50,6 +51,7 @@ class WebhookEventProcessorServiceTest {
     private CallDecisionEngine callDecisionEngine;
     private CallbackTaskCommandFactory callbackTaskCommandFactory;
     private PolicyExecutionManager policyExecutionManager;
+    private WorkflowTriggerRouter workflowTriggerRouter;
     private Environment environment;
     private WebhookEventProcessorService service;
 
@@ -61,6 +63,7 @@ class WebhookEventProcessorServiceTest {
         callDecisionEngine = mock(CallDecisionEngine.class);
         callbackTaskCommandFactory = mock(CallbackTaskCommandFactory.class);
         policyExecutionManager = mock(PolicyExecutionManager.class);
+        workflowTriggerRouter = mock(WorkflowTriggerRouter.class);
         environment = mock(Environment.class);
 
         FubRetryProperties retryProperties = new FubRetryProperties();
@@ -72,6 +75,8 @@ class WebhookEventProcessorServiceTest {
         callOutcomeRulesProperties.setDevTestUserId(0L);
         when(policyExecutionManager.plan(any(PolicyExecutionPlanRequest.class)))
                 .thenReturn(new PolicyExecutionPlanningResult(PolicyExecutionRunStatus.PENDING, 1L, null));
+        when(workflowTriggerRouter.route(any(NormalizedWebhookEvent.class)))
+                .thenReturn(new WorkflowTriggerRouter.RoutingSummary(0, 0, 0, 0, 0, 0, 0));
 
         service = new WebhookEventProcessorService(
                 processedCallRepository,
@@ -82,7 +87,8 @@ class WebhookEventProcessorServiceTest {
                 retryProperties,
                 callOutcomeRulesProperties,
                 environment,
-                policyExecutionManager);
+                policyExecutionManager,
+                workflowTriggerRouter);
     }
 
     @Test
@@ -108,6 +114,7 @@ class WebhookEventProcessorServiceTest {
         verify(processedCallRepository).findByCallId(123L);
         verify(processedCallRepository, never()).findByCallId(999L);
         verify(policyExecutionManager, never()).plan(any(PolicyExecutionPlanRequest.class));
+        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -126,6 +133,7 @@ class WebhookEventProcessorServiceTest {
         verify(followUpBossClient, never()).getCallById(anyLong());
         verify(followUpBossClient, never()).createTask(any());
         verify(policyExecutionManager).plan(requestCaptor.capture());
+        verify(workflowTriggerRouter).route(event);
         Assertions.assertEquals("777", requestCaptor.getValue().sourceLeadId());
     }
 
@@ -186,6 +194,7 @@ class WebhookEventProcessorServiceTest {
         service.process(event);
 
         verify(policyExecutionManager, never()).plan(any(PolicyExecutionPlanRequest.class));
+        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -203,6 +212,22 @@ class WebhookEventProcessorServiceTest {
         verify(followUpBossClient, never()).getCallById(anyLong());
         verify(followUpBossClient, never()).createTask(any());
         verify(policyExecutionManager, never()).plan(any(PolicyExecutionPlanRequest.class));
+        verify(workflowTriggerRouter).route(event);
+    }
+
+    @Test
+    void shouldContinueDomainProcessingWhenRouterThrows() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment-router-fail",
+                NormalizedDomain.ASSIGNMENT,
+                NormalizedAction.CREATED,
+                payload("peopleCreated", 888L));
+
+        when(workflowTriggerRouter.route(any(NormalizedWebhookEvent.class)))
+                .thenThrow(new RuntimeException("router failure"));
+
+        Assertions.assertDoesNotThrow(() -> service.process(event));
+        verify(policyExecutionManager).plan(any(PolicyExecutionPlanRequest.class));
     }
 
     private NormalizedWebhookEvent eventWithPayload(

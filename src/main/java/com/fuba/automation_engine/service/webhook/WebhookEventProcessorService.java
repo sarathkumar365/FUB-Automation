@@ -22,6 +22,7 @@ import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.policy.PolicyExecutionManager;
 import com.fuba.automation_engine.service.policy.PolicyExecutionPlanRequest;
 import com.fuba.automation_engine.service.policy.PolicyExecutionPlanningResult;
+import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import java.time.OffsetDateTime;
@@ -64,6 +65,7 @@ public class WebhookEventProcessorService {
     private final CallOutcomeRulesProperties callOutcomeRulesProperties;
     private final Environment environment;
     private final PolicyExecutionManager policyExecutionManager;
+    private final WorkflowTriggerRouter workflowTriggerRouter;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
@@ -74,7 +76,8 @@ public class WebhookEventProcessorService {
             FubRetryProperties fubRetryProperties,
             CallOutcomeRulesProperties callOutcomeRulesProperties,
             Environment environment,
-            PolicyExecutionManager policyExecutionManager) {
+            PolicyExecutionManager policyExecutionManager,
+            WorkflowTriggerRouter workflowTriggerRouter) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
         this.callPreValidationService = callPreValidationService;
@@ -84,6 +87,7 @@ public class WebhookEventProcessorService {
         this.callOutcomeRulesProperties = callOutcomeRulesProperties;
         this.environment = environment;
         this.policyExecutionManager = policyExecutionManager;
+        this.workflowTriggerRouter = workflowTriggerRouter;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -99,6 +103,27 @@ public class WebhookEventProcessorService {
             case CALL -> processCallDomainEvent(event);
             case ASSIGNMENT -> processAssignmentDomainEvent(event);
             case UNKNOWN -> processUnknownDomainEvent(event);
+        }
+
+        try {
+            WorkflowTriggerRouter.RoutingSummary summary = workflowTriggerRouter.route(event);
+            log.info(
+                    "Workflow trigger routing completed eventId={} source={} activeWorkflowCount={} matchedWorkflowCount={} candidatePlanCount={} plannedCount={} failedCount={} skippedCount={} cappedCount={}",
+                    event.eventId(),
+                    event.sourceSystem(),
+                    summary.activeWorkflowCount(),
+                    summary.matchedWorkflowCount(),
+                    summary.candidatePlanCount(),
+                    summary.plannedCount(),
+                    summary.failedCount(),
+                    summary.skippedCount(),
+                    summary.cappedCount());
+        } catch (RuntimeException ex) {
+            log.error(
+                    "Workflow trigger routing failed but webhook processing will continue eventId={} source={}",
+                    event.eventId(),
+                    event.sourceSystem(),
+                    ex);
         }
     }
 

@@ -11,4 +11,6 @@ public interface AutomationWorkflowRepository extends JpaRepository<AutomationWo
     Optional<AutomationWorkflowEntity> findFirstByKeyAndStatusOrderByIdDesc(String key, WorkflowStatus status);
 
     List<AutomationWorkflowEntity> findByKeyOrderByIdDesc(String key);
+
+    List<AutomationWorkflowEntity> findByStatus(WorkflowStatus status);
 }

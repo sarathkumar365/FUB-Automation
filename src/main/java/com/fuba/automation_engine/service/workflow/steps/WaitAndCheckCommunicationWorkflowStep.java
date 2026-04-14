@@ -91,7 +91,7 @@ public class WaitAndCheckCommunicationWorkflowStep implements WorkflowStepType {
                     ? StepExecutionResult.success("COMM_FOUND")
                     : StepExecutionResult.success("COMM_NOT_FOUND");
         } catch (FubTransientException ex) {
-            return StepExecutionResult.failure(
+            return StepExecutionResult.transientFailure(
                     FUB_COMM_CHECK_TRANSIENT,
                     "Transient failure checking communication for person " + personId
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));

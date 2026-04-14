@@ -1,28 +1,36 @@
 # Workflow Engine Rebuild — Plan
 
 ## Objective
-Stabilize current Wave 2 implementation work without committing yet, so the working tree is code/test/doc ready for a single follow-up commit.
+Close Wave 3 with end-to-end proof (trigger routing + step execution + retry behavior) and keep feature documentation handoff-ready.
 
-## Phase 2 Stabilization Scope
-1. Finalize current Wave 2 code path consistency.
-2. Enforce explicit opt-in workflow worker defaults.
-3. Add missing controller coverage for workflow admin endpoints.
-4. Align feature docs to required `Docs/features/<feature-slug>/` lifecycle structure.
+## Current Execution Focus (Wave 3)
+- Wave 3 Phase 1 (retry primitive): completed in working tree.
+- Wave 3 Phase 2 (trigger plugin infrastructure + router): completed in working tree.
+- Wave 3 Phase 3 step-library additions (`fub_add_tag`, `slack_notify`, `http_request`): completed in working tree.
+- Wave 3 Phase 4 end-to-end proof: completed in working tree.
+
+## Phase 4 Scope Delivered
+1. Added end-to-end workflow trigger proof coverage (`WorkflowTriggerEndToEndTest`).
+2. Covered required scenarios:
+   - matching webhook -> run created -> terminal completion
+   - non-matching webhook -> no workflow run
+   - transient notify failure -> retry -> success
+3. Verified policy and workflow flows remain side-by-side for assignment events.
+4. Updated feature docs (`phase-3-implementation.md`, `phases.md`, wave tracker, plan, research).
 
 ## Explicit In Scope
-- `service/workflow/*` consistency checks and test validation.
-- `workflow.worker.enabled` default hardening.
-- New `AdminWorkflowControllerTest`.
-- Feature lifecycle docs and status tracking.
+- workflow trigger + execution end-to-end proof under `src/test/java/com/fuba/automation_engine/service/workflow/`.
+- targeted + full-suite validation runs.
+- feature lifecycle docs and status tracking updates.
 
 ## Explicit Out of Scope
-- Trigger router implementation (`WorkflowTriggerRouter`) and webhook routing migration.
 - Workflow builder UI module.
-- New admin endpoints beyond current create/get/step-types.
+- Trigger authoring API expansion.
+- Provider write-mode changes (`fub_add_tag` remains log-only).
 - Commit/push/PR creation.
 
 ## Success Criteria
-- Build/test passes with existing constraints.
-- Workflow worker is default-off unless explicitly enabled.
-- Workflow controller coverage exists for create/get/step-types behavior.
-- Feature docs are handoff-ready with phase status and implementation notes.
+- End-to-end proof tests exist for all Wave 3 Phase 4 scenarios.
+- Policy and workflow flows are both verified in assignment event processing tests.
+- Build/test runs pass with explicit Docker/Testcontainers skip reporting when Docker is unavailable.
+- Feature docs are handoff-ready with updated phase status and validation logs.

@@ -149,6 +149,11 @@ class WebhookProcessingDevGuardMissingConfigFlowTest {
                 public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
                     return new ActionExecutionResult(true, "STUBBED", null);
                 }
+
+                @Override
+                public ActionExecutionResult addTag(long personId, String tagName) {
+                    return new ActionExecutionResult(true, "STUBBED", null);
+                }
             };
         }
     }

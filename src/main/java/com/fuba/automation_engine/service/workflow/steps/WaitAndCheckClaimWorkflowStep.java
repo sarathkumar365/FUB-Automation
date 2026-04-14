@@ -89,7 +89,7 @@ public class WaitAndCheckClaimWorkflowStep implements WorkflowStepType {
             }
             return resolveClaimResult(person);
         } catch (FubTransientException ex) {
-            return StepExecutionResult.failure(
+            return StepExecutionResult.transientFailure(
                     FUB_PERSON_READ_TRANSIENT,
                     "Transient failure reading FUB person " + personId + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (FubPermanentException ex) {

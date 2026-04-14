@@ -8,5 +8,6 @@ public record StepTypeCatalogEntry(
         String displayName,
         String description,
         Map<String, Object> configSchema,
-        Set<String> declaredResultCodes) {
+        Set<String> declaredResultCodes,
+        Map<String, Object> defaultRetryPolicy) {
 }

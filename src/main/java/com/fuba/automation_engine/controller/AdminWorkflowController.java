@@ -7,8 +7,10 @@ import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.service.workflow.AutomationWorkflowService;
 import com.fuba.automation_engine.service.workflow.AutomationWorkflowService.CreateResult;
 import com.fuba.automation_engine.service.workflow.AutomationWorkflowService.CreateStatus;
+import com.fuba.automation_engine.service.workflow.RetryPolicy;
 import com.fuba.automation_engine.service.workflow.WorkflowStepRegistry;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -64,9 +66,20 @@ public class AdminWorkflowController {
                         st.displayName(),
                         st.description(),
                         st.configSchema(),
-                        st.declaredResultCodes()))
+                        st.declaredResultCodes(),
+                        retryPolicyMap(st.defaultRetryPolicy())))
                 .toList();
         return ResponseEntity.ok(catalog);
+    }
+
+    private Map<String, Object> retryPolicyMap(RetryPolicy retryPolicy) {
+        RetryPolicy policy = retryPolicy != null ? retryPolicy : RetryPolicy.NO_RETRY;
+        return Map.of(
+                "maxAttempts", policy.maxAttempts(),
+                "initialBackoffMs", policy.initialBackoffMs(),
+                "backoffMultiplier", policy.backoffMultiplier(),
+                "maxBackoffMs", policy.maxBackoffMs(),
+                "retryOnTransient", policy.retryOnTransient());
     }
 
     private WorkflowResponse toResponse(AutomationWorkflowEntity entity) {
