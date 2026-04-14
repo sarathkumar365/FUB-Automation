@@ -21,4 +21,4 @@ Completed
 - `workflow_runs.workflow_id` foreign key added.
 - Worker conditional activation switched to explicit property check.
 
-Source: [rebuild-plan-findings.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/rebuild-plan-findings.md)
+Source: [rebuild-plan-findings.md](../../rebuild-plan-findings.md)

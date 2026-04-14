@@ -6,7 +6,7 @@ This file is the workflow-engine feature research entrypoint required by the rep
 ## Source Documents Consolidated Here
 - [Workflow Engine — Implementation Plan](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine-implementation-plan.md)
 - [Workflow Engine — Technical Implementation Details](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine-technical-implementation.md)
-- [Workflow Engine Rebuild Plan Review Findings](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/rebuild-plan-findings.md)
+- [Workflow Engine Rebuild Plan Review Findings](rebuild-plan-findings.md)
 - [Repository Decisions Index](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/repo-decisions/README.md)
 
 ## Current Ground Truth (Implementation)

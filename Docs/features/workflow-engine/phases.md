@@ -1,37 +1,41 @@
 # Workflow Engine Rebuild — Phases
 
-## Phase Status
-- Phase 1: `COMPLETED`
-- Phase 2: `IN_PROGRESS` (stabilization in working tree)
-- Phase 3: `COMPLETED` (Wave 3 Phases 1-4 completed in working tree)
-- Phase 4: `NOT_STARTED`
+## Wave Status
+- Wave 1: `COMPLETED`
+- Wave 2: `IN_PROGRESS` (stabilization in working tree)
+- Wave 3: `COMPLETED` (Wave 3 Phases 1-4 completed in working tree)
+- Wave 4: `PLANNED` (4a admin REST API plan ready; 4b builder UI + 4c operator controls deferred)
 
-## Phase Definitions
+## Wave Definitions
 
-### Phase 1 — Wave 1 Foundations
+### Wave 1 — Foundations
 - Core workflow persistence, planner, executor, validator, and worker skeleton.
 - Initial step catalog exposure endpoint.
 - Baseline smoke/validator coverage.
 - Status: Completed.
-- Implementation notes: [phase-1-implementation.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/phase-1-implementation.md)
+- Implementation notes: [waves/wave-1/phase-1-implementation.md](waves/wave-1/phase-1-implementation.md)
 
-### Phase 2 — Wave 2 Stabilization
+### Wave 2 — Stabilization
 - Run context + template resolution + resolved-config audit path.
 - Parity step set expansion and shared FUB helper extraction.
 - Worker default safety hardening and workflow admin controller test coverage.
 - Status: In progress.
-- Implementation notes: [phase-2-implementation.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/phase-2-implementation.md)
+- Implementation notes: [waves/wave-2/phase-2-implementation.md](waves/wave-2/phase-2-implementation.md)
 
-### Phase 3 — Trigger Routing
+### Wave 3 — Dynamic Trigger Routing + Retry Primitive
 - Introduce workflow trigger routing from webhook processor path.
 - Define and enforce trigger contract + matching behavior.
-- Wave 3 tracking: [wave-3-dynamic-trigger-routing-retry.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/wave-3-dynamic-trigger-routing-retry.md)
-- Current progress:
+- Retry primitive with capped exponential backoff.
+- Wave 3 plan: [waves/wave-3/wave-3-plan.md](waves/wave-3/wave-3-plan.md)
+- Wave 3 closing plan: [waves/wave-3/closing-plan.md](waves/wave-3/closing-plan.md)
+- Sub-phase progress:
   - Wave 3 Phase 1 (retry primitive) completed and validated.
   - Wave 3 Phase 2 (trigger plugin infrastructure + router) completed and validated.
   - Wave 3 Phase 3 (MVP step library: `fub_add_tag`, `http_request`, `slack_notify`) completed and validated.
   - Wave 3 Phase 4 (end-to-end proof scenarios + docs gate) completed and validated.
-- Implementation notes: [phase-3-implementation.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine/phase-3-implementation.md)
+- Implementation notes: [waves/wave-3/phase-3-implementation.md](waves/wave-3/phase-3-implementation.md)
 
-### Phase 4 — Broader Step Library + UI
-- Expand step library and workflow builder UI integration.
+### Wave 4 — Admin API + Builder UI + Operator Controls
+- 4a: Admin REST API for full workflow lifecycle + read-only run inspection. Plan: [waves/wave-4/phase-4a-implementation-plan.md](waves/wave-4/phase-4a-implementation-plan.md)
+- 4b (deferred): Workflow builder UI module.
+- 4c (deferred): Operator controls (cancel/retry at run and step level).

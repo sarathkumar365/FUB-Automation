@@ -361,9 +361,9 @@ Pre-existing suites that must remain green:
 
 ## Documentation/Tracking Updates (Mandatory)
 Per phase:
-- update `Docs/features/workflow-engine/phase-3-implementation.md` incrementally
+- update `Docs/features/workflow-engine/waves/wave-3/phase-3-implementation.md` incrementally
 - update `Docs/features/workflow-engine/phases.md` status/progress
-- keep `Docs/features/workflow-engine/plan.md` and `research.md` aligned with delivered scope
+- keep `Docs/features/workflow-engine/waves/wave-3/closing-plan.md` and `Docs/features/workflow-engine/research.md` aligned with delivered scope
 - preserve repo decision/feature workflow traceability (`Docs/repo-decisions/README.md` protocol)
 
 Add/refresh known limitations:
