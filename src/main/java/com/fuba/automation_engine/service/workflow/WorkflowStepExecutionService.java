@@ -7,9 +7,13 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
+import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
+import com.fuba.automation_engine.service.workflow.expression.ExpressionScope;
 import java.time.Clock;
 import java.time.OffsetDateTime;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -36,16 +40,19 @@ public class WorkflowStepExecutionService {
     private final WorkflowRunRepository runRepository;
     private final WorkflowRunStepRepository stepRepository;
     private final WorkflowStepRegistry stepRegistry;
+    private final ExpressionEvaluator expressionEvaluator;
     private final Clock clock;
 
     public WorkflowStepExecutionService(
             WorkflowRunRepository runRepository,
             WorkflowRunStepRepository stepRepository,
             WorkflowStepRegistry stepRegistry,
+            ExpressionEvaluator expressionEvaluator,
             Clock clock) {
         this.runRepository = runRepository;
         this.stepRepository = stepRepository;
         this.stepRegistry = stepRegistry;
+        this.expressionEvaluator = expressionEvaluator;
         this.clock = clock;
     }
 
@@ -73,14 +80,27 @@ public class WorkflowStepExecutionService {
         }
 
         WorkflowStepType stepType = stepTypeOpt.get();
+        Map<String, Object> rawConfig = step.getConfigSnapshot() != null ? step.getConfigSnapshot() : Map.of();
+
+        // Build RunContext from run entity + completed step outputs
+        RunContext runContext = buildRunContext(run);
+        ExpressionScope scope = ExpressionScope.from(runContext);
+
+        // Resolve template expressions in config
+        Map<String, Object> resolvedConfig = resolveConfigTemplates(rawConfig, scope);
+
+        // Persist resolved config for audit trail
+        step.setResolvedConfig(resolvedConfig);
+        stepRepository.save(step);
+
         StepExecutionContext context = new StepExecutionContext(
                 claimedStep.runId(),
                 claimedStep.id(),
                 claimedStep.nodeId(),
                 run.getSourceLeadId(),
-                step.getConfigSnapshot() != null ? step.getConfigSnapshot() : Map.of(),
-                null,  // resolvedConfig — Wave 2
-                null); // runContext — Wave 2
+                rawConfig,
+                resolvedConfig,
+                runContext);
 
         StepExecutionResult result;
         try {
@@ -159,6 +179,60 @@ public class WorkflowStepExecutionService {
                 runRepository.save(run);
             });
         }
+    }
+
+    private RunContext buildRunContext(WorkflowRunEntity run) {
+        Map<String, Map<String, Object>> stepOutputs = new LinkedHashMap<>();
+        List<WorkflowRunStepEntity> allSteps = stepRepository.findByRunId(run.getId());
+        for (WorkflowRunStepEntity s : allSteps) {
+            if (s.getStatus() == WorkflowRunStepStatus.COMPLETED && s.getOutputs() != null) {
+                stepOutputs.put(s.getNodeId(), s.getOutputs());
+            }
+        }
+
+        RunContext.RunMetadata metadata = new RunContext.RunMetadata(
+                run.getId(), run.getWorkflowKey(),
+                run.getWorkflowVersion() != null ? run.getWorkflowVersion() : 0L);
+
+        return new RunContext(
+                metadata,
+                run.getTriggerPayload() != null ? run.getTriggerPayload() : Map.of(),
+                run.getSourceLeadId(),
+                stepOutputs);
+    }
+
+    @SuppressWarnings("unchecked")
+    private Map<String, Object> resolveConfigTemplates(Map<String, Object> config, ExpressionScope scope) {
+        if (config == null || config.isEmpty()) {
+            return config != null ? config : Map.of();
+        }
+        Map<String, Object> resolved = new LinkedHashMap<>();
+        for (Map.Entry<String, Object> entry : config.entrySet()) {
+            resolved.put(entry.getKey(), resolveValue(entry.getValue(), scope));
+        }
+        return resolved;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Object resolveValue(Object value, ExpressionScope scope) {
+        if (value instanceof String s) {
+            return expressionEvaluator.resolveTemplate(s, scope);
+        }
+        if (value instanceof Map<?, ?> map) {
+            Map<String, Object> resolved = new LinkedHashMap<>();
+            for (Map.Entry<?, ?> entry : map.entrySet()) {
+                resolved.put(String.valueOf(entry.getKey()), resolveValue(entry.getValue(), scope));
+            }
+            return resolved;
+        }
+        if (value instanceof List<?> list) {
+            List<Object> resolved = new ArrayList<>();
+            for (Object item : list) {
+                resolved.add(resolveValue(item, scope));
+            }
+            return resolved;
+        }
+        return value;
     }
 
     private void applyTransition(

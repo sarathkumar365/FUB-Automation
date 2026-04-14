@@ -11,6 +11,11 @@ public interface WorkflowStepType {
 
     String description();
 
+    /**
+     * Metadata contract for this step's config.
+     * Used by admin step catalog and graph validation (currently required-key presence).
+     * Runtime value/type/range checks still belong in execute().
+     */
     Map<String, Object> configSchema();
 
     Set<String> declaredResultCodes();

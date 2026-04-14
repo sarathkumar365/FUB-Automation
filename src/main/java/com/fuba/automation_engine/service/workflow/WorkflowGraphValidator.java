@@ -120,10 +120,11 @@ public class WorkflowGraphValidator {
         }
 
         Set<String> declaredCodes = stepType.declaredResultCodes();
+        boolean dynamicResultCodes = declaredCodes.isEmpty();
 
         for (Map.Entry<?, ?> entry : transitions.entrySet()) {
             String resultCode = String.valueOf(entry.getKey());
-            if (!declaredCodes.contains(resultCode)) {
+            if (!dynamicResultCodes && !declaredCodes.contains(resultCode)) {
                 errors.add("Node '" + nodeId + "' transition uses undeclared result code: " + resultCode
                         + ". Declared: " + declaredCodes);
             }
@@ -168,6 +169,8 @@ public class WorkflowGraphValidator {
 
         Object requiredObj = schema.get("required");
         if (requiredObj instanceof List<?> requiredKeys) {
+            // configSchema currently enforces only presence of required keys here.
+            // Step execute() methods remain responsible for strict runtime checks.
             for (Object key : requiredKeys) {
                 String keyStr = String.valueOf(key);
                 if (!config.containsKey(keyStr)) {

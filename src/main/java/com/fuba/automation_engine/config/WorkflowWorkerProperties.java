@@ -9,7 +9,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
 @ConfigurationProperties(prefix = "workflow.worker")
 public class WorkflowWorkerProperties {
 
-    private boolean enabled = true;
+    private boolean enabled = false;
     private long pollIntervalMs = 2000L;
     private int claimBatchSize = 50;
     private int maxStepsPerPoll = 200;

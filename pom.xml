@@ -134,6 +134,11 @@
 			<artifactId>postgresql</artifactId>
 			<scope>test</scope>
 		</dependency>
+		<dependency>
+			<groupId>com.dashjoin</groupId>
+			<artifactId>jsonata</artifactId>
+			<version>0.9.8</version>
+		</dependency>
 	</dependencies>
 
 	<build>
