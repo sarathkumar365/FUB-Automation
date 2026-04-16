@@ -26,6 +26,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -63,6 +65,9 @@ class PolicyExecutionStepClaimRepositoryPostgresTest {
 
     @Autowired
     private PolicyExecutionStepRepository stepRepository;
+
+    @Autowired
+    private NamedParameterJdbcTemplate jdbcTemplate;
 
     @BeforeEach
     void setUp() {
@@ -146,6 +151,9 @@ class PolicyExecutionStepClaimRepositoryPostgresTest {
         stepRepository.saveAndFlush(staleRequeue);
         stepRepository.saveAndFlush(staleFail);
         stepRepository.saveAndFlush(freshProcessing);
+        backdateUpdatedAt(staleRequeue.getId(), now.minusMinutes(20));
+        backdateUpdatedAt(staleFail.getId(), now.minusMinutes(16));
+        backdateUpdatedAt(freshProcessing.getId(), now.minusMinutes(5));
 
         List<StaleRecoveryRow> recovered = claimRepository.recoverStaleProcessingSteps(
                 now.minusMinutes(15),
@@ -184,10 +192,18 @@ class PolicyExecutionStepClaimRepositoryPostgresTest {
         OffsetDateTime now = OffsetDateTime.parse("2026-04-08T13:00:00Z");
         PolicyExecutionRunEntity run = runRepository.saveAndFlush(newRun("IDEMP-D"));
 
-        stepRepository.saveAndFlush(step(run.getId(), 1, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(25)));
-        stepRepository.saveAndFlush(step(run.getId(), 2, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(24)));
-        stepRepository.saveAndFlush(step(run.getId(), 3, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(23)));
-        stepRepository.saveAndFlush(step(run.getId(), 4, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(22)));
+        PolicyExecutionStepEntity step1 =
+                stepRepository.saveAndFlush(step(run.getId(), 1, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(25)));
+        PolicyExecutionStepEntity step2 =
+                stepRepository.saveAndFlush(step(run.getId(), 2, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(24)));
+        PolicyExecutionStepEntity step3 =
+                stepRepository.saveAndFlush(step(run.getId(), 3, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(23)));
+        PolicyExecutionStepEntity step4 =
+                stepRepository.saveAndFlush(step(run.getId(), 4, PolicyExecutionStepStatus.PROCESSING, now.minusMinutes(22)));
+        backdateUpdatedAt(step1.getId(), now.minusMinutes(25));
+        backdateUpdatedAt(step2.getId(), now.minusMinutes(24));
+        backdateUpdatedAt(step3.getId(), now.minusMinutes(23));
+        backdateUpdatedAt(step4.getId(), now.minusMinutes(22));
 
         ExecutorService executor = Executors.newFixedThreadPool(2);
         try {
@@ -249,5 +265,13 @@ class PolicyExecutionStepClaimRepositoryPostgresTest {
         step.setErrorMessage(null);
         step.setStaleRecoveryCount(0);
         return step;
+    }
+
+    private void backdateUpdatedAt(Long id, OffsetDateTime updatedAt) {
+        jdbcTemplate.update(
+                "update policy_execution_steps set updated_at = :updatedAt where id = :id",
+                new MapSqlParameterSource()
+                        .addValue("updatedAt", updatedAt)
+                        .addValue("id", id));
     }
 }

@@ -7,9 +7,17 @@ public interface WorkflowTriggerType {
 
     String id();
 
-    String displayName();
+    default String displayName() {
+        return id();
+    }
 
-    Map<String, Object> configSchema();
+    default String description() {
+        return "";
+    }
+
+    default Map<String, Object> configSchema() {
+        return Map.of();
+    }
 
     boolean matches(TriggerMatchContext context);
 

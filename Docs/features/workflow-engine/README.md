@@ -2,6 +2,27 @@
 
 The workflow engine is being rebuilt in tracked **waves**. Each wave has its own folder under `waves/` containing all phased implementation notes for that wave.
 
+## Sample Workflow - consists 2 section. A Trigger & Steps
+
+┌─────────────────────────────────────────┐
+│  Workflow: "New Lead Follow-up"         │
+│                                         │
+│  ┌─ TRIGGER ─────────────────────────┐  │
+│  │  Type: FUB Webhook                │  │
+│  │  Domain: PEOPLE                   │  │
+│  │  Action: CREATED                  │  │
+│  │  Filter: (optional)               │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+│  ┌─ STEPS ───────────────────────────┐  │
+│  │  1. add_tag ("Hot Lead")          │  │
+│  │  2. wait (5 minutes)              │  │
+│  │  3. send_email (welcome template) │  │
+│  └───────────────────────────────────┘  │
+│                                         │
+│  [Save Draft]  [Activate]               │
+└─────────────────────────────────────────┘
+
 ## Top-level docs
 
 | Doc | Purpose |
@@ -23,8 +44,9 @@ The workflow engine is being rebuilt in tracked **waves**. Each wave has its own
 - [phase-3-implementation.md](waves/wave-3/phase-3-implementation.md) — implementation notes per sub-phase
 - [closing-plan.md](waves/wave-3/closing-plan.md) — wave-closing rolling plan
 
-### [Wave 4 — Admin API + Builder UI + Operator Controls](waves/wave-4/) — `PLANNED`
+### [Wave 4 — Admin API + Builder UI + Operator Controls](waves/wave-4/) — `COMPLETED` (4a complete; 4b/4c deferred)
 - [phase-4a-implementation-plan.md](waves/wave-4/phase-4a-implementation-plan.md) — admin REST API (4a)
+- [phase-4a-implementation.md](waves/wave-4/phase-4a-implementation.md) — implementation notes (Wave 4a completed)
 - Wave 4b (builder UI) and 4c (operator controls) not yet drafted.
 
 ## Conventions

@@ -199,7 +199,7 @@ public class WorkflowStepExecutionService {
 
         RunContext.RunMetadata metadata = new RunContext.RunMetadata(
                 run.getId(), run.getWorkflowKey(),
-                run.getWorkflowVersion() != null ? run.getWorkflowVersion() : 0L);
+                resolveWorkflowVersionNumber(run));
 
         return new RunContext(
                 metadata,
@@ -218,6 +218,14 @@ public class WorkflowStepExecutionService {
             resolved.put(entry.getKey(), resolveValue(entry.getValue(), scope));
         }
         return resolved;
+    }
+
+    private long resolveWorkflowVersionNumber(WorkflowRunEntity run) {
+        // Stored value is append-only workflow version_number, not JPA optimistic-lock version.
+        if (run == null || run.getWorkflowVersion() == null) {
+            return 1L;
+        }
+        return run.getWorkflowVersion();
     }
 
     @SuppressWarnings("unchecked")

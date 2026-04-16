@@ -13,6 +13,7 @@ In progress
 - Worker default hardening:
   - `workflow.worker.enabled` now defaults to `false`.
   - `WorkflowWorkerProperties.enabled` default set to `false`.
+  - Note: this default was later flipped to `true` during Wave 4 post-close stabilization after rebuild completion.
 - New test coverage:
   - `AdminWorkflowControllerTest` with scenarios for create/get/step-types.
   - `WorkflowWorkerPropertiesBindingTest` for default and override binding behavior.

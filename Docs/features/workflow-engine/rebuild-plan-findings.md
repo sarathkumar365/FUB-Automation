@@ -14,7 +14,7 @@
 - **BY_DESIGN** — Intentional design choice; documented rationale below
 - **LOW** — Valid but low-priority; tracked for future consideration
 
-## Consolidated Findings (36)
+## Consolidated Findings (41)
 
 ### A) Architecture and Contract Clarity
 1. **[WAVE2]** Trigger contract is inconsistent across docs (`{eventType, filter}` vs plugin-style `{type, config}`). _Trigger system not implemented in Wave 1; column stored but not evaluated._
@@ -60,17 +60,40 @@
 35. **[DOC]** Repo-wide architecture decision promotion is missing (`Docs/repo-decisions/*` not updated for this shift). _Process gap; track separately._
 36. **[DOC]** Feature documentation workflow is not fully conformed for this rebuild track (`Docs/features/<feature-slug>/` lifecycle artifacts, plus explicit phase status updates and policy-aligned validation gates). _Process gap; track separately._
 
+### E) Post-Phase-2 Implementation Findings
+37. **[P1]** Activating a newer workflow version can violate unique-active-per-key DB constraint. _Current `AutomationWorkflowService.activate(...)` sets latest version to `ACTIVE` without deactivating prior active version. With index `uk_automation_workflows_active_per_key`, path `v1 ACTIVE -> update creates v2 INACTIVE -> activate v2` can trigger `DataIntegrityViolationException` on save. Fix by deactivating prior active version(s) in scope before activating target version._
+38. **[FIXED]** Archiving latest version can hide a key while an older version still routes traffic. _Resolved by key-level deactivation in `AutomationWorkflowService.archive(...)`: service now deactivates all active versions for the key before setting latest version `ARCHIVED`, preventing hidden-active routing._
+
+### F) Post-Phase-3 Implementation Findings
+39. **[FIXED]** Deactivate endpoint can report success while workflow key remains active. _Resolved by key-level deactivation in `AutomationWorkflowService.deactivate(...)`: service now deactivates all active versions for the workflow key (not latest-only), so successful deactivation cannot leave older active versions routable._
+40. **[FIXED]** Run inspection reports optimistic-lock version as workflow version number. _Resolved in Wave 4a closing fixes: `WorkflowExecutionManager` now writes `workflow_runs.workflow_version` from append-only `automation_workflows.version_number` (fallback `1L`), and both `WorkflowRunQueryService` and `WorkflowStepExecutionService` now use explicit version-number semantic helpers (fallback `1L`) with clarifying comments. Added regression coverage in `WorkflowAdminApiIntegrationTest` asserting real run `workflowVersionNumber` progression `1 -> 2 -> 3`._
+41. **[FIXED]** Workflow key normalization is inconsistent between create and read/update paths. _Resolved with centralized key helper usage. Workflow keys now normalize once (trim-only) before duplicate checks, persistence, and key-based reads/writes. `AutomationWorkflowService.create(...)` now persists normalized key value, and lookup/update/lifecycle paths consistently use the same normalization. `WorkflowRunQueryService` and `WorkflowExecutionManager` consume helper-normalized workflow keys for both lookups and idempotency key composition._
+
+### G) Post-Uncommitted Review Reconfirmation (2026-04-15)
+42. **[FIXED][RECONFIRMED]** Deactivate endpoint can report success while workflow key remains active. _Reconfirmed by review and now fixed in current working tree by key-level active-version deactivation in `AutomationWorkflowService.deactivate(...)`._
+43. **[FIXED][RECONFIRMED]** Archiving latest version can hide a key while an older version still routes traffic. _Reconfirmed by review and now fixed in current working tree by key-level active-version deactivation in `AutomationWorkflowService.archive(...)` before archiving latest._
+
 ## Priority Buckets
 - `P0`: ~~1, 2, 3,~~ ~~9, 10,~~ ~~22, 23, 25,~~ ~~32, 33~~ — **9, 10 FIXED; rest deferred (WAVE2/BY_DESIGN)**
-- `P1`: ~~4, 5, 6, 8, 12, 13,~~ ~~14,~~ ~~18, 20, 27, 28, 29, 31, 34, 35, 36~~ — **14 FIXED; rest deferred**
-- `P2`: ~~7, 11, 15, 16, 17, 19, 21, 24,~~ ~~26,~~ ~~30~~ — **26 FIXED; rest LOW/deferred**
+- `P1`: ~~4, 5, 6, 8, 12, 13,~~ ~~14,~~ ~~18, 20, 27, 28, 29, 31, 34, 35, 36~~, **37,** ~~38, 39, 42, 43~~ — **14/38/39/42/43 FIXED; 37 open; rest deferred**
+- `P2`: ~~7, 11, 15, 16, 17, 19, 21, 24,~~ ~~26,~~ ~~30, 40, 41~~ — **26, 40, 41 FIXED; rest LOW/deferred**
 
-## Summary of Wave 1 Actions
+## Summary of Implemented Actions
 | Finding | Status | Change |
 |---------|--------|--------|
 | #9, #10 | **FIXED** | Added PENDING-status guards in `applyTerminalTransition()` and `checkRunCompletion()` for concurrent terminal race safety |
 | #14 | **FIXED** | Added FK constraint `fk_workflow_runs_workflow` in V10 migration |
 | #26 | **FIXED** | Flipped worker `matchIfMissing` from `true` to `false` — explicit opt-in required |
+| #40 | **FIXED** | Aligned workflow run version semantics to append-only `version_number` at write/read/runtime metadata layers (`WorkflowExecutionManager`, `WorkflowRunQueryService`, `WorkflowStepExecutionService`) and added integration assertions for `workflowVersionNumber == 1/2/3` |
+| #41 | **FIXED** | Added shared `KeyNormalizationHelper` and applied it across workflow + policy key operations (including workflow planning idempotency input) so create/read/update/lifecycle paths share one normalization source of truth |
+
+## Wave 4a Closing Validation Added
+- Added `WorkflowAdminApiIntegrationTest` wave-gate coverage for:
+  - trigger catalog exposure (`webhook_fub`)
+  - admin lifecycle create/update/rollback/activate/deactivate/archive
+  - in-flight v1 run snapshot immutability after v2 activation
+  - run API/detail version assertions (`workflowVersionNumber` progression 1, 2, 3)
+  - rollback HTTP consistency (`200 OK`)
 
 ## Notes
 - This list is intentionally comprehensive and includes both hard technical correctness gaps and process/governance gaps that materially affect delivery quality.

@@ -9,6 +9,7 @@ import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
+import com.fuba.automation_engine.service.support.KeyNormalizationHelper;
 import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -79,8 +80,14 @@ public class WorkflowExecutionManager {
                     "DUPLICATE_IDEMPOTENCY_KEY");
         }
 
+        String normalizedWorkflowKey = KeyNormalizationHelper.normalizeWorkflowKey(request.workflowKey());
+        if (normalizedWorkflowKey == null) {
+            return new WorkflowPlanningResult(
+                    WorkflowPlanningResult.PlanningStatus.BLOCKED, null, "WORKFLOW_NOT_FOUND");
+        }
+
         Optional<AutomationWorkflowEntity> workflowOpt =
-                workflowRepository.findFirstByKeyAndStatusOrderByIdDesc(request.workflowKey(), WorkflowStatus.ACTIVE);
+                workflowRepository.findFirstByKeyAndStatusOrderByIdDesc(normalizedWorkflowKey, WorkflowStatus.ACTIVE);
         if (workflowOpt.isEmpty()) {
             return new WorkflowPlanningResult(
                     WorkflowPlanningResult.PlanningStatus.BLOCKED, null, "WORKFLOW_NOT_FOUND");
@@ -101,7 +108,8 @@ public class WorkflowExecutionManager {
         WorkflowRunEntity run = new WorkflowRunEntity();
         run.setWorkflowId(workflow.getId());
         run.setWorkflowKey(workflow.getKey());
-        run.setWorkflowVersion(workflow.getVersion() == null ? 0L : workflow.getVersion());
+        Integer workflowVersionNumber = workflow.getVersionNumber();
+        run.setWorkflowVersion(workflowVersionNumber == null ? 1L : workflowVersionNumber.longValue());
         run.setWorkflowGraphSnapshot(graph);
         run.setTriggerPayload(request.triggerPayload());
         run.setSource(request.source() != null ? request.source() : "UNKNOWN");
@@ -217,7 +225,7 @@ public class WorkflowExecutionManager {
 
     private String buildIdempotencyKey(WorkflowPlanRequest request) {
         StringJoiner joiner = new StringJoiner("|");
-        joiner.add(normalize(request.workflowKey()));
+        joiner.add(KeyNormalizationHelper.normalizeWorkflowKeyOrEmpty(request.workflowKey()));
         joiner.add(normalize(request.source()));
         joiner.add(normalize(request.sourceLeadId()));
         if (hasText(request.eventId())) {

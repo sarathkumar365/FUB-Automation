@@ -13,7 +13,6 @@ import com.fuba.automation_engine.service.workflow.WorkflowPlanRequest;
 import com.fuba.automation_engine.service.workflow.WorkflowPlanningResult;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -26,27 +25,22 @@ public class WorkflowTriggerRouter {
     private static final Logger log = LoggerFactory.getLogger(WorkflowTriggerRouter.class);
 
     private final AutomationWorkflowRepository workflowRepository;
-    private final Map<String, WorkflowTriggerType> triggerTypesById;
+    private final WorkflowTriggerRegistry triggerRegistry;
     private final WorkflowExecutionManager workflowExecutionManager;
     private final WorkflowTriggerRouterProperties properties;
     private final ObjectMapper objectMapper;
 
     public WorkflowTriggerRouter(
             AutomationWorkflowRepository workflowRepository,
-            List<WorkflowTriggerType> triggerTypes,
+            WorkflowTriggerRegistry triggerRegistry,
             WorkflowExecutionManager workflowExecutionManager,
             WorkflowTriggerRouterProperties properties,
             ObjectMapper objectMapper) {
         this.workflowRepository = workflowRepository;
+        this.triggerRegistry = triggerRegistry;
         this.workflowExecutionManager = workflowExecutionManager;
         this.properties = properties;
         this.objectMapper = objectMapper;
-
-        Map<String, WorkflowTriggerType> map = new HashMap<>();
-        for (WorkflowTriggerType triggerType : triggerTypes) {
-            map.put(triggerType.id(), triggerType);
-        }
-        this.triggerTypesById = Map.copyOf(map);
     }
 
     public RoutingSummary route(NormalizedWebhookEvent event) {
@@ -79,7 +73,7 @@ public class WorkflowTriggerRouter {
                 continue;
             }
 
-            WorkflowTriggerType triggerType = triggerTypesById.get(triggerTypeId.trim());
+            WorkflowTriggerType triggerType = triggerRegistry.get(triggerTypeId.trim()).orElse(null);
             if (triggerType == null) {
                 skippedCount++;
                 log.warn("Workflow trigger type unknown; skipping workflowId={} triggerType={}", workflow.getId(), triggerTypeId);

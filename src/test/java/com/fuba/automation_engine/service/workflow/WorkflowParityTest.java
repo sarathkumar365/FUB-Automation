@@ -2,8 +2,10 @@ package com.fuba.automation_engine.service.workflow;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fuba.automation_engine.config.WorkflowWorkerProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
@@ -12,6 +14,7 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
+import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
@@ -83,8 +86,12 @@ class WorkflowParityTest {
     @Autowired private WorkflowRunRepository runRepository;
     @Autowired private WorkflowRunStepRepository stepRepository;
     @Autowired private WorkflowExecutionManager executionManager;
-    @Autowired private WorkflowExecutionDueWorker worker;
+    @Autowired private WorkflowStepExecutionService stepExecutionService;
+    @Autowired private WorkflowWorkerProperties workerProperties;
+    @Autowired private WorkflowRunStepClaimRepository stepClaimRepository;
+    @Autowired private Clock clock;
     @Autowired private StubFollowUpBossClient stubClient;
+    private WorkflowExecutionDueWorker worker;
 
     @BeforeEach
     void setUp() {
@@ -92,6 +99,7 @@ class WorkflowParityTest {
         runRepository.deleteAll();
         workflowRepository.deleteAll();
         stubClient.reset();
+        worker = new WorkflowExecutionDueWorker(workerProperties, stepClaimRepository, stepExecutionService, clock);
     }
 
     // ──────────────────────────────────────────────────────────
@@ -203,12 +211,12 @@ class WorkflowParityTest {
         worker.pollAndProcessDueSteps(); // do_reassign → FAILED
 
         WorkflowRunEntity run = runRepository.findById(plan.runId()).orElseThrow();
-        assertEquals(WorkflowRunStatus.COMPLETED, run.getStatus());
-        assertEquals("ACTION_FAILED", run.getReasonCode());
+        assertEquals(WorkflowRunStatus.FAILED, run.getStatus());
+        assertEquals("FAILED", run.getReasonCode());
 
         List<WorkflowRunStepEntity> steps = stepRepository.findByRunId(run.getId());
-        assertEquals(WorkflowRunStepStatus.COMPLETED, findStepByNodeId(steps, "do_reassign").getStatus());
-        assertEquals("FAILED", findStepByNodeId(steps, "do_reassign").getResultCode());
+        assertEquals(WorkflowRunStepStatus.FAILED, findStepByNodeId(steps, "do_reassign").getStatus());
+        assertNull(findStepByNodeId(steps, "do_reassign").getResultCode());
     }
 
     // ──────────────────────────────────────────────────────────

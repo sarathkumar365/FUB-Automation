@@ -52,6 +52,9 @@ public class AutomationWorkflowEntity {
     @Column(nullable = false, length = 16)
     private WorkflowStatus status;
 
+    @Column(name = "version_number", nullable = false)
+    private Integer versionNumber;
+
     @Version
     @Column(nullable = false)
     private Long version;
@@ -65,6 +68,9 @@ public class AutomationWorkflowEntity {
     @jakarta.persistence.PrePersist
     void onCreate() {
         OffsetDateTime now = OffsetDateTime.now();
+        if (versionNumber == null) {
+            versionNumber = 1;
+        }
         if (createdAt == null) {
             createdAt = now;
         }

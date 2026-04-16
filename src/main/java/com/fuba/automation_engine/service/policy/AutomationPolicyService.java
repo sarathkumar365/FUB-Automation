@@ -3,6 +3,7 @@ package com.fuba.automation_engine.service.policy;
 import com.fuba.automation_engine.persistence.entity.AutomationPolicyEntity;
 import com.fuba.automation_engine.persistence.entity.PolicyStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationPolicyRepository;
+import com.fuba.automation_engine.service.support.KeyNormalizationHelper;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -17,8 +18,6 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class AutomationPolicyService {
 
-    private static final int DOMAIN_MAX_LENGTH = 64;
-    private static final int POLICY_KEY_MAX_LENGTH = 128;
     private static final String ACTIVE_SCOPE_CONSTRAINT = "uk_automation_policies_active_per_scope";
     // TODO(phase-next): replace direct calls to PolicyBlueprintValidator with a
     // PolicyBlueprintValidationService that routes by templateKey to per-template
@@ -33,8 +32,8 @@ public class AutomationPolicyService {
 
     @Transactional(readOnly = true)
     public LookupResult getActivePolicy(String domain, String policyKey) {
-        String normalizedDomain = normalizeToken(domain, DOMAIN_MAX_LENGTH);
-        String normalizedPolicyKey = normalizeToken(policyKey, POLICY_KEY_MAX_LENGTH);
+        String normalizedDomain = normalizeDomain(domain);
+        String normalizedPolicyKey = normalizeToken(policyKey);
         if (normalizedDomain == null || normalizedPolicyKey == null) {
             return new LookupResult(ReadStatus.INVALID_INPUT, null);
         }
@@ -67,8 +66,8 @@ public class AutomationPolicyService {
 
     @Transactional(readOnly = true)
     public ListResult listPolicies(String domain, String policyKey) {
-        String normalizedDomain = normalizeToken(domain, DOMAIN_MAX_LENGTH);
-        String normalizedPolicyKey = normalizeToken(policyKey, POLICY_KEY_MAX_LENGTH);
+        String normalizedDomain = normalizeDomain(domain);
+        String normalizedPolicyKey = normalizeToken(policyKey);
         if (normalizedDomain == null || normalizedPolicyKey == null) {
             return new ListResult(ReadStatus.INVALID_INPUT, List.of());
         }
@@ -191,8 +190,8 @@ public class AutomationPolicyService {
             return ValidationResult.invalid(MutationStatus.INVALID_INPUT);
         }
 
-        String normalizedDomain = normalizeToken(command.domain(), DOMAIN_MAX_LENGTH);
-        String normalizedPolicyKey = normalizeToken(command.policyKey(), POLICY_KEY_MAX_LENGTH);
+        String normalizedDomain = normalizeDomain(command.domain());
+        String normalizedPolicyKey = normalizeToken(command.policyKey());
         if (normalizedDomain == null || normalizedPolicyKey == null) {
             return ValidationResult.invalid(MutationStatus.INVALID_INPUT);
         }
@@ -211,22 +210,12 @@ public class AutomationPolicyService {
         return ValidationResult.valid(normalizedDomain, normalizedPolicyKey, MutationStatus.SUCCESS);
     }
 
-    private String normalizeToken(String input, int maxLength) {
-        if (input == null) {
-            return null;
-        }
+    private String normalizeDomain(String input) {
+        return KeyNormalizationHelper.normalizePolicyDomain(input);
+    }
 
-        String normalized = input.trim();
-        if (normalized.isEmpty()) {
-            return null;
-        }
-
-        String upperCased = normalized.toUpperCase(Locale.ROOT);
-        if (upperCased.length() > maxLength) {
-            return null;
-        }
-
-        return upperCased;
+    private String normalizeToken(String input) {
+        return KeyNormalizationHelper.normalizePolicyKey(input);
     }
 
     private MutationStatus mapIntegrityViolation(DataIntegrityViolationException ex) {

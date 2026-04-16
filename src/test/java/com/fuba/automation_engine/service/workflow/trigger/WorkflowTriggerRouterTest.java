@@ -57,7 +57,7 @@ class WorkflowTriggerRouterTest {
 
         WorkflowTriggerRouter router = new WorkflowTriggerRouter(
                 repository,
-                List.of(triggerType),
+                new WorkflowTriggerRegistry(List.of(triggerType)),
                 executionManager,
                 properties,
                 OBJECT_MAPPER);
@@ -98,7 +98,7 @@ class WorkflowTriggerRouterTest {
 
         WorkflowTriggerRouter router = new WorkflowTriggerRouter(
                 repository,
-                List.of(triggerType),
+                new WorkflowTriggerRegistry(List.of(triggerType)),
                 executionManager,
                 new WorkflowTriggerRouterProperties(),
                 OBJECT_MAPPER);
