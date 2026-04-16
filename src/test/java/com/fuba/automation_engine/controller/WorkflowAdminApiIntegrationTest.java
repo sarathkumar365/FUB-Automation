@@ -26,7 +26,6 @@ import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import com.fuba.automation_engine.service.workflow.WorkflowStepExecutionService;
-import com.fuba.automation_engine.service.workflow.trigger.FubWebhookTriggerType;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -219,6 +218,14 @@ class WorkflowAdminApiIntegrationTest {
                   "key": "e2e-wf",
                   "name": "E2E WF v1",
                   "description": "Wave 4a integration",
+                  "trigger": {
+                    "type": "webhook_fub",
+                    "config": {
+                      "eventDomain": "ASSIGNMENT",
+                      "eventAction": "UPDATED",
+                      "filter": "event.payload.channel = \\"zillow\\""
+                    }
+                  },
                   "graph": {
                     "schemaVersion": 1,
                     "entryNode": "d1",
@@ -240,8 +247,6 @@ class WorkflowAdminApiIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.versionNumber").value(1))
                 .andExpect(jsonPath("$.status").value("INACTIVE"));
-
-        seedWebhookTriggerOnLatestWorkflow(workflowKey);
 
         mockMvc.perform(post("/admin/workflows/" + workflowKey + "/activate"))
                 .andExpect(status().isOk())
@@ -362,6 +367,14 @@ class WorkflowAdminApiIntegrationTest {
                   "key": "cancel-wf",
                   "name": "Cancel WF",
                   "description": "Wave 4c cancel smoke",
+                  "trigger": {
+                    "type": "webhook_fub",
+                    "config": {
+                      "eventDomain": "ASSIGNMENT",
+                      "eventAction": "UPDATED",
+                      "filter": "event.payload.channel = \\"zillow\\""
+                    }
+                  },
                   "graph": {
                     "schemaVersion": 1,
                     "entryNode": "d1",
@@ -383,8 +396,6 @@ class WorkflowAdminApiIntegrationTest {
                         .content(createRequest))
                 .andExpect(status().isCreated());
 
-        seedWebhookTriggerOnLatestWorkflow(workflowKey);
-
         mockMvc.perform(post("/admin/workflows/" + workflowKey + "/activate"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
@@ -400,14 +411,6 @@ class WorkflowAdminApiIntegrationTest {
         List<WorkflowRunStepClaimRepository.ClaimedStepRow> claimed = workflowRunStepClaimRepository
                 .claimDuePendingSteps(OffsetDateTime.now(testClock), 25);
         assertEquals(0, claimed.size());
-    }
-
-    private void seedWebhookTriggerOnLatestWorkflow(String key) {
-        AutomationWorkflowEntity latest = automationWorkflowRepository.findFirstByKeyOrderByVersionNumberDesc(key).orElseThrow();
-        latest.setTrigger(Map.of(
-                "type", FubWebhookTriggerType.TRIGGER_TYPE_ID,
-                "config", triggerConfig("ASSIGNMENT", "UPDATED", "event.payload.channel = \"zillow\"")));
-        automationWorkflowRepository.saveAndFlush(latest);
     }
 
     private WorkflowRunEntity latestRunForKey(String workflowKey) {

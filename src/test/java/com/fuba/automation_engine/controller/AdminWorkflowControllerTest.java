@@ -46,6 +46,13 @@ class AdminWorkflowControllerTest {
                   "key": "ASSIGNMENT_FOLLOWUP_SLA",
                   "name": "Assignment Followup SLA",
                   "description": "Workflow for assignment follow-up",
+                  "trigger": {
+                    "type": "webhook_fub",
+                    "config": {
+                      "eventDomain": "ASSIGNMENT",
+                      "eventAction": "UPDATED"
+                    }
+                  },
                   "graph": {
                     "schemaVersion": 1,
                     "entryNode": "d1",
@@ -69,6 +76,7 @@ class AdminWorkflowControllerTest {
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.key").value("ASSIGNMENT_FOLLOWUP_SLA"))
                 .andExpect(jsonPath("$.name").value("Assignment Followup SLA"))
+                .andExpect(jsonPath("$.trigger.type").value("webhook_fub"))
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.versionNumber").value(1));
     }
@@ -246,6 +254,50 @@ class AdminWorkflowControllerTest {
         List<AutomationWorkflowEntity> versions = workflowRepository.findByKeyOrderByVersionNumberDesc("WF_UPDATE");
         org.junit.jupiter.api.Assertions.assertEquals(2, versions.size());
         org.junit.jupiter.api.Assertions.assertEquals(2, versions.get(0).getVersionNumber());
+    }
+
+    @Test
+    void shouldUpdateWorkflowTriggerWhenProvided() throws Exception {
+        AutomationWorkflowEntity initial = saveWorkflow("WF_TRIGGER", 1, WorkflowStatus.INACTIVE, graphWithLabel("v1"));
+        initial.setTrigger(Map.of(
+                "type", "webhook_fub",
+                "config", Map.of("eventDomain", "ASSIGNMENT", "eventAction", "UPDATED")));
+        workflowRepository.saveAndFlush(initial);
+
+        String requestJson = """
+                {
+                  "name": "Workflow WF_TRIGGER v2",
+                  "description": "updated trigger",
+                  "trigger": {
+                    "type": "webhook_fub",
+                    "config": {
+                      "eventDomain": "ASSIGNMENT",
+                      "eventAction": "UPDATED",
+                      "filter": "event.payload.channel = \\"zillow\\""
+                    }
+                  },
+                  "graph": {
+                    "schemaVersion": 1,
+                    "entryNode": "d2",
+                    "nodes": [
+                      {
+                        "id": "d2",
+                        "type": "delay",
+                        "config": {"delayMinutes": 0},
+                        "transitions": {"DONE": {"terminal": "COMPLETED"}}
+                      }
+                    ]
+                  }
+                }
+                """;
+
+        mockMvc.perform(put("/admin/workflows/WF_TRIGGER")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.versionNumber").value(2))
+                .andExpect(jsonPath("$.trigger.type").value("webhook_fub"))
+                .andExpect(jsonPath("$.trigger.config.filter").value("event.payload.channel = \"zillow\""));
     }
 
     @Test

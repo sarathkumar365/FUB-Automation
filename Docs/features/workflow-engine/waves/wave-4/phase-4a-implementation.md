@@ -157,7 +157,7 @@ Completed (Phases 1-4 completed, Wave 4a closed)
     - true in-flight snapshot guarantee (v1 run planned, v2 activated before v1 execution, v1 snapshot unchanged)
     - run version assertions on real runs (`workflowVersionNumber == 1`, then `2`, then `3`)
     - trigger catalog assertion locked to current id `webhook_fub`
-  - Trigger seeding in the test is repository-based by design because create/update DTOs do not accept trigger input in Wave 4a.
+  - Trigger seeding in the test was repository-based in the original Wave 4a delivery because create/update DTOs did not accept trigger input at that time.
 - Idempotency pre-flight finding:
   - `WorkflowExecutionManager.buildIdempotencyKey()` input remains:
     - `workflowKey`, `source`, `sourceLeadId`, `eventId` (or fallback marker)
@@ -199,3 +199,14 @@ Completed (Phases 1-4 completed, Wave 4a closed)
 - Policy stale-recovery Postgres test fixtures:
   - `PolicyExecutionStepClaimRepositoryPostgresTest` now backdates `updated_at` explicitly for PROCESSING rows before recovery assertions.
   - Goal: align test fixture setup with stale detection semantics (`updated_at <= staleBefore`) in `JdbcPolicyExecutionStepClaimRepository`.
+
+## Post-Close Stabilization (2026-04-16)
+- Workflow trigger authoring via admin create/update endpoints:
+  - `CreateWorkflowRequest` now accepts `trigger` and `UpdateWorkflowRequest` now accepts optional `trigger`.
+  - `POST /admin/workflows` now persists `trigger` when provided.
+  - `PUT /admin/workflows/{key}` now applies a provided trigger override to the new version; if omitted, the latest version trigger is retained.
+  - `AutomationWorkflowService` now validates provided `trigger.type` against `WorkflowTriggerRegistry` during create/update.
+- Test coverage updates:
+  - `AdminWorkflowControllerTest` now verifies create response includes persisted trigger and update can change trigger.
+  - `WorkflowAdminApiIntegrationTest` now creates trigger-driven workflows directly via API payload (no repository trigger seeding helper).
+  - `AutomationWorkflowServiceTest` now validates trigger persistence on create/update service paths.

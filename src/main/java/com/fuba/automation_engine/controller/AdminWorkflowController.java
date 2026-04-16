@@ -65,7 +65,7 @@ public class AdminWorkflowController {
             return ResponseEntity.badRequest().body("Invalid workflow request");
         }
         CreateResult result = workflowService.create(
-                request.key(), request.name(), request.description(), request.graph(), request.status());
+                request.key(), request.name(), request.description(), request.trigger(), request.graph(), request.status());
         if (result.status() == CreateStatus.SUCCESS) {
             return ResponseEntity.status(HttpStatus.CREATED).body(toResponse(result.workflow()));
         }
@@ -155,7 +155,7 @@ public class AdminWorkflowController {
             return ResponseEntity.badRequest().body("Invalid workflow request");
         }
 
-        UpdateResult result = workflowService.update(key, request.name(), request.description(), request.graph());
+        UpdateResult result = workflowService.update(key, request.name(), request.description(), request.trigger(), request.graph());
         return toUpdateResponse(result);
     }
 

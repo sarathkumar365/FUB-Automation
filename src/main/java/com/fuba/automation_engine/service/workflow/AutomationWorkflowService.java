@@ -37,13 +37,23 @@ public class AutomationWorkflowService {
         this.triggerRegistry = triggerRegistry;
     }
 
-    public CreateResult create(String key, String name, String description, Map<String, Object> graph, String statusStr) {
+    public CreateResult create(
+            String key,
+            String name,
+            String description,
+            Map<String, Object> trigger,
+            Map<String, Object> graph,
+            String statusStr) {
         String normalizedWorkflowKey = normalizeWorkflowKey(key);
         if (normalizedWorkflowKey == null || name == null || name.isBlank()) {
             return new CreateResult(CreateStatus.INVALID_INPUT, null, "key and name are required");
         }
         if (graph == null || graph.isEmpty()) {
             return new CreateResult(CreateStatus.INVALID_INPUT, null, "graph is required");
+        }
+        String triggerValidationError = validateTrigger(trigger);
+        if (triggerValidationError != null) {
+            return new CreateResult(CreateStatus.INVALID_INPUT, null, triggerValidationError);
         }
         if (workflowRepository.findMaxVersionNumberByKey(normalizedWorkflowKey).isPresent()) {
             return new CreateResult(CreateStatus.INVALID_INPUT, null, "workflow key already exists");
@@ -61,6 +71,7 @@ public class AutomationWorkflowService {
         entity.setKey(normalizedWorkflowKey);
         entity.setName(name);
         entity.setDescription(description);
+        entity.setTrigger(trigger);
         entity.setGraph(graph);
         entity.setStatus(status);
         entity.setVersionNumber(1);
@@ -101,7 +112,12 @@ public class AutomationWorkflowService {
         return workflowRepository.findByKeyOrderByVersionNumberDesc(workflowKey);
     }
 
-    public UpdateResult update(String key, String name, String description, Map<String, Object> graph) {
+    public UpdateResult update(
+            String key,
+            String name,
+            String description,
+            Map<String, Object> trigger,
+            Map<String, Object> graph) {
         String workflowKey = normalizeWorkflowKey(key);
         if (workflowKey == null || name == null || name.isBlank()) {
             return new UpdateResult(UpdateStatus.INVALID_INPUT, null, "key and name are required");
@@ -122,12 +138,20 @@ public class AutomationWorkflowService {
 
         int nextVersion = workflowRepository.findMaxVersionNumberByKey(workflowKey).orElse(0) + 1;
         AutomationWorkflowEntity latest = latestOpt.get();
+        Map<String, Object> nextTrigger = latest.getTrigger();
+        if (trigger != null) {
+            String triggerValidationError = validateTrigger(trigger);
+            if (triggerValidationError != null) {
+                return new UpdateResult(UpdateStatus.INVALID_INPUT, null, triggerValidationError);
+            }
+            nextTrigger = trigger;
+        }
 
         AutomationWorkflowEntity entity = new AutomationWorkflowEntity();
         entity.setKey(workflowKey);
         entity.setName(name);
         entity.setDescription(description);
-        entity.setTrigger(latest.getTrigger());
+        entity.setTrigger(nextTrigger);
         entity.setGraph(graph);
         entity.setStatus(WorkflowStatus.INACTIVE);
         entity.setVersionNumber(nextVersion);
@@ -314,6 +338,21 @@ public class AutomationWorkflowService {
 
     private String normalizeWorkflowKey(String key) {
         return KeyNormalizationHelper.normalizeWorkflowKey(key);
+    }
+
+    private String validateTrigger(Map<String, Object> trigger) {
+        if (trigger == null) {
+            return null;
+        }
+        Object triggerTypeObj = trigger.get("type");
+        String triggerType = triggerTypeObj instanceof String s ? s.trim() : null;
+        if (triggerType == null || triggerType.isEmpty()) {
+            return "trigger.type is required";
+        }
+        if (triggerRegistry.get(triggerType).isEmpty()) {
+            return "Unknown trigger type: " + triggerType;
+        }
+        return null;
     }
 
     private record ParsedStatusFilter(boolean valid, WorkflowStatus status) {
