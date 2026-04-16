@@ -335,6 +335,44 @@ Nav order: WH | PC | PO | WF | WR
      - tests are added/executed and validation gates pass
      - docs are updated for handoff continuity
 
+#### Phase 2.1 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 2.1:
+  - `workflowsDisplay.ts` + `workflowsSearchParams.ts`
+  - read-only query hooks (`useWorkflowsQuery`, `useWorkflowDetailQuery`, `useWorkflowVersionsQuery`, `useStepTypesQuery`, `useTriggerTypesQuery`)
+  - route/nav exposure for `/admin-ui/workflows` and `/admin-ui/workflows/:key`
+  - lightweight `WorkflowsPage` + `WorkflowDetailPage` placeholders (read-only)
+  - workflow centralized text constants
+- Implementation notes: [phase-2-implementation.md](phase-2-implementation.md)
+- Deferred to later Phase 2 passes:
+  - create/edit/lifecycle mutation UI and related action components
+
+#### Phase 2.2 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 2.2:
+  - `useCreateWorkflowMutation` hook with workflow list/detail invalidation
+  - `WorkflowCreateModal` with field-level and JSON validation
+  - `WorkflowsPage` create button + modal integration + success/error feedback
+  - centralized create-flow strings in `uiText`
+- Implementation notes: [phase-2-implementation.md](phase-2-implementation.md)
+- Deferred to later Phase 2 passes:
+  - detail-tab lifecycle actions (`update`, `activate`, `deactivate`, `rollback`, `archive`, `validate`)
+
+#### Phase 2.3 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 2.3:
+  - lifecycle mutation hooks (`update`, `validate`, `activate`, `deactivate`, `rollback`, `archive`)
+  - `WorkflowEditModal`, `WorkflowActions`, `WorkflowVersionList`
+  - `WorkflowDetailPage` lifecycle action strip + confirmations + inline validation output
+  - rollback control from version-history inspector
+  - centralized lifecycle action labels/messages in `uiText`
+- Implementation notes: [phase-2-implementation.md](phase-2-implementation.md)
+- Deferred to later phases:
+  - scoped runs tab and run-surface integration (Phase 3 scope)
+
+#### Phase 2 Closure Status
+- Phase 2 is `COMPLETED` (Passes 2.1, 2.2, and 2.3 delivered and validated).
+
 ### Phase 3: Workflow Runs Module
 
 1. Create `workflowRunsDisplay.ts` -- run + step status tone/label mappers
@@ -422,9 +460,48 @@ Nav order: WH | PC | PO | WF | WR
      - active phase implementation notes under `Docs/features/workflow-engine/...`
    - Phase 3 is complete when:
      - global and scoped run lists are operational
-     - run detail timeline and cancel behavior are wired
-     - tests and validation gates pass
-     - docs are updated for handoff continuity
+   - run detail timeline and cancel behavior are wired
+   - tests and validation gates pass
+   - docs are updated for handoff continuity
+
+#### Phase 3.1 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 3.1:
+  - `workflowRunsDisplay.ts` + `workflowRunsSearchParams.ts`
+  - read-only hooks: `useWorkflowRunsQuery`, `useWorkflowRunDetailQuery`
+  - route/nav exposure for `/admin-ui/workflow-runs` and `/admin-ui/workflow-runs/:runId`
+  - read-only `WorkflowRunsPage` + `WorkflowRunDetailPage`
+  - centralized workflow-runs text constants in `uiText`
+- Implementation notes: [phase-3-implementation.md](phase-3-implementation.md)
+- Deferred to Pass 3.2:
+  - scoped runs tab in `WorkflowDetailPage`
+  - run cancel action and mutation wiring
+  - full `WorkflowStepTimeline` component
+
+#### Phase 3.2a Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 3.2a:
+  - `useWorkflowRunsForKeyQuery` hook
+  - URL-backed runs-tab state in `workflowsSearchParams` (`tab`, `runStatus`, `runPage`, `runSize`)
+  - `WorkflowDetailPage` runs tab (read-only scoped list/filter/pagination/navigation)
+- Implementation notes: [phase-3-implementation.md](phase-3-implementation.md)
+- Deferred to Pass 3.2b:
+  - run cancel mutation + confirm flow
+  - `WorkflowStepTimeline` extraction in run detail
+  - Phase 3 closure status update
+
+#### Phase 3.2b Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 3.2b:
+  - `useCancelWorkflowRunMutation` hook + invalidation helper for run detail/global/scoped run lists
+  - cancel action + `ConfirmDialog` in `WorkflowRunDetailPage` (gated to `PENDING` / `BLOCKED`)
+  - success/error notification wiring for cancel outcomes
+  - `WorkflowStepTimeline` component extraction and integration in run detail page
+  - workflow-runs centralized text updates for cancel/timeline copy
+- Implementation notes: [phase-3-implementation.md](phase-3-implementation.md)
+
+#### Phase 3 Closure Status
+- Phase 3 is `COMPLETED` (Passes 3.1, 3.2a, and 3.2b delivered and validated).
 
 ### Phase 4: Dashboard
 

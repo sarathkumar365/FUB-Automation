@@ -87,7 +87,9 @@
 ## Operator UI Rebuild Track (Post-Wave UI Module)
 - Phase 1 (Foundation): `COMPLETED` on 2026-04-16.
   - Implementation notes: [UI/phase-1-implementation.md](UI/phase-1-implementation.md)
-- Phase 2 (Workflow Management Module): `PLANNED`
-- Phase 3 (Workflow Runs Module): `PLANNED`
+- Phase 2 (Workflow Management Module): `COMPLETED` (Pass 2.1 + Pass 2.2 + Pass 2.3 completed on 2026-04-16)
+  - Implementation notes: [UI/phase-2-implementation.md](UI/phase-2-implementation.md)
+- Phase 3 (Workflow Runs Module): `COMPLETED` (Pass 3.1 + Pass 3.2a + Pass 3.2b completed on 2026-04-16)
+  - Implementation notes: [UI/phase-3-implementation.md](UI/phase-3-implementation.md)
 - Phase 4 (Dashboard): `PLANNED`
 - Phase 5 (Polish & Cross-linking): `PLANNED`

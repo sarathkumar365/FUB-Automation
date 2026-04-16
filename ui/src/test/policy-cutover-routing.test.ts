@@ -20,4 +20,21 @@ describe('policy route/nav cutover', () => {
     expect(allPaths).not.toContain('policies')
     router.dispose()
   })
+
+  it('exposes workflow route and navigation entries', () => {
+    expect(appNavItems.some((item) => String(item.key) === 'workflows')).toBe(true)
+    expect(panelNavItems.some((item) => String(item.key) === 'workflows')).toBe(true)
+    expect(routes.workflows).toBe('/admin-ui/workflows')
+    expect(appNavItems.some((item) => String(item.key) === 'workflowRuns')).toBe(true)
+    expect(panelNavItems.some((item) => String(item.key) === 'workflowRuns')).toBe(true)
+    expect(routes.workflowRuns).toBe('/admin-ui/workflow-runs')
+
+    const router = createAppRouter()
+    const allPaths = router.routes.flatMap((route) => collectPaths(route))
+    expect(allPaths).toContain('workflows')
+    expect(allPaths).toContain('workflows/:key')
+    expect(allPaths).toContain('workflow-runs')
+    expect(allPaths).toContain('workflow-runs/:runId')
+    router.dispose()
+  })
 })

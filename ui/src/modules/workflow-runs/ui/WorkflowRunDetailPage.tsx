@@ -1,0 +1,167 @@
+import { useMemo, useState, type ReactNode } from 'react'
+import { Link, useParams } from 'react-router-dom'
+import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
+import { routes } from '../../../shared/constants/routes'
+import { uiText } from '../../../shared/constants/uiText'
+import { formatDateTime } from '../../../shared/lib/date'
+import { useNotify } from '../../../shared/notifications/useNotify'
+import { Button } from '../../../shared/ui/button'
+import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
+import { JsonViewer } from '../../../shared/ui/JsonViewer'
+import { LoadingState } from '../../../shared/ui/LoadingState'
+import { PageCard } from '../../../shared/ui/PageCard'
+import { PageHeader } from '../../../shared/ui/PageHeader'
+import { StatusBadge } from '../../../shared/ui/StatusBadge'
+import { useCancelWorkflowRunMutation } from '../data/useCancelWorkflowRunMutation'
+import { useWorkflowRunDetailQuery } from '../data/useWorkflowRunDetailQuery'
+import {
+  canCancelWorkflowRun,
+  formatWorkflowRunReasonCode,
+  formatWorkflowRunStatus,
+  getWorkflowRunStatusTone,
+} from '../lib/workflowRunsDisplay'
+import { WorkflowStepTimeline } from './WorkflowStepTimeline'
+
+export function WorkflowRunDetailPage() {
+  const notify = useNotify()
+  const { runId: runIdParam } = useParams<{ runId: string }>()
+  const runId = parseRunId(runIdParam)
+  const [isCancelDialogOpen, setCancelDialogOpen] = useState(false)
+  const detailQuery = useWorkflowRunDetailQuery(runId)
+  const cancelMutation = useCancelWorkflowRunMutation(runId)
+
+  const inspectorRegion = useMemo(
+    () => ({
+      title: uiText.workflowRuns.inspectorTitle,
+      body: buildDetailInspectorBody(detailQuery.data?.steps.length ?? 0),
+    }),
+    [detailQuery.data?.steps.length],
+  )
+
+  useShellRegionRegistration({
+    panel: null,
+    inspector: inspectorRegion,
+  })
+
+  if (detailQuery.isPending) {
+    return <LoadingState />
+  }
+
+  if (!runId || detailQuery.isError || !detailQuery.data) {
+    return (
+      <div className="space-y-4">
+        <PageHeader title={uiText.workflowRuns.detailTitle} subtitle={uiText.workflowRuns.detailSubtitle}>
+          <Link className="text-sm text-[var(--color-brand)] underline" to={routes.workflowRuns}>
+            {uiText.workflowRuns.title}
+          </Link>
+        </PageHeader>
+        <PageCard title={uiText.states.errorTitle}>
+          <p className="text-sm text-[var(--color-text-muted)]">{uiText.workflowRuns.detailNotFound}</p>
+        </PageCard>
+      </div>
+    )
+  }
+
+  const workflowRun = detailQuery.data
+  const isCancelable = canCancelWorkflowRun(workflowRun.status)
+
+  const handleConfirmCancel = async () => {
+    setCancelDialogOpen(false)
+    try {
+      await cancelMutation.mutateAsync()
+      notify.success(uiText.workflowRuns.cancelSuccess)
+    } catch {
+      notify.error(uiText.workflowRuns.cancelError)
+    }
+  }
+
+  return (
+    <div className="space-y-4">
+      <PageHeader title={uiText.workflowRuns.detailTitle} subtitle={uiText.workflowRuns.detailSubtitle}>
+        <Link className="text-sm text-[var(--color-brand)] underline" to={routes.workflowRuns}>
+          {uiText.workflowRuns.title}
+        </Link>
+      </PageHeader>
+
+      <PageCard title={uiText.workflowRuns.detailMetadataTitle}>
+        <div className="grid grid-cols-1 gap-3 text-sm md:grid-cols-2">
+          <MetadataRow label={uiText.workflowRuns.detailRunIdLabel} value={workflowRun.id} />
+          <MetadataRow
+            label={uiText.workflowRuns.detailWorkflowKeyLabel}
+            value={<Link className="font-mono underline" to={routes.workflowDetail(workflowRun.workflowKey)}>{workflowRun.workflowKey}</Link>}
+          />
+          <MetadataRow label={uiText.workflowRuns.detailVersionLabel} value={workflowRun.workflowVersionNumber} />
+          <MetadataRow
+            label={uiText.workflowRuns.detailStatusLabel}
+            value={<StatusBadge label={formatWorkflowRunStatus(workflowRun.status)} tone={getWorkflowRunStatusTone(workflowRun.status)} />}
+          />
+          <MetadataRow label={uiText.workflowRuns.detailReasonCodeLabel} value={formatWorkflowRunReasonCode(workflowRun.reasonCode)} />
+          <MetadataRow label={uiText.workflowRuns.detailStartedAtLabel} value={formatNullableDate(workflowRun.startedAt)} />
+          <MetadataRow label={uiText.workflowRuns.detailCompletedAtLabel} value={formatNullableDate(workflowRun.completedAt)} />
+          <MetadataRow label={uiText.workflowRuns.detailSourceLeadIdLabel} value={workflowRun.sourceLeadId ?? uiText.workflowRuns.missingValue} />
+          <MetadataRow label={uiText.workflowRuns.detailEventIdLabel} value={workflowRun.eventId ?? uiText.workflowRuns.missingValue} />
+        </div>
+      </PageCard>
+
+      <PageCard title={uiText.workflowRuns.detailTriggerPayloadTitle}>
+        <JsonViewer value={workflowRun.triggerPayload} />
+      </PageCard>
+
+      <PageCard title={uiText.workflowRuns.detailStepsTitle}>
+        {isCancelable ? (
+          <div className="mb-3 flex justify-end">
+            <Button type="button" variant="destructive" size="sm" onClick={() => setCancelDialogOpen(true)} disabled={cancelMutation.isPending}>
+              {uiText.workflowRuns.cancelAction}
+            </Button>
+          </div>
+        ) : null}
+        <WorkflowStepTimeline steps={workflowRun.steps} />
+      </PageCard>
+
+      <ConfirmDialog
+        open={isCancelDialogOpen}
+        onOpenChange={setCancelDialogOpen}
+        title={uiText.workflowRuns.cancelConfirmTitle}
+        description={uiText.workflowRuns.cancelConfirmDescription}
+        onConfirm={handleConfirmCancel}
+      />
+    </div>
+  )
+}
+
+function MetadataRow({ label, value }: { label: string; value: ReactNode }) {
+  return (
+    <p className="flex gap-2">
+      <span className="text-[var(--color-text-muted)]">{label}:</span>
+      <span>{value}</span>
+    </p>
+  )
+}
+
+function buildDetailInspectorBody(stepCount: number) {
+  return (
+    <div className="space-y-2 text-sm">
+      <p>
+        <span className="text-[var(--color-text-muted)]">{uiText.workflowRuns.detailStepsTitle}: </span>
+        {stepCount}
+      </p>
+    </div>
+  )
+}
+
+function parseRunId(value: string | undefined): number | undefined {
+  if (!value) {
+    return undefined
+  }
+
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isFinite(parsed) || parsed <= 0) {
+    return undefined
+  }
+
+  return parsed
+}
+
+function formatNullableDate(value: string | null): string {
+  return value ? formatDateTime(value) : uiText.workflowRuns.missingValue
+}
