@@ -354,6 +354,55 @@ class WorkflowAdminApiIntegrationTest {
                 .andExpect(jsonPath("$.total").value(0));
     }
 
+    @Test
+    void cancelRunShouldStopFurtherWorkerPickup() throws Exception {
+        String workflowKey = "cancel-wf";
+
+        String createRequest = """
+                {
+                  "key": "cancel-wf",
+                  "name": "Cancel WF",
+                  "description": "Wave 4c cancel smoke",
+                  "graph": {
+                    "schemaVersion": 1,
+                    "entryNode": "d1",
+                    "nodes": [
+                      {
+                        "id": "d1",
+                        "type": "delay",
+                        "config": {"delayMinutes": 0},
+                        "transitions": {"DONE": {"terminal": "COMPLETED"}}
+                      }
+                    ]
+                  },
+                  "status": "INACTIVE"
+                }
+                """;
+
+        mockMvc.perform(post("/admin/workflows")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(createRequest))
+                .andExpect(status().isCreated());
+
+        seedWebhookTriggerOnLatestWorkflow(workflowKey);
+
+        mockMvc.perform(post("/admin/workflows/" + workflowKey + "/activate"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("ACTIVE"));
+
+        webhookEventProcessorService.process(webhook("evt-wave4c-cancel", "zillow", 880L));
+        WorkflowRunEntity run = latestRunForKey(workflowKey);
+
+        mockMvc.perform(post("/admin/workflow-runs/" + run.getId() + "/cancel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.status").value("CANCELED"))
+                .andExpect(jsonPath("$.reasonCode").value("CANCELED_BY_OPERATOR"));
+
+        List<WorkflowRunStepClaimRepository.ClaimedStepRow> claimed = workflowRunStepClaimRepository
+                .claimDuePendingSteps(OffsetDateTime.now(testClock), 25);
+        assertEquals(0, claimed.size());
+    }
+
     private void seedWebhookTriggerOnLatestWorkflow(String key) {
         AutomationWorkflowEntity latest = automationWorkflowRepository.findFirstByKeyOrderByVersionNumberDesc(key).orElseThrow();
         latest.setTrigger(Map.of(

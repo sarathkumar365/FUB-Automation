@@ -4,6 +4,7 @@ public enum WorkflowRunStatus {
     PENDING,
     BLOCKED,
     DUPLICATE_IGNORED,
+    CANCELED,
     COMPLETED,
     FAILED
 }

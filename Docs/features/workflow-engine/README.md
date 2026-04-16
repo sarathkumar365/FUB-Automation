@@ -44,10 +44,12 @@ The workflow engine is being rebuilt in tracked **waves**. Each wave has its own
 - [phase-3-implementation.md](waves/wave-3/phase-3-implementation.md) — implementation notes per sub-phase
 - [closing-plan.md](waves/wave-3/closing-plan.md) — wave-closing rolling plan
 
-### [Wave 4 — Admin API + Builder UI + Operator Controls](waves/wave-4/) — `COMPLETED` (4a complete; 4b/4c deferred)
+### [Wave 4 — Admin API + Builder UI + Operator Controls](waves/wave-4/) — `COMPLETED` (4a complete; 4c cancel controls complete; 4b/retry deferred)
 - [phase-4a-implementation-plan.md](waves/wave-4/phase-4a-implementation-plan.md) — admin REST API (4a)
 - [phase-4a-implementation.md](waves/wave-4/phase-4a-implementation.md) — implementation notes (Wave 4a completed)
-- Wave 4b (builder UI) and 4c (operator controls) not yet drafted.
+- [phase-4c-implementation-plan.md](waves/wave-4/phase-4c-implementation-plan.md) — operator cancel controls plan (4c)
+- [phase-4c-implementation.md](waves/wave-4/phase-4c-implementation.md) — implementation notes (Wave 4c cancel-only)
+- Wave 4b (builder UI) plus run/step retry controls remain deferred.
 
 ## Conventions
 

@@ -3,6 +3,9 @@ package com.fuba.automation_engine.controller;
 import com.fuba.automation_engine.controller.dto.WorkflowRunDetailResponse;
 import com.fuba.automation_engine.controller.dto.WorkflowRunStepDetail;
 import com.fuba.automation_engine.controller.dto.WorkflowRunSummary;
+import com.fuba.automation_engine.service.workflow.WorkflowRunControlService;
+import com.fuba.automation_engine.service.workflow.WorkflowRunControlService.CancelRunResult;
+import com.fuba.automation_engine.service.workflow.WorkflowRunControlService.CancelRunStatus;
 import com.fuba.automation_engine.service.workflow.WorkflowRunQueryService;
 import com.fuba.automation_engine.service.workflow.WorkflowRunQueryService.ListRunsResult;
 import com.fuba.automation_engine.service.workflow.WorkflowRunQueryService.ListRunsStatus;
@@ -21,6 +24,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -33,6 +37,9 @@ class AdminWorkflowRunControllerTest {
 
     @MockitoBean
     private WorkflowRunQueryService workflowRunQueryService;
+
+    @MockitoBean
+    private WorkflowRunControlService workflowRunControlService;
 
     @Test
     void shouldListRunsForWorkflowKey() throws Exception {
@@ -153,5 +160,65 @@ class AdminWorkflowRunControllerTest {
                         .param("status", "NOT_A_STATUS"))
                 .andExpect(status().isBadRequest())
                 .andExpect(content().string("Invalid workflow run status filter"));
+    }
+
+    @Test
+    void shouldCancelRunAndReturnRunDetail() throws Exception {
+        WorkflowRunDetailResponse detail = new WorkflowRunDetailResponse(
+                222L,
+                "WF_CANCEL",
+                1L,
+                "CANCELED",
+                "CANCELED_BY_OPERATOR",
+                OffsetDateTime.parse("2026-04-15T12:00:00Z"),
+                OffsetDateTime.parse("2026-04-15T12:01:00Z"),
+                Map.of(),
+                "lead-1",
+                "evt-1",
+                List.of());
+
+        when(workflowRunControlService.cancelRun(222L))
+                .thenReturn(new CancelRunResult(CancelRunStatus.SUCCESS, 222L, null));
+        when(workflowRunQueryService.getRunDetail(222L))
+                .thenReturn(new RunDetailResult(RunDetailStatus.SUCCESS, detail, null));
+
+        mockMvc.perform(post("/admin/workflow-runs/222/cancel"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.id").value(222))
+                .andExpect(jsonPath("$.status").value("CANCELED"))
+                .andExpect(jsonPath("$.reasonCode").value("CANCELED_BY_OPERATOR"));
+    }
+
+    @Test
+    void shouldReturnConflictWhenCancelNotAllowed() throws Exception {
+        when(workflowRunControlService.cancelRun(333L))
+                .thenReturn(new CancelRunResult(
+                        CancelRunStatus.CONFLICT,
+                        null,
+                        "Workflow run cannot be canceled from status COMPLETED"));
+
+        mockMvc.perform(post("/admin/workflow-runs/333/cancel"))
+                .andExpect(status().isConflict())
+                .andExpect(content().string("Workflow run cannot be canceled from status COMPLETED"));
+    }
+
+    @Test
+    void shouldReturnNotFoundWhenCancelRunMissing() throws Exception {
+        when(workflowRunControlService.cancelRun(404L))
+                .thenReturn(new CancelRunResult(CancelRunStatus.NOT_FOUND, null, "Workflow run not found"));
+
+        mockMvc.perform(post("/admin/workflow-runs/404/cancel"))
+                .andExpect(status().isNotFound())
+                .andExpect(content().string("Workflow run not found"));
+    }
+
+    @Test
+    void shouldReturnBadRequestWhenCancelRunInvalid() throws Exception {
+        when(workflowRunControlService.cancelRun(0L))
+                .thenReturn(new CancelRunResult(CancelRunStatus.INVALID_INPUT, null, "runId must be positive"));
+
+        mockMvc.perform(post("/admin/workflow-runs/0/cancel"))
+                .andExpect(status().isBadRequest())
+                .andExpect(content().string("runId must be positive"));
     }
 }

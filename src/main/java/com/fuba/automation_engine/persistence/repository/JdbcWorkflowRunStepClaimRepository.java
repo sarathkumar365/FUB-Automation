@@ -1,6 +1,7 @@
 package com.fuba.automation_engine.persistence.repository;
 
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
+import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Types;
@@ -17,13 +18,15 @@ public class JdbcWorkflowRunStepClaimRepository implements WorkflowRunStepClaimR
 
     private static final String CLAIM_SQL = """
             WITH due AS (
-                SELECT id
-                FROM workflow_run_steps
-                WHERE status = :pendingStatus
-                  AND due_at <= :now
-                ORDER BY due_at, id
+                SELECT steps.id
+                FROM workflow_run_steps steps
+                JOIN workflow_runs runs ON runs.id = steps.run_id
+                WHERE steps.status = :pendingStatus
+                  AND steps.due_at <= :now
+                  AND runs.status = :runPendingStatus
+                ORDER BY steps.due_at, steps.id
                 LIMIT :limit
-                FOR UPDATE SKIP LOCKED
+                FOR UPDATE OF steps SKIP LOCKED
             )
             UPDATE workflow_run_steps steps
             SET status = :processingStatus,
@@ -43,13 +46,15 @@ public class JdbcWorkflowRunStepClaimRepository implements WorkflowRunStepClaimR
 
     private static final String RECOVER_STALE_SQL = """
             WITH stale AS (
-                SELECT id
-                FROM workflow_run_steps
-                WHERE status = :processingStatus
-                  AND updated_at <= :staleBefore
-                ORDER BY updated_at, id
+                SELECT steps.id
+                FROM workflow_run_steps steps
+                JOIN workflow_runs runs ON runs.id = steps.run_id
+                WHERE steps.status = :processingStatus
+                  AND steps.updated_at <= :staleBefore
+                  AND runs.status = :runPendingStatus
+                ORDER BY steps.updated_at, steps.id
                 LIMIT :limit
-                FOR UPDATE SKIP LOCKED
+                FOR UPDATE OF steps SKIP LOCKED
             )
             UPDATE workflow_run_steps steps
             SET status = CASE
@@ -95,6 +100,7 @@ public class JdbcWorkflowRunStepClaimRepository implements WorkflowRunStepClaimR
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("pendingStatus", WorkflowRunStepStatus.PENDING.name(), Types.VARCHAR)
                 .addValue("processingStatus", WorkflowRunStepStatus.PROCESSING.name(), Types.VARCHAR)
+                .addValue("runPendingStatus", WorkflowRunStatus.PENDING.name(), Types.VARCHAR)
                 .addValue("now", effectiveNow, Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("limit", effectiveLimit, Types.INTEGER);
 
@@ -116,6 +122,7 @@ public class JdbcWorkflowRunStepClaimRepository implements WorkflowRunStepClaimR
                 .addValue("processingStatus", WorkflowRunStepStatus.PROCESSING.name(), Types.VARCHAR)
                 .addValue("pendingStatus", WorkflowRunStepStatus.PENDING.name(), Types.VARCHAR)
                 .addValue("failedStatus", WorkflowRunStepStatus.FAILED.name(), Types.VARCHAR)
+                .addValue("runPendingStatus", WorkflowRunStatus.PENDING.name(), Types.VARCHAR)
                 .addValue("staleBefore", effectiveStaleBefore, Types.TIMESTAMP_WITH_TIMEZONE)
                 .addValue("limit", effectiveLimit, Types.INTEGER)
                 .addValue("requeueLimit", effectiveRequeueLimit, Types.INTEGER)

@@ -14,7 +14,7 @@
 - **BY_DESIGN** — Intentional design choice; documented rationale below
 - **LOW** — Valid but low-priority; tracked for future consideration
 
-## Consolidated Findings (41)
+## Consolidated Findings (42)
 
 ### A) Architecture and Contract Clarity
 1. **[WAVE2]** Trigger contract is inconsistent across docs (`{eventType, filter}` vs plugin-style `{type, config}`). _Trigger system not implemented in Wave 1; column stored but not evaluated._
@@ -73,9 +73,12 @@
 42. **[FIXED][RECONFIRMED]** Deactivate endpoint can report success while workflow key remains active. _Reconfirmed by review and now fixed in current working tree by key-level active-version deactivation in `AutomationWorkflowService.deactivate(...)`._
 43. **[FIXED][RECONFIRMED]** Archiving latest version can hide a key while an older version still routes traffic. _Reconfirmed by review and now fixed in current working tree by key-level active-version deactivation in `AutomationWorkflowService.archive(...)` before archiving latest._
 
+### H) Post-Wave-4c Review Findings (2026-04-15)
+44. **[P1]** Cancel/run-finalization race can overwrite `CANCELED` status. _In `WorkflowStepExecutionService.executeClaimedStep(...)`, run status is checked once before executor call. If an operator cancels the run concurrently after that read, downstream finalization paths can still persist `COMPLETED`/`FAILED` based on stale run state (no optimistic version field on `WorkflowRunEntity`), violating the cancel invariant. Add a fresh run-state recheck/guard before terminal run writes (and/or optimistic concurrency control) in finalization paths._
+
 ## Priority Buckets
 - `P0`: ~~1, 2, 3,~~ ~~9, 10,~~ ~~22, 23, 25,~~ ~~32, 33~~ — **9, 10 FIXED; rest deferred (WAVE2/BY_DESIGN)**
-- `P1`: ~~4, 5, 6, 8, 12, 13,~~ ~~14,~~ ~~18, 20, 27, 28, 29, 31, 34, 35, 36~~, **37,** ~~38, 39, 42, 43~~ — **14/38/39/42/43 FIXED; 37 open; rest deferred**
+- `P1`: ~~4, 5, 6, 8, 12, 13,~~ ~~14,~~ ~~18, 20, 27, 28, 29, 31, 34, 35, 36~~, **37, 44,** ~~38, 39, 42, 43~~ — **14/38/39/42/43 FIXED; 37/44 open; rest deferred**
 - `P2`: ~~7, 11, 15, 16, 17, 19, 21, 24,~~ ~~26,~~ ~~30, 40, 41~~ — **26, 40, 41 FIXED; rest LOW/deferred**
 
 ## Summary of Implemented Actions
