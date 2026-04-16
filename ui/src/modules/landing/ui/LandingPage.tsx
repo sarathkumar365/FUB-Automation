@@ -60,10 +60,10 @@ export function LandingPage() {
         <p className="landing-footer-note">{uiText.landing.footerNote}</p>
 
         <div className="landing-cta">
-          <Button size="sm" onClick={() => navigate(routes.webhooks)}>
+          <Button size="sm" onClick={() => navigate(routes.dashboard)}>
             {uiText.landing.primaryAction}
           </Button>
-          <Button variant="outline" size="sm" onClick={() => navigate(routes.processedCalls)}>
+          <Button variant="outline" size="sm" onClick={() => navigate(routes.webhooks)}>
             {uiText.landing.secondaryAction}
           </Button>
         </div>

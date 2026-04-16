@@ -3,6 +3,7 @@ export type AppNavKey = 'webhooks' | 'processedCalls' | 'workflows' | 'workflowR
 export const routes = {
   root: '/',
   adminUi: '/admin-ui',
+  dashboard: '/admin-ui',
   webhooks: '/admin-ui/webhooks',
   processedCalls: '/admin-ui/processed-calls',
   workflows: '/admin-ui/workflows',

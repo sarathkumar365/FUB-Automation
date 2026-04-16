@@ -1,4 +1,4 @@
-import { useMemo } from 'react'
+import { useMemo, type CSSProperties } from 'react'
 import { Link } from 'react-router-dom'
 import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
 import { routes } from '../../../shared/constants/routes'
@@ -12,6 +12,9 @@ import { StatusBadge } from '../../../shared/ui/StatusBadge'
 import { formatWorkflowRunStatus, getWorkflowRunStatusTone } from '../../workflow-runs/lib/workflowRunsDisplay'
 import type { WorkflowRunSummary } from '../../workflows/lib/workflowSchemas'
 import { useDashboardSnapshotQuery } from '../data/useDashboardSnapshotQuery'
+import './DashboardPage.css'
+
+type StatTone = 'default' | 'error' | 'ok'
 
 export function DashboardPage() {
   const snapshotQuery = useDashboardSnapshotQuery()
@@ -68,18 +71,50 @@ export function DashboardPage() {
   }
 
   const recentRuns = snapshot.recentRuns.items.slice(0, 5)
-  const failedRuns = snapshot.failedRuns.items.slice(0, 5)
+  const failedCount = snapshot.failedRuns.count
+  const failedTone: StatTone = failedCount > 0 ? 'error' : 'ok'
+  const failedSubLabel =
+    failedCount > 0 ? uiText.dashboard.statFailedRunsLabel : uiText.dashboard.failedRunsEmpty
+  const latestIngestValue = formatNullableDate(snapshot.systemHealth.latestWebhookReceivedAt)
 
   return (
-    <div className="space-y-4">
+    <div className="dash-root space-y-4">
+      <div className="dash-blob dash-blob-tr" aria-hidden="true" />
+      <div className="dash-blob dash-blob-bl" aria-hidden="true" />
+
       <PageHeader title={uiText.dashboard.title} subtitle={uiText.dashboard.subtitle} />
 
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
-        <PageCard title={uiText.dashboard.activeWorkflowsTitle}>
-          <p className="text-3xl font-semibold text-[var(--color-text)]">{snapshot.activeWorkflows.count}</p>
-          <DashboardLink to={buildRouteWithStatus(routes.workflows, 'ACTIVE')} label={uiText.dashboard.openWorkflows} />
-        </PageCard>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+        <StatTile
+          label={uiText.dashboard.activeWorkflowsTitle}
+          subLabel={uiText.dashboard.statActiveWorkflowsLabel}
+          value={snapshot.activeWorkflows.count}
+          to={buildRouteWithStatus(routes.workflows, 'ACTIVE')}
+          linkLabel={uiText.dashboard.openWorkflows}
+          tone="default"
+          delay={0}
+        />
+        <StatTile
+          label={uiText.dashboard.failedRunsTitle}
+          subLabel={failedSubLabel}
+          value={failedCount}
+          to={buildRouteWithStatus(routes.workflowRuns, 'FAILED')}
+          linkLabel={uiText.dashboard.openFailedRuns}
+          tone={failedTone}
+          delay={60}
+        />
+        <StatTile
+          label={uiText.dashboard.systemHealthTitle}
+          subLabel={`${uiText.dashboard.latestIngestLabel}: ${latestIngestValue}`}
+          value={snapshot.systemHealth.recentWebhookCount}
+          to={routes.webhooks}
+          linkLabel={uiText.dashboard.viewIngestActivity}
+          tone="default"
+          delay={120}
+        />
+      </div>
 
+      <div className="dash-item" style={{ ['--delay' as string]: '180ms' } as CSSProperties}>
         <PageCard title={uiText.dashboard.recentRunsTitle}>
           {recentRuns.length === 0 ? (
             <p className="text-sm text-[var(--color-text-muted)]">{uiText.dashboard.recentRunsEmpty}</p>
@@ -88,40 +123,55 @@ export function DashboardPage() {
           )}
           <DashboardLink to={routes.workflowRuns} label={uiText.dashboard.openRuns} />
         </PageCard>
-
-        <PageCard title={uiText.dashboard.failedRunsTitle}>
-          <p className="text-2xl font-semibold text-[var(--color-text)]">{snapshot.failedRuns.count}</p>
-          {failedRuns.length === 0 ? (
-            <p className="mt-2 text-sm text-[var(--color-text-muted)]">{uiText.dashboard.failedRunsEmpty}</p>
-          ) : (
-            <div className="mt-2">
-              <RunList runs={failedRuns} />
-            </div>
-          )}
-          <DashboardLink to={buildRouteWithStatus(routes.workflowRuns, 'FAILED')} label={uiText.dashboard.openFailedRuns} />
-        </PageCard>
-
-        <PageCard title={uiText.dashboard.systemHealthTitle}>
-          <p className="text-sm">
-            <span className="text-[var(--color-text-muted)]">{uiText.dashboard.recentWebhooksLabel}: </span>
-            {snapshot.systemHealth.recentWebhookCount}
-          </p>
-          <p className="mt-1 text-sm">
-            <span className="text-[var(--color-text-muted)]">{uiText.dashboard.latestWebhookAtLabel}: </span>
-            {formatNullableDate(snapshot.systemHealth.latestWebhookReceivedAt)}
-          </p>
-          <p className="mt-3 text-xs text-[var(--color-text-muted)]">{uiText.dashboard.placeholderHealthMessage}</p>
-        </PageCard>
       </div>
+
+      <p className="dash-item text-xs text-[var(--color-text-muted)]" style={{ ['--delay' as string]: '240ms' } as CSSProperties}>
+        {uiText.dashboard.placeholderHealthMessage}
+      </p>
     </div>
   )
 }
 
-function RunList({
-  runs,
-}: {
-  runs: WorkflowRunSummary[]
-}) {
+type StatTileProps = {
+  label: string
+  subLabel: string
+  value: number
+  to: string
+  linkLabel: string
+  tone: StatTone
+  delay: number
+}
+
+function StatTile({ label, subLabel, value, to, linkLabel, tone, delay }: StatTileProps) {
+  const accentColor =
+    tone === 'error'
+      ? 'var(--color-status-bad)'
+      : tone === 'ok'
+        ? 'var(--color-status-ok)'
+        : 'var(--color-brand)'
+
+  return (
+    <Link
+      to={to}
+      aria-label={linkLabel}
+      className="stat-tile dash-item group flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-subtle)] no-underline"
+      style={
+        {
+          borderLeftColor: accentColor,
+          borderLeftWidth: '3px',
+          ['--delay' as string]: `${delay}ms`,
+        } as CSSProperties
+      }
+    >
+      <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">{label}</h3>
+      <span className="mt-2 text-3xl font-semibold leading-none text-[var(--color-text)]">{value}</span>
+      <span className="mt-1 text-xs text-[var(--color-text-muted)]">{subLabel}</span>
+      <span className="mt-3 text-xs font-medium text-[var(--color-brand)] group-hover:underline">{linkLabel} →</span>
+    </Link>
+  )
+}
+
+function RunList({ runs }: { runs: WorkflowRunSummary[] }) {
   return (
     <div className="overflow-x-auto rounded-md border border-[var(--color-border)]">
       <table className="min-w-full text-left text-xs">

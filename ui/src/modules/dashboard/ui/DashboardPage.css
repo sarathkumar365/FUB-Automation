@@ -1,0 +1,89 @@
+/* Root wrapper — clips blobs so they never create scroll bars */
+.dash-root {
+  position: relative;
+  isolation: isolate;
+  overflow: hidden;
+}
+
+/* Ambient corner blobs — decorative only */
+.dash-blob {
+  position: absolute;
+  z-index: -1;
+  pointer-events: none;
+  border-radius: 999px;
+  filter: blur(90px);
+  opacity: 0.35;
+  will-change: transform;
+}
+
+.dash-blob-tr {
+  top: -160px;
+  right: -140px;
+  width: 520px;
+  height: 520px;
+  background: radial-gradient(circle at center, rgba(15, 159, 184, 0.55), rgba(15, 159, 184, 0) 70%);
+  animation: dash-drift-tr 42s ease-in-out infinite alternate;
+}
+
+.dash-blob-bl {
+  bottom: -180px;
+  left: -180px;
+  width: 560px;
+  height: 560px;
+  background: radial-gradient(circle at center, rgba(103, 232, 249, 0.45), rgba(103, 232, 249, 0) 70%);
+  animation: dash-drift-bl 52s ease-in-out infinite alternate;
+}
+
+@keyframes dash-drift-tr {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(-24px, 18px);
+  }
+}
+
+@keyframes dash-drift-bl {
+  from {
+    transform: translate(0, 0);
+  }
+  to {
+    transform: translate(22px, -20px);
+  }
+}
+
+/* Content stagger entrance */
+@keyframes dash-fade-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dash-item {
+  animation: dash-fade-up 0.35s ease both;
+  animation-delay: var(--delay, 0ms);
+}
+
+.stat-tile {
+  transition: box-shadow 0.15s ease, transform 0.15s ease;
+}
+
+.stat-tile:hover {
+  box-shadow: var(--shadow-subtle), 0 4px 12px rgba(15, 23, 42, 0.08);
+  transform: translateY(-1px);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dash-blob,
+  .dash-item {
+    animation: none;
+  }
+  .stat-tile {
+    transition: none;
+  }
+}
