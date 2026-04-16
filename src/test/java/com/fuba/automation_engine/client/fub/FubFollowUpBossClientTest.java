@@ -205,6 +205,16 @@ class FubFollowUpBossClientTest {
     }
 
     @Test
+    void shouldSimulateAddTagInLogOnlyMode() {
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        ActionExecutionResult result = client.addTag(18399L, "VIP");
+
+        assertTrue(result.success());
+        assertEquals(null, result.reasonCode());
+        assertEquals(null, result.message());
+    }
+
+    @Test
     void shouldCreateTaskAndMapDueFields() {
         OffsetDateTime dueDateTime = OffsetDateTime.of(2026, 3, 12, 10, 15, 0, 0, ZoneOffset.UTC);
         AtomicReference<String> requestBody = new AtomicReference<>();

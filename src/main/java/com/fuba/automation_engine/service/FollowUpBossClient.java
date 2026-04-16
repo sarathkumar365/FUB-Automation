@@ -23,5 +23,7 @@ public interface FollowUpBossClient {
 
     ActionExecutionResult movePersonToPond(long personId, long targetPondId);
 
+    ActionExecutionResult addTag(long personId, String tagName);
+
     CreatedTask createTask(CreateTaskCommand command);
 }

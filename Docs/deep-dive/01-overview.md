@@ -131,3 +131,15 @@ Adding a new event type to this file will cause the startup script to register a
 | `logs/backend.log` | Spring Boot backend output (cleared on each dev startup) |
 | `logs/frontend.log` | Vite dev server output (cleared on each dev startup) |
 | `logs/startup.log` | Startup orchestration log (cleared on each dev startup) |
+
+### 2.6 Manual recovery for disabled webhooks
+
+`run-app.sh` handles webhook URL sync/creation for managed events, but disabled webhook status recovery is manual by design.
+
+Use:
+
+```bash
+./scripts/fub-webhook-reactivate.sh
+```
+
+This script checks managed events from `config/fub-webhook-events.txt` and re-enables only webhooks currently in `Disabled` status by calling `PUT /v1/webhooks/{id}` with `status=Active`.

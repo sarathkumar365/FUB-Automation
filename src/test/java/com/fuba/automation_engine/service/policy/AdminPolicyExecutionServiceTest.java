@@ -61,7 +61,7 @@ class AdminPolicyExecutionServiceTest {
 
         PolicyExecutionRunPageResponse page = service.list(new PolicyExecutionFeedQuery(
                 PolicyExecutionRunStatus.PENDING,
-                "follow_up_sla",
+                "  follow_up_sla  ",
                 null,
                 null,
                 2,

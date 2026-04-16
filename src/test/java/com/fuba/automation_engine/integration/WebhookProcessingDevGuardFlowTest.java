@@ -195,6 +195,11 @@ class WebhookProcessingDevGuardFlowTest {
         }
 
         @Override
+        public ActionExecutionResult addTag(long personId, String tagName) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
         public CreatedTask createTask(CreateTaskCommand command) {
             createdTasks.add(command);
             return new CreatedTask(taskSequence++, command.personId(), command.assignedUserId(), command.name(), command.dueDate(), null);

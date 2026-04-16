@@ -427,6 +427,11 @@ class WebhookProcessingFlowTest {
         }
 
         @Override
+        public ActionExecutionResult addTag(long personId, String tagName) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
         public CreatedTask createTask(CreateTaskCommand command) {
             createTaskAttempts.incrementAndGet();
             if (createTaskTransientFailuresRemaining > 0) {

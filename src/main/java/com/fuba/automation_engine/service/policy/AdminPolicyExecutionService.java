@@ -10,11 +10,11 @@ import com.fuba.automation_engine.persistence.entity.PolicyExecutionRunStatus;
 import com.fuba.automation_engine.persistence.entity.PolicyExecutionStepEntity;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionRunRepository;
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepRepository;
+import com.fuba.automation_engine.service.support.KeyNormalizationHelper;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Locale;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -143,10 +143,7 @@ public class AdminPolicyExecutionService {
     }
 
     private String normalizePolicyKey(String policyKey) {
-        if (policyKey == null || policyKey.isBlank()) {
-            return null;
-        }
-        return policyKey.trim().toUpperCase(Locale.ROOT);
+        return KeyNormalizationHelper.normalizePolicyKey(policyKey);
     }
 
     private void validateRange(OffsetDateTime from, OffsetDateTime to) {
