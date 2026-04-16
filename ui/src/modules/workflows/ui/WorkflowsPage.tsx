@@ -26,6 +26,8 @@ import {
 } from '../lib/workflowsSearchParams'
 import { useWorkflowsQuery } from '../data/useWorkflowsQuery'
 import { useCreateWorkflowMutation } from '../data/useCreateWorkflowMutation'
+import { useStepTypesQuery } from '../data/useStepTypesQuery'
+import { useTriggerTypesQuery } from '../data/useTriggerTypesQuery'
 import { WorkflowCreateModal } from './WorkflowCreateModal'
 
 const WORKFLOW_STATUS_OPTIONS: WorkflowStatus[] = ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED']
@@ -37,6 +39,8 @@ export function WorkflowsPage() {
   const [isCreateOpen, setCreateOpen] = useState(false)
   const searchState = useMemo(() => parseWorkflowsSearchParams(searchParams), [searchParams])
   const createWorkflowMutation = useCreateWorkflowMutation()
+  const stepTypesQuery = useStepTypesQuery()
+  const triggerTypesQuery = useTriggerTypesQuery()
   const listQuery = useWorkflowsQuery({
     status: searchState.status,
     page: searchState.page,
@@ -49,6 +53,20 @@ export function WorkflowsPage() {
   }))
   const draftFilters = draftFilterState.key === filterDraftKey ? draftFilterState.value : toWorkflowsDraftFilters(searchState)
   const rows = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items])
+  const stepTypeNames = useMemo(
+    () =>
+      (stepTypesQuery.data ?? [])
+        .map((item) => item.displayName)
+        .sort((left, right) => left.localeCompare(right)),
+    [stepTypesQuery.data],
+  )
+  const triggerTypeNames = useMemo(
+    () =>
+      (triggerTypesQuery.data ?? [])
+        .map((item) => item.displayName)
+        .sort((left, right) => left.localeCompare(right)),
+    [triggerTypesQuery.data],
+  )
 
   const columns = useMemo<ColumnDef<WorkflowResponse>[]>(
     () => [
@@ -81,6 +99,36 @@ export function WorkflowsPage() {
     [],
   )
 
+  const panelRegion = useMemo(
+    () => ({
+      title: uiText.workflows.panelTitle,
+      body: (
+        <div className="space-y-3">
+          <CatalogSection
+            title={uiText.workflows.stepTypesTitle}
+            isPending={stepTypesQuery.isPending}
+            isError={stepTypesQuery.isError}
+            items={stepTypeNames}
+          />
+          <CatalogSection
+            title={uiText.workflows.triggerTypesTitle}
+            isPending={triggerTypesQuery.isPending}
+            isError={triggerTypesQuery.isError}
+            items={triggerTypeNames}
+          />
+        </div>
+      ),
+    }),
+    [
+      stepTypesQuery.isError,
+      stepTypesQuery.isPending,
+      stepTypeNames,
+      triggerTypeNames,
+      triggerTypesQuery.isError,
+      triggerTypesQuery.isPending,
+    ],
+  )
+
   const inspectorRegion = useMemo(
     () => ({
       title: uiText.workflows.inspectorTitle,
@@ -90,7 +138,7 @@ export function WorkflowsPage() {
   )
 
   useShellRegionRegistration({
-    panel: null,
+    panel: panelRegion,
     inspector: inspectorRegion,
   })
 
@@ -233,6 +281,39 @@ export function WorkflowsPage() {
         isSubmitting={createWorkflowMutation.isPending}
       />
     </div>
+  )
+}
+
+function CatalogSection({
+  title,
+  isPending,
+  isError,
+  items,
+}: {
+  title: string
+  isPending: boolean
+  isError: boolean
+  items: string[]
+}) {
+  return (
+    <details open className="rounded-md border border-[var(--color-border)]">
+      <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-[var(--color-text)]">{title}</summary>
+      <div className="border-t border-[var(--color-border)] px-3 py-2">
+        {isPending ? (
+          <p className="text-xs text-[var(--color-text-muted)]">{uiText.states.loadingMessage}</p>
+        ) : isError ? (
+          <p className="text-xs text-[var(--color-status-bad)]">{uiText.states.errorMessage}</p>
+        ) : items.length === 0 ? (
+          <p className="text-xs text-[var(--color-text-muted)]">{uiText.states.emptyMessage}</p>
+        ) : (
+          <ul className="space-y-1 text-xs text-[var(--color-text)]">
+            {items.map((item) => (
+              <li key={item}>{item}</li>
+            ))}
+          </ul>
+        )}
+      </div>
+    </details>
   )
 }
 

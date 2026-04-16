@@ -119,13 +119,14 @@ describe('workflow runs page', () => {
     expect(window.location.search).toContain('status=FAILED')
   })
 
-  it('navigates to detail route on row click', async () => {
+  it('navigates to detail route on row click with backTo context', async () => {
     const user = userEvent.setup()
-    renderWorkflowRunsPage()
+    renderWorkflowRunsPage('/admin-ui/workflow-runs?status=FAILED')
 
     const row = await screen.findByRole('button', { name: 'Open workflow run 44' })
     await user.click(row)
 
     expect(await screen.findByText('workflow run detail route')).toBeInTheDocument()
+    expect(window.location.search).toContain('backTo=%2Fadmin-ui%2Fworkflow-runs%3Fstatus%3DFAILED%26selectedRunId%3D44')
   })
 })

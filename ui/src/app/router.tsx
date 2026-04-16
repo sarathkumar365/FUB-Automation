@@ -1,4 +1,4 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 import { routes } from '../shared/constants/routes'
 import { AppShell } from './AppShell'
 import { SessionGuard } from './SessionGuard'
@@ -9,6 +9,7 @@ import { WorkflowsPage } from '../modules/workflows/ui/WorkflowsPage'
 import { WorkflowDetailPage } from '../modules/workflows/ui/WorkflowDetailPage'
 import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
 import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
+import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
 
 export function createAppRouter() {
@@ -30,7 +31,7 @@ export function createAppRouter() {
           children: [
             {
               index: true,
-              element: <Navigate to="webhooks" replace />,
+              element: <DashboardPage />,
             },
             {
               path: 'webhooks',

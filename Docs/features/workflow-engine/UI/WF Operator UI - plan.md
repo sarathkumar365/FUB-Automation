@@ -578,10 +578,21 @@ Nav order: WH | PC | PO | WF | WR
   - centralized `uiText.dashboard` labels/messages
   - placeholder-first System Health contract using existing endpoints only
 - Implementation notes: [phase-4-implementation.md](phase-4-implementation.md)
-- Deferred to Pass 4.2:
-  - `DashboardPage` UI card composition
-  - `/admin-ui` index route cutover from webhooks redirect
-  - dashboard panel/inspector registration and route assertions
+
+#### Phase 4.2 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 4.2:
+  - `DashboardPage` implemented with 2x2 card layout and `useDashboardSnapshotQuery` integration
+  - `/admin-ui` index route cut over from webhooks redirect to dashboard page
+  - dashboard deep links wired to URL-driven target filters:
+    - `/admin-ui/workflows?status=ACTIVE`
+    - `/admin-ui/workflow-runs`
+    - `/admin-ui/workflow-runs?status=FAILED`
+  - dashboard shell-region panel/inspector registration added
+  - route/dashboard regression tests and validations completed
+
+#### Phase 4 Closure Status
+- Phase 4 is `COMPLETED` (Pass 4.1 + Pass 4.2 delivered and validated).
 
 ### Phase 5: Polish & Cross-linking
 
@@ -654,6 +665,19 @@ Nav order: WH | PC | PO | WF | WR
      - validate UX is integrated and stable
      - tests and validation gates pass
      - docs are updated for handoff continuity
+
+#### Phase 5 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered:
+  - `backTo` route continuity for workflow run detail from global runs and workflow-detail runs-tab entry points
+  - workflow/workflow-runs inspector lifecycle consistency updates
+  - workflows catalog panel for step/trigger references with explicit state handling
+  - workflow detail validate lifecycle hardening with pending/result/error/dismiss behavior
+  - URL-state and continuity regression coverage updates
+- Implementation notes: [phase-5-implementation.md](phase-5-implementation.md)
+
+#### Phase 5 Closure Status
+- Phase 5 is `COMPLETED` and Operator UI rebuild scope is closed for planned Phases 1–5.
 
 ---
 

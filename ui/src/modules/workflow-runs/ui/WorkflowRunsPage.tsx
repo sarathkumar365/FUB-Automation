@@ -152,13 +152,14 @@ export function WorkflowRunsPage() {
   }
 
   const handleSelectRow = (row: WorkflowRunSummary) => {
-    setSearchParams(
-      createWorkflowRunsSearchParamsFromState({
-        ...searchState,
-        selectedRunId: row.id,
-      }),
-    )
-    navigate(routes.workflowRunDetail(row.id))
+    const nextSearch = createWorkflowRunsSearchParamsFromState({
+      ...searchState,
+      selectedRunId: row.id,
+    })
+    const backTo = buildPathWithSearch(routes.workflowRuns, nextSearch)
+
+    setSearchParams(nextSearch)
+    navigate(`${routes.workflowRunDetail(row.id)}?${new URLSearchParams({ backTo }).toString()}`)
   }
 
   return (
@@ -271,4 +272,9 @@ function buildInspectorBody(selectedRunId: number | undefined, rows: WorkflowRun
 
 function formatNullableDate(value: string | null): string {
   return value ? formatDateTime(value) : uiText.workflowRuns.missingValue
+}
+
+function buildPathWithSearch(pathname: string, searchParams: URLSearchParams): string {
+  const search = searchParams.toString()
+  return search.length > 0 ? `${pathname}?${search}` : pathname
 }

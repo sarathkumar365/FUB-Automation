@@ -83,6 +83,16 @@ describe('workflow runs search params helpers', () => {
     })
   })
 
+  it('parses valid URL-backed workflow-run list state', () => {
+    const parsed = parseWorkflowRunsSearchParams(new URLSearchParams('status=FAILED&page=3&size=25&selectedRunId=44'))
+    expect(parsed).toEqual({
+      status: 'FAILED',
+      page: 3,
+      size: 25,
+      selectedRunId: 44,
+    })
+  })
+
   it('serializes only non-default values', () => {
     const serialized = createWorkflowRunsSearchParamsFromState({
       status: 'FAILED',

@@ -1,5 +1,5 @@
 import { useMemo, useState, type ReactNode } from 'react'
-import { Link, useParams } from 'react-router-dom'
+import { Link, useParams, useSearchParams } from 'react-router-dom'
 import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
 import { routes } from '../../../shared/constants/routes'
 import { uiText } from '../../../shared/constants/uiText'
@@ -7,6 +7,7 @@ import { formatDateTime } from '../../../shared/lib/date'
 import { useNotify } from '../../../shared/notifications/useNotify'
 import { Button } from '../../../shared/ui/button'
 import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
+import { ErrorState } from '../../../shared/ui/ErrorState'
 import { JsonViewer } from '../../../shared/ui/JsonViewer'
 import { LoadingState } from '../../../shared/ui/LoadingState'
 import { PageCard } from '../../../shared/ui/PageCard'
@@ -25,7 +26,9 @@ import { WorkflowStepTimeline } from './WorkflowStepTimeline'
 export function WorkflowRunDetailPage() {
   const notify = useNotify()
   const { runId: runIdParam } = useParams<{ runId: string }>()
+  const [searchParams] = useSearchParams()
   const runId = parseRunId(runIdParam)
+  const backLink = resolveBackLink(searchParams.get('backTo'))
   const [isCancelDialogOpen, setCancelDialogOpen] = useState(false)
   const detailQuery = useWorkflowRunDetailQuery(runId)
   const cancelMutation = useCancelWorkflowRunMutation(runId)
@@ -33,9 +36,13 @@ export function WorkflowRunDetailPage() {
   const inspectorRegion = useMemo(
     () => ({
       title: uiText.workflowRuns.inspectorTitle,
-      body: buildDetailInspectorBody(detailQuery.data?.steps.length ?? 0),
+      body: buildDetailInspectorBody({
+        isPending: detailQuery.isPending,
+        isError: detailQuery.isError,
+        run: detailQuery.data,
+      }),
     }),
-    [detailQuery.data?.steps.length],
+    [detailQuery.data, detailQuery.isError, detailQuery.isPending],
   )
 
   useShellRegionRegistration({
@@ -51,8 +58,8 @@ export function WorkflowRunDetailPage() {
     return (
       <div className="space-y-4">
         <PageHeader title={uiText.workflowRuns.detailTitle} subtitle={uiText.workflowRuns.detailSubtitle}>
-          <Link className="text-sm text-[var(--color-brand)] underline" to={routes.workflowRuns}>
-            {uiText.workflowRuns.title}
+          <Link className="text-sm text-[var(--color-brand)] underline" to={backLink}>
+            {uiText.workflowRuns.detailBackLabel}
           </Link>
         </PageHeader>
         <PageCard title={uiText.states.errorTitle}>
@@ -78,8 +85,8 @@ export function WorkflowRunDetailPage() {
   return (
     <div className="space-y-4">
       <PageHeader title={uiText.workflowRuns.detailTitle} subtitle={uiText.workflowRuns.detailSubtitle}>
-        <Link className="text-sm text-[var(--color-brand)] underline" to={routes.workflowRuns}>
-          {uiText.workflowRuns.title}
+        <Link className="text-sm text-[var(--color-brand)] underline" to={backLink}>
+          {uiText.workflowRuns.detailBackLabel}
         </Link>
       </PageHeader>
 
@@ -138,12 +145,42 @@ function MetadataRow({ label, value }: { label: string; value: ReactNode }) {
   )
 }
 
-function buildDetailInspectorBody(stepCount: number) {
+function buildDetailInspectorBody({
+  isPending,
+  isError,
+  run,
+}: {
+  isPending: boolean
+  isError: boolean
+  run: {
+    id: number
+    status: Parameters<typeof formatWorkflowRunStatus>[0]
+    steps: { id: number }[]
+  } | undefined
+}) {
+  if (isPending) {
+    return <LoadingState />
+  }
+  if (isError) {
+    return <ErrorState message={uiText.states.errorMessage} />
+  }
+  if (!run) {
+    return <p className="text-sm text-[var(--color-text-muted)]">{uiText.workflowRuns.inspectorEmpty}</p>
+  }
+
   return (
     <div className="space-y-2 text-sm">
       <p>
+        <span className="text-[var(--color-text-muted)]">{uiText.workflowRuns.detailRunIdLabel}: </span>
+        {run.id}
+      </p>
+      <p>
+        <span className="text-[var(--color-text-muted)]">{uiText.workflowRuns.detailStatusLabel}: </span>
+        {formatWorkflowRunStatus(run.status)}
+      </p>
+      <p>
         <span className="text-[var(--color-text-muted)]">{uiText.workflowRuns.detailStepsTitle}: </span>
-        {stepCount}
+        {run.steps.length}
       </p>
     </div>
   )
@@ -164,4 +201,17 @@ function parseRunId(value: string | undefined): number | undefined {
 
 function formatNullableDate(value: string | null): string {
   return value ? formatDateTime(value) : uiText.workflowRuns.missingValue
+}
+
+function resolveBackLink(backTo: string | null): string {
+  if (!backTo) {
+    return routes.workflowRuns
+  }
+  if (!backTo.startsWith('/admin-ui')) {
+    return routes.workflowRuns
+  }
+  if (backTo.includes('://')) {
+    return routes.workflowRuns
+  }
+  return backTo
 }

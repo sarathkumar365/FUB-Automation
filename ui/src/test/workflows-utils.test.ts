@@ -122,6 +122,16 @@ describe('workflow search params helpers', () => {
     expect(serialized.get('runSize')).toBe('50')
   })
 
+  it('normalizes invalid workflow detail run filters to defaults', () => {
+    const parsed = parseWorkflowDetailSearchParams(new URLSearchParams('tab=runs&runStatus=BAD&runPage=-9&runSize=0'))
+    expect(parsed).toEqual({
+      tab: 'runs',
+      runStatus: undefined,
+      runPage: 0,
+      runSize: 1,
+    })
+  })
+
   it('omits default workflow detail run state in serialization', () => {
     const serialized = createWorkflowDetailSearchParamsFromState({
       tab: 'definition',

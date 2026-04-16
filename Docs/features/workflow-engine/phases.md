@@ -91,6 +91,7 @@
   - Implementation notes: [UI/phase-2-implementation.md](UI/phase-2-implementation.md)
 - Phase 3 (Workflow Runs Module): `COMPLETED` (Pass 3.1 + Pass 3.2a + Pass 3.2b completed on 2026-04-16)
   - Implementation notes: [UI/phase-3-implementation.md](UI/phase-3-implementation.md)
-- Phase 4 (Dashboard): `IN_PROGRESS` (Pass 4.1 data foundation completed on 2026-04-16)
+- Phase 4 (Dashboard): `COMPLETED` (Pass 4.1 data foundation + Pass 4.2 dashboard route/UI cutover completed on 2026-04-16)
   - Implementation notes: [UI/phase-4-implementation.md](UI/phase-4-implementation.md)
-- Phase 5 (Polish & Cross-linking): `PLANNED`
+- Phase 5 (Polish & Cross-linking): `COMPLETED` (cross-link continuity, inspector/panel polish, validation UX lifecycle, and URL-state regression scope closed on 2026-04-16)
+  - Implementation notes: [UI/phase-5-implementation.md](UI/phase-5-implementation.md)

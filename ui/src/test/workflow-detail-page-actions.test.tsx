@@ -2,7 +2,7 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { type PropsWithChildren } from 'react'
-import { MemoryRouter, Route, Routes } from 'react-router-dom'
+import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
 import { useShellRegions } from '../app/useShellRegions'
@@ -14,6 +14,11 @@ import { notifyContext } from '../shared/notifications/notifyContext'
 function InspectorHost() {
   const { inspectorContent } = useShellRegions()
   return <div data-testid="inspector-host">{inspectorContent?.body}</div>
+}
+
+function RunDetailRouteHost() {
+  const location = useLocation()
+  return <p>{`run detail route${location.search}`}</p>
 }
 
 function createWorkflowPorts() {
@@ -184,7 +189,7 @@ function renderDetailPage() {
             <ShellRegionsProvider>
               <Routes>
                 <Route path="/admin-ui/workflows/:key" element={children} />
-                <Route path="/admin-ui/workflow-runs/:runId" element={<p>run detail route</p>} />
+                <Route path="/admin-ui/workflow-runs/:runId" element={<RunDetailRouteHost />} />
               </Routes>
               <InspectorHost />
             </ShellRegionsProvider>
@@ -199,17 +204,28 @@ function renderDetailPage() {
 }
 
 describe('workflow detail page actions', () => {
-  it('runs validate action and renders validation errors', async () => {
+  it('runs validate action and renders validation errors with dismiss action', async () => {
     const user = userEvent.setup()
     const { workflowMocks, notifySuccess, notifyWarning } = renderDetailPage()
+    let resolveValidation: ((value: { valid: boolean; errors: string[] }) => void) | undefined
+    workflowMocks.validateWorkflow.mockImplementationOnce(
+      () =>
+        new Promise((resolve) => {
+          resolveValidation = resolve
+        }),
+    )
 
     await screen.findByText('Workflow A')
     await user.click(screen.getByRole('button', { name: 'Validate' }))
+    expect(await screen.findByText('Validation In Progress')).toBeInTheDocument()
+    resolveValidation?.({ valid: false, errors: ['Missing node transition'] })
 
     await waitFor(() => {
       expect(workflowMocks.validateWorkflow).toHaveBeenCalled()
     })
     expect(await screen.findByText('Missing node transition')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Dismiss Validation' }))
+    expect(screen.queryByText('Missing node transition')).not.toBeInTheDocument()
     expect(notifySuccess).not.toHaveBeenCalled()
     expect(notifyWarning).toHaveBeenCalledWith('Workflow definition has validation errors.')
   })
@@ -265,6 +281,6 @@ describe('workflow detail page actions', () => {
     )
 
     await user.click(screen.getByRole('button', { name: 'Open workflow run 44' }))
-    expect(await screen.findByText('run detail route')).toBeInTheDocument()
+    expect(await screen.findByText('run detail route?backTo=%2Fadmin-ui%2Fworkflows%2Fwf_a%3Ftab%3Druns')).toBeInTheDocument()
   })
 })

@@ -51,6 +51,13 @@ import { WorkflowActions } from './WorkflowActions'
 import { WorkflowEditModal } from './WorkflowEditModal'
 import { WorkflowVersionList } from './WorkflowVersionList'
 
+type ValidationViewState =
+  | { scopeKey: string; mode: 'idle' }
+  | { scopeKey: string; mode: 'pending' }
+  | { scopeKey: string; mode: 'valid' }
+  | { scopeKey: string; mode: 'invalid'; errors: string[] }
+  | { scopeKey: string; mode: 'error'; message: string }
+
 export function WorkflowDetailPage() {
   const navigate = useNavigate()
   const { key } = useParams<{ key: string }>()
@@ -74,7 +81,11 @@ export function WorkflowDetailPage() {
   const runRows = useMemo(() => runsQuery.data?.items ?? [], [runsQuery.data?.items])
   const [isEditOpen, setEditOpen] = useState(false)
   const [rollbackVersion, setRollbackVersion] = useState<number | null>(null)
-  const [validationResult, setValidationResult] = useState<{ valid: boolean; errors: string[] } | null>(null)
+  const validationScopeKey = key ?? ''
+  const [validationState, setValidationState] = useState<ValidationViewState>({
+    scopeKey: validationScopeKey,
+    mode: 'idle',
+  })
   const detailQuery = useWorkflowDetailQuery(key)
   const versionsQuery = useWorkflowVersionsQuery(key)
   const updateMutation = useUpdateWorkflowMutation(key)
@@ -84,12 +95,20 @@ export function WorkflowDetailPage() {
   const archiveMutation = useArchiveWorkflowMutation(key)
   const rollbackMutation = useRollbackWorkflowMutation(key)
 
+  const scopedValidationState: ValidationViewState =
+    validationState.scopeKey === validationScopeKey
+      ? validationState
+      : {
+          scopeKey: validationScopeKey,
+          mode: 'idle',
+        }
+
   const inspectorBody = useMemo(() => {
     if (versionsQuery.isPending) {
-      return <p className="text-sm text-[var(--color-text-muted)]">{uiText.states.loadingMessage}</p>
+      return <LoadingState />
     }
     if (versionsQuery.isError) {
-      return <p className="text-sm text-[var(--color-text-muted)]">{uiText.states.errorMessage}</p>
+      return <ErrorState message={uiText.states.errorMessage} />
     }
     if (!versionsQuery.data || versionsQuery.data.length === 0) {
       return <p className="text-sm text-[var(--color-text-muted)]">{uiText.states.emptyMessage}</p>
@@ -146,18 +165,35 @@ export function WorkflowDetailPage() {
   }
 
   const handleValidate = async () => {
+    setValidationState({
+      scopeKey: validationScopeKey,
+      mode: 'pending',
+    })
     try {
       const result = await validateMutation.mutateAsync({
         trigger: workflow.trigger ?? {},
         graph: workflow.graph ?? {},
       })
-      setValidationResult(result)
       if (result.valid) {
+        setValidationState({
+          scopeKey: validationScopeKey,
+          mode: 'valid',
+        })
         notify.success(uiText.workflows.validateSuccess)
       } else {
+        setValidationState({
+          scopeKey: validationScopeKey,
+          mode: 'invalid',
+          errors: result.errors,
+        })
         notify.warning(uiText.workflows.validateInvalid)
       }
     } catch {
+      setValidationState({
+        scopeKey: validationScopeKey,
+        mode: 'error',
+        message: uiText.workflows.validateError,
+      })
       notify.error(uiText.workflows.validateError)
     }
   }
@@ -295,7 +331,12 @@ export function WorkflowDetailPage() {
   }
 
   const handleSelectRunRow = (row: WorkflowRunSummary) => {
-    navigate(routes.workflowRunDetail(row.id))
+    const searchForBackLink = createWorkflowDetailSearchParamsFromState({
+      ...detailSearchState,
+      tab: 'runs',
+    })
+    const backTo = buildPathWithSearch(routes.workflowDetail(workflow.key), searchForBackLink)
+    navigate(`${routes.workflowRunDetail(row.id)}?${new URLSearchParams({ backTo }).toString()}`)
   }
 
   return (
@@ -346,22 +387,48 @@ export function WorkflowDetailPage() {
             />
           </PageCard>
 
-          {validationResult ? (
+          {scopedValidationState.mode !== 'idle' ? (
             <PageCard title={uiText.workflows.validationResultTitle}>
-              <p className="text-sm">
-                <span className="text-[var(--color-text-muted)]">{uiText.workflows.validationResultTitle}: </span>
-                <span className="font-medium">{validationResult.valid ? uiText.workflows.validationValidLabel : uiText.workflows.validationInvalidLabel}</span>
-              </p>
-              {!validationResult.valid && validationResult.errors.length > 0 ? (
-                <div className="mt-3">
-                  <p className="text-sm font-medium text-[var(--color-text)]">{uiText.workflows.validationErrorsTitle}</p>
-                  <ul className="mt-1 list-inside list-disc text-sm text-[var(--color-text-muted)]">
-                    {validationResult.errors.map((error) => (
-                      <li key={error}>{error}</li>
-                    ))}
-                  </ul>
-                </div>
-              ) : null}
+              {scopedValidationState.mode === 'pending' ? (
+                <LoadingState title={uiText.workflows.validationPendingTitle} message={uiText.workflows.validationPendingMessage} />
+              ) : scopedValidationState.mode === 'error' ? (
+                <ErrorState message={scopedValidationState.message} />
+              ) : (
+                <>
+                  <p className="text-sm">
+                    <span className="text-[var(--color-text-muted)]">{uiText.workflows.validationResultTitle}: </span>
+                    <span className="font-medium">
+                      {scopedValidationState.mode === 'valid' ? uiText.workflows.validationValidLabel : uiText.workflows.validationInvalidLabel}
+                    </span>
+                  </p>
+                  {scopedValidationState.mode === 'invalid' && scopedValidationState.errors.length > 0 ? (
+                    <div className="mt-3">
+                      <p className="text-sm font-medium text-[var(--color-text)]">{uiText.workflows.validationErrorsTitle}</p>
+                      <ul className="mt-1 list-inside list-disc text-sm text-[var(--color-text-muted)]">
+                        {scopedValidationState.errors.map((error) => (
+                          <li key={error}>{error}</li>
+                        ))}
+                      </ul>
+                    </div>
+                  ) : null}
+                </>
+              )}
+              <div className="mt-3">
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    setValidationState({
+                      scopeKey: validationScopeKey,
+                      mode: 'idle',
+                    })
+                  }
+                  disabled={scopedValidationState.mode === 'pending'}
+                >
+                  {uiText.workflows.validationDismiss}
+                </Button>
+              </div>
             </PageCard>
           ) : null}
 
@@ -477,4 +544,9 @@ function MetadataRow({ label, value }: { label: string; value: ReactNode }) {
 
 function formatNullableDate(value: string | null): string {
   return value ? formatDateTime(value) : uiText.workflowRuns.missingValue
+}
+
+function buildPathWithSearch(pathname: string, searchParams: URLSearchParams): string {
+  const search = searchParams.toString()
+  return search.length > 0 ? `${pathname}?${search}` : pathname
 }

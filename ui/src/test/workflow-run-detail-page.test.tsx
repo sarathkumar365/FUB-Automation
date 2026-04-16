@@ -4,10 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
+import { useShellRegions } from '../app/useShellRegions'
 import { PortsContext } from '../app/portsContextValue'
 import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
 import type { AppPorts } from '../platform/container'
 import { notifyContext } from '../shared/notifications/notifyContext'
+import { uiText } from '../shared/constants/uiText'
 
 function createWorkflowRunDetailPayload(
   status: 'PENDING' | 'BLOCKED' | 'FAILED' | 'COMPLETED' | 'CANCELED' = 'FAILED',
@@ -41,7 +43,15 @@ function createWorkflowRunDetailPayload(
   }
 }
 
-function renderWorkflowRunDetailPage(status: 'PENDING' | 'BLOCKED' | 'FAILED' | 'COMPLETED' = 'FAILED') {
+function InspectorHost() {
+  const { inspectorContent } = useShellRegions()
+  return <div data-testid="inspector-host">{inspectorContent?.body}</div>
+}
+
+function renderWorkflowRunDetailPage(
+  status: 'PENDING' | 'BLOCKED' | 'FAILED' | 'COMPLETED' = 'FAILED',
+  initialEntry = '/admin-ui/workflow-runs/44',
+) {
   const getWorkflowRunDetail = vi.fn(async () => createWorkflowRunDetailPayload(status))
   const cancelWorkflowRun = vi.fn(async () => createWorkflowRunDetailPayload('CANCELED'))
   const notifySuccess = vi.fn()
@@ -102,11 +112,14 @@ function renderWorkflowRunDetailPage(status: 'PENDING' | 'BLOCKED' | 'FAILED' | 
             info: vi.fn(),
           }}
         >
-          <MemoryRouter initialEntries={['/admin-ui/workflow-runs/44']}>
+          <MemoryRouter initialEntries={[initialEntry]}>
             <ShellRegionsProvider>
               <Routes>
                 <Route path="/admin-ui/workflow-runs/:runId" element={<WorkflowRunDetailPage />} />
+                <Route path="/admin-ui/workflow-runs" element={<p>workflow runs route</p>} />
+                <Route path="/admin-ui/workflows/:key" element={<p>workflow detail route</p>} />
               </Routes>
+              <InspectorHost />
             </ShellRegionsProvider>
           </MemoryRouter>
         </notifyContext.Provider>
@@ -132,6 +145,24 @@ describe('workflow run detail page', () => {
     expect(await screen.findByText('fub_add_tag')).toBeInTheDocument()
     expect(await screen.findByText('HTTP_500')).toBeInTheDocument()
     expect(await screen.findByText('Step details')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: uiText.workflowRuns.detailBackLabel })).toHaveAttribute('href', '/admin-ui/workflow-runs')
+  })
+
+  it('uses valid backTo query for header back link', async () => {
+    renderWorkflowRunDetailPage('FAILED', '/admin-ui/workflow-runs/44?backTo=%2Fadmin-ui%2Fworkflows%2Fwf_a%3Ftab%3Druns')
+
+    await screen.findByText('Workflow Run Detail')
+    expect(screen.getByRole('link', { name: uiText.workflowRuns.detailBackLabel })).toHaveAttribute(
+      'href',
+      '/admin-ui/workflows/wf_a?tab=runs',
+    )
+  })
+
+  it('falls back to workflow runs when backTo query is invalid', async () => {
+    renderWorkflowRunDetailPage('FAILED', '/admin-ui/workflow-runs/44?backTo=https%3A%2F%2Fevil.example.com')
+
+    await screen.findByText('Workflow Run Detail')
+    expect(screen.getByRole('link', { name: uiText.workflowRuns.detailBackLabel })).toHaveAttribute('href', '/admin-ui/workflow-runs')
   })
 
   it('shows cancel action for pending run', async () => {
