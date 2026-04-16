@@ -5,7 +5,4 @@ export const queryDefaults = {
   processedCalls: {
     limit: 25,
   },
-  policyExecutions: {
-    limit: 25,
-  },
 } as const

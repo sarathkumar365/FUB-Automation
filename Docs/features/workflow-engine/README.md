@@ -55,6 +55,13 @@ The workflow engine is being rebuilt in tracked **waves**. Each wave has its own
 - [phase-4c-implementation.md](waves/wave-4/phase-4c-implementation.md) — implementation notes (Wave 4c cancel-only)
 - Wave 4b (builder UI) plus run/step retry controls remain deferred.
 
+### [Wave 5 — Migration Cutover](waves/wave-5/) — `COMPLETED` (Pass 1-5 completed; workflow-only cutover validated and legacy policy surface removed)
+- [migration-cutover-plan.md](waves/wave-5/migration-cutover-plan.md) — migration contract and pass plan
+- [phase-1-implementation.md](waves/wave-5/phase-1-implementation.md) — Pass 1 implementation notes
+- [phase-2-implementation.md](waves/wave-5/phase-2-implementation.md) — Pass 2 implementation notes
+- [phase-3-implementation.md](waves/wave-5/phase-3-implementation.md) — Pass 3 implementation notes
+- [phase-5-implementation.md](waves/wave-5/phase-5-implementation.md) — Pass 5 implementation notes
+
 ## Conventions
 
 - Each wave is a self-contained folder under `waves/wave-{N}/`.

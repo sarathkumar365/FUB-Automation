@@ -5,7 +5,6 @@ import { SessionGuard } from './SessionGuard'
 import { LandingPage } from '../modules/landing/ui/LandingPage'
 import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
 import { ProcessedCallsPage } from '../modules/processed-calls/ui/ProcessedCallsPage'
-import { PoliciesPage } from '../modules/policies/ui/PoliciesPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
 
 export function createAppRouter() {
@@ -36,10 +35,6 @@ export function createAppRouter() {
             {
               path: 'processed-calls',
               element: <ProcessedCallsPage />,
-            },
-            {
-              path: 'policies',
-              element: <PoliciesPage />,
             },
           ],
         },

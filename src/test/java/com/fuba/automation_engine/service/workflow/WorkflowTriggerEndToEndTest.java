@@ -2,18 +2,13 @@ package com.fuba.automation_engine.service.workflow;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
-import com.fuba.automation_engine.persistence.entity.AutomationPolicyEntity;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
-import com.fuba.automation_engine.persistence.entity.PolicyStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
-import com.fuba.automation_engine.persistence.repository.AutomationPolicyRepository;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
-import com.fuba.automation_engine.persistence.repository.PolicyExecutionRunRepository;
-import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
@@ -85,7 +80,6 @@ class WorkflowTriggerEndToEndTest {
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
         registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("policy.worker.enabled", () -> "false");
         registry.add("workflow.worker.enabled", () -> "false");
         registry.add("workflow.step-http.connect-timeout-ms", () -> "200");
         registry.add("workflow.step-http.read-timeout-ms", () -> "200");
@@ -129,15 +123,6 @@ class WorkflowTriggerEndToEndTest {
     private AutomationWorkflowRepository automationWorkflowRepository;
 
     @Autowired
-    private AutomationPolicyRepository automationPolicyRepository;
-
-    @Autowired
-    private PolicyExecutionRunRepository policyExecutionRunRepository;
-
-    @Autowired
-    private PolicyExecutionStepRepository policyExecutionStepRepository;
-
-    @Autowired
     private MutableTestClock testClock;
 
     @Autowired
@@ -151,9 +136,6 @@ class WorkflowTriggerEndToEndTest {
 
     @BeforeEach
     void setUp() throws IOException {
-        policyExecutionStepRepository.deleteAll();
-        policyExecutionRunRepository.deleteAll();
-        automationPolicyRepository.deleteAll();
         workflowRunStepRepository.deleteAll();
         workflowRunRepository.deleteAll();
         automationWorkflowRepository.deleteAll();
@@ -167,7 +149,6 @@ class WorkflowTriggerEndToEndTest {
         this.stubFollowUpBossClient.reset();
 
         startSlackServer();
-        seedActiveAssignmentPolicy();
     }
 
     @AfterEach
@@ -185,7 +166,6 @@ class WorkflowTriggerEndToEndTest {
 
         webhookEventProcessorService.process(webhook("evt-w3-e2e-1", "zillow", 777L));
 
-        assertEquals(1, policyExecutionRunRepository.count(), "Policy flow must run alongside workflow flow");
         WorkflowRunEntity run = singleWorkflowRun();
         assertEquals("777", run.getSourceLeadId());
         assertNull(run.getWebhookEventId(), "Router-planned webhookEventId must stay null in Wave 3");
@@ -215,7 +195,6 @@ class WorkflowTriggerEndToEndTest {
 
         assertEquals(0, workflowRunRepository.count(), "Non-matching webhook must not plan workflow run");
         assertEquals(0, workflowRunStepRepository.count(), "No workflow run steps should be materialized");
-        assertEquals(1, policyExecutionRunRepository.count(), "Policy flow must remain active side-by-side");
     }
 
     @Test
@@ -275,16 +254,6 @@ class WorkflowTriggerEndToEndTest {
     private WorkflowRunStepEntity findStep(Long runId, String nodeId) {
         return workflowRunStepRepository.findByRunIdAndNodeId(runId, nodeId)
                 .orElseThrow(() -> new AssertionError("Missing workflow step nodeId=" + nodeId));
-    }
-
-    private void seedActiveAssignmentPolicy() {
-        AutomationPolicyEntity policy = new AutomationPolicyEntity();
-        policy.setDomain("ASSIGNMENT");
-        policy.setPolicyKey("FOLLOW_UP_SLA");
-        policy.setStatus(PolicyStatus.ACTIVE);
-        policy.setEnabled(true);
-        policy.setBlueprint(Map.of("steps", List.of()));
-        automationPolicyRepository.saveAndFlush(policy);
     }
 
     private void seedActiveWorkflow(String key, Map<String, Object> triggerConfig, Map<String, Object> graph) {

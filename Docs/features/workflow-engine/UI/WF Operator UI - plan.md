@@ -171,6 +171,72 @@ Nav order: WH | PC | PO | WF | WR
 - `ui/src/shared/ui/PagePagination.tsx`
 - `ui/src/shared/ui/JsonViewer.tsx`
 
+#### Phase 1 Step-by-Step Execution Plan (Additive)
+
+1. Read and lock contracts
+   - Re-read this document's Phase 1 section.
+   - Confirm backend DTO response shapes before writing Zod schemas.
+   - Produce a short checklist of exact schema types to implement.
+
+2. Add `DELETE` support in HTTP client
+   - Update `ui/src/platform/adapters/http/httpJsonClient.ts`:
+     - extend request method union to include `DELETE`
+     - add `delete<T>()` helper
+   - Keep behavior aligned with existing `get/post/put` error handling.
+
+3. Create workflow schemas as source of truth
+   - Add `ui/src/modules/workflows/lib/workflowSchemas.ts` with:
+     - status enums
+     - workflow/workflow-run/step DTO schemas
+     - generic page response schema factory
+     - validation response schema
+     - step/trigger catalog schemas
+   - Export inferred TypeScript types from schemas.
+
+4. Define ports
+   - Add `ui/src/platform/ports/workflowPort.ts`.
+   - Add `ui/src/platform/ports/workflowRunPort.ts`.
+   - Keep methods strictly aligned to existing backend endpoints.
+
+5. Implement HTTP adapters
+   - Add `ui/src/platform/adapters/http/httpWorkflowAdapter.ts`.
+   - Add `ui/src/platform/adapters/http/httpWorkflowRunAdapter.ts`.
+   - Parse every adapter response with Zod at the boundary.
+
+6. Wire dependency container and query keys
+   - Update `ui/src/platform/container.ts`:
+     - register workflow/workflow-run adapters
+     - expose them through `AppPorts`
+   - Update `ui/src/platform/query/queryKeys.ts` with workflow and workflow-run keys.
+
+7. Build shared UI primitives
+   - Add `ui/src/shared/ui/PagePagination.tsx` for `page/size/total`.
+   - Add `ui/src/shared/ui/JsonViewer.tsx` (read-only, copy, scroll).
+   - Keep both primitives generic for reuse in Phases 2 and 3.
+
+8. Testing gate (mandatory)
+   - Add at least one new test for Phase 1 behavior (recommended set):
+     - `HttpJsonClient` `delete<T>()` test
+     - adapter parse test (valid + invalid payload)
+     - one shared UI primitive test (`PagePagination` or `JsonViewer`)
+   - Execute:
+     - new tests
+     - existing frontend suite
+   - Do not close Phase 1 unless validation threshold is met.
+
+9. Documentation updates (required workflow)
+   - Immediately update workflow feature docs after implementation:
+     - `Docs/features/workflow-engine/phases.md`
+     - active phase implementation log under `Docs/features/workflow-engine/...`
+   - Keep updates concise and chronological for handoff.
+
+10. Phase 1 completion criteria
+   - `DELETE` support is implemented and verified.
+   - Phase 1 schemas, ports, and adapters are wired and compiling.
+   - Shared pagination and JSON viewer are available.
+   - New tests are added and executed; existing suite executed.
+   - Feature docs reflect status and validation notes.
+
 ### Phase 2: Workflow Management Module
 
 1. Create `workflowsDisplay.ts` -- status tone/label mappers (same pattern as `policiesDisplay.ts`)
@@ -191,6 +257,80 @@ Nav order: WH | PC | PO | WF | WR
 - `ui/WorkflowActions.tsx`
 - `ui/WorkflowVersionList.tsx`
 
+#### Phase 2 Step-by-Step Execution Plan (Additive)
+
+1. Lock Phase 2 contracts and integration shape
+   - Re-read the Phase 2 section in this document and align implementation scope.
+   - Confirm endpoint payload/response contracts used by workflow list/detail/lifecycle APIs.
+   - Keep module structure aligned to existing UI boundaries (`modules/*`, `platform/*`, `shared/*`).
+
+2. Build workflow display and URL-state utilities
+   - Implement `workflowsDisplay.ts` for status labels/tones and lifecycle action state mapping.
+   - Implement `workflowsSearchParams.ts` for serializable URL state:
+     - list state (`status`, `page`, `size`, selected row key)
+     - detail state (`tab`, run filters/paging where applicable)
+   - Keep draft filter state local and apply to URL only on explicit Apply.
+
+3. Implement workflow data hooks (queries + mutations)
+   - Add query hooks for list/detail/versions/step-types/trigger-types.
+   - Add mutation hooks for create/update/activate/deactivate/rollback/archive/validate.
+   - Enforce query key consistency and invalidation strategy through `queryKeys.ts`.
+   - Keep catalogs (`step-types`, `trigger-types`) effectively static with long-lived caching.
+
+4. Build `WorkflowsPage` (list + create flow)
+   - Compose `PageHeader + FilterBar + DataTable + PagePagination`.
+   - Include status filter, summary panel metrics, row selection/preview behavior.
+   - Add create modal with `key`, `name`, `description`, `trigger`, `graph`, `status`.
+   - Route row click to workflow detail path by key.
+
+5. Build `WorkflowDetailPage` (definition + runs tabs)
+   - Definition tab:
+     - metadata rows (key/name/description/status/version)
+     - read-only trigger/graph display using `JsonViewer`
+     - lifecycle actions (edit/validate/activate/deactivate/archive/rollback) with confirmations
+   - Runs tab:
+     - scoped run list for the workflow key
+     - row click navigation to run detail route
+   - Add version-history inspector with rollback entry actions.
+
+6. Implement modal and action components
+   - Create and wire `WorkflowCreateModal`, `WorkflowEditModal`, `WorkflowActions`, `WorkflowVersionList`.
+   - Enforce client-side JSON validation before create/update/validate submissions.
+   - Keep action availability rules deterministic by workflow status and version preconditions.
+
+7. Integrate routes, navigation, and text constants
+   - Register `/admin-ui/workflows` and `/admin-ui/workflows/:key` in router.
+   - Add workflows nav exposure in rail/panel route constants.
+   - Keep policies route/nav removal intact while adding workflow navigation.
+   - Add all new user-facing strings to `uiText.ts` (no scattered literals).
+
+8. Panel/inspector composition and shell registration
+   - Register route-level panel and inspector content via existing shell region pattern.
+   - Ensure empty/loading/error states follow shared primitives.
+   - Keep desktop/mobile shell behavior consistent with current pages.
+
+9. Testing and validation gate (mandatory)
+   - Add new tests for:
+     - URL search-param parsing/creation for workflows
+     - key query/mutation hooks (including invalidation behavior)
+     - `WorkflowsPage` filter/pagination/create interactions
+     - `WorkflowDetailPage` action visibility and validate result rendering
+     - route/nav exposure for workflows and no regression on policies cutover expectations
+   - Execute:
+     - newly added tests
+     - full frontend suite (`npm run test`)
+     - lint/build checks (`npm run lint`, `npm run build`)
+
+10. Documentation and completion criteria
+   - Update workflow feature phase tracking docs after implementation/test completion:
+     - `Docs/features/workflow-engine/phases.md`
+     - active phase implementation notes under `Docs/features/workflow-engine/...`
+   - Phase 2 is complete when:
+     - workflows list and detail routes are operational
+     - lifecycle and validation actions are wired with feedback paths
+     - tests are added/executed and validation gates pass
+     - docs are updated for handoff continuity
+
 ### Phase 3: Workflow Runs Module
 
 1. Create `workflowRunsDisplay.ts` -- run + step status tone/label mappers
@@ -209,6 +349,79 @@ Nav order: WH | PC | PO | WF | WR
 - `ui/WorkflowRunDetailPage.tsx`
 - `ui/WorkflowStepTimeline.tsx`
 
+#### Phase 3 Step-by-Step Execution Plan (Additive)
+
+1. Lock run-domain contracts and phase boundaries
+   - Re-read Phase 3 scope in this document and align implementation boundaries.
+   - Confirm run list/detail/cancel endpoint contracts and current status enums.
+   - Keep this phase focused on observability + cancel control (no retry/replay).
+
+2. Implement run display and URL-state helpers
+   - Add `workflowRunsDisplay.ts` for run/step status labels, tones, and reason-code formatting.
+   - Add `workflowRunsSearchParams.ts` for serializable URL state:
+     - global runs: `status`, `page`, `size`, selected run id
+     - scoped runs (workflow detail tab): status/page/size/tab selection
+   - Keep filter draft behavior consistent with existing pages (Apply/Reset).
+
+3. Implement workflow-run data hooks
+   - Add:
+     - `useWorkflowRunsQuery`
+     - `useWorkflowRunsForKeyQuery`
+     - `useWorkflowRunDetailQuery`
+     - `useCancelWorkflowRunMutation`
+   - Wire query keys for global/scoped/detail runs and enforce deterministic invalidation on cancel.
+
+4. Build `WorkflowRunsPage` (global list)
+   - Compose `PageHeader + FilterBar + DataTable + PagePagination`.
+   - Include columns: run id, workflow key, version, status, reason code, started, completed.
+   - Add summary panel with shown count and failed highlight.
+   - Route row click to `/admin-ui/workflow-runs/:runId`.
+
+5. Build `WorkflowRunDetailPage` and `WorkflowStepTimeline`
+   - Render metadata section, trigger payload (`JsonViewer`), and step timeline.
+   - Timeline entries include node id, step type, status, result code, retry count, due at.
+   - Expand/collapse step detail content: outputs JSON, error message, dependency nodes.
+   - Add cancel control gated to `PENDING`/`BLOCKED` with `ConfirmDialog`.
+
+6. Wire Runs tab integration in workflow detail
+   - Replace placeholder/temporary runs-tab behavior with scoped run query hook.
+   - Keep list behavior consistent with global runs page.
+   - Route run selection to run detail page.
+
+7. Integrate routes, nav, and centralized text
+   - Register:
+     - `/admin-ui/workflow-runs`
+     - `/admin-ui/workflow-runs/:runId`
+   - Add workflow-runs nav exposure in rail and panel navigation.
+   - Add all new user-facing labels/messages under centralized `uiText.ts`.
+
+8. Shell panel/inspector registration
+   - Register panel and inspector content using existing shell region contract.
+   - Ensure loading/error/empty fallbacks use shared primitives for consistent UX.
+
+9. Testing and validation gate (mandatory)
+   - Add tests for:
+     - run/step display mapping helpers
+     - workflow-runs search param parsing/serialization
+     - hooks query-key/invalidation behavior
+     - global list filter/pagination and row navigation
+     - run detail rendering + cancel visibility/confirm flow
+     - route/nav exposure and regression safety
+   - Execute:
+     - newly added tests
+     - full frontend suite (`npm run test`)
+     - lint/build checks (`npm run lint`, `npm run build`)
+
+10. Documentation and completion criteria
+   - Update feature tracking docs after implementation and validation:
+     - `Docs/features/workflow-engine/phases.md`
+     - active phase implementation notes under `Docs/features/workflow-engine/...`
+   - Phase 3 is complete when:
+     - global and scoped run lists are operational
+     - run detail timeline and cancel behavior are wired
+     - tests and validation gates pass
+     - docs are updated for handoff continuity
+
 ### Phase 4: Dashboard
 
 1. Create `DashboardPage` (or rework existing landing module)
@@ -217,6 +430,64 @@ Nav order: WH | PC | PO | WF | WR
 
 **New file**: `ui/src/modules/dashboard/ui/DashboardPage.tsx`
 
+#### Phase 4 Step-by-Step Execution Plan (Additive)
+
+1. Lock dashboard contract and scope
+   - Re-read Phase 4 scope in this document and keep this phase informational-only.
+   - Reuse existing backend endpoints only; no new API contracts in this phase.
+   - Keep dashboard actions to deep links (no destructive controls).
+
+2. Implement `DashboardPage` structure
+   - Build `/admin-ui` dashboard as a 2x2 operator card grid:
+     - Active Workflows
+     - Recent Runs
+     - Failed Runs
+     - System Health
+   - Use shared layout primitives and consistent card hierarchy.
+
+3. Implement dashboard data strategy (existing endpoints only)
+   - Use list endpoints with `size=1` for count extraction and `size=5` for recent item tables.
+   - Add dashboard-focused data hooks/selectors to aggregate cards and normalize loading/error states.
+   - Keep server state in TanStack Query and avoid duplicated local caches.
+
+4. Wire route index behavior
+   - Replace `/admin-ui` index redirect with `<DashboardPage />`.
+   - Preserve all existing feature routes unchanged.
+
+5. Implement card content and deep links
+   - Active Workflows card: count + link to filtered workflows view.
+   - Recent Runs card: latest 5 runs + link to workflow-runs list.
+   - Failed Runs card: failed count + latest 5 failures + link with failed status filter.
+   - System Health card: active policies count + recent webhook count.
+   - Keep target-page filter state URL-driven.
+
+6. Integrate shell panel/inspector and centralized text
+   - Register dashboard panel/inspector content through existing shell-region pattern.
+   - Add all new dashboard labels/messages in `uiText.ts`; do not scatter string literals.
+   - Use shared loading/error/empty primitives for each card state.
+
+7. Testing and validation gate (mandatory)
+   - Add tests for:
+     - `/admin-ui` route now rendering dashboard
+     - each card’s loading/error/empty/success rendering paths
+     - “recent” cards limiting to 5 rows
+     - dashboard deep links resolving to correct routes/filter states
+     - hook mapping behavior for `size=1` and `size=5` query shapes
+   - Execute:
+     - newly added tests
+     - full frontend suite (`npm run test`)
+     - lint/build checks (`npm run lint`, `npm run build`)
+
+8. Documentation and completion criteria
+   - Update feature tracking docs after implementation and validation:
+     - `Docs/features/workflow-engine/phases.md`
+     - active phase implementation notes under `Docs/features/workflow-engine/...`
+   - Phase 4 is complete when:
+     - `/admin-ui` loads dashboard by default
+     - all four cards render with expected data and links
+     - tests and validation gates pass
+     - docs are updated for handoff continuity
+
 ### Phase 5: Polish & Cross-linking
 
 1. Cross-links: workflow key in run detail -> workflow detail; run ID in workflow detail -> run detail
@@ -224,6 +495,70 @@ Nav order: WH | PC | PO | WF | WR
 3. Step/trigger catalog reference panel on workflows page
 4. Validate button integration
 5. URL state management for all filter/selection state
+
+#### Phase 5 Step-by-Step Execution Plan (Additive)
+
+1. Lock final-phase polish scope
+   - Re-read Phase 5 goals in this document and keep this phase focused on UX hardening.
+   - Avoid introducing new backend contracts; reuse established APIs and hooks.
+   - Treat this phase as interaction consistency + navigation reliability pass.
+
+2. Complete bidirectional cross-linking
+   - Ensure workflow key in run detail links to workflow detail route.
+   - Ensure run id entries in workflow detail (Runs tab) link to run detail route.
+   - Keep links keyboard-accessible and visually consistent with existing table/detail styles.
+
+3. Harden inspector behavior across workflow surfaces
+   - Normalize inspector content for:
+     - workflows list
+     - workflow detail
+     - workflow runs list
+     - workflow run detail
+   - Use shell-region registration consistently and eliminate stale inspector content on selection/route changes.
+   - Standardize empty/loading/error inspector states via shared primitives and centralized text.
+
+4. Polish step/trigger catalog reference UX
+   - Ensure workflows page exposes step/trigger catalogs in a usable, collapsible reference panel.
+   - Keep stable ordering and readable formatting for quick operator scanning.
+   - Preserve long-lived cache behavior so panel interactions do not cause unnecessary refetches.
+
+5. Finalize validate-action UX integration
+   - Ensure validate action has consistent pending, success, and failure surfaces.
+   - Keep result rendering explicit and operator-friendly (clear inline outcomes).
+   - Reset/retain validation output only on intentional state transitions (workflow switch, explicit dismiss/reset, or new request).
+
+6. Complete URL-state persistence for all workflow views
+   - Ensure filter, pagination, tab, and selection state are URL-backed where applicable.
+   - Verify browser back/forward preserves prior workflow/runs context.
+   - Ensure deep links restore expected page state without manual reconfiguration.
+
+7. Navigation consistency and route-state continuity pass
+   - Confirm rail/panel nav and in-page links maintain expected admin context.
+   - Eliminate regressions where route transitions unexpectedly clear state.
+   - Keep workflows and workflow-runs flows coherent end-to-end.
+
+8. Testing and validation gate (mandatory)
+   - Add tests for:
+     - cross-link navigation in both directions
+     - inspector state transitions (empty/loading/error/success)
+     - URL-state parse/serialize + refresh/back-forward restoration
+     - validate action pending/result rendering and reset semantics
+     - navigation continuity across workflows <-> workflow-runs paths
+   - Execute:
+     - newly added tests
+     - full frontend suite (`npm run test`)
+     - lint/build checks (`npm run lint`, `npm run build`)
+
+9. Documentation and completion criteria
+   - Update feature tracking docs after implementation and validation:
+     - `Docs/features/workflow-engine/phases.md`
+     - active phase implementation notes under `Docs/features/workflow-engine/...`
+   - Phase 5 is complete when:
+     - cross-links and inspector behavior are consistent across workflow/runs pages
+     - URL-state persistence works for key filter/tab/selection paths
+     - validate UX is integrated and stable
+     - tests and validation gates pass
+     - docs are updated for handoff continuity
 
 ---
 

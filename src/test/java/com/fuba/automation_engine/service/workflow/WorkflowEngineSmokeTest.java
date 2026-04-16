@@ -52,7 +52,6 @@ class WorkflowEngineSmokeTest {
         registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
         registry.add("spring.flyway.enabled", () -> "true");
-        registry.add("policy.worker.enabled", () -> "false");
         registry.add("workflow.worker.enabled", () -> "false");
     }
 

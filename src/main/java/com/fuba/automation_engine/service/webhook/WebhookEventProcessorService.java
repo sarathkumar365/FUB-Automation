@@ -19,16 +19,12 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.policy.PolicyExecutionManager;
-import com.fuba.automation_engine.service.policy.PolicyExecutionPlanRequest;
-import com.fuba.automation_engine.service.policy.PolicyExecutionPlanningResult;
 import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
@@ -53,8 +49,6 @@ public class WebhookEventProcessorService {
     private static final String UNEXPECTED_TASK_CREATE_FAILURE = "UNEXPECTED_TASK_CREATE_FAILURE";
     private static final String DEV_MODE_USER_FILTERED = "DEV_MODE_USER_FILTERED";
     private static final String DEV_MODE_TEST_USER_NOT_CONFIGURED = "DEV_MODE_TEST_USER_NOT_CONFIGURED";
-    private static final String ASSIGNMENT_POLICY_DOMAIN = "ASSIGNMENT";
-    private static final String ASSIGNMENT_POLICY_KEY = "FOLLOW_UP_SLA";
 
     private final ProcessedCallRepository processedCallRepository;
     private final FollowUpBossClient followUpBossClient;
@@ -64,7 +58,6 @@ public class WebhookEventProcessorService {
     private final FubRetryProperties fubRetryProperties;
     private final CallOutcomeRulesProperties callOutcomeRulesProperties;
     private final Environment environment;
-    private final PolicyExecutionManager policyExecutionManager;
     private final WorkflowTriggerRouter workflowTriggerRouter;
 
     public WebhookEventProcessorService(
@@ -76,7 +69,6 @@ public class WebhookEventProcessorService {
             FubRetryProperties fubRetryProperties,
             CallOutcomeRulesProperties callOutcomeRulesProperties,
             Environment environment,
-            PolicyExecutionManager policyExecutionManager,
             WorkflowTriggerRouter workflowTriggerRouter) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
@@ -86,7 +78,6 @@ public class WebhookEventProcessorService {
         this.fubRetryProperties = fubRetryProperties;
         this.callOutcomeRulesProperties = callOutcomeRulesProperties;
         this.environment = environment;
-        this.policyExecutionManager = policyExecutionManager;
         this.workflowTriggerRouter = workflowTriggerRouter;
     }
 
@@ -161,61 +152,19 @@ public class WebhookEventProcessorService {
                 leadIds.size());
         if (leadIds.isEmpty()) {
             log.warn(
-                    "No assignment resourceIds present; skipping policy planning eventId={} source={} sourceEventType={}",
+                    "No assignment resourceIds present; skipping assignment-specific processing eventId={} source={} sourceEventType={}",
                     event.eventId(),
                     event.sourceSystem(),
                     sourceEventType);
             return;
         }
 
-        int plannedCount = 0;
-        int failedCount = 0;
-        for (Long leadId : leadIds) {
-            PolicyExecutionPlanRequest request = new PolicyExecutionPlanRequest(
-                    event.sourceSystem(),
-                    event.eventId(),
-                    event.payloadHash(),
-                    String.valueOf(leadId),
-                    event.normalizedDomain(),
-                    event.normalizedAction(),
-                    ASSIGNMENT_POLICY_DOMAIN,
-                    ASSIGNMENT_POLICY_KEY,
-                    null,
-                    Map.of("sourceEventType", sourceEventType == null ? "" : sourceEventType));
-
-            try {
-                PolicyExecutionPlanningResult result = policyExecutionManager.plan(request);
-                plannedCount++;
-                log.info(
-                        "Assignment policy execution planned eventId={} source={} leadId={} normalizedAction={} sourceEventType={} planningStatus={} runId={} reasonCode={}",
-                        event.eventId(),
-                        event.sourceSystem(),
-                        leadId,
-                        event.normalizedAction(),
-                        sourceEventType,
-                        result.status(),
-                        result.runId(),
-                        result.reasonCode());
-            } catch (RuntimeException ex) {
-                failedCount++;
-                log.error(
-                        "Assignment policy planning failed for lead; continuing with remaining leads eventId={} source={} leadId={} normalizedAction={} sourceEventType={}",
-                        event.eventId(),
-                        event.sourceSystem(),
-                        leadId,
-                        event.normalizedAction(),
-                        sourceEventType,
-                        ex);
-            }
-        }
         log.info(
-                "Assignment policy planning fan-out completed eventId={} source={} sourceEventType={} leadIdCount={} plannedCount={} failedCount={}",
+                "Assignment domain event accepted for workflow routing only eventId={} source={} sourceEventType={} leadIdCount={}",
                 event.eventId(),
                 event.sourceSystem(),
                 sourceEventType,
-                leadIds.size(),
-                plannedCount,
-                failedCount);
+                leadIds.size());
     }
 
     private void processUnknownDomainEvent(NormalizedWebhookEvent event) {
