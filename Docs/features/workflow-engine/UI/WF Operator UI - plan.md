@@ -569,6 +569,20 @@ Nav order: WH | PC | PO | WF | WR
      - tests and validation gates pass
      - docs are updated for handoff continuity
 
+#### Phase 4.1 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Scope delivered in Pass 4.1:
+  - dashboard snapshot mapper/types (`dashboardSnapshot.ts`)
+  - dashboard data hook (`useDashboardSnapshotQuery`)
+  - dedicated `queryKeys.dashboard.snapshot` key
+  - centralized `uiText.dashboard` labels/messages
+  - placeholder-first System Health contract using existing endpoints only
+- Implementation notes: [phase-4-implementation.md](phase-4-implementation.md)
+- Deferred to Pass 4.2:
+  - `DashboardPage` UI card composition
+  - `/admin-ui` index route cutover from webhooks redirect
+  - dashboard panel/inspector registration and route assertions
+
 ### Phase 5: Polish & Cross-linking
 
 1. Cross-links: workflow key in run detail -> workflow detail; run ID in workflow detail -> run detail

@@ -24,4 +24,7 @@ export const queryKeys = {
     listForKey: (key: string, filters: WorkflowRunListFilters) => ['workflow-runs', 'key', key, filters] as const,
     detail: (runId: number) => ['workflow-runs', 'detail', runId] as const,
   },
+  dashboard: {
+    snapshot: () => ['dashboard', 'snapshot'] as const,
+  },
 }
