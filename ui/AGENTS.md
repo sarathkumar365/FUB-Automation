@@ -68,6 +68,9 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 - Never log secrets or sensitive payloads.
 - Use `shadcn/ui` as the default component system for reusable UI primitives.
 - Keep string literals centralized. Do not scatter user-facing labels/messages in feature files.
+- Reuse shared pagination and JSON display primitives for workflow/operator surfaces:
+1. `shared/ui/PagePagination.tsx` for page/size/total pagination APIs
+2. `shared/ui/JsonViewer.tsx` for read-only JSON payload rendering with copy support
 - Prefer modular design for components, hooks, and methods. Extract reusable logic to helper files when duplicated or complex.
 - Follow strict UI structure and separation:
 1. `app`: route/shell/provider composition only
@@ -110,13 +113,16 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 - Status: Complete
 - Completed:
 1. Shared reusable component baseline implemented (including `PageHeader`, `DataTable`, `StatusBadge`, state components, `FilterBar`, `ConfirmDialog`, `InspectorPanel`, `PanelNav`).
-2. Centralized constants implemented and consumed (`uiText`, `routes`, `queryDefaults`).
-3. Global floating notification system implemented (`NotifyProvider` + `useNotify` with success/error/warning/info).
-4. Cyan + teal primary theme tokens applied.
-5. Stream contract hook added (`useWebhookStream`) for Step 2 readiness.
+2. Workflow UI foundation shared components are now available:
+   - `PagePagination` for page-based endpoint pagination
+   - `JsonViewer` for reusable payload/graph/trigger JSON display
+3. Centralized constants implemented and consumed (`uiText`, `routes`, `queryDefaults`).
+4. Global floating notification system implemented (`NotifyProvider` + `useNotify` with success/error/warning/info).
+5. Cyan + teal primary theme tokens applied.
+6. Stream contract hook added (`useWebhookStream`) for Step 2 readiness.
    - Subscription lifecycle is stable for unchanged semantic filters; reconnects occur only on semantic filter change or unmount/remount.
-6. Step 1 test suite added and validated with lint/build/test pass.
-7. Option 1 shell migration completed across current routes (`/admin-ui/webhooks`, `/admin-ui/processed-calls`, `/admin-ui/session-disabled`) with route-level panel/inspector registration contracts and context-driven panel rendering.
+7. Step 1 test suite added and validated with lint/build/test pass.
+8. Option 1 shell migration completed across current routes (`/admin-ui/webhooks`, `/admin-ui/processed-calls`, `/admin-ui/session-disabled`) with route-level panel/inspector registration contracts and context-driven panel rendering.
 
 ## Working method
 - Prefer small, reviewable increments.

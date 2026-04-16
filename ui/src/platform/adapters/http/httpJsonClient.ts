@@ -25,7 +25,16 @@ export class HttpJsonClient {
     return this.request('PUT', path, schema, body)
   }
 
-  private async request<T>(method: 'GET' | 'POST' | 'PUT', path: string, schema: ZodType<T>, body?: unknown): Promise<T> {
+  async delete<T>(path: string, schema: ZodType<T>, body?: unknown): Promise<T> {
+    return this.request('DELETE', path, schema, body)
+  }
+
+  private async request<T>(
+    method: 'GET' | 'POST' | 'PUT' | 'DELETE',
+    path: string,
+    schema: ZodType<T>,
+    body?: unknown,
+  ): Promise<T> {
     const response = await fetch(path, {
       method,
       headers: {

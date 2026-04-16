@@ -83,3 +83,11 @@
   - Pass 3 implementation: [waves/wave-5/phase-3-implementation.md](waves/wave-5/phase-3-implementation.md)
   - Pass 5 implementation: [waves/wave-5/phase-5-implementation.md](waves/wave-5/phase-5-implementation.md)
 - Status: Completed (all nine migration steps closed in Passes 1-4; post-cutover legacy policy code removal completed in Pass 5).
+
+## Operator UI Rebuild Track (Post-Wave UI Module)
+- Phase 1 (Foundation): `COMPLETED` on 2026-04-16.
+  - Implementation notes: [UI/phase-1-implementation.md](UI/phase-1-implementation.md)
+- Phase 2 (Workflow Management Module): `PLANNED`
+- Phase 3 (Workflow Runs Module): `PLANNED`
+- Phase 4 (Dashboard): `PLANNED`
+- Phase 5 (Polish & Cross-linking): `PLANNED`

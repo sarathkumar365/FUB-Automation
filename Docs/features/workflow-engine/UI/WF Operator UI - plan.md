@@ -237,6 +237,10 @@ Nav order: WH | PC | PO | WF | WR
    - New tests are added and executed; existing suite executed.
    - Feature docs reflect status and validation notes.
 
+#### Phase 1 Implementation Status
+- Status: `COMPLETED` (2026-04-16)
+- Implementation notes: [phase-1-implementation.md](phase-1-implementation.md)
+
 ### Phase 2: Workflow Management Module
 
 1. Create `workflowsDisplay.ts` -- status tone/label mappers (same pattern as `policiesDisplay.ts`)

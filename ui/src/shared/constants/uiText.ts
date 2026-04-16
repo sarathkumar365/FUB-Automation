@@ -141,6 +141,12 @@ export const uiText = {
     errorMessage: 'An unexpected error occurred. Please try again.',
     retry: 'Retry',
   },
+  common: {
+    paginationPrevious: 'Previous',
+    paginationNext: 'Next',
+    jsonCopy: 'Copy',
+    jsonCopied: 'Copied',
+  },
   filters: {
     apply: 'Apply',
     reset: 'Reset',

@@ -11,8 +11,8 @@ function collectPaths(route: RouteObject): string[] {
 
 describe('policy route/nav cutover', () => {
   it('removes policies from route and navigation exposure', () => {
-    expect(appNavItems.some((item) => item.key === 'policies')).toBe(false)
-    expect(panelNavItems.some((item) => item.key === 'policies')).toBe(false)
+    expect(appNavItems.some((item) => String(item.key) === 'policies')).toBe(false)
+    expect(panelNavItems.some((item) => String(item.key) === 'policies')).toBe(false)
     expect(Object.values(routes)).not.toContain('/admin-ui/policies')
 
     const router = createAppRouter()
