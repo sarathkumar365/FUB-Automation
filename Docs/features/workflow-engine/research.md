@@ -11,7 +11,7 @@ This file is the workflow-engine feature research entrypoint required by the rep
 
 ## Current Ground Truth (Implementation)
 - Wave 1 core runtime exists under `service/workflow/*` with dedicated workflow tables (`V10` migration).
-- Wave 2 code is in progress in working tree:
+- Wave 2 stabilization scope is completed:
   - expression evaluator + template resolution
   - run context and resolved-config persistence
   - parity step implementations (`wait_and_check_communication`, `fub_reassign`, `fub_move_to_pond`)
@@ -26,7 +26,8 @@ This file is the workflow-engine feature research entrypoint required by the rep
 
 ## Risks / Gaps Being Tracked
 - Trigger model/router API authoring in admin endpoints is still deferred.
-- Full admin API surface from technical docs is not complete yet (currently create/get/step-types).
+- Retry control APIs are deferred (run-level retry, step-level retry).
+- Workflow builder UI module is deferred (`ui/src/modules/workflows`).
 - Testcontainers workflow tests are environment dependent (skip when Docker is unavailable).
 - `webhookEventId` propagation into workflow runs remains deferred (router-planned runs keep `null`).
 - `fub_add_tag` remains log-only in Wave 3 by design.

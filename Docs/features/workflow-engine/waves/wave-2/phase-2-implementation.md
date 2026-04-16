@@ -1,7 +1,7 @@
 # Workflow Engine Rebuild — Phase 2 Implementation
 
 ## Status
-In progress
+Completed (status backfilled after Wave 3/4 delivery)
 
 ## Goals for This Stabilization Pass
 - Finalize Wave 2 in-progress code paths and keep working tree build-clean.
@@ -25,7 +25,9 @@ In progress
 - Run context / trigger payload and resolved-config persistence path.
 - Parity step implementations and shared `FubCallHelper`.
 
-## Open Items for Next Phase
-- Workflow trigger router integration (`WebhookEventProcessorService` still routes assignment to policy engine).
-- Additional workflow admin APIs planned in technical design (`PUT`, activate, list, retry).
-- Workflow UI module (`ui/src/modules/workflows`).
+## Open Items Carried Forward / Deferred
+- Workflow trigger router integration: completed in Wave 3.
+- Additional workflow admin APIs:
+  - completed in Wave 4a: `PUT`, activate/deactivate, list, versions, rollback, archive, run inspection.
+  - deferred backlog: run-level retry and step-level retry endpoints.
+- Workflow UI module (`ui/src/modules/workflows`): deferred (Wave 4b backlog).

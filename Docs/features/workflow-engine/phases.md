@@ -2,7 +2,7 @@
 
 ## Wave Status
 - Wave 1: `COMPLETED`
-- Wave 2: `IN_PROGRESS` (stabilization in working tree)
+- Wave 2: `COMPLETED` (stabilization scope delivered; status backfilled after Waves 3/4)
 - Wave 3: `COMPLETED` (Wave 3 Phases 1-4 completed in working tree)
 - Wave 4: `COMPLETED` (4a completed; 4c cancel controls delivered; 4b/retry deferred)
 
@@ -19,7 +19,7 @@
 - Run context + template resolution + resolved-config audit path.
 - Parity step set expansion and shared FUB helper extraction.
 - Worker default safety hardening and workflow admin controller test coverage.
-- Status: In progress.
+- Status: Completed.
 - Implementation notes: [waves/wave-2/phase-2-implementation.md](waves/wave-2/phase-2-implementation.md)
 
 ### Wave 3 — Dynamic Trigger Routing + Retry Primitive

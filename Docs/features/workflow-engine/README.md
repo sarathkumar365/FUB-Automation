@@ -40,7 +40,7 @@ The workflow engine is being rebuilt in tracked **waves**. Each wave has its own
 ### [Wave 1 — Foundations](waves/wave-1/) — `COMPLETED`
 - [phase-1-implementation.md](waves/wave-1/phase-1-implementation.md)
 
-### [Wave 2 — Stabilization](waves/wave-2/) — `IN_PROGRESS`
+### [Wave 2 — Stabilization](waves/wave-2/) — `COMPLETED`
 - [phase-2-implementation.md](waves/wave-2/phase-2-implementation.md)
 
 ### [Wave 3 — Dynamic Trigger Routing + Retry Primitive](waves/wave-3/) — `COMPLETED`
