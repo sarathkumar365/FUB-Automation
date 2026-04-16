@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fuba.automation_engine.config.WorkflowWorkerProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
@@ -13,6 +14,7 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
+import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
 import java.time.Clock;
 import java.time.Instant;
@@ -76,6 +78,17 @@ class WorkflowEngineSmokeTest {
     private WorkflowExecutionManager executionManager;
 
     @Autowired
+    private WorkflowStepExecutionService stepExecutionService;
+
+    @Autowired
+    private WorkflowWorkerProperties workerProperties;
+
+    @Autowired
+    private WorkflowRunStepClaimRepository stepClaimRepository;
+
+    @Autowired
+    private Clock clock;
+
     private WorkflowExecutionDueWorker worker;
 
     @BeforeEach
@@ -83,6 +96,7 @@ class WorkflowEngineSmokeTest {
         stepRepository.deleteAll();
         runRepository.deleteAll();
         workflowRepository.deleteAll();
+        worker = new WorkflowExecutionDueWorker(workerProperties, stepClaimRepository, stepExecutionService, clock);
     }
 
     @Test
@@ -142,29 +156,20 @@ class WorkflowEngineSmokeTest {
         assertEquals(1, secondStep.getPendingDependencyCount());
         assertNull(secondStep.getDueAt());
 
-        // First poll: executes d1, activates d2
+        // First poll: executes both due nodes within the same poll loop.
         worker.pollAndProcessDueSteps();
 
         entryStep = stepRepository.findById(entryStep.getId()).orElseThrow();
         secondStep = stepRepository.findById(secondStep.getId()).orElseThrow();
         assertEquals(WorkflowRunStepStatus.COMPLETED, entryStep.getStatus());
-        assertEquals(WorkflowRunStepStatus.PENDING, secondStep.getStatus());
+        assertEquals(WorkflowRunStepStatus.COMPLETED, secondStep.getStatus());
         assertEquals(0, secondStep.getPendingDependencyCount());
         assertNotNull(secondStep.getDueAt());
 
         WorkflowRunEntity midRun = runRepository.findById(runId).orElseThrow();
-        assertEquals(WorkflowRunStatus.PENDING, midRun.getStatus());
-
-        // Second poll: executes d2, completes run
-        worker.pollAndProcessDueSteps();
-
-        secondStep = stepRepository.findById(secondStep.getId()).orElseThrow();
-        assertEquals(WorkflowRunStepStatus.COMPLETED, secondStep.getStatus());
+        assertEquals(WorkflowRunStatus.COMPLETED, midRun.getStatus());
         assertEquals("DONE", secondStep.getResultCode());
-
-        WorkflowRunEntity completedRun = runRepository.findById(runId).orElseThrow();
-        assertEquals(WorkflowRunStatus.COMPLETED, completedRun.getStatus());
-        assertEquals("COMPLETED", completedRun.getReasonCode());
+        assertEquals("COMPLETED", midRun.getReasonCode());
     }
 
     @Test
@@ -180,6 +185,24 @@ class WorkflowEngineSmokeTest {
         assertEquals(WorkflowPlanningResult.PlanningStatus.DUPLICATE_IGNORED, second.status());
         assertEquals(first.runId(), second.runId());
         assertEquals(1, runRepository.count());
+    }
+
+    @Test
+    void shouldNotDeduplicateAcrossCaseDistinctWorkflowKeys() {
+        seedActiveWorkflow("CaseFlow", singleDelayGraph(0));
+        seedActiveWorkflow("caseflow", singleDelayGraph(0));
+
+        WorkflowPlanRequest firstRequest =
+                new WorkflowPlanRequest("CaseFlow", "TEST", "evt-case", null, "lead-1", null);
+        WorkflowPlanRequest secondRequest =
+                new WorkflowPlanRequest("caseflow", "TEST", "evt-case", null, "lead-1", null);
+
+        WorkflowPlanningResult first = executionManager.plan(firstRequest);
+        WorkflowPlanningResult second = executionManager.plan(secondRequest);
+
+        assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, first.status());
+        assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, second.status());
+        assertEquals(2, runRepository.count());
     }
 
     @Test

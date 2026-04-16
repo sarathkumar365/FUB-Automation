@@ -10,5 +10,6 @@ public record WorkflowResponse(
         Map<String, Object> trigger,
         Map<String, Object> graph,
         String status,
+        Integer versionNumber,
         Long version) {
 }

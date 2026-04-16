@@ -18,7 +18,7 @@ class WorkflowWorkerPropertiesBindingTest {
     void shouldBindDefaultValues() {
         contextRunner.run(context -> {
             WorkflowWorkerProperties properties = context.getBean(WorkflowWorkerProperties.class);
-            assertFalse(properties.isEnabled());
+            assertTrue(properties.isEnabled());
             assertEquals(2000L, properties.getPollIntervalMs());
             assertEquals(50, properties.getClaimBatchSize());
             assertEquals(200, properties.getMaxStepsPerPoll());
@@ -51,6 +51,16 @@ class WorkflowWorkerPropertiesBindingTest {
                     assertEquals(20, properties.getStaleProcessingTimeoutMinutes());
                     assertEquals(3, properties.getStaleProcessingRequeueLimit());
                     assertEquals(12, properties.getStaleProcessingBatchSize());
+                });
+    }
+
+    @Test
+    void shouldBindExplicitDisabledFlag() {
+        contextRunner
+                .withPropertyValues("workflow.worker.enabled=false")
+                .run(context -> {
+                    WorkflowWorkerProperties properties = context.getBean(WorkflowWorkerProperties.class);
+                    assertFalse(properties.isEnabled());
                 });
     }
 

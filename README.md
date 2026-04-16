@@ -102,6 +102,16 @@ This starts:
 ./scripts/run-app.sh prod --profile prod
 ```
 
+### Manual webhook reactivation (dev recovery)
+
+If Follow Up Boss auto-disables managed dev webhooks after repeated delivery failures, run:
+
+```bash
+./scripts/fub-webhook-reactivate.sh
+```
+
+This command only re-enables disabled webhooks for managed events in `config/fub-webhook-events.txt`. It does not create webhooks or update webhook URLs.
+
 ## Frontend Commands
 
 ```bash

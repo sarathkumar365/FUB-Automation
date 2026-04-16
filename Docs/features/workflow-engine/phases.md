@@ -4,7 +4,7 @@
 - Wave 1: `COMPLETED`
 - Wave 2: `IN_PROGRESS` (stabilization in working tree)
 - Wave 3: `COMPLETED` (Wave 3 Phases 1-4 completed in working tree)
-- Wave 4: `PLANNED` (4a admin REST API plan ready; 4b builder UI + 4c operator controls deferred)
+- Wave 4: `COMPLETED` (4a completed; 4c cancel controls delivered; 4b/retry deferred)
 
 ## Wave Definitions
 
@@ -37,5 +37,16 @@
 
 ### Wave 4 — Admin API + Builder UI + Operator Controls
 - 4a: Admin REST API for full workflow lifecycle + read-only run inspection. Plan: [waves/wave-4/phase-4a-implementation-plan.md](waves/wave-4/phase-4a-implementation-plan.md)
+- 4a implementation notes: [waves/wave-4/phase-4a-implementation.md](waves/wave-4/phase-4a-implementation.md)
+- 4a progress:
+  - Phase 1 (foundations) completed and validated.
+  - Phase 2 (workflow CRUD/lifecycle) completed and validated.
+  - Phase 3 (validation endpoint + run inspection APIs) completed and validated.
+  - Phase 4 (closing fixes: version semantics + wave-gate integration) completed and validated.
+  - Wave 4a status: closed.
+- 4c: Operator cancel controls (run-level cancel) delivered.
+  - Plan: [waves/wave-4/phase-4c-implementation-plan.md](waves/wave-4/phase-4c-implementation-plan.md)
+  - Implementation: [waves/wave-4/phase-4c-implementation.md](waves/wave-4/phase-4c-implementation.md)
 - 4b (deferred): Workflow builder UI module.
-- 4c (deferred): Operator controls (cancel/retry at run and step level).
+- Retry controls (deferred): run-level retry and step-level retry endpoints.
+- Status: Completed for current rebuild scope (Wave 4a + 4c cancel delivered; 4b/retry deferred backlog scope).

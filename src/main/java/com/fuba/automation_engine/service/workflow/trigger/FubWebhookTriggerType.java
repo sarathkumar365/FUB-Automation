@@ -35,6 +35,11 @@ public class FubWebhookTriggerType implements WorkflowTriggerType {
     }
 
     @Override
+    public String description() {
+        return "Matches normalized Follow Up Boss webhooks by domain/action with optional JSONata filter.";
+    }
+
+    @Override
     public Map<String, Object> configSchema() {
         return Map.of(
                 "type", "object",

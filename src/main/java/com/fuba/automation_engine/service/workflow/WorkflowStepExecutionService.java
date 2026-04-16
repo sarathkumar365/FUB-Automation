@@ -72,6 +72,10 @@ public class WorkflowStepExecutionService {
             return;
         }
         WorkflowRunEntity run = runOpt.get();
+        if (run.getStatus() != WorkflowRunStatus.PENDING) {
+            skipClaimedStepForNonPendingRun(step, run);
+            return;
+        }
 
         Optional<WorkflowStepType> stepTypeOpt = stepRegistry.get(claimedStep.stepType());
         if (stepTypeOpt.isEmpty()) {
@@ -152,9 +156,11 @@ public class WorkflowStepExecutionService {
         markStepFailed(step, WORKER_UNHANDLED_EXCEPTION, errorMessage);
 
         runRepository.findById(claimedStep.runId()).ifPresent(run -> {
-            run.setStatus(WorkflowRunStatus.FAILED);
-            run.setReasonCode(truncate(WORKER_UNHANDLED_EXCEPTION, 64));
-            runRepository.save(run);
+            if (run.getStatus() == WorkflowRunStatus.PENDING) {
+                run.setStatus(WorkflowRunStatus.FAILED);
+                run.setReasonCode(truncate(WORKER_UNHANDLED_EXCEPTION, 64));
+                runRepository.save(run);
+            }
         });
 
         log.info("Worker-unhandled exception during workflow step execution stepId={} runId={} stepType={}",
@@ -178,7 +184,7 @@ public class WorkflowStepExecutionService {
         }
         for (Long runId : failedRunIds) {
             runRepository.findById(runId).ifPresent(run -> {
-                if (run.getStatus() == WorkflowRunStatus.COMPLETED || run.getStatus() == WorkflowRunStatus.FAILED) {
+                if (run.getStatus() != WorkflowRunStatus.PENDING) {
                     return;
                 }
                 run.setStatus(WorkflowRunStatus.FAILED);
@@ -199,7 +205,7 @@ public class WorkflowStepExecutionService {
 
         RunContext.RunMetadata metadata = new RunContext.RunMetadata(
                 run.getId(), run.getWorkflowKey(),
-                run.getWorkflowVersion() != null ? run.getWorkflowVersion() : 0L);
+                resolveWorkflowVersionNumber(run));
 
         return new RunContext(
                 metadata,
@@ -218,6 +224,14 @@ public class WorkflowStepExecutionService {
             resolved.put(entry.getKey(), resolveValue(entry.getValue(), scope));
         }
         return resolved;
+    }
+
+    private long resolveWorkflowVersionNumber(WorkflowRunEntity run) {
+        // Stored value is append-only workflow version_number, not JPA optimistic-lock version.
+        if (run == null || run.getWorkflowVersion() == null) {
+            return 1L;
+        }
+        return run.getWorkflowVersion();
     }
 
     @SuppressWarnings("unchecked")
@@ -396,11 +410,28 @@ public class WorkflowStepExecutionService {
             String reasonCode,
             String errorMessage) {
         markStepFailed(step, reasonCode, errorMessage);
-        run.setStatus(WorkflowRunStatus.FAILED);
-        run.setReasonCode(truncate(reasonCode, 64));
-        runRepository.save(run);
+        if (run.getStatus() == WorkflowRunStatus.PENDING) {
+            run.setStatus(WorkflowRunStatus.FAILED);
+            run.setReasonCode(truncate(reasonCode, 64));
+            runRepository.save(run);
+        }
         log.warn("Workflow step execution failed stepId={} runId={} nodeId={} reasonCode={}",
                 step.getId(), run.getId(), step.getNodeId(), reasonCode);
+    }
+
+    private void skipClaimedStepForNonPendingRun(WorkflowRunStepEntity step, WorkflowRunEntity run) {
+        if (step.getStatus() == WorkflowRunStepStatus.COMPLETED
+                || step.getStatus() == WorkflowRunStepStatus.FAILED
+                || step.getStatus() == WorkflowRunStepStatus.SKIPPED) {
+            return;
+        }
+        step.setStatus(WorkflowRunStepStatus.SKIPPED);
+        step.setDueAt(null);
+        step.setResultCode(null);
+        step.setErrorMessage(null);
+        stepRepository.save(step);
+        log.info("Workflow step claim skipped because run is not pending stepId={} runId={} runStatus={}",
+                step.getId(), run.getId(), run.getStatus());
     }
 
     private void markStepFailed(WorkflowRunStepEntity step, String reasonCode, String errorMessage) {

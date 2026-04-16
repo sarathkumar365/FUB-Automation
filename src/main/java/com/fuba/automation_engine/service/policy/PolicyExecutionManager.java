@@ -8,6 +8,7 @@ import com.fuba.automation_engine.persistence.repository.PolicyExecutionRunRepos
 import com.fuba.automation_engine.persistence.repository.PolicyExecutionStepRepository;
 import com.fuba.automation_engine.service.policy.AutomationPolicyService.LookupResult;
 import com.fuba.automation_engine.service.policy.AutomationPolicyService.PolicyView;
+import com.fuba.automation_engine.service.support.KeyNormalizationHelper;
 import jakarta.persistence.EntityManager;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
@@ -86,8 +87,8 @@ public class PolicyExecutionManager {
         run.setEventId(request.eventId());
         run.setWebhookEventId(request.webhookEventId());
         run.setSourceLeadId(request.sourceLeadId());
-        run.setDomain(normalize(request.policyDomain()));
-        run.setPolicyKey(normalize(request.policyKey()));
+        run.setDomain(KeyNormalizationHelper.normalizePolicyDomainOrEmpty(request.policyDomain()));
+        run.setPolicyKey(KeyNormalizationHelper.normalizePolicyKeyOrEmpty(request.policyKey()));
         run.setPolicyVersion(policy.version() == null ? 0L : policy.version());
         run.setPolicyBlueprintSnapshot(policy.blueprint() == null ? Map.of() : policy.blueprint());
         run.setStatus(PolicyExecutionRunStatus.PENDING);
@@ -112,8 +113,8 @@ public class PolicyExecutionManager {
         run.setEventId(request.eventId());
         run.setWebhookEventId(request.webhookEventId());
         run.setSourceLeadId(request.sourceLeadId());
-        run.setDomain(normalize(request.policyDomain()));
-        run.setPolicyKey(normalize(request.policyKey()));
+        run.setDomain(KeyNormalizationHelper.normalizePolicyDomainOrEmpty(request.policyDomain()));
+        run.setPolicyKey(KeyNormalizationHelper.normalizePolicyKeyOrEmpty(request.policyKey()));
         run.setPolicyVersion(0L);
         run.setPolicyBlueprintSnapshot(Map.of());
         run.setStatus(PolicyExecutionRunStatus.BLOCKED_POLICY);
@@ -215,8 +216,8 @@ public class PolicyExecutionManager {
 
     private String buildIdempotencyKey(PolicyExecutionPlanRequest request) {
         StringJoiner joiner = new StringJoiner("|");
-        joiner.add(normalize(request.policyDomain()));
-        joiner.add(normalize(request.policyKey()));
+        joiner.add(KeyNormalizationHelper.normalizePolicyDomainOrEmpty(request.policyDomain()));
+        joiner.add(KeyNormalizationHelper.normalizePolicyKeyOrEmpty(request.policyKey()));
         joiner.add(request.sourceSystem() == null ? "UNKNOWN" : request.sourceSystem().name());
         joiner.add(request.normalizedDomain() == null ? "UNKNOWN" : request.normalizedDomain().name());
         joiner.add(request.normalizedAction() == null ? "UNKNOWN" : request.normalizedAction().name());
