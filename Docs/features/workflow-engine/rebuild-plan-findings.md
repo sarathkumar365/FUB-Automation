@@ -5,7 +5,7 @@
 - Focus: plan/design issues for the workflow-engine rebuild (not a claim that implementation is complete).
 
 ## Wave 1 Reference
-- Wave 1 implementation details: [workflow-engine-technical-implementation.md](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/features/workflow-engine-technical-implementation.md)
+- Wave 1 implementation details: [workflow-engine-technical-implementation.md](workflow-engine-technical-implementation.md)
 
 ## Status Legend
 - **FIXED** — Addressed in Wave 1 code

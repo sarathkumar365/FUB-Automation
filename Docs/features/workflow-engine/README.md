@@ -30,6 +30,10 @@ The workflow engine is being rebuilt in tracked **waves**. Each wave has its own
 | [phases.md](phases.md) | Wave status tracker + links into every wave folder. Start here. |
 | [research.md](research.md) | Feature research entrypoint (required by the repo feature workflow). |
 | [rebuild-plan-findings.md](rebuild-plan-findings.md) | Consolidated senior-review findings that motivated the rebuild. |
+| [workflow-engine-implementation-plan.md](workflow-engine-implementation-plan.md) | Original implementation-plan narrative and section breakdown. |
+| [workflow-engine-technical-implementation.md](workflow-engine-technical-implementation.md) | Detailed technical design and schema-level notes. |
+| [policy-engine-rebuild-analysis-and-plan.md](policy-engine-rebuild-analysis-and-plan.md) | Legacy analysis document that informed the workflow rebuild direction. |
+| [scenarios/lead-intake-call-attempt-workflow/](scenarios/lead-intake-call-attempt-workflow/) | Scenario pack for complex lead-intake/call-attempt workflow and capability-gap planning. |
 
 ## Waves
 

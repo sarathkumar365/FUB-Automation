@@ -155,7 +155,7 @@ Status: Completed (Step 1 through Step 4 completed)
   - Communication check now uses People payload `contacted` via `getPersonById(...)`.
   - Action target semantics are intentionally undecided; action executor fails explicitly with `ACTION_TARGET_UNCONFIGURED` until finalized.
   - Keep adapter calls behind `FollowUpBossClient` port and preserve layered boundaries (`controller -> service -> port -> adapter`).
-  - Hardening tasks from `Docs/known-issues.md` stay deferred.
+  - Hardening tasks from `Docs/engineering-reference/known-issues.md` stay deferred.
 
 ## Superseded Notes
 - Phase 7 supersedes the action-target deferral in this log:

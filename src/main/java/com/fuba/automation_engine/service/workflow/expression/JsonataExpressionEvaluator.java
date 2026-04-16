@@ -55,7 +55,7 @@ public class JsonataExpressionEvaluator implements ExpressionEvaluator {
             Jsonata jsonata = Jsonata.jsonata(expression);
             return jsonata.evaluate(scope.data());
         } catch (Exception ex) {
-            // Known issue #10 (Docs/known-issues.md):
+            // Known issue #10 (Docs/engineering-reference/known-issues.md):
             // invalid JSONata currently degrades to null instead of failing fast.
             log.warn("JSONata expression evaluation failed expression='{}' error='{}'", expression, ex.getMessage());
             return null;
