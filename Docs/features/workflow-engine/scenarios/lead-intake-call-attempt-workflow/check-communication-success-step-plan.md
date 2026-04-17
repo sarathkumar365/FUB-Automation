@@ -1,12 +1,13 @@
 # Check Communication Success Step — Plan
 
 ## Summary
-Replace the call-only step plan with one **single workflow step type** that is channel-extensible from day one.
-This phase implements the **call channel now**, while preserving a stable workflow-node contract for future channels (`sms`, `email`, etc.).
+Add a **new workflow step type** `check_communication_success` (no replacement of existing steps).
+The step remains a single workflow node in UI, and supports channel-based internal orchestration.
+This phase implements `channel=call` only, while keeping the design extensible for future channels.
 
 ## Implementation Changes
 
-### 1) Single step contract (UI/API stable)
+### 1) New step contract (add-only)
 - New step type: `check_communication_success`
 - Config schema (v1):
   - `channel` (required enum): `call` (future: `sms`, `email`)
@@ -23,41 +24,45 @@ This phase implements the **call channel now**, while preserving a stable workfl
   - `outcome` (call channel)
   - `classificationReason`
 
-### 2) Java architecture (extensible by channel)
-- Introduce strategy interface and channel-specific implementations:
+### 2) Java architecture (single node, internal orchestration)
+- Keep one workflow step class for `check_communication_success`.
+- Internally, use channel strategy orchestration:
   - `CommunicationSuccessChecker`
   - `channel()`
   - `check(leadId, lookbackMinutes, runContext) -> CommunicationCheckResult`
-- Add checker registry/factory resolving checker by `channel`.
-- Keep `check_communication_success` workflow step as orchestration:
+- Add registry/factory resolving checker by `channel`.
+- `check_communication_success` step responsibilities:
   - validate config
   - resolve checker by channel
   - invoke checker
-  - map checker result to `StepExecutionResult` and standard outputs
+  - map to `StepExecutionResult` and standard outputs
 
-### 3) Call channel implementation (v1)
-- Implement `CallCommunicationSuccessChecker`.
-- Decision contract:
-  - scope: latest **outbound** call only, within `lookbackMinutes`
-  - no outbound call in window -> `UNKNOWN` (`NO_OUTBOUND_CALL`)
-  - call exists but `duration` or `outcome` missing -> `UNKNOWN` (`MISSING_CALL_FIELDS`)
-  - `outcome == "no answer"` (case-insensitive) -> `NOT_SUCCESSFUL`
-  - `duration > rules.call-outcome.short-call-threshold-seconds` -> `SUCCESSFUL`
-  - otherwise -> `NOT_SUCCESSFUL`
+### 3) Reuse-first rule source (from existing call processor path)
+Reuse current logic/contracts already in platform:
+- Decision rules from `CallDecisionEngine` (including no-answer + duration-based logic)
+- Threshold from `rules.call-outcome.short-call-threshold-seconds`
+- Retry/error handling pattern from `WebhookEventProcessorService.executeWithRetry(...)` and FUB transient/permanent mapping
 
-### 4) FUB integration additions
-- Extend FUB client port with one method to fetch latest outbound call for person within lookback window.
-- Implement adapter method using calls list endpoint/filtering and map to minimal call-summary DTO.
-- Preserve error mapping semantics:
-  - transient errors (`429`, `5xx`, network) -> transient step failure
-  - permanent errors (`4xx` non-`429`, invalid payload) -> non-transient step failure
+Only net-new decision mapping for this step:
+- no outbound call in window -> `UNKNOWN` (`NO_OUTBOUND_CALL`)
+- call exists but `duration` or `outcome` missing -> `UNKNOWN` (`MISSING_CALL_FIELDS`)
+- otherwise apply reused call success logic and map to `SUCCESSFUL` / `NOT_SUCCESSFUL`
+
+### 4) New data lookup needed (latest outbound call)
+This is the only core capability not already in call-processor flow:
+- Add FUB client port method to fetch latest outbound call for a person within `lookbackMinutes`
+- Implement in FUB adapter using calls endpoint filtering/sorting
+- Return minimal call summary DTO used by the new step
+- Preserve existing error mapping semantics:
+  - transient (`429`, `5xx`, network) -> transient step failure
+  - permanent (`4xx` non-`429`, invalid payload) -> non-transient step failure
 
 ## Test Plan
 
 ### 1) Step orchestration tests
-- Unknown channel -> config/validation failure
-- Registry dispatch selects correct checker for `channel=call`
-- Checker result maps to expected `StepExecutionResult` code and outputs
+- Unknown channel -> validation failure
+- Registry dispatch resolves `channel=call`
+- Checker result maps to expected result code and outputs
 
 ### 2) Call checker tests
 - No outbound call -> `UNKNOWN`
@@ -67,14 +72,14 @@ This phase implements the **call channel now**, while preserving a stable workfl
 - Short/zero duration -> `NOT_SUCCESSFUL`
 
 ### 3) FUB adapter tests
-- Query/filter correctness for person + outbound + recency + newest selection
-- Error classification validation (transient vs permanent)
+- Latest-outbound lookup query/filter correctness (person + outbound + recency + newest)
+- Transient vs permanent error mapping behavior
 
 ### 4) Step catalog contract test
-- `/admin/workflows/step-types` includes `check_communication_success` with expected schema and result codes
+- `/admin/workflows/step-types` includes `check_communication_success` with expected schema/result codes
 
 ## Assumptions and Defaults
-- This remains **one workflow node** in UI.
+- This is an add-only step; existing steps remain unchanged.
 - `channel=call` is the only enabled channel in this phase.
 - Global threshold source remains `rules.call-outcome.short-call-threshold-seconds`.
 - Downstream task step can use `actorUserId` output to assign follow-up task to the caller.
