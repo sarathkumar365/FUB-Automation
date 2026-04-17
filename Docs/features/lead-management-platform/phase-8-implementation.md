@@ -15,6 +15,8 @@ Step 1 only: create the foundation `leads` table to establish lead as a first-cl
 - Added Postgres migration regression test:
   - `LeadsTableMigrationPostgresRegressionTest`
   - validates table creation, core columns, and identity uniqueness constraint.
+- Updated deep-dive schema documentation to include `leads` table and intended use case:
+  - `Docs/deep-dive/04-configuration-and-schema.md`
 
 ## Notes
 - This increment intentionally adds table foundation only. No runtime ingest/upsert wiring is included in this phase step.

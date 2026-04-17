@@ -121,6 +121,32 @@ finalDelay = clamp(jitteredDelay, 0, maxDelayMs)
 - UNIQUE on `call_id`
 - `idx_processed_calls_status_updated_at` — on `(status, updated_at)`
 
+### `leads` (V14)
+
+Use case:
+- Canonical lead foundation table for all lead-centric platform features.
+- Stores one current snapshot row per external source identity.
+- Future lead-scoped actions (workflows, call assessments, tasking, intent flows) should associate to this lead record.
+
+| Column | Type | Nullable | Default | Notes |
+|--------|------|----------|---------|-------|
+| `id` | `BIGSERIAL` | NO | auto | PK |
+| `source_system` | `VARCHAR(32)` | NO | | Source namespace (for example `FUB`, `INTERNAL`) |
+| `source_lead_id` | `VARCHAR(255)` | NO | | Source-native lead/person identifier |
+| `status` | `VARCHAR(32)` | NO | `'ACTIVE'` | `ACTIVE`, `ARCHIVED`, `MERGED` |
+| `lead_details` | `JSONB` | NO | `'{}'::jsonb` | Canonical lead snapshot payload |
+| `created_at` | `TIMESTAMPTZ` | NO | `NOW()` | Row creation time |
+| `updated_at` | `TIMESTAMPTZ` | NO | `NOW()` | Last row update time |
+| `last_synced_at` | `TIMESTAMPTZ` | NO | `NOW()` | Last source-sync time for the snapshot |
+
+**Constraints:**
+- `uk_leads_source_system_source_lead_id` — UNIQUE on `(source_system, source_lead_id)`
+- `chk_leads_status` — CHECK `status IN ('ACTIVE', 'ARCHIVED', 'MERGED')`
+
+**Indexes:**
+- `idx_leads_source_system_status_updated_at` — on `(source_system, status, updated_at DESC)`
+- `idx_leads_last_synced_at` — on `(last_synced_at DESC)`
+
 ### `automation_policies` (V5 + V6)
 
 | Column | Type | Nullable | Default | Notes |
