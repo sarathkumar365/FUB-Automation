@@ -2,7 +2,7 @@
 
 This document tracks currently known issues identified in the codebase.
 
-**Last reviewed:** 2026-04-09
+**Last reviewed:** 2026-04-17
 
 | # | Issue | Priority | Status |
 |---|-------|----------|--------|
@@ -16,6 +16,7 @@ This document tracks currently known issues identified in the codebase.
 | 8 | Stale recovery can leave requeued steps in runs already failed | Medium | Open |
 | 9 | Active policy blueprint read validation is temporarily bypassed | High | Open (Temporary) |
 | 10 | JSONata evaluator swallows expression errors and returns null | High | Open |
+| 11 | Time-sensitive workflow steps can execute after business validity window under sustained backlog | High | Open |
 
 ---
 
@@ -104,3 +105,12 @@ This document tracks currently known issues identified in the codebase.
 - **Issue:** `evaluateExpression` catches all exceptions and returns `null` rather than surfacing an error to callers.
 - **Impact:** Invalid expressions can be treated as normal values and silently route `branch_on_field` steps through fallback/default paths instead of failing visibly.
 - **Suggested fix:** Fail fast for invalid expressions (throw a typed runtime exception or return an explicit error result), and let execution layer mark the step/run as failed.
+
+## 11) Time-sensitive workflow steps can execute after business validity window under sustained backlog
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/WorkflowExecutionDueWorker.java`, `persistence/repository/JdbcWorkflowRunStepClaimRepository.java`, `persistence/entity/WorkflowRunStepEntity.java`
+- **Issue:** Worker execution is due-time driven (`PENDING` + `due_at <= now`) with no explicit per-step expiration/deadline guard. Under sustained ingress above worker throughput, backlog can defer execution past the intended business window.
+- **Impact:** Time-prone automations may run too late and produce stale or invalid side effects even though the step eventually executes.
+- **Suggested fix:** Add explicit step deadline semantics (for example `expires_at`/`deadline_at`) and enforce pre-execution expiry checks (`EXPIRED`/`SKIPPED_TIMEOUT`), plus schedule-lag observability/alerting and priority isolation for time-critical step types.
