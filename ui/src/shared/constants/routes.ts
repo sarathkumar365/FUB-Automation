@@ -8,6 +8,8 @@ export const routes = {
   processedCalls: '/admin-ui/processed-calls',
   workflows: '/admin-ui/workflows',
   workflowDetail: (key: string) => `/admin-ui/workflows/${encodeURIComponent(key)}`,
+  workflowBuilderNew: '/admin-ui/workflows/new',
+  workflowBuilderEdit: (key: string) => `/admin-ui/workflows/${encodeURIComponent(key)}/edit`,
   workflowRuns: '/admin-ui/workflow-runs',
   workflowRunDetail: (runId: number) => `/admin-ui/workflow-runs/${encodeURIComponent(String(runId))}`,
   sessionDisabled: '/admin-ui/session-disabled',

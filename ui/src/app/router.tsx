@@ -7,6 +7,7 @@ import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
 import { ProcessedCallsPage } from '../modules/processed-calls/ui/ProcessedCallsPage'
 import { WorkflowsPage } from '../modules/workflows/ui/WorkflowsPage'
 import { WorkflowDetailPage } from '../modules/workflows/ui/WorkflowDetailPage'
+import { WorkflowBuilderPage } from '../modules/workflows-builder/ui/WorkflowBuilderPage'
 import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
 import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
 import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
@@ -44,6 +45,14 @@ export function createAppRouter() {
             {
               path: 'workflows',
               element: <WorkflowsPage />,
+            },
+            {
+              path: 'workflows/new',
+              element: <WorkflowBuilderPage />,
+            },
+            {
+              path: 'workflows/:key/edit',
+              element: <WorkflowBuilderPage />,
             },
             {
               path: 'workflows/:key',
