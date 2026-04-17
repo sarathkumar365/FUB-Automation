@@ -94,7 +94,25 @@ Out of scope (defer):
 | Hosting | Local/ngrok (POC) | Free |
 | Total (baseline) | | ~$50 + telephony usage |
 
-## 8. Implementation Roadmap (Days)
+## 8. Realtime Model Comparison (Pricing + Conversation Feel)
+Pricing snapshot date: April 16, 2026.
+
+| Model | API Name | Status | Audio Pricing (Input / Output, per 1M tokens) | Text Pricing (Input / Output, per 1M tokens) | Conversation Feel (Naturality / Emotion) |
+|---|---|---|---|---|---|
+| GPT Realtime Mini | `gpt-realtime-mini` | Current | $10 / $20 | $0.60 / $2.40 | Medium. Cost-efficient and usable, but typically less expressive and less human-like than larger realtime models. |
+| GPT Realtime 1.5 | `gpt-realtime` | Current (GA) | $32 / $64 | $4 / $16 | High. Best overall fit for natural, genuine realtime call conversations in this POC. |
+| GPT-4o Realtime | `gpt-4o-realtime-preview` | Preview | $40 / $80 | $5 / $20 | High, but preview + higher cost than `gpt-realtime`; not preferred for minimum-spend POC. |
+
+Notes:
+1. Conversation-feel ratings above are inference-based (no official public numeric score for "naturality" or "emotional feel").
+2. If "genuine human conversation feel" is priority, start with `gpt-realtime`.
+3. If minimum cost is priority, start with `gpt-realtime-mini`.
+
+POC default recommendation:
+1. Live calls: `gpt-realtime`
+2. Non-live/background analysis (optional): `gpt-realtime-mini`
+
+## 9. Implementation Roadmap (Days)
 1. Define Java workflow steps to start/check AI call session.
 2. Build Python service endpoints + Twilio/OpenAI Realtime bridge.
 3. Integrate structured result mapping into Java workflow branching.
@@ -103,5 +121,4 @@ Out of scope (defer):
    - claimed lead (no call)
    - unclaimed + connected
    - unclaimed + no answer
-
 
