@@ -1,5 +1,6 @@
 package com.fuba.automation_engine.integration;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
@@ -175,6 +176,11 @@ class AdminProcessedCallsFlowTest {
         @Override
         public PersonDetails getPersonById(long personId) {
             return new PersonDetails(personId, null, null, null);
+        }
+
+        @Override
+        public JsonNode getPersonRawById(long personId) {
+            throw new UnsupportedOperationException("Not used in admin processed calls flow tests");
         }
 
         @Override

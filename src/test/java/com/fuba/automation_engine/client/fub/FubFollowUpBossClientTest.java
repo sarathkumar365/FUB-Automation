@@ -63,7 +63,7 @@ class FubFollowUpBossClientTest {
             systemKeyHeader.set(exchange.getRequestHeaders().getFirst("X-System-Key"));
 
             byte[] payload = """
-                    {"id":123,"personId":42,"duration":15,"userId":30,"outcome":"No Answer"}
+                    {"id":123,"personId":42,"duration":15,"userId":30,"outcome":"No Answer","isIncoming":true,"created":"2026-04-17T19:30:09Z"}
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
@@ -80,6 +80,8 @@ class FubFollowUpBossClientTest {
         assertEquals(15, details.duration());
         assertEquals(30L, details.userId());
         assertEquals("No Answer", details.outcome());
+        assertEquals(true, details.isIncoming());
+        assertEquals(OffsetDateTime.parse("2026-04-17T19:30:09Z"), details.createdAt());
 
         assertEquals("Basic " + base64("my-api-key:"), authHeader.get());
         assertEquals("my-system", systemHeader.get());
@@ -155,7 +157,7 @@ class FubFollowUpBossClientTest {
         properties.setApiKey("api-key");
         properties.setXSystem("sys");
         properties.setXSystemKey("sys-key");
-        FubFollowUpBossClient client = new FubFollowUpBossClient(RestClient.builder(), properties);
+        FubFollowUpBossClient client = new FubFollowUpBossClient(RestClient.builder(), properties, new com.fasterxml.jackson.databind.ObjectMapper());
 
         FubTransientException exception = assertThrows(FubTransientException.class, () -> client.getPersonById(801L));
         assertEquals(null, exception.getStatusCode());
@@ -309,7 +311,7 @@ class FubFollowUpBossClientTest {
         properties.setApiKey(apiKey);
         properties.setXSystem(system);
         properties.setXSystemKey(systemKey);
-        return new FubFollowUpBossClient(RestClient.builder(), properties);
+        return new FubFollowUpBossClient(RestClient.builder(), properties, new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     private String base64(String value) {

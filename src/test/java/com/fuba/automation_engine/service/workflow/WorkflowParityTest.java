@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fuba.automation_engine.config.WorkflowWorkerProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
@@ -366,6 +367,11 @@ class WorkflowParityTest {
         @Override
         public PersonDetails getPersonById(long personId) {
             return personDetailsMap.get(personId);
+        }
+
+        @Override
+        public JsonNode getPersonRawById(long personId) {
+            throw new UnsupportedOperationException("Not used in workflow parity tests");
         }
 
         @Override

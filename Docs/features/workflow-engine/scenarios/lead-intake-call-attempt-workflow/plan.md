@@ -12,6 +12,8 @@ Define a phased path from current workflow-only capability to the requested end-
 - Outcome: production-usable minimal baseline.
 
 ### Phase 2 — Local Data Read-Model Foundation (decision-complete)
+- Active implementation record: [lead-data-foundation-plan.md](lead-data-foundation-plan.md).
+- Current execution status (2026-04-17): Phase A and Phase B completed; Phase C pending (see [phase-2-implementation.md](phase-2-implementation.md)).
 - Persist assignment/lead snapshot updates from supported assignment webhooks into local lead state.
 - Extend `processed_calls` to persist call facts needed for communication classification (person/lead linkage, direction, duration, outcome, call/event timestamps, enrichment metadata).
 - Introduce runtime lead-state wiring for the existing `leads` table (entity/repository/service upsert path keyed by `source_system + source_lead_id`).

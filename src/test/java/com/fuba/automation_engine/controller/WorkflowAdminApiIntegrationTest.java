@@ -536,6 +536,11 @@ class WorkflowAdminApiIntegrationTest {
         }
 
         @Override
+        public JsonNode getPersonRawById(long personId) {
+            throw new UnsupportedOperationException("Not used in workflow admin integration test");
+        }
+
+        @Override
         public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
             throw new UnsupportedOperationException("Not used in workflow admin integration test");
         }

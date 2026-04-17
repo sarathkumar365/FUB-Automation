@@ -1,5 +1,6 @@
 package com.fuba.automation_engine.service.workflow;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
@@ -407,6 +408,11 @@ class WorkflowTriggerEndToEndTest {
 
         @Override
         public PersonDetails getPersonById(long personId) {
+            throw new UnsupportedOperationException("Not used in workflow trigger E2E tests");
+        }
+
+        @Override
+        public JsonNode getPersonRawById(long personId) {
             throw new UnsupportedOperationException("Not used in workflow trigger E2E tests");
         }
 
