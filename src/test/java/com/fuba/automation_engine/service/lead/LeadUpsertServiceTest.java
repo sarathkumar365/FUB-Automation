@@ -100,6 +100,43 @@ class LeadUpsertServiceTest {
         assertThrows(IllegalArgumentException.class, () -> service.upsertFubPerson("19355", null));
     }
 
+    @Test
+    void shouldClassifyAsLeadWhenStageIsLead() throws Exception {
+        JsonNode personPayload = OBJECT_MAPPER.readTree("""
+                {
+                  "id": 19355,
+                  "stage": "Lead"
+                }
+                """);
+
+        assertTrue(service.isFubLeadPerson(personPayload));
+    }
+
+    @Test
+    void shouldClassifyAsNonLeadWhenStageMissingBlankOrDifferent() throws Exception {
+        JsonNode missingStage = OBJECT_MAPPER.readTree("""
+                {
+                  "id": 19355
+                }
+                """);
+        JsonNode blankStage = OBJECT_MAPPER.readTree("""
+                {
+                  "id": 19355,
+                  "stage": "   "
+                }
+                """);
+        JsonNode nonLeadStage = OBJECT_MAPPER.readTree("""
+                {
+                  "id": 19355,
+                  "stage": "Prospect"
+                }
+                """);
+
+        assertFalse(service.isFubLeadPerson(missingStage));
+        assertFalse(service.isFubLeadPerson(blankStage));
+        assertFalse(service.isFubLeadPerson(nonLeadStage));
+    }
+
     private String samplePersonJson() {
         return """
                 {

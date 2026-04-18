@@ -2,11 +2,12 @@
 
 ## Status
 - Active. Supersedes the Phase 2 content in [plan.md](plan.md) and reframes it as a data-foundation effort rather than a step-only effort.
-- Goal: enable a new workflow step that can decide "has this lead been successfully contacted by an agent?" from local data, by wiring up the currently-dormant `leads` table and enriching existing call persistence — with minimum engineering effort.
+- Goal: complete the local data foundation by wiring up the currently-dormant `leads` table and enriching existing call persistence, so future step work can be built on reliable local facts.
 - Implementation progress (2026-04-17):
   - Phase A: complete
   - Phase B: complete
-  - Phase C: pending
+  - Phase C: dropped from this phase (no step delivery)
+- Validation (2026-04-17): `./mvnw -q test` -> `305 tests, 0 failures, 0 errors, 0 skipped`.
 
 ## Problem Statement
 The data required to answer "did the lead and the agent talk?" exists in pieces across the system but is never joined:
@@ -15,7 +16,7 @@ The data required to answer "did the lead and the agent talk?" exists in pieces 
 - [`webhook_events`](../../../../../src/main/resources/db/migration/V1__create_webhook_events.sql) has a `source_lead_id` column that [`FubWebhookParser`](../../../../../src/main/java/com/fuba/automation_engine/service/webhook/parse/FubWebhookParser.java) currently hardcodes to `NULL` for assignment events.
 - [`FollowUpBossClient#checkPersonCommunication`](../../../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java) only reads `person.contacted > 0` — a blunt counter, not evidence of an actual agent conversation.
 
-Without a durable join between a lead and the calls associated with it, any "communication success" step has to fall back to external FUB reads on every tick.
+Without a durable join between a lead and the calls associated with it, communication checks cannot be made reliably from local data.
 
 ## Locked Decisions
 | # | Decision | Rationale |
@@ -23,10 +24,10 @@ Without a durable join between a lead and the calls associated with it, any "com
 | 1 | **`leads` is the only identity entity.** No separate `persons` table. | `persons` is a FUB-internal concept; our platform should not leak it. |
 | 2 | **`source_lead_id` = raw FUB `personId`** (e.g., `"19355"`). Global identity is the composite `(source_system, source_lead_id)`. | Matches existing V14 schema; `peopleCreated.resourceIds[0]` == `personId` (confirmed against live FUB payload on 2026-04-17). |
 | 3 | **No new `lead_calls` table.** Extend existing `processed_calls` with the fields we need. | Minimum effort. Reuse the table that already holds one row per call. A dedicated `lead_*` content table can come later if SMS/email join the picture. |
-| 4 | **New step is a new step.** Do **not** refactor [`WaitAndCheckCommunicationWorkflowStep`](../../../../../src/main/java/com/fuba/automation_engine/service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.java). Leave it; add a pointer comment. | Keeps scope tight. Existing step is already production-wired. |
-| 5 | **Contact-success rule = connected outbound OR inbound callback** within a lookback window. Configurable at **code level only**, not DB. | Avoids premature policy abstraction; toggleable via constants/bean. |
-| 6 | **Forward-only.** No backfill of existing `processed_calls` rows. | User confirmed; historical rows are ledger-only. |
-| 7 | **Lead rows are created on `peopleCreated` / `peopleUpdated` only.** Calls for an unknown lead fail loud (log + skip). | FUB event ordering places `peopleCreated` before `callsCreated`. Silent stubs would hide ordering bugs. |
+| 4 | **No new workflow step in this phase.** `wait_and_check_communication` remains unchanged, and `check_conversation_success` is dropped. | Keeps Phase 2 focused on data foundation only. |
+| 5 | **Forward-only.** No backfill of existing `processed_calls` rows. | User confirmed; historical rows are ledger-only. |
+| 6 | **Lead rows are created on `peopleCreated` / `peopleUpdated` only, and only when person payload has `stage == "Lead"`.** | Prevents non-lead people records from entering the `leads` table. |
+| 7 | **Calls without a matching lead row are still persisted.** Emit warning log only. | Preserves call ledger auditability despite event-order gaps. |
 
 ## Current-State Snapshot (factual)
 | Concern | State Today |
@@ -65,6 +66,7 @@ Make every FUB person/lead event leave a durable row in `leads` keyed by `(sourc
 2. **Upsert service**
    - `LeadUpsertService.upsertFromAssignmentEvent(normalizedEvent, fetchedPerson)`:
      - Key: `(source_system="FUB", source_lead_id=resourceIds[0])`.
+     - Lead classification gate: treat payload as lead only when `stage` equals `"Lead"`.
      - `lead_details` JSONB = minimal snapshot (name, stage, assignedUserId, claimed, tags, phones, emails) from the person payload.
      - Idempotent; updates `last_synced_at` and mutable fields; leaves `created_at` alone.
 3. **Wire into webhook processing**
@@ -107,7 +109,7 @@ Persist the FUB `CallDetails` fields needed to answer "did a real conversation h
    - Extend the FUB JSON mapping in [`FubFollowUpBossClient#getCallById`](../../../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java#L57) to read `isIncoming` and `created`.
 3. **Persist on call processing**
    - In [`WebhookEventProcessorService.processCallDomainEvent` (~line 179)](../../../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java#L179), when persisting the `ProcessedCallEntity`, populate the new fields from `CallDetails`. `source_lead_id = String.valueOf(callDetails.personId())`.
-   - If the matching `leads` row is absent: log a warning (`lead-missing-on-call`) and continue persisting the call facts. Lead-missing does not block call ledger writes. (This contradicts Decision #7's "fail loud" for step evaluation; here we still write the row for audit, but the step in Phase C will ignore orphan calls.)
+   - If the matching `leads` row is absent: log a warning (`lead-missing-on-call`) and continue persisting the call facts. Lead-missing does not block call ledger writes.
 4. **No processing-ledger semantics change**
    - `status`, `rule_applied`, `task_id`, `retry_count`, `raw_payload` behave exactly as today.
 
@@ -122,41 +124,8 @@ Persist the FUB `CallDetails` fields needed to answer "did a real conversation h
 
 ---
 
-## Phase C — New workflow step: `check_communication_success`
-
-### Intent
-Introduce a new, **local-only** workflow step that answers "has this lead and an agent actually talked?" by querying `processed_calls`, with no FUB fallback. CORRECTION - NEED A FALLBACK.
-
-### Work items
-1. **Query component**
-   - `LocalCallEvidenceRepository` (or method on `ProcessedCallRepository`):
-     - `findEvidence(sourceLeadId, lookback)` → latest inbound timestamp, latest connected outbound (duration ≥ threshold), counts.
-2. **Step implementation**
-   - New class `CheckCommunicationSuccessWorkflowStep implements WorkflowStepType`.
-   - Registered in [`WorkflowStepRegistry`](../../../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepRegistry.java).
-   - Inputs: `sourceLeadId` (resolved from `RunContext`), optional `lookbackMinutes` override.
-   - Rule (inline, code-level constants):
-     ```
-     static final Duration DEFAULT_LOOKBACK = Duration.ofMinutes(30);
-     static final int MIN_CONNECTED_OUTBOUND_SECONDS = 30;
-     // success = (outbound && duration >= threshold) OR inbound within lookback
-     ```
-   - Result codes: `COMM_FOUND`, `COMM_NOT_FOUND` (match existing contract).
-   - No FUB calls. If no `processed_calls` rows exist for the lead in the lookback: `COMM_NOT_FOUND`.
-3. **Comment on the existing step**
-   - Drop a `// NOTE:` comment on [`WaitAndCheckCommunicationWorkflowStep`](../../../../../src/main/java/com/fuba/automation_engine/service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.java) pointing to `CheckCommunicationSuccessWorkflowStep` as the preferred local-data pattern, flagging a future refactor. Do not change behaviour.
-4. **Admin catalog**
-   - Register step in the admin step catalog so it's selectable in workflow graphs. Match metadata shape used by existing entries.
-
-### Validation
-- Unit tests on the rule: outbound-connected ✓, outbound-not-connected (duration below threshold) ✗, inbound ✓, no rows ✗, rows outside lookback ✗.
-- Step execution test with seeded `processed_calls` rows.
-- Zero external HTTP calls asserted in the step's test path.
-
-### Exit criteria
-- New step is invocable from a workflow graph.
-- Decision derives entirely from local DB.
-- Existing `WaitAndCheckCommunicationWorkflowStep` untouched.
+## Phase C — Dropped from this plan
+No step-creation work is delivered in this phase. `check_conversation_success` was explored and then intentionally removed; step work moves to a later phase with explicit scope.
 
 ---
 
@@ -172,23 +141,19 @@ A mechanism to bound workflow retry loops (e.g., "call up to 3 times, then move 
 - `source_lead_id` is stored as string even though FUB `personId` is numeric — future-proof for non-numeric source IDs.
 
 ### Failure modes
-- Call arrives, no matching lead row: log + persist call row with `source_lead_id` anyway (audit), step in Phase C treats as `COMM_NOT_FOUND`.
+- Call arrives, no matching lead row: log + persist call row with `source_lead_id` anyway (audit).
 - Duplicate webhook (same `call_id` or same person event): upsert/idempotency already in place; new columns are computed from the latest payload each time.
 
 ### What's explicitly NOT in scope
 - SMS/email communication tables.
+- Creating `check_conversation_success` (or any new workflow step).
 - Refactoring `WaitAndCheckCommunicationWorkflowStep`.
 - Attempt counter.
 - Backfilling historical `processed_calls`.
 - Removing the `checkPersonCommunication` FUB client method.
 
 ## Relation to Existing Docs
-- [plan.md](plan.md) — high-level scenario plan. Phase 2 content there is effectively realized by Phases A+B+C of this doc. Once this plan is executed, update `plan.md`'s Phase 2 section to reference this doc as the implementation of record.
-- [phases.md](phases.md) — running phase tracker. Add entries A/B/C as they land.
+- [plan.md](plan.md) — high-level scenario plan. Phase 2 content there is effectively realized by Phases A+B of this doc.
+- [phases.md](phases.md) — running phase tracker. Phase 2 completion here maps to A+B only.
 - [research.md](research.md) — background research; unchanged.
-- [check-communication-success-step-plan.md](check-communication-success-step-plan.md) — previously superseded plan. This doc reinstates the step, but now backed by local data instead of new FUB reads.
-
-## Open Implementation-Time Questions
-1. When a `peopleUpdated` event fires but the person payload contents are unchanged, should `last_synced_at` still advance? (Leaning yes — audit of sync cadence.)
-2. FUB call detail `outcome` vocabulary: which values count as "connected" vs "no answer"? Pin the list before wiring the rule in Phase C.
-3. Should the step accept a per-instance `lookbackMinutes` input, or only use the code-level default? (Leaning: accept override, default to the constant.)
+- [check-communication-success-step-plan.md](check-communication-success-step-plan.md) — superseded exploration retained for traceability; not implemented in this phase.

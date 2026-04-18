@@ -28,6 +28,8 @@ import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.HashMap;
 import java.util.List;
@@ -248,6 +250,42 @@ class WorkflowParityTest {
     }
 
     // ──────────────────────────────────────────────────────────
+    // Scenario 6: Create task step executes and emits outputs
+    // ──────────────────────────────────────────────────────────
+    @Test
+    void shouldExecuteFubCreateTaskAndEmitOutputs() {
+        seedTaskWorkflow();
+        stubClient.setCreatedTaskResult(new CreatedTask(
+                501L,
+                7890L,
+                77L,
+                "Call back lead",
+                LocalDate.of(2026, 1, 2),
+                OffsetDateTime.parse("2026-01-02T09:30:00Z")));
+
+        WorkflowPlanningResult plan = planTaskRun("7890", "evt-task-1");
+        worker.pollAndProcessDueSteps();
+
+        WorkflowRunEntity run = runRepository.findById(plan.runId()).orElseThrow();
+        assertEquals(WorkflowRunStatus.COMPLETED, run.getStatus());
+        assertEquals("TASK_CREATED", run.getReasonCode());
+
+        WorkflowRunStepEntity createTaskStep = findStepByNodeId(stepRepository.findByRunId(plan.runId()), "create_task");
+        assertEquals(WorkflowRunStepStatus.COMPLETED, createTaskStep.getStatus());
+        assertEquals("SUCCESS", createTaskStep.getResultCode());
+        assertEquals(501L, ((Number) createTaskStep.getOutputs().get("taskId")).longValue());
+        assertEquals(7890L, ((Number) createTaskStep.getOutputs().get("personId")).longValue());
+        assertEquals(77L, ((Number) createTaskStep.getOutputs().get("assignedUserId")).longValue());
+        assertEquals("Call back lead", createTaskStep.getOutputs().get("name"));
+
+        assertEquals(1, stubClient.createTaskCommands.size());
+        CreateTaskCommand issuedCommand = stubClient.createTaskCommands.getFirst();
+        assertEquals(7890L, issuedCommand.personId());
+        assertEquals(77L, issuedCommand.assignedUserId());
+        assertEquals(LocalDate.of(2026, 1, 2), issuedCommand.dueDate());
+    }
+
+    // ──────────────────────────────────────────────────────────
     // Helpers
     // ──────────────────────────────────────────────────────────
 
@@ -260,6 +298,15 @@ class WorkflowParityTest {
         workflowRepository.saveAndFlush(entity);
     }
 
+    private void seedTaskWorkflow() {
+        AutomationWorkflowEntity entity = new AutomationWorkflowEntity();
+        entity.setKey("TASK_CREATE_PARITY");
+        entity.setName("Task Create Workflow (Parity Test)");
+        entity.setGraph(taskGraph());
+        entity.setStatus(WorkflowStatus.ACTIVE);
+        workflowRepository.saveAndFlush(entity);
+    }
+
     private WorkflowPlanningResult planParityRun(String sourceLeadId, String eventId) {
         Map<String, Object> triggerPayload = new HashMap<>();
         triggerPayload.put("fallbackUserId", 77);
@@ -268,6 +315,17 @@ class WorkflowParityTest {
 
         return executionManager.plan(new WorkflowPlanRequest(
                 "ASSIGNMENT_FOLLOWUP_SLA", "TEST", eventId, null, sourceLeadId, triggerPayload));
+    }
+
+    private WorkflowPlanningResult planTaskRun(String sourceLeadId, String eventId) {
+        Map<String, Object> triggerPayload = new HashMap<>();
+        triggerPayload.put("fallbackUserId", 77);
+        triggerPayload.put("taskName", "Call back lead");
+        triggerPayload.put("eventType", "peopleCreated");
+        triggerPayload.put("resourceIds", List.of(Integer.parseInt(sourceLeadId)));
+
+        return executionManager.plan(new WorkflowPlanRequest(
+                "TASK_CREATE_PARITY", "TEST", eventId, null, sourceLeadId, triggerPayload));
     }
 
     @SuppressWarnings("unchecked")
@@ -310,6 +368,25 @@ class WorkflowParityTest {
         return graph;
     }
 
+    private Map<String, Object> taskGraph() {
+        Map<String, Object> createTask = new HashMap<>();
+        createTask.put("id", "create_task");
+        createTask.put("type", "fub_create_task");
+        createTask.put("config", Map.of(
+                "name", "{{ event.payload.taskName }}",
+                "assignedUserId", "{{ event.payload.fallbackUserId }}",
+                "dueDate", "2026-01-02"));
+        createTask.put("transitions", Map.of(
+                "SUCCESS", Map.of("terminal", "TASK_CREATED"),
+                "FAILED", Map.of("terminal", "TASK_FAILED")));
+
+        Map<String, Object> graph = new HashMap<>();
+        graph.put("schemaVersion", 1);
+        graph.put("entryNode", "create_task");
+        graph.put("nodes", List.of(createTask));
+        return graph;
+    }
+
     private WorkflowRunStepEntity findStepByNodeId(List<WorkflowRunStepEntity> steps, String nodeId) {
         return steps.stream()
                 .filter(s -> nodeId.equals(s.getNodeId()))
@@ -328,6 +405,14 @@ class WorkflowParityTest {
         private volatile ActionExecutionResult moveToPondResult = ActionExecutionResult.ok();
         final CopyOnWriteArrayList<long[]> reassignCalls = new CopyOnWriteArrayList<>();
         final CopyOnWriteArrayList<long[]> moveToPondCalls = new CopyOnWriteArrayList<>();
+        final CopyOnWriteArrayList<CreateTaskCommand> createTaskCommands = new CopyOnWriteArrayList<>();
+        private volatile CreatedTask createdTaskResult = new CreatedTask(
+                100L,
+                0L,
+                null,
+                "stub",
+                null,
+                null);
 
         void reset() {
             personDetailsMap.clear();
@@ -336,6 +421,8 @@ class WorkflowParityTest {
             moveToPondResult = ActionExecutionResult.ok();
             reassignCalls.clear();
             moveToPondCalls.clear();
+            createTaskCommands.clear();
+            createdTaskResult = new CreatedTask(100L, 0L, null, "stub", null, null);
         }
 
         void setPersonDetails(Long personId, PersonDetails details) {
@@ -352,6 +439,10 @@ class WorkflowParityTest {
 
         void setMoveToPondResult(ActionExecutionResult result) {
             this.moveToPondResult = result;
+        }
+
+        void setCreatedTaskResult(CreatedTask result) {
+            this.createdTaskResult = result;
         }
 
         @Override
@@ -398,7 +489,8 @@ class WorkflowParityTest {
 
         @Override
         public CreatedTask createTask(CreateTaskCommand command) {
-            return null;
+            createTaskCommands.add(command);
+            return createdTaskResult;
         }
     }
 }

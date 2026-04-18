@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 public class LeadUpsertService {
 
     public static final String SOURCE_SYSTEM_FUB = "FUB";
+    private static final String FUB_LEAD_STAGE = "Lead";
 
     private static final Logger log = LoggerFactory.getLogger(LeadUpsertService.class);
 
@@ -94,6 +95,18 @@ public class LeadUpsertService {
             existingAfterRace.setLastSyncedAt(OffsetDateTime.now());
             return leadRepository.save(existingAfterRace);
         }
+    }
+
+    public boolean isFubLeadPerson(JsonNode personPayload) {
+        if (personPayload == null || personPayload.isNull()) {
+            return false;
+        }
+        JsonNode stageNode = personPayload.get("stage");
+        if (stageNode == null || stageNode.isNull()) {
+            return false;
+        }
+        String stage = stageNode.asText("").trim();
+        return FUB_LEAD_STAGE.equals(stage);
     }
 
     private JsonNode buildSnapshot(JsonNode personPayload) {

@@ -185,6 +185,16 @@ public class WebhookEventProcessorService {
         String sourceLeadId = String.valueOf(leadId);
         try {
             JsonNode personPayload = followUpBossClient.getPersonRawById(leadId);
+            // CREATE LEAD in system only if stage is actually lead
+            // Because this can get triggered for propleUpdate events too.
+            if (!leadUpsertService.isFubLeadPerson(personPayload)) {
+                log.info(
+                        "Skipping lead upsert because person payload is not lead-classified eventId={} sourceEventType={} sourceLeadId={} reason=missing-or-blank-stage",
+                        event.eventId(),
+                        sourceEventType,
+                        sourceLeadId);
+                return;
+            }
             leadUpsertService.upsertFubPerson(sourceLeadId, personPayload);
         } catch (FubTransientException ex) {
             log.warn(

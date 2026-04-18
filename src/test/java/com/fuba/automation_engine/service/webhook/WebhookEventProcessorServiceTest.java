@@ -67,6 +67,7 @@ class WebhookEventProcessorServiceTest {
         environment = mock(Environment.class);
         leadUpsertService = mock(LeadUpsertService.class);
         leadRepository = mock(LeadRepository.class);
+        when(leadUpsertService.isFubLeadPerson(any(JsonNode.class))).thenReturn(true);
 
         FubRetryProperties retryProperties = new FubRetryProperties();
         retryProperties.setMaxAttempts(1);
@@ -220,6 +221,25 @@ class WebhookEventProcessorServiceTest {
 
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
+        verify(leadUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class));
+        verify(workflowTriggerRouter).route(event);
+    }
+
+    @Test
+    void shouldSkipLeadUpsertWhenPersonPayloadIsNotLeadClassified() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment-non-lead",
+                NormalizedDomain.ASSIGNMENT,
+                NormalizedAction.CREATED,
+                payload("peopleCreated", 991L));
+        ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
+        personPayload.put("id", 991L);
+        when(followUpBossClient.getPersonRawById(991L)).thenReturn(personPayload);
+        when(leadUpsertService.isFubLeadPerson(personPayload)).thenReturn(false);
+
+        Assertions.assertDoesNotThrow(() -> service.process(event));
+
+        verify(followUpBossClient).getPersonRawById(991L);
         verify(leadUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class));
         verify(workflowTriggerRouter).route(event);
     }

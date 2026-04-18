@@ -1,10 +1,10 @@
 # Lead Intake Call-Attempt Workflow — Phase 2 Implementation
 
 ## Status
-- Active (updated 2026-04-17).
+- Completed (updated 2026-04-17).
 - Scope follows [lead-data-foundation-plan.md](lead-data-foundation-plan.md).
 - Completed slices: Phase A and Phase B.
-- Remaining slice: Phase C.
+- Phase 2 is complete.
 
 ## Completed on 2026-04-17
 
@@ -14,6 +14,7 @@
   - `LeadStatus`
   - `LeadRepository`
 - Added `LeadUpsertService` and wired assignment-domain handling so `peopleCreated`/`peopleUpdated` upsert into `leads`.
+- Added lead classification guard for assignment ingestion: only upsert when fetched FUB person payload has `stage == "Lead"`.
 - Extended parser extraction path so assignment events resolve and persist `source_lead_id` from resource IDs.
 - Added/updated tests to validate lead upsert behavior and end-to-end assignment ingestion.
 
@@ -31,11 +32,15 @@
 - Added lead-missing warning (`lead-missing-on-call`) when call facts arrive before a corresponding lead row is present.
 - Added migration regression and integration coverage for new columns/index and persisted call facts.
 
+### Phase C — Removed from this phase
+- `check_conversation_success` step work was intentionally dropped.
+- No new workflow step was delivered as part of Phase 2.
+
 ## Validation Run
 - Command: `./mvnw -q test`
-- Result: `296` tests run, `0` failures, `0` errors, `0` skipped.
+- Result: `305 tests, 0 failures, 0 errors, 0 skipped` (pass).
 
-## Next Step (Phase C)
-- Implement `check_communication_success` as a local-data step over `processed_calls` evidence.
-- Register the step in workflow step registry + admin catalog.
-- Keep existing `WaitAndCheckCommunicationWorkflowStep` behavior unchanged; add pointer note only.
+## Next Step (Phase 3)
+- Continue with step library expansion from stabilized A/B data foundation.
+- Candidate step: `fub_create_task`.
+- Include structured task payload mapping for attempt metadata.

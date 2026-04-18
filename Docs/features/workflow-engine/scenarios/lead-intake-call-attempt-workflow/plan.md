@@ -32,7 +32,7 @@ Define a phased path from current workflow-only capability to the requested end-
 
 ### Phase 3 — Step Library Expansion on Local Data
 - Add `check_communication_success` workflow step using Phase 2 local query contract.
-- Add `fub_create_task` workflow step.
+- Add `fub_create_task` workflow step. `COMPLETED` on 2026-04-17.
 - Add structured task payload mapping (lead info + attempt metadata placeholders).
 - Outcome: task generation and communication-classification path available in workflow graph without new read-time FUB fetches.
 

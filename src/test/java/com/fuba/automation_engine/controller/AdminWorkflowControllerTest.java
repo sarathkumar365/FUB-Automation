@@ -384,7 +384,7 @@ class AdminWorkflowControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(greaterThan(0)))
                 .andExpect(jsonPath("$[*].id", hasItems(
-                        "delay", "wait_and_check_claim", "fub_add_tag", "http_request", "slack_notify")))
+                        "delay", "wait_and_check_claim", "fub_add_tag", "fub_create_task", "http_request", "slack_notify")))
                 .andExpect(jsonPath("$[*].configSchema").exists())
                 .andExpect(jsonPath("$[*].defaultRetryPolicy").exists())
                 .andExpect(jsonPath("$[?(@.id=='delay')].defaultRetryPolicy.maxAttempts", hasItems(1)))
