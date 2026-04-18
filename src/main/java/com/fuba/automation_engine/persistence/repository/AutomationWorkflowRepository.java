@@ -56,8 +56,6 @@ public interface AutomationWorkflowRepository extends JpaRepository<AutomationWo
             @Param("archivedStatus") WorkflowStatus archivedStatus,
             Pageable pageable);
 
-    List<AutomationWorkflowEntity> findByKeyOrderByIdDesc(String key);
-
     List<AutomationWorkflowEntity> findByStatus(WorkflowStatus status);
 
     @Modifying(clearAutomatically = true, flushAutomatically = true)
