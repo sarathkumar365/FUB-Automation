@@ -233,3 +233,56 @@ cd ui && npm install   # refresh lockfile
 - Verified `main()` entry, all `@RestController` / `@Component` / `@Entity` classes remain reachable.
 - No `@Entity`, controller, or Flyway migration in the delete list.
 - `@radix-ui/react-slot` absence confirmed (only `@radix-ui/react-dialog` used, different package).
+
+---
+
+## Deep-pass (second-pass) findings — method & export level
+
+After the first pass returned "0 dead methods," the first-pass result was challenged as superficial. A proper per-method / per-export reachability pass was re-run — this time using a Python-driven regex with `re.escape` and real word-boundaries (the original bash `\b` was being eaten by shell double-quote escaping and producing both false positives and false negatives), plus full framework-annotation exclusion (`@Override`, `@EventListener`, `@Scheduled`, `@ExceptionHandler`, `@InitBinder`, `@ModelAttribute`, `@PostConstruct`, `@PreDestroy`, `@Bean`, Spring Data method-name conventions, controller handlers).
+
+The re-run surfaced real dead code that slipped past the file-level pass. All items below have been **verified zero external refs** and **removed** in this branch:
+
+### Backend — `KeyNormalizationHelper` (policy residue)
+`src/main/java/com/fuba/automation_engine/service/support/KeyNormalizationHelper.java`
+
+Removed (all zero refs after V12 policy table drop and workflow cutover):
+- `normalizeUpperToken(String)`
+- `normalizeUpperToken(String, int)`
+- `normalizeUpperTokenOrEmpty(String, int)`
+- `normalizePolicyDomain(String)`
+- `normalizePolicyDomainOrEmpty(String)`
+- `normalizePolicyKey(String)`
+- `normalizePolicyKeyOrEmpty(String)`
+- constant `POLICY_DOMAIN_MAX_LENGTH`
+- constant `POLICY_KEY_MAX_LENGTH`
+- unused `import java.util.Locale`
+
+Corresponding tests removed from `KeyNormalizationHelperTest`:
+- `shouldNormalizePolicyTokensToUppercase`
+- `shouldRejectPolicyTokenThatExceedsMaxLength`
+- policy assertions inside `shouldReturnEmptyForOrEmptyHelpersWhenInputInvalid`
+
+Kept methods: `normalizeWorkflowKey`, `normalizeWorkflowKeyOrEmpty` (both have live callers).
+
+### Backend — dead JPA repository methods
+- `AutomationWorkflowRepository.findByKeyOrderByIdDesc(String)` — 0 refs. Removed.
+- `WorkflowRunStepRepository.findByRunIdAndNodeIdIn(Long, Collection<String>)` — 0 refs. Removed; also dropped the now-unused `java.util.Collection` import.
+
+### UI — dead named exports
+- `ui/src/app/router.tsx` — `export const appRouter = createAppRouter()` had zero importers (every consumer calls `createAppRouter()` directly). Removed.
+- `ui/src/shared/ui/icons.tsx` — `CalendarIcon` and `PrevIcon` had zero importers across the whole `ui/` tree. Removed.
+
+### Flagged but intentionally kept
+These surfaced as "unused" but are deliberate and were **not** deleted:
+
+- `NormalizedAction.ASSIGNED` (enum value) — persisted in historical DB rows; `Enum.valueOf` would throw on read if removed. Keep.
+- `LeadStatus.MERGED` — code comment confirms it mirrors the V14 `CHECK` constraint; value is reserved for lead merge flow. Keep.
+- Workflow step types `branch_on_field`, `fub_move_to_pond`, `set_variable` — registered `@Component` step implementations staged for the in-progress workflow builder UI. Keep.
+- All tests named `*CutoverIntegrationTest`, `*LegacyPolicySurfaceRemoval*`, `*PolicyTableDropMigration*` — regression guards for the V12 migration. Keep.
+
+### Net impact of deep pass
+- **9 dead Java methods + 2 dead constants removed** from one helper class (policy residue).
+- **2 dead JPA query methods removed** across 2 repositories.
+- **3 dead UI exports removed** across 2 files.
+- **3 obsolete test methods removed** from `KeyNormalizationHelperTest`.
+- Backend + UI compile clean; full test suite still green after the cleanup commits.
