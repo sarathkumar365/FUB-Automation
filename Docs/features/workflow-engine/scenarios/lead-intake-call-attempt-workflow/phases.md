@@ -3,7 +3,7 @@
 ## Status
 - Phase 1 (workflow-only baseline): `READY` (can be configured now)
 - Phase 2 (local data read-model foundation): `COMPLETED` (Phases A+B completed on 2026-04-17)
-- Phase 3 (step library expansion on local data): `IN_PROGRESS` (`fub_create_task` shipped on 2026-04-17)
+- Phase 3 (step library expansion on local data): `IN_PROGRESS` (`fub_create_task` shipped on 2026-04-17; `wait_and_check_communication` conversational local-first enhancement with incoming/outgoing support shipped on 2026-04-20)
 - Phase 4 (attempt counter primitive): `PLANNED`
 - Phase 5 (cross-event state machine + hardening): `PLANNED`
 

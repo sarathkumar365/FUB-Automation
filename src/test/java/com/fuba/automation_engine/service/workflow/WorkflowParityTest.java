@@ -8,12 +8,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fuba.automation_engine.config.WorkflowWorkerProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
+import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
+import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
+import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
@@ -91,6 +94,7 @@ class WorkflowParityTest {
     @Autowired private WorkflowStepExecutionService stepExecutionService;
     @Autowired private WorkflowWorkerProperties workerProperties;
     @Autowired private WorkflowRunStepClaimRepository stepClaimRepository;
+    @Autowired private ProcessedCallRepository processedCallRepository;
     @Autowired private Clock clock;
     @Autowired private StubFollowUpBossClient stubClient;
     private WorkflowExecutionDueWorker worker;
@@ -99,6 +103,7 @@ class WorkflowParityTest {
     void setUp() {
         stepRepository.deleteAll();
         runRepository.deleteAll();
+        processedCallRepository.deleteAll();
         workflowRepository.deleteAll();
         stubClient.reset();
         worker = new WorkflowExecutionDueWorker(workerProperties, stepClaimRepository, stepExecutionService, clock);
@@ -140,13 +145,13 @@ class WorkflowParityTest {
     void shouldTerminateWhenCommunicationFound() {
         seedParityWorkflow();
         stubClient.setPersonDetails(7890L, new PersonDetails(7890L, false, null, 0));
-        stubClient.setCommunicationCheckResult(7890L, new PersonCommunicationCheckResult(7890L, true));
+        saveLocalCallEvidence(8201L, "7890", true, 64, "Connected", 3);
 
         WorkflowPlanningResult plan = planParityRun("7890", "evt-2");
 
         // Execute wait_claim → NOT_CLAIMED → activates wait_comm
         worker.pollAndProcessDueSteps();
-        // Execute wait_comm → COMM_FOUND → terminal
+        // Execute wait_comm → CONVERSATIONAL → terminal
         worker.pollAndProcessDueSteps();
 
         WorkflowRunEntity run = runRepository.findById(plan.runId()).orElseThrow();
@@ -157,8 +162,9 @@ class WorkflowParityTest {
         assertEquals(WorkflowRunStepStatus.COMPLETED, findStepByNodeId(steps, "wait_claim").getStatus());
         assertEquals("NOT_CLAIMED", findStepByNodeId(steps, "wait_claim").getResultCode());
         assertEquals(WorkflowRunStepStatus.COMPLETED, findStepByNodeId(steps, "wait_comm").getStatus());
-        assertEquals("COMM_FOUND", findStepByNodeId(steps, "wait_comm").getResultCode());
+        assertEquals("CONVERSATIONAL", findStepByNodeId(steps, "wait_comm").getResultCode());
         assertEquals(WorkflowRunStepStatus.SKIPPED, findStepByNodeId(steps, "do_reassign").getStatus());
+        assertEquals(0, stubClient.commCheckCalls.size(), "Local evidence path should not call fallback communication API");
     }
 
     // ──────────────────────────────────────────────────────────
@@ -168,14 +174,14 @@ class WorkflowParityTest {
     void shouldReassignWhenNoCommunicationFound() {
         seedParityWorkflow();
         stubClient.setPersonDetails(7890L, new PersonDetails(7890L, false, null, 0));
-        stubClient.setCommunicationCheckResult(7890L, new PersonCommunicationCheckResult(7890L, false));
+        saveOutboundCallEvidence(8202L, "7890", 12, "Connected", 2);
         stubClient.setReassignResult(ActionExecutionResult.ok());
 
         WorkflowPlanningResult plan = planParityRun("7890", "evt-3");
 
         // Execute wait_claim → NOT_CLAIMED
         worker.pollAndProcessDueSteps();
-        // Execute wait_comm → COMM_NOT_FOUND
+        // Execute wait_comm → CONNECTED_NON_CONVERSATIONAL
         worker.pollAndProcessDueSteps();
         // Execute do_reassign → SUCCESS
         worker.pollAndProcessDueSteps();
@@ -187,6 +193,7 @@ class WorkflowParityTest {
         List<WorkflowRunStepEntity> steps = stepRepository.findByRunId(run.getId());
         assertEquals(WorkflowRunStepStatus.COMPLETED, findStepByNodeId(steps, "wait_claim").getStatus());
         assertEquals(WorkflowRunStepStatus.COMPLETED, findStepByNodeId(steps, "wait_comm").getStatus());
+        assertEquals("CONNECTED_NON_CONVERSATIONAL", findStepByNodeId(steps, "wait_comm").getResultCode());
         assertEquals(WorkflowRunStepStatus.COMPLETED, findStepByNodeId(steps, "do_reassign").getStatus());
         assertEquals("SUCCESS", findStepByNodeId(steps, "do_reassign").getResultCode());
 
@@ -194,6 +201,7 @@ class WorkflowParityTest {
         assertEquals(1, stubClient.reassignCalls.size());
         assertEquals(7890L, stubClient.reassignCalls.getFirst()[0]);
         assertEquals(77L, stubClient.reassignCalls.getFirst()[1]);
+        assertEquals(0, stubClient.commCheckCalls.size(), "Local evidence path should not call fallback communication API");
     }
 
     // ──────────────────────────────────────────────────────────
@@ -203,7 +211,7 @@ class WorkflowParityTest {
     void shouldHandleReassignFailure() {
         seedParityWorkflow();
         stubClient.setPersonDetails(7890L, new PersonDetails(7890L, false, null, 0));
-        stubClient.setCommunicationCheckResult(7890L, new PersonCommunicationCheckResult(7890L, false));
+        saveOutboundCallEvidence(8203L, "7890", 0, "No Answer", 1);
         stubClient.setReassignResult(ActionExecutionResult.failure("FUB_ERROR", "Person update failed"));
 
         WorkflowPlanningResult plan = planParityRun("7890", "evt-4");
@@ -217,8 +225,10 @@ class WorkflowParityTest {
         assertEquals("FAILED", run.getReasonCode());
 
         List<WorkflowRunStepEntity> steps = stepRepository.findByRunId(run.getId());
+        assertEquals("COMM_NOT_FOUND", findStepByNodeId(steps, "wait_comm").getResultCode());
         assertEquals(WorkflowRunStepStatus.FAILED, findStepByNodeId(steps, "do_reassign").getStatus());
         assertNull(findStepByNodeId(steps, "do_reassign").getResultCode());
+        assertEquals(0, stubClient.commCheckCalls.size(), "Local evidence path should not call fallback communication API");
     }
 
     // ──────────────────────────────────────────────────────────
@@ -228,7 +238,7 @@ class WorkflowParityTest {
     void shouldPersistResolvedConfigWithTemplateValues() {
         seedParityWorkflow();
         stubClient.setPersonDetails(7890L, new PersonDetails(7890L, false, null, 0));
-        stubClient.setCommunicationCheckResult(7890L, new PersonCommunicationCheckResult(7890L, false));
+        saveOutboundCallEvidence(8204L, "7890", 8, "Connected", 4);
         stubClient.setReassignResult(ActionExecutionResult.ok());
 
         WorkflowPlanningResult plan = planParityRun("7890", "evt-5");
@@ -333,7 +343,8 @@ class WorkflowParityTest {
         // Mirrors ASSIGNMENT_FOLLOWUP_SLA_V1:
         //   wait_claim → CLAIMED: terminal COMPLIANT_CLOSED
         //              → NOT_CLAIMED: [wait_comm]
-        //   wait_comm  → COMM_FOUND: terminal COMPLIANT_CLOSED
+        //   wait_comm  → CONVERSATIONAL: terminal COMPLIANT_CLOSED
+        //              → CONNECTED_NON_CONVERSATIONAL: [do_reassign]
         //              → COMM_NOT_FOUND: [do_reassign]
         //   do_reassign → SUCCESS: terminal ACTION_COMPLETED
         //               → FAILED: terminal ACTION_FAILED
@@ -350,7 +361,8 @@ class WorkflowParityTest {
         waitComm.put("type", "wait_and_check_communication");
         waitComm.put("config", Map.of("delayMinutes", 0));
         waitComm.put("transitions", Map.of(
-                "COMM_FOUND", Map.of("terminal", "COMPLIANT_CLOSED"),
+                "CONVERSATIONAL", Map.of("terminal", "COMPLIANT_CLOSED"),
+                "CONNECTED_NON_CONVERSATIONAL", List.of("do_reassign"),
                 "COMM_NOT_FOUND", List.of("do_reassign")));
 
         Map<String, Object> doReassign = new HashMap<>();
@@ -394,6 +406,37 @@ class WorkflowParityTest {
                 .orElseThrow(() -> new AssertionError("Step not found: " + nodeId));
     }
 
+    private void saveOutboundCallEvidence(
+            Long callId,
+            String sourceLeadId,
+            Integer durationSeconds,
+            String outcome,
+            int minutesAgo) {
+        saveLocalCallEvidence(callId, sourceLeadId, false, durationSeconds, outcome, minutesAgo);
+    }
+
+    private void saveLocalCallEvidence(
+            Long callId,
+            String sourceLeadId,
+            boolean isIncoming,
+            Integer durationSeconds,
+            String outcome,
+            int minutesAgo) {
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        ProcessedCallEntity entity = new ProcessedCallEntity();
+        entity.setCallId(callId);
+        entity.setStatus(ProcessedCallStatus.RECEIVED);
+        entity.setRetryCount(0);
+        entity.setSourceLeadId(sourceLeadId);
+        entity.setIsIncoming(isIncoming);
+        entity.setDurationSeconds(durationSeconds);
+        entity.setOutcome(outcome);
+        entity.setCallStartedAt(now.minusMinutes(minutesAgo));
+        entity.setCreatedAt(now.minusMinutes(minutesAgo));
+        entity.setUpdatedAt(now.minusMinutes(minutesAgo));
+        processedCallRepository.saveAndFlush(entity);
+    }
+
     // ──────────────────────────────────────────────────────────
     // Stub FUB client
     // ──────────────────────────────────────────────────────────
@@ -405,6 +448,7 @@ class WorkflowParityTest {
         private volatile ActionExecutionResult moveToPondResult = ActionExecutionResult.ok();
         final CopyOnWriteArrayList<long[]> reassignCalls = new CopyOnWriteArrayList<>();
         final CopyOnWriteArrayList<long[]> moveToPondCalls = new CopyOnWriteArrayList<>();
+        final CopyOnWriteArrayList<Long> commCheckCalls = new CopyOnWriteArrayList<>();
         final CopyOnWriteArrayList<CreateTaskCommand> createTaskCommands = new CopyOnWriteArrayList<>();
         private volatile CreatedTask createdTaskResult = new CreatedTask(
                 100L,
@@ -421,6 +465,7 @@ class WorkflowParityTest {
             moveToPondResult = ActionExecutionResult.ok();
             reassignCalls.clear();
             moveToPondCalls.clear();
+            commCheckCalls.clear();
             createTaskCommands.clear();
             createdTaskResult = new CreatedTask(100L, 0L, null, "stub", null, null);
         }
@@ -467,6 +512,7 @@ class WorkflowParityTest {
 
         @Override
         public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+            commCheckCalls.add(personId);
             return commCheckMap.get(personId);
         }
 
