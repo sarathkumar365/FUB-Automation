@@ -230,3 +230,5 @@ POC default recommendation:
 ---
 
 *Last updated: April 2026 • Verify model pages for latest versions & licenses*
+
+**Demo sites : https://openbmb.github.io/MiniCPM-o-Demo/**
