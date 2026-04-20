@@ -2,7 +2,7 @@
 
 This document tracks currently known issues identified in the codebase.
 
-**Last reviewed:** 2026-04-17
+**Last reviewed:** 2026-04-20
 
 | # | Issue | Priority | Status |
 |---|-------|----------|--------|
@@ -17,6 +17,7 @@ This document tracks currently known issues identified in the codebase.
 | 9 | Active policy blueprint read validation is temporarily bypassed | High | Open (Temporary) |
 | 10 | JSONata evaluator swallows expression errors and returns null | High | Open |
 | 11 | Time-sensitive workflow steps can execute after business validity window under sustained backlog | High | Open |
+| 12 | Workflow steps are not consistently local-first and still rely on direct FUB calls | High | Open |
 
 ---
 
@@ -114,3 +115,12 @@ This document tracks currently known issues identified in the codebase.
 - **Issue:** Worker execution is due-time driven (`PENDING` + `due_at <= now`) with no explicit per-step expiration/deadline guard. Under sustained ingress above worker throughput, backlog can defer execution past the intended business window.
 - **Impact:** Time-prone automations may run too late and produce stale or invalid side effects even though the step eventually executes.
 - **Suggested fix:** Add explicit step deadline semantics (for example `expires_at`/`deadline_at`) and enforce pre-execution expiry checks (`EXPIRED`/`SKIPPED_TIMEOUT`), plus schedule-lag observability/alerting and priority isolation for time-critical step types.
+
+## 12) Workflow steps are not consistently local-first and still rely on direct FUB calls
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/steps/` (step handlers that query FUB directly for decisioning)
+- **Issue:** Local-first behavior is currently step-specific; multiple workflow steps still depend on direct FUB reads for outcome classification instead of using locally persisted webhook/call snapshots as primary evidence.
+- **Impact:** Increased external dependency at execution time (latency/rate-limit risk), inconsistent behavior across steps, and weaker determinism when remote state changes after webhook ingestion.
+- **Suggested fix:** Standardize all workflow decision steps to local-first evaluation with explicit fallback policy, and align result-code contracts/tests for each step without changing `wait_and_check_claim` behavior until separately planned.
