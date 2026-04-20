@@ -62,3 +62,9 @@ Planned scope alignment (action execution structure):
 - Execute both `REASSIGN` and `MOVE_TO_POND` through client port in log-only dev mode.
 - Add backend-only policy blueprint validation failure diagnostics in service logs.
 - Temporarily bypass active-policy read validation to unblock assignment flow while blueprint/action config evolves.
+
+## Phase 8
+Status: Completed (Step 1 completed)
+Log: `phase-8-implementation.md`
+Planned scope alignment (lead-foundation persistence):
+- Introduce canonical `leads` table as the first foundation data model for lead-centric features.

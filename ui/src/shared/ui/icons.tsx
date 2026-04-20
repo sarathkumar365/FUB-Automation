@@ -31,17 +31,6 @@ export function FilterIcon(props: IconProps) {
   )
 }
 
-export function CalendarIcon(props: IconProps) {
-  return (
-    <SvgIcon {...props}>
-      <rect x="3" y="5" width="18" height="16" rx="2" />
-      <path d="M16 3v4" />
-      <path d="M8 3v4" />
-      <path d="M3 10h18" />
-    </SvgIcon>
-  )
-}
-
 export function ApplyIcon(props: IconProps) {
   return (
     <SvgIcon {...props}>
@@ -63,14 +52,6 @@ export function NextIcon(props: IconProps) {
   return (
     <SvgIcon {...props}>
       <path d="m9 18 6-6-6-6" />
-    </SvgIcon>
-  )
-}
-
-export function PrevIcon(props: IconProps) {
-  return (
-    <SvgIcon {...props}>
-      <path d="m15 18-6-6 6-6" />
     </SvgIcon>
   )
 }

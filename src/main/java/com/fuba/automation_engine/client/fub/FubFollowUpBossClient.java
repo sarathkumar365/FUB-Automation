@@ -1,8 +1,9 @@
 package com.fuba.automation_engine.client.fub;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fuba.automation_engine.client.fub.dto.FubCallResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubCreateTaskRequestDto;
-import com.fuba.automation_engine.client.fub.dto.FubPersonResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubTaskResponseDto;
 import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
@@ -34,9 +35,14 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
 
     private final RestClient restClient;
     private final FubClientProperties properties;
+    private final ObjectMapper objectMapper;
 
-    public FubFollowUpBossClient(RestClient.Builder restClientBuilder, FubClientProperties properties) {
+    public FubFollowUpBossClient(
+            RestClient.Builder restClientBuilder,
+            FubClientProperties properties,
+            ObjectMapper objectMapper) {
         this.properties = properties;
+        this.objectMapper = objectMapper;
         validateRequiredConfiguration();
         this.restClient = restClientBuilder.baseUrl(trimTrailingSlash(properties.getBaseUrl())).build();
     }
@@ -68,7 +74,14 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
             }
 
             log.info("FUB getCallById succeeded callId={}", callId);
-            return new CallDetails(response.id(), response.personId(), response.duration(), response.userId(), response.outcome());
+            return new CallDetails(
+                    response.id(),
+                    response.personId(),
+                    response.duration(),
+                    response.userId(),
+                    response.outcome(),
+                    response.isIncoming(),
+                    response.created());
         } catch (RestClientResponseException ex) {
             log.warn("FUB getCallById returned HTTP error callId={} status={}", callId, ex.getStatusCode().value());
             throw mapResponseException("GET /calls/{id}", ex);
@@ -80,25 +93,48 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
 
     @Override
     public PersonDetails getPersonById(long personId) {
-        log.info("Calling FUB getPersonById personId={}", personId);
+        // Single raw fetch path: derive the typed PersonDetails view from the same JsonNode
+        // body we already pull for lead snapshotting — avoids a duplicate /people/{id} call
+        // and keeps the DTO shape drift-free with the raw payload.
+        JsonNode response = getPersonRawById(personId);
+        Long id = response.hasNonNull("id") ? response.get("id").asLong() : null;
+        Boolean claimed = response.hasNonNull("claimed") ? response.get("claimed").asBoolean() : null;
+        Long assignedUserId = response.hasNonNull("assignedUserId") ? response.get("assignedUserId").asLong() : null;
+        Integer contacted = response.hasNonNull("contacted") ? response.get("contacted").asInt() : null;
+        return new PersonDetails(id, claimed, assignedUserId, contacted);
+    }
+
+    @Override
+    public JsonNode getPersonRawById(long personId) {
+        log.info("Calling FUB getPersonRawById personId={}", personId);
         try {
-            FubPersonResponseDto response = restClient.get()
+            String body = restClient.get()
                     .uri("/people/{id}", personId)
                     .headers(this::applyDefaultHeaders)
                     .retrieve()
-                    .body(FubPersonResponseDto.class);
+                    .body(String.class);
 
-            if (response == null) {
-                throw new FubPermanentException("FUB returned empty body for getPersonById", null);
+            if (body == null || body.isBlank()) {
+                throw new FubPermanentException("FUB returned empty body for getPersonRawById", null);
             }
 
-            log.info("FUB getPersonById succeeded personId={}", personId);
-            return new PersonDetails(response.id(), response.claimed(), response.assignedUserId(), response.contacted());
+            JsonNode response;
+            try {
+                response = objectMapper.readTree(body);
+            } catch (Exception parseEx) {
+                throw new FubPermanentException("FUB returned non-JSON body for getPersonRawById", null, parseEx);
+            }
+            if (response == null || response.isNull()) {
+                throw new FubPermanentException("FUB returned empty body for getPersonRawById", null);
+            }
+
+            log.info("FUB getPersonRawById succeeded personId={}", personId);
+            return response;
         } catch (RestClientResponseException ex) {
-            log.warn("FUB getPersonById returned HTTP error personId={} status={}", personId, ex.getStatusCode().value());
+            log.warn("FUB getPersonRawById returned HTTP error personId={} status={}", personId, ex.getStatusCode().value());
             throw mapResponseException("GET /people/{id}", ex);
         } catch (ResourceAccessException ex) {
-            log.warn("FUB getPersonById network error personId={}", personId);
+            log.warn("FUB getPersonRawById network error personId={}", personId);
             throw new FubTransientException("FUB network failure on GET /people/{id}", null, ex);
         }
     }

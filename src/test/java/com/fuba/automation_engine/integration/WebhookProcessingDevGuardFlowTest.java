@@ -1,5 +1,6 @@
 package com.fuba.automation_engine.integration;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
@@ -177,6 +178,11 @@ class WebhookProcessingDevGuardFlowTest {
         @Override
         public PersonDetails getPersonById(long personId) {
             return new PersonDetails(personId, null, null, null);
+        }
+
+        @Override
+        public JsonNode getPersonRawById(long personId) {
+            throw new UnsupportedOperationException("Not used in dev guard flow tests");
         }
 
         @Override

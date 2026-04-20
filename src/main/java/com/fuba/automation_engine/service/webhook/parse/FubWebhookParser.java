@@ -67,10 +67,7 @@ public class FubWebhookParser implements WebhookParser {
         // Track eventual parser semantic deprecation in issue: LMP-STEP3-RESOLVER-SEMANTIC-OWNERSHIP.
         NormalizedDomain normalizedDomain = resolveDomain(sourceEventType);
         NormalizedAction normalizedAction = resolveAction(sourceEventType);
-        // TODO(step1-followup): finalize sourceLeadId extraction rule by event semantics.
-        // Current intent: derive only for peopleCreated/peopleUpdated, keep null for callsCreated.
-        // Track in issue: LMP-STEP1-SOURCE-LEADID-RULE.
-        String sourceLeadId = null;
+        String sourceLeadId = resolveSourceLeadId(sourceEventType, resourceIdsNode);
 
         ObjectNode payloadNode = objectMapper.createObjectNode();
         payloadNode.put("eventType", sourceEventType);
@@ -121,6 +118,13 @@ public class FubWebhookParser implements WebhookParser {
                 payloadNode,
                 OffsetDateTime.now(),
                 payloadHash);
+    }
+
+    private String resolveSourceLeadId(String sourceEventType, JsonNode resourceIdsNode) {
+        if (!"peopleCreated".equals(sourceEventType) && !"peopleUpdated".equals(sourceEventType)) {
+            return null;
+        }
+        return WebhookPayloadExtractors.firstResourceIdAsString(resourceIdsNode);
     }
 
     private NormalizedDomain resolveDomain(String sourceEventType) {

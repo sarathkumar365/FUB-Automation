@@ -384,11 +384,20 @@ class AdminWorkflowControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.length()").value(greaterThan(0)))
                 .andExpect(jsonPath("$[*].id", hasItems(
-                        "delay", "wait_and_check_claim", "fub_add_tag", "http_request", "slack_notify")))
+                        "delay",
+                        "wait_and_check_claim",
+                        "wait_and_check_communication",
+                        "fub_add_tag",
+                        "fub_create_task",
+                        "http_request",
+                        "slack_notify")))
                 .andExpect(jsonPath("$[*].configSchema").exists())
                 .andExpect(jsonPath("$[*].defaultRetryPolicy").exists())
                 .andExpect(jsonPath("$[?(@.id=='delay')].defaultRetryPolicy.maxAttempts", hasItems(1)))
-                .andExpect(jsonPath("$[?(@.id=='wait_and_check_claim')].defaultRetryPolicy.maxAttempts", hasItems(3)));
+                .andExpect(jsonPath("$[?(@.id=='wait_and_check_claim')].defaultRetryPolicy.maxAttempts", hasItems(3)))
+                .andExpect(jsonPath(
+                        "$[?(@.id=='wait_and_check_communication')].declaredResultCodes[*]",
+                        hasItems("CONVERSATIONAL", "CONNECTED_NON_CONVERSATIONAL", "COMM_NOT_FOUND")));
     }
 
     @Test

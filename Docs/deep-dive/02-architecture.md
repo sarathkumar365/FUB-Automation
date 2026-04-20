@@ -39,7 +39,6 @@ com.fuba.automation_engine/
 │   ├── AdminPolicyController                 ← CRUD /admin/policies
 │   ├── AdminPolicyExecutionController        ← GET /admin/policy-executions
 │   ├── HealthController                      ← GET /health
-│   ├── TasksController                       ← POST /tasks (manual)
 │   └── dto/                                  ← Request/response DTOs (13 classes)
 ├── service/
 │   ├── FollowUpBossClient                    ← Port interface for FUB API
@@ -101,7 +100,7 @@ flowchart LR
     Automation"]
     PROC -->|"ASSIGNMENT domain"| ASSIGN["Policy
     Planning"]
-    CALL -->|"GET /calls, POST /tasks"| FUB_API["FUB REST API"]
+    CALL -->|"GET /calls"| FUB_API["FUB REST API"]
     CALL -->|persist| DB
     ASSIGN -->|"persist run + steps"| DB
     WORKER["Due Worker

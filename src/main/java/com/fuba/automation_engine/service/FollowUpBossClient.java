@@ -1,5 +1,6 @@
 package com.fuba.automation_engine.service;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
@@ -16,6 +17,8 @@ public interface FollowUpBossClient {
     CallDetails getCallById(long callId);
 
     PersonDetails getPersonById(long personId);
+
+    JsonNode getPersonRawById(long personId);
 
     PersonCommunicationCheckResult checkPersonCommunication(long personId);
 

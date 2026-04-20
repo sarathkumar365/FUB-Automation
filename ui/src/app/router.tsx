@@ -72,5 +72,3 @@ export function createAppRouter() {
     },
   ])
 }
-
-export const appRouter = createAppRouter()

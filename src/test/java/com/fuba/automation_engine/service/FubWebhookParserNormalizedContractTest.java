@@ -89,6 +89,41 @@ class FubWebhookParserNormalizedContractTest {
     }
 
     @Test
+    void shouldPopulateSourceLeadIdForPeopleEvents() {
+        NormalizedWebhookEvent peopleCreated = parser.parse(
+                """
+                {
+                  "eventId": "evt-people-created-slid",
+                  "event": "peopleCreated",
+                  "resourceIds": [19355]
+                }
+                """,
+                Map.of());
+        NormalizedWebhookEvent peopleUpdated = parser.parse(
+                """
+                {
+                  "eventId": "evt-people-updated-slid",
+                  "event": "peopleUpdated",
+                  "resourceIds": [19355]
+                }
+                """,
+                Map.of());
+        NormalizedWebhookEvent callsCreated = parser.parse(
+                """
+                {
+                  "eventId": "evt-calls-slid",
+                  "event": "callsCreated",
+                  "resourceIds": [999]
+                }
+                """,
+                Map.of());
+
+        assertEquals("19355", peopleCreated.sourceLeadId());
+        assertEquals("19355", peopleUpdated.sourceLeadId());
+        assertNull(callsCreated.sourceLeadId());
+    }
+
+    @Test
     void shouldAllowMissingResourceIdsForNonCallEvents() {
         String rawBody = """
                 {
