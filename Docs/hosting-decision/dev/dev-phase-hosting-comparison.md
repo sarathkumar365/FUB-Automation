@@ -62,6 +62,34 @@ Use **Railway** for current dev-phase hosting.
 - [ ] Disable noisy hosted logs (`spring.jpa.show-sql=false` for hosted profile).
 - [ ] Rotate any exposed local secrets and ensure `.env` is never committed.
 
+## Platform-Agnostic Minimal Docker Hosting Prep Checklist
+Use this list when deploying as a container regardless of provider.
+
+- [ ] Build one production container image for backend + admin UI.
+- [ ] Ensure UI build output is included and served by Spring under `/admin-ui/*`.
+- [ ] Ensure SPA fallback works for `/admin-ui/*` deep links without intercepting `/admin/*`, `/webhooks/*`, and `/health`.
+- [ ] Configure runtime env vars in host:
+  - [ ] `DB_URL`, `DB_USER`, `DB_PASS`
+  - [ ] `FUB_BASE_URL`, `FUB_API_KEY`, `FUB_X_SYSTEM`, `FUB_X_SYSTEM_KEY`
+- [ ] Use managed Postgres (do not co-locate DB in the app container for hosted dev).
+- [ ] Start with single app replica (current SSE fanout is instance-local).
+- [ ] Run validation before first deploy:
+  - [ ] `./mvnw clean test`
+  - [ ] `cd ui && npm run lint && npm run test && npm run build`
+- [ ] Run hosted smoke checks:
+  - [ ] `GET /health`
+  - [ ] `GET /admin-ui`
+  - [ ] `GET /admin/webhooks`
+  - [ ] `GET /admin/webhooks/stream` (SSE connects + heartbeat)
+- [ ] Point Follow Up Boss webhook URL to hosted ingress: `https://<host>/webhooks/fub`.
+- [ ] Send one real/simulated webhook and verify: ingest -> DB row -> admin UI live/list visibility.
+
+## Where to Host If Deploying Docker (Dev/Internal Phase)
+- Primary recommendation: **Railway** (best fit for current dev/internal priorities in this document).
+- Strong alternative: **Render** (solid Docker support with managed services).
+- Optional advanced path: **Fly.io** (useful if/when region-level deployment control is needed).
+- Re-evaluate provider choice when moving from internal/dev to production reliability requirements.
+
 ## SSE Hosting Notes (Important)
 SSE reliability risk is mainly in hosting/proxy behavior, not containerization itself.
 

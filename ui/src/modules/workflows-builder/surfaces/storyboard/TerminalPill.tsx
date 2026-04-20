@@ -1,7 +1,8 @@
 /**
- * Terminal markers — rendered as small pills hanging off a scene's right edge
- * for each resultCode that maps to `{ terminal: reason }` in the graph.
- * Shows the "workflow ends here" outcomes without needing extra scene nodes.
+ * Terminal markers — rendered as small pills hanging off a scene's right
+ * edge, stacked vertically. Each pill represents a resultCode that maps to
+ * `{ terminal: reason }` in the graph: "workflow ends here" outcomes without
+ * adding extra scene nodes to the canvas.
  */
 import type { SceneLayout } from '../../model/layoutEngine'
 
@@ -10,15 +11,25 @@ export interface TerminalPillProps {
   from: SceneLayout
   resultCode: string
   reason: string
+  /** Zero-based position among terminals for the same `from` scene. */
   index: number
+  /** Total terminals attached to the same `from` scene (for centering). */
+  totalTerminals: number
 }
 
-export function TerminalPill({ id, from, resultCode, reason, index }: TerminalPillProps) {
+export function TerminalPill({
+  id,
+  from,
+  resultCode,
+  reason,
+  index,
+  totalTerminals,
+}: TerminalPillProps) {
   const anchorX = from.x + from.width / 2
   const anchorY = from.y
-  const offsetY = index * 26 - ((index > 0 ? 1 : 0) * 8)
-  const pillX = anchorX + 36
-  const pillY = anchorY + offsetY
+  const pillX = anchorX + 28
+  const rowSpacing = 26
+  const pillY = anchorY + (index - (totalTerminals - 1) / 2) * rowSpacing
   const label = `${resultCode} → ${reason}`
   const width = Math.max(140, label.length * 6 + 20)
 
