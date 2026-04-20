@@ -122,3 +122,111 @@ POC default recommendation:
    - unclaimed + connected
    - unclaimed + no answer
 
+## 10. Latest Findings
+
+# 🎙️ Local Speech-to-Speech Models Reference (2026)
+
+## 🎯 End-to-End Speech-to-Speech Models
+
+| Model | Developer | License | Min VRAM | Key Strength | Platforms |
+|-------|-----------|---------|----------|-------------|-----------|
+| **PersonaPlex-7B** | NVIDIA | NVIDIA Open Model License | 12 GB | Full-duplex conversation, interruptions, persona control | Linux (CUDA), 🍎 MLX (community) |
+| **Moshi** | Kyutai Labs | Code: MIT/Apache 2.0 • Weights: CC-BY 4.0 | 4 GB (4-bit MLX) | Ultra-low latency (160-200ms), Mac-optimized | Linux, 🍎 Apple Silicon (MLX) |
+| **SeamlessM4T-v2** | Meta | CC-BY-NC 4.0 | 2 GB (medium) | 100+ language speech-to-speech translation | Linux, macOS (fairseq2) |
+| **Qwen2.5-Omni** | Alibaba | Apache 2.0 | 11.6 GB (7B GPTQ-Int4) | Omnimodal: video+audio+text → expressive speech | Linux/Windows/macOS (MNN) |
+
+---
+
+## 🔗 Modular Pipeline Components
+
+### 🎙️ Speech-to-Text (STT)
+| Model | License | Best For |
+|-------|---------|----------|
+| Whisper / Distil-Whisper | MIT | High-accuracy transcription |
+| Parakeet TDT | Apache 2.0 | Apple Silicon, fast inference |
+| Silero VAD | MIT | Voice activity detection |
+
+### 🧠 LLM Reasoning Layer
+| Model | License | VRAM (BF16) | Notes |
+|-------|---------|-------------|-------|
+| Qwen3-4B-Instruct | Apache 2.0 | ~8 GB | Strong multilingual, efficient |
+| Phi-3-mini | MIT | ~6 GB | Lightweight, CPU-friendly |
+| Llama-3-8B | Llama 3 License | ~16 GB | High quality, general purpose |
+
+### 🔊 Text-to-Speech / Voice Cloning
+| Model | License | Languages | Key Feature |
+|-------|---------|-----------|-------------|
+| XTTS v2 | CPML (non-commercial) | 14+ | 6-sec voice cloning, emotion control |
+| MeloTTS | MIT | 7+ | Fast, high-quality, multilingual |
+| Kokoro-82M | Apache 2.0 | 2+ | Tiny (82M params), Apple Silicon optimized |
+| Seed-VC / So-VITS-SVC | MIT | Any | Zero-shot voice conversion, singing |
+| Piper | MIT | 50+ | CPU-only, ultra-lightweight |
+
+---
+
+## 🛠️ Frameworks & Toolkits
+
+| Toolkit | Purpose | Platforms |
+|---------|---------|-----------|
+| `speech-to-speech` (HF) | Modular VAD→STT→LLM→TTS pipeline | Linux/macOS/Windows, 🍎 optimized |
+| `moshi` / `moshi_mlx` | Official Moshi inference | Linux (PyTorch), 🍎 (MLX) |
+| `seamless_communication` | SeamlessM4T inference | Linux/macOS (x86_64/ARM64) |
+| `qwen-omni-utils` | Qwen2.5-Omni helpers | Cross-platform (PyTorch/MNN) |
+
+---
+
+## 🚦 Quick Decision Guide
+🎯 Real-time voice assistant?
+├─ Mac → Moshi (MLX, 4-bit quantized)
+├─ High-end GPU (24GB+) → PersonaPlex-7B
+└─ Low VRAM (<8GB) → HF Pipeline + Whisper-tiny + Kokoro-82M
+🌍 Multilingual speech translation?
+├─ Non-commercial → SeamlessM4T-v2
+└─ Commercial → Whisper + LLM + XTTS v2 (check license)
+🎥 Video + audio + speech output?
+└─ Qwen2.5-Omni-3B (GPTQ-Int4 for <16GB VRAM)
+🗣️ Voice cloning / conversion?
+├─ Multilingual TTS cloning → XTTS v2
+└─ Zero-shot voice conversion → Seed-VC
+📱 Edge / CPU-only?
+└─ Piper TTS + Whisper-tiny + Phi-2
+
+
+---
+
+## ⚠️ License Summary
+
+| License | Models | Commercial Use |
+|---------|--------|---------------|
+| ✅ Apache 2.0 / MIT | Moshi (code), Qwen2.5-Omni, Whisper, Piper, Kokoro, MeloTTS, Seed-VC | ✅ Yes |
+| ⚠️ Attribution Required | PersonaPlex-7B, SeamlessM4T (code) | ✅ Yes (with credit) |
+| ❌ Non-Commercial Only | SeamlessM4T-v2 (weights), XTTS v2 | ❌ No (without separate license) |
+| 🔐 Custom Terms | PersonaPlex weights (NVIDIA license) | ✅ Yes (review terms) |
+
+> 💡 **Always verify the latest license** on the model's Hugging Face or GitHub page before deployment.
+
+---
+
+## 🔗 Quick Links
+
+- [Moshi (Kyutai)](https://github.com/kyutai-labs/moshi)
+- [Qwen2.5-Omni](https://github.com/QwenLM/Qwen2.5-Omni)
+- [SeamlessM4T](https://github.com/facebookresearch/seamless_communication)
+- [HF Speech-to-Speech](https://github.com/huggingface/speech-to-speech)
+- [Coqui XTTS](https://github.com/coqui-ai/TTS)
+- [Piper TTS](https://github.com/rhasspy/piper)
+- [PersonaPlex (NVIDIA)](https://github.com/NVIDIA/personaplex)
+
+---
+
+## 💡 Pro Tips
+
+1. **Quantize aggressively**: Use 4-bit (GPTQ/AWQ) for Qwen2.5-Omni to cut VRAM by ~60%
+2. **Apple Silicon?** Prefer MLX-backed models (Moshi, Kokoro, Whisper-MLX)
+3. **Start modular**: HF pipeline lets you swap components as better models emerge
+4. **Test latency**: End-to-end S2S adds ~100-300ms overhead vs cascaded pipelines
+5. **Voice ethics**: Only clone voices with explicit consent; document usage
+
+---
+
+*Last updated: April 2026 • Verify model pages for latest versions & licenses*
