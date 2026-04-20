@@ -1,0 +1,15 @@
+.git
+.gitignore
+.idea
+.vscode
+
+.env
+logs
+
+target
+
+ui/node_modules
+ui/dist
+
+Docs
+Postgres-SQL

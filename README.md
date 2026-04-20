@@ -102,6 +102,23 @@ This starts:
 ./scripts/run-app.sh prod --profile prod
 ```
 
+### Option D: Docker (backend + full UI bundle)
+
+```bash
+docker build -t automation-engine:local .
+docker run --rm -p 8080:8080 --env-file .env automation-engine:local
+```
+
+Use hosted/dev profile overrides as needed, for example:
+
+```bash
+docker run --rm -p 8080:8080 --env-file .env -e SPRING_PROFILES_ACTIVE=hosted automation-engine:local
+```
+
+Hosted UI routes include both:
+- landing: `/`
+- admin: `/admin-ui/*`
+
 ### Manual webhook reactivation (dev recovery)
 
 If Follow Up Boss auto-disables managed dev webhooks after repeated delivery failures, run:
@@ -111,6 +128,18 @@ If Follow Up Boss auto-disables managed dev webhooks after repeated delivery fai
 ```
 
 This command only re-enables disabled webhooks for managed events in `config/fub-webhook-events.txt`. It does not create webhooks or update webhook URLs.
+
+### Hosted webhook URL sync (post-deploy)
+
+After deploying to a hosted URL, sync managed Follow Up Boss webhooks to your deployed ingress:
+
+```bash
+export PUBLIC_BASE_URL=https://your-host.example.com
+./scripts/fub-webhook-sync.sh --dry-run
+./scripts/fub-webhook-sync.sh
+```
+
+This updates/creates webhooks to point at `${PUBLIC_BASE_URL}/webhooks/fub` for events in `config/fub-webhook-events.txt`.
 
 ## Frontend Commands
 
