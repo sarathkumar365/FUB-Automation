@@ -91,7 +91,8 @@ Slice 3 + Slice 4 are being rolled out as four phases of small commits. Gate per
 | **A** — Slice 3 structural | [x] | S3-A, S3-B, S3-C | 1 commit: barrel + READMEs |
 | **B** — Slice 3 recipes | [x] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
 | **C** — Slice 4 popover v2 | [x] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional — skipped) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
-| **D** — parallel tracks (pick any order) | [ ] | Slice 2 (no decisions), Slice 6 (decisions first), Slice 5 (D5.1 first — may drop) | TBD |
+| **D** — Slice 6 storyboard polish | [ ] | S6-A, S6-B, S6-C | 4 commits: decisions doc / ring token / terminal kinds / tests |
+| **E** — remaining tracks (pick any order) | [ ] | Slice 2 (no decisions), Slice 5 (D5.1 first — may drop) | TBD |
 
 Rules:
 - Phase B recipes are additive only — no existing surface consumes them yet.
@@ -251,10 +252,10 @@ Standalone slice — does not depend on Slice 3/4/5.
 
 | id | question | options | status |
 | --- | --- | --- | --- |
-| D6.1 | **Selected-scene ring** treatment? | (a) keep ring but swap to a calm neutral token (e.g. slate-500), (b) ring color matches the scene's category accent (trigger/side-effect/etc.), (c) drop the ring entirely; indicate selection via subtle lift + shadow intensification only, (d) double treatment — soft halo outside + 1px inner border using the accent | _TBD_ |
-| D6.2 | **Terminal pill differentiation** — visual strategy? | (a) leading glyph only (✓ / ✕ / ◻ / ↷) + existing neutral pill, (b) color-per-kind via tokens + existing text, (c) both glyph and color, (d) shape-per-kind (pill / squared / notched) | _TBD_ |
-| D6.3 | If D6.2 involves color — **mapping**? | (a) success=green, failure=red, skipped=amber, noop=slate, custom=accent-neutral; tokens added to `tokens.css`, (b) stay monochrome (accent-neutral) and rely on glyph alone, (c) user-supplied palette | _TBD_ |
-| D6.4 | Which **terminal kinds** are first-class? | (a) `success` / `failure` / `skipped` / `noop` only, (b) add `retryable` / `timed_out`, (c) whatever result codes the workflow's step types declare (dynamic) | _TBD_ |
+| D6.1 | **Selected-scene ring** treatment? | (a) keep ring but swap to a calm neutral token (e.g. slate-500), (b) ring color matches the scene's category accent (trigger/side-effect/etc.), (c) drop the ring entirely; indicate selection via subtle lift + shadow intensification only, (d) double treatment — soft halo outside + 1px inner border using the accent | **(a)** — new `--color-storyboard-card-ring-selected` neutral token replaces `--color-brand` for selected border |
+| D6.2 | **Terminal pill differentiation** — visual strategy? | (a) leading glyph only (✓ / ✕ / ◻ / ↷) + existing neutral pill, (b) color-per-kind via tokens + existing text, (c) both glyph and color, (d) shape-per-kind (pill / squared / notched) | **(c)** — glyph + colour (accessible across colour-blind + squint cases) |
+| D6.3 | If D6.2 involves color — **mapping**? | (a) success=green, failure=red, skipped=amber, noop=slate, custom=accent-neutral; tokens added to `tokens.css`, (b) stay monochrome (accent-neutral) and rely on glyph alone, (c) user-supplied palette | **(a)** — semantic tokens; add `--color-storyboard-terminal-{success\|failure\|skipped\|noop}-{bg,border,text}` to `tokens.css` |
+| D6.4 | Which **terminal kinds** are first-class? | (a) `success` / `failure` / `skipped` / `noop` only, (b) add `retryable` / `timed_out`, (c) whatever result codes the workflow's step types declare (dynamic) | **(a)** — fixed set; anything else falls back to the existing neutral chip (current behaviour) |
 
 #### Implementation tasks (refine after decisions)
 
