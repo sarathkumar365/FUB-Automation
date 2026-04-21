@@ -189,6 +189,9 @@ export const uiText = {
     sceneInspectorEmptyTransitions: 'No declared transitions',
     sceneInspectorTransitionTerminal: 'terminal',
     sceneInspectorTransitionNode: 'node',
+    /** Prefix before a transition's resultCode in TransitionRow cards,
+     *  e.g. "on default" / "on timeout". */
+    sceneInspectorTransitionOn: 'on',
     sceneInspectorNotFound: 'Selected step not found in this graph.',
     detailRunsTitle: 'Workflow Runs',
     detailRunsEmptyMessage: 'No workflow runs found for this workflow and filters.',

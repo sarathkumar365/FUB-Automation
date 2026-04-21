@@ -17,7 +17,7 @@
  * `data-builder-region` so Playwright tests and the debug overlay can find
  * them without brittle CSS selectors.
  */
-import { formatScene } from '../../model/cardFormatters'
+import { formatScene, formatSceneHeader } from '../../model/cardFormatters'
 import type { SceneLayout } from '../../model/layoutEngine'
 import type { StoryboardScene } from '../../model/graphAdapters'
 import { getAccentTone } from './accentTokens'
@@ -32,7 +32,10 @@ export interface SceneProps {
   scene: StoryboardScene
   layout: SceneLayout
   selected: boolean
-  onSelect: (sceneId: string) => void
+  /** Optional — Scene is usable in read-only contexts where click-to-select
+   *  is a no-op. When omitted, the card still registers click/key handlers
+   *  (so the outline reads as a button) but nothing happens. */
+  onSelect?: (sceneId: string) => void
 }
 
 export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
@@ -40,9 +43,7 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
   const tone = getAccentTone(formatted.accent)
   const left = layout.x - layout.width / 2
   const top = layout.y - layout.height / 2
-  const isTrigger = scene.stepType === '__trigger__'
-  const tooltip = isTrigger ? 'trigger' : scene.stepType
-  const pillLabel = isTrigger ? 'trigger' : `${scene.isEntry ? 'entry · ' : ''}${scene.stepType}`
+  const { pillLabel, tooltip } = formatSceneHeader(scene.stepType, scene.isEntry)
 
   return (
     <foreignObject x={left} y={top} width={layout.width} height={layout.height}>
@@ -55,11 +56,11 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
         title={tooltip}
         role="button"
         tabIndex={0}
-        onClick={() => onSelect(scene.id)}
+        onClick={() => onSelect?.(scene.id)}
         onKeyDown={(event) => {
           if (event.key === 'Enter' || event.key === ' ') {
             event.preventDefault()
-            onSelect(scene.id)
+            onSelect?.(scene.id)
           }
         }}
         style={{

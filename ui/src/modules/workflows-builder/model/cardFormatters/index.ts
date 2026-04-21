@@ -162,6 +162,32 @@ export function registeredStepTypes(): string[] {
   return Object.keys(formatters).sort()
 }
 
+/**
+ * Header-strip copy for a scene card — the step-type pill label + tooltip.
+ *
+ * Centralised here (rather than branched inline inside `Scene.tsx`) so the
+ * `__trigger__` special-case lives with the rest of the formatter knowledge
+ * and any future step-type → display-name mapping can be swapped in one
+ * place.
+ */
+export interface SceneHeaderCopy {
+  /** Short label shown in the accent-tinted pill on the card. */
+  pillLabel: string
+  /** Tooltip / aria hover text — the raw step type for real steps, a
+   *  friendly "trigger" for the synthetic trigger node. */
+  tooltip: string
+}
+
+export function formatSceneHeader(stepType: string, isEntry: boolean): SceneHeaderCopy {
+  if (stepType === '__trigger__') {
+    return { pillLabel: 'trigger', tooltip: 'trigger' }
+  }
+  return {
+    pillLabel: `${isEntry ? 'entry · ' : ''}${stepType}`,
+    tooltip: stepType,
+  }
+}
+
 function asString(value: unknown): string | undefined {
   return typeof value === 'string' && value.length > 0 ? value : undefined
 }

@@ -60,7 +60,6 @@ export function StoryboardViewer({
     return byId
   }, [terminalPlacements])
 
-  const handleSelect = onSelectScene ?? (() => {})
   const svgWidth = canvasSize.width
   const svgHeight = canvasSize.height
 
@@ -129,7 +128,7 @@ export function StoryboardViewer({
               scene={scene}
               layout={sceneLayout}
               selected={selectedSceneId === scene.id}
-              onSelect={handleSelect}
+              onSelect={onSelectScene}
             />
           )
         })}

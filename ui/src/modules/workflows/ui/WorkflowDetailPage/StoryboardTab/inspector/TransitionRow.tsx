@@ -57,7 +57,7 @@ export function TransitionRow({ row }: TransitionRowProps) {
           minWidth: 0,
         }}
       >
-        on {row.resultCode}
+        {uiText.workflows.sceneInspectorTransitionOn} {row.resultCode}
       </span>
       <span
         data-testid="workflow-scene-inspector-transition-target"
