@@ -166,7 +166,6 @@ export function InspectorBody({ node, maxHeight, onClose }: InspectorBodyProps) 
               <TransitionRow
                 key={`${row.resultCode}-${row.kind}-${row.target}-${index}`}
                 row={row}
-                isFirst={index === 0}
               />
             ))}
           </ul>
