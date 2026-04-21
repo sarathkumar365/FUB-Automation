@@ -11,11 +11,7 @@ import { CloseIcon } from '../../../../../../shared/ui/icons'
 import { formatScene } from '../../../../../workflows-builder/model/cardFormatters'
 import { getAccentTone } from '../../../../../workflows-builder/surfaces/storyboard/accentTokens'
 import type { GraphNode } from '../../../../../workflows-builder/state/runtimeContract'
-import {
-  CONFIG_LABEL_COLUMN_WIDTH,
-  INSPECTOR_PADDING_X,
-  INSPECTOR_PADDING_Y,
-} from '../constants'
+import { INSPECTOR_PADDING_X, INSPECTOR_PADDING_Y } from '../constants'
 import { ConfigRow } from './ConfigRow'
 import { TransitionRow } from './TransitionRow'
 import { flattenTransitions } from './transitions'
@@ -119,21 +115,19 @@ export function InspectorBody({ node, maxHeight, onClose }: InspectorBodyProps) 
             {uiText.workflows.sceneInspectorEmptyConfig}
           </p>
         ) : (
-          <dl
+          <div
+            data-testid="workflow-scene-inspector-config"
             style={{
-              display: 'grid',
-              gridTemplateColumns: `${CONFIG_LABEL_COLUMN_WIDTH}px minmax(0, 1fr)`,
-              columnGap: 12,
-              rowGap: 8,
-              margin: 0,
-              fontSize: 13,
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 10,
               minWidth: 0,
             }}
           >
             {configEntries.map(([key, value]) => (
               <ConfigRow key={key} label={key} value={value} />
             ))}
-          </dl>
+          </div>
         )}
       </section>
 
