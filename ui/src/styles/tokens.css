@@ -58,7 +58,13 @@
      clashed with the storyboard palette. */
   --color-storyboard-card-ring-selected: rgba(71, 85, 105, 0.85);
   --color-storyboard-card-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
-  --color-storyboard-card-shadow-selected: 0 0 0 3px rgba(15, 23, 42, 0.12), 0 8px 24px rgba(15, 23, 42, 0.08);
+  /* Selected-card elevation. Intentionally has NO hard outer ring —
+     a hard box-shadow ring gets clipped by the enclosing SVG
+     <foreignObject>'s rectangular bounds and paints as a squarish halo
+     around the rounded card. Selection is signalled by the slate border
+     (see --color-storyboard-card-ring-selected) plus this slightly lifted
+     drop shadow. */
+  --color-storyboard-card-shadow-selected: 0 6px 18px rgba(15, 23, 42, 0.12);
   --color-storyboard-edge: rgba(15, 23, 42, 0.28);
   --color-storyboard-arrow: rgba(15, 23, 42, 0.55);
   --color-storyboard-edge-soft: rgba(15, 23, 42, 0.18);
@@ -117,10 +123,13 @@
 .storyboard-scene-card {
   outline: none;
 }
+/* Keyboard focus uses a slightly inset ring so it paints inside the
+   foreignObject's rectangular bounds and respects the card's border-radius
+   (outer rings get clipped to a square halo). */
 .storyboard-scene-card:focus-visible {
   box-shadow:
     var(--color-storyboard-card-shadow-selected),
-    0 0 0 2px var(--color-storyboard-card-ring-selected);
+    inset 0 0 0 2px var(--color-storyboard-card-ring-selected);
 }
 
 @keyframes heartbeat-flash {
