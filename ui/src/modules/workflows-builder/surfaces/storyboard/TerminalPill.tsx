@@ -8,9 +8,16 @@
  * relative to the graph's horizontal midline) so pills on the left branch fly
  * outward to the left and pills on the right branch fly outward to the right.
  * This prevents a left-branch pill from cutting through scenes on the right.
+ *
+ * Per D6.2-c / D6.3-a / D6.4-a: the pill's glyph and colour triple come from
+ * `./terminalKind.resolveTerminalKind(resultCode)`. First-class kinds
+ * (`success` / `failure` / `skipped` / `noop`) get a distinguishing prefix
+ * glyph + semantic token triple; unknown/custom codes fall back to the
+ * existing neutral palette.
  */
 import type { SceneLayout } from '../../model/layoutEngine'
 import { CHIP_FONT_SIZE, CHIP_PADDING_X } from './chipMetrics'
+import { resolveTerminalKind, tokensForKind } from './terminalKind'
 import { estimateTerminalPillWidth, TERMINAL_PILL_GAP, TERMINAL_PILL_ROW_SPACING } from './viewport'
 
 export interface TerminalPillProps {
@@ -35,9 +42,13 @@ export function TerminalPill({
   totalTerminals,
   side,
 }: TerminalPillProps) {
+  const kind = resolveTerminalKind(resultCode)
+  const tokens = tokensForKind(kind)
   const anchorY = from.y
   const pillY = anchorY + (index - (totalTerminals - 1) / 2) * TERMINAL_PILL_ROW_SPACING
-  const label = `${resultCode} → ${reason}`
+  const label = tokens.glyph
+    ? `${tokens.glyph} ${resultCode} → ${reason}`
+    : `${resultCode} → ${reason}`
   const width = estimateTerminalPillWidth(resultCode, reason)
   const halfPad = CHIP_PADDING_X / 2
 
@@ -53,6 +64,7 @@ export function TerminalPill({
       data-builder-region="terminal-pill"
       data-terminal-id={id}
       data-terminal-side={side}
+      data-terminal-kind={kind}
       data-chip-width={width}
     >
       <line
@@ -71,15 +83,15 @@ export function TerminalPill({
         height={22}
         rx={11}
         ry={11}
-        fill="var(--color-storyboard-chip-neutral-bg)"
-        stroke="var(--color-storyboard-chip-neutral-border)"
+        fill={tokens.bg}
+        stroke={tokens.border}
       />
       <text
         x={textX}
         y={pillY + 4}
         fontSize={CHIP_FONT_SIZE}
         fontFamily="var(--font-mono)"
-        fill="var(--color-storyboard-chip-neutral-text)"
+        fill={tokens.text}
         textAnchor={textAnchor}
       >
         {label}

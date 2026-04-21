@@ -15,6 +15,7 @@
 import type { StoryboardModel } from '../../model/graphAdapters'
 import type { StoryboardLayout } from '../../model/layoutEngine'
 import { estimateChipWidth } from './chipMetrics'
+import { terminalGlyphPrefix } from './terminalKind'
 
 /** Horizontal gap between a scene's edge and the terminal pill. Mirrors the
  *  leader-line length inside `TerminalPill`. */
@@ -32,7 +33,10 @@ export const TERMINAL_PILL_MIN_WIDTH = 140
  * pill itself, and the viewport math cannot drift on the width formula.
  */
 export function estimateTerminalPillWidth(resultCode: string, reason: string): number {
-  const label = `${resultCode} → ${reason}`
+  // Keep the glyph in the label here — if the renderer prepends a glyph
+  // but the estimator doesn't, the viewBox clips pills for known kinds.
+  // See `./terminalKind.ts` (D6.2-c / D6.4-a).
+  const label = `${terminalGlyphPrefix(resultCode)}${resultCode} → ${reason}`
   return estimateChipWidth(label, { minWidth: TERMINAL_PILL_MIN_WIDTH })
 }
 
