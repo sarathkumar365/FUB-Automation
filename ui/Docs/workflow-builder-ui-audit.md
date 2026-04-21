@@ -82,6 +82,22 @@
 
 Execute in order; each slice: code → new test → lint/build/test → commit.
 
+### Implementation phases (2026-04-21)
+
+Slice 3 + Slice 4 are being rolled out as four phases of small commits. Gate per commit: `npm run lint && npm run build && npm run test` all green.
+
+| phase | status | tasks | commit shape |
+| --- | --- | --- | --- |
+| **A** — Slice 3 structural | [x] | S3-A, S3-B, S3-C | 1 commit: barrel + READMEs |
+| **B** — Slice 3 recipes | [ ] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
+| **C** — Slice 4 popover v2 | [ ] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
+| **D** — parallel tracks (pick any order) | [ ] | Slice 2 (no decisions), Slice 6 (decisions first), Slice 5 (D5.1 first — may drop) | TBD |
+
+Rules:
+- Phase B recipes are additive only — no existing surface consumes them yet.
+- Phase C is the first behavior change (the popover rebuild).
+- Tracker item `[ ]` → `[x]` in the same commit that completes it.
+
 ### Slice 1 — Top 5 prioritized actions — **COMPLETE** (2026-04-21)
 
 **Status summary:**
@@ -143,16 +159,16 @@ After decisions are recorded, implement per the task table below. Items S3-A, S3
 
 | id | status | item |
 | --- | --- | --- |
-| S3-A | [ ] | Create `ui/src/shared/ui/index.ts` barrel re-exporting every primitive + recipe for ergonomic imports. Keep the explicit-path option working — just offer the barrel. |
-| S3-B | [ ] | Create `ui/src/shared/ui/README.md` documenting the three tiers (primitives / recipes / feature compositions), how to pick where a new component goes, and the token rule. |
-| S3-C | [ ] | Add `ui/src/styles/tokens.README.md` explaining the token categories (core surfaces, brand, status, storyboard, accent) and when to add a new one vs reusing an existing var. |
-| S3-D | [ ] | Create `shared/ui/recipes/Section.tsx` per **D3.1-a**: uppercase + letter-spacing caption, body container. Props: `title`, `children`, optional `action` slot. |
-| S3-E | [ ] | Create `shared/ui/recipes/FieldRow.tsx` per **D3.2-a** (auto-layout) + **D4.3-b** (60-char threshold): `{ label, value, layout?: 'inline' \| 'stacked' \| 'auto' }`. `auto` → inline when value is a short scalar or string ≤ 60 chars; stacked otherwise. Export the threshold constant so Slice 4 can override per field kind. |
-| S3-F | [ ] | Create `shared/ui/recipes/KeyValueList.tsx` per **D3.7-a**: default 2-col grid; `dense` / `stacked` override prop flips to stacked rows (used by popover + other narrow surfaces). Wraps `FieldRow[]`. |
-| S3-G | [ ] | Create `shared/ui/recipes/CopyableValue.tsx` per **D3.3-b** (hover-only button, focus-visible for keyboard, always-visible under `@media (hover: none)`) + **D3.4-a** (inline "Copied" swap for 1.5s). Extract pattern from `JsonViewer`; share. |
-| S3-H | [ ] | Create `shared/ui/recipes/DefinitionCard.tsx` per **D3.5-c**: header = title + optional badge + optional action; body slot. Badge rendering rule per **D3.5a-c**: show `displayName` + native `title` tooltip (id + description) sourced from step-type / trigger-type catalog. Until the catalog endpoint (backend B1) lands, fall back to id with no tooltip — document the fallback in a code comment. |
-| S3-I | [ ] | Create `shared/ui/recipes/Skeleton.tsx` per **D3.6-d**: start with `line` and `block` shapes only. Additional shapes added on demand. |
-| S3-J | [ ] | Each new recipe gets at least one test in `ui/src/test/*.test.tsx` following the AGENTS.md policy. |
+| S3-A | [x] | **Phase A — done 2026-04-21.** `ui/src/shared/ui/index.ts` barrel re-exporting primitives (recipe section commented out until Phase B). |
+| S3-B | [x] | **Phase A — done 2026-04-21.** `ui/src/shared/ui/README.md` covering the three tiers, token rule, barrel guidance, strings rule, tests policy. |
+| S3-C | [x] | **Phase A — done 2026-04-21.** `ui/src/styles/tokens.README.md` covering all token categories, add-vs-reuse criteria, naming convention, dark-mode forward note. |
+| S3-D | [ ] | **Phase B.** Create `shared/ui/recipes/Section.tsx` per **D3.1-a**: uppercase + letter-spacing caption, body container. Props: `title`, `children`, optional `action` slot. |
+| S3-E | [ ] | **Phase B.** Create `shared/ui/recipes/FieldRow.tsx` per **D3.2-a** (auto-layout) + **D4.3-b** (60-char threshold): `{ label, value, layout?: 'inline' \| 'stacked' \| 'auto' }`. `auto` → inline when value is a short scalar or string ≤ 60 chars; stacked otherwise. Export the threshold constant so Slice 4 can override per field kind. |
+| S3-F | [ ] | **Phase B.** Create `shared/ui/recipes/KeyValueList.tsx` per **D3.7-a**: default 2-col grid; `dense` / `stacked` override prop flips to stacked rows. Wraps `FieldRow[]`. |
+| S3-G | [ ] | **Phase B.** Create `shared/ui/recipes/CopyableValue.tsx` per **D3.3-b** (hover-only button, focus-visible for keyboard, always-visible under `@media (hover: none)`) + **D3.4-a** (inline "Copied" swap for 1.5s). Extract pattern from `JsonViewer`; share. |
+| S3-H | [ ] | **Phase B.** Create `shared/ui/recipes/DefinitionCard.tsx` per **D3.5-c** + **D3.5a-c**: header = title + optional badge + optional action; badge shows `displayName` + native `title` tooltip (id + description) sourced from step-type / trigger-type catalog. Until catalog endpoint (backend B1) lands, fall back to id, no tooltip — document fallback in code comment. |
+| S3-I | [ ] | **Phase B.** Create `shared/ui/recipes/Skeleton.tsx` per **D3.6-d**: start with `line` and `block` shapes only. Additional shapes added on demand. |
+| S3-J | [ ] | **Phase B.** Each new recipe gets at least one test in `ui/src/test/*.test.tsx` following the AGENTS.md policy. Ships in the same commit as the recipe. |
 
 ### Slice 4 — popover layout v2 (long-text + detail UX)
 
@@ -181,14 +197,14 @@ Motivation: in the current popover, long `transitions` and long config values (`
 
 | id | status | item |
 | --- | --- | --- |
-| S4-A | [ ] | Rebuild `StoryboardTab/inspector/ConfigRow.tsx` on top of `FieldRow` recipe. Rules: **D4.1-a** short scalars stay inline; **D4.2-b** templating strings (contain `$` / `{{` / `}}`) render as stacked monospace `CopyableValue`; **D4.3-b** 60-char threshold; **D4.4-a** long plain strings stack with `pre-wrap`; **D4.5-c** URL-shape values render stacked with copy-only affordance (no anchor/nav). |
-| S4-B | [ ] | Rebuild `StoryboardTab/inspector/TransitionRow.tsx` per **D4.6-a**: card-per-transition. Top line = resultCode chip (color/glyph per Slice 6 **D6.3** once locked — fall back to current neutral chip in the meantime). Bottom line = full-width `→ target_scene_id` row that wraps cleanly in monospace. |
-| S4-C | [ ] | Update `StoryboardTab/constants.ts`: **D4.7-c** `POPOVER_WIDTH` 340 → 420; **D4.8-a** `POPOVER_MAX_HEIGHT` 480 → 560. Re-verify side-picker math in `SceneInspectorPopover` against the wider footprint; adjust `POPOVER_EDGE_PADDING` if the picker flips sides too eagerly. |
-| S4-D | [ ] | Build a small `useClampLines({ maxLines: 4 })` helper (or inline disclosure in `FieldRow`) per **D4.10-b**. Renders full value if it fits in 4 lines; otherwise clamps + exposes "Show more" / "Show less" toggle. |
-| S4-E | [ ] | Add value-kind detection helper in `StoryboardTab/inspector/formatConfigValue.ts`. Returns a discriminated `{ kind: 'url' \| 'templating' \| 'plain' \| 'scalar' \| 'structured', value }` consumed by `ConfigRow`. URL detection covers `http` / `https`; does not special-case `mailto` / `tel`. |
-| S4-F | [ ] | Apply copy affordance wrapping per **D4.9-b**: `CopyableValue` only on `url` and `templating` kinds. Plain long strings and short scalars render without copy. |
-| S4-G | [ ] | Update `ui/src/test/workflow-scene-inspector-popover.test.tsx`: (1) short scalar → inline, (2) 80-char plain string → stacked with Show more, (3) templating string → monospace + copy button, (4) URL → stacked + copy button, no `<a>`, (5) card-per-transition structure with long resultCode/target, (6) width/max-height tokens updated. |
-| S4-H | [ ] | Optional: visual regression / screenshot sanity for a worst-case graph with long URLs + long transitions. |
+| S4-A | [ ] | **Phase C.** Rebuild `StoryboardTab/inspector/ConfigRow.tsx` on top of `FieldRow` recipe. Rules: **D4.1-a** short scalars stay inline; **D4.2-b** templating strings (contain `$` / `{{` / `}}`) render as stacked monospace `CopyableValue`; **D4.3-b** 60-char threshold; **D4.4-a** long plain strings stack with `pre-wrap`; **D4.5-c** URL-shape values render stacked with copy-only affordance (no anchor/nav). |
+| S4-B | [ ] | **Phase C.** Rebuild `StoryboardTab/inspector/TransitionRow.tsx` per **D4.6-a**: card-per-transition. Top line = resultCode chip (color/glyph per Slice 6 **D6.3** once locked — fall back to current neutral chip in the meantime). Bottom line = full-width `→ target_scene_id` row that wraps cleanly in monospace. |
+| S4-C | [ ] | **Phase C.** Update `StoryboardTab/constants.ts`: **D4.7-c** `POPOVER_WIDTH` 340 → 420; **D4.8-a** `POPOVER_MAX_HEIGHT` 480 → 560. Re-verify side-picker math in `SceneInspectorPopover` against the wider footprint; adjust `POPOVER_EDGE_PADDING` if the picker flips sides too eagerly. |
+| S4-D | [ ] | **Phase C.** Build a small `useClampLines({ maxLines: 4 })` helper (or inline disclosure in `FieldRow`) per **D4.10-b**. Renders full value if it fits in 4 lines; otherwise clamps + exposes "Show more" / "Show less" toggle. |
+| S4-E | [ ] | **Phase C.** Add value-kind detection helper in `StoryboardTab/inspector/formatConfigValue.ts`. Returns a discriminated `{ kind: 'url' \| 'templating' \| 'plain' \| 'scalar' \| 'structured', value }` consumed by `ConfigRow`. URL detection covers `http` / `https`; does not special-case `mailto` / `tel`. |
+| S4-F | [ ] | **Phase C.** Apply copy affordance wrapping per **D4.9-b**: `CopyableValue` only on `url` and `templating` kinds. Plain long strings and short scalars render without copy. |
+| S4-G | [ ] | **Phase C.** Update `ui/src/test/workflow-scene-inspector-popover.test.tsx`: (1) short scalar → inline, (2) 80-char plain string → stacked with Show more, (3) templating string → monospace + copy button, (4) URL → stacked + copy button, no `<a>`, (5) card-per-transition structure with long resultCode/target, (6) width/max-height tokens updated. |
+| S4-H | [ ] | **Phase C (optional).** Visual regression / screenshot sanity for a worst-case graph with long URLs + long transitions. |
 
 ### Slice 5 — scene inspector in right rail (optional, bigger lift)
 
