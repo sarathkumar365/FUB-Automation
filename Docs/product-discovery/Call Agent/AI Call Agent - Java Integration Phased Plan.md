@@ -154,46 +154,115 @@ Java treats `status` as the primary routing field.
 
 ## Phase 2 — Java: `AiCallWorkflowStep` (self-rescheduling)
 
-**What:**
-1. New step type implementing `WorkflowStepType`.
-2. Config schema: `to` (JSONata), `context` object (JSONata-templated fields
-   for `lead_name`, `property_interest`, `agent_name`, `brokerage_name`).
-3. Step-local state carried across reinvocations — `call_sid` and `started_at`
-   stored in step scratch state (or step output, depending on engine support
-   — see note below).
-4. Execution logic — two branches based on own state:
+**Summary:**
+Implement Phase 2 by adding an engine-level `RESCHEDULE` outcome and a new
+`ai_call` workflow step that integrates with the finalized Python contract
+(`POST /call`, `GET /calls/{sid}`), while preserving terminal `CallResult`
+semantics (`schema_version="1"`), idempotency, and existing workflow APIs.
+Polling cadence is fixed to `nextDueAt = now + 120s`.
 
-   **First invocation (no `call_sid` yet):**
-   - Build `call_key = runId + ":" + stepId` (deterministic across retries).
-   - POST to Python `/call` with `{call_key, to, context}`.
-   - Store returned `call_sid` in step state.
-   - Store `started_at = now` for timeout tracking.
-   - Set `dueAt = now + 20s`.
-   - Return RESCHEDULE.
+**Implementation changes:**
+1. Engine reschedule capability:
+   - Extend step execution result model to support a non-terminal reschedule
+     action carrying:
+     - `nextDueAt`
+     - optional state patch
+   - Update execution flow so `RESCHEDULE`:
+     - updates the same step row to `PENDING`
+     - sets `dueAt = nextDueAt`
+     - persists state patch
+     - skips transition application until terminal completion
 
-   **Subsequent invocations (have `call_sid`):**
-   - GET Python `/calls/{call_sid}`.
-   - If `status == "in_progress"`:
-     - If `now - started_at > 5 min` → write timeout error to output, COMPLETE (failed).
-     - Else → `dueAt = now + 15s`, RESCHEDULE.
-   - If terminal → write full `CallResult` as step output, COMPLETE.
+2. Step-local state persistence (new DB column):
+   - Add Flyway migration to `workflow_run_steps` for a dedicated JSON column
+     (e.g., `step_state`).
+   - Map this field in `WorkflowRunStepEntity`.
+   - Keep `outputs` strictly for terminal business output, not in-progress
+     scratch state.
 
-5. Error handling: Python unreachable or 5xx on first invocation → step fails
-   immediately. On subsequent invocations → reschedule and retry
-   (transient network blip shouldn't kill the call).
+3. New call-service integration step:
+   - Add `AiCallWorkflowStep` with config schema:
+     - required `to` (resolved string)
+     - required `context` (resolved object; loose keys)
+   - Step runtime behavior:
+     - First invocation (no `callSid` in `step_state`):
+       - build deterministic `call_key = runId:stepId`
+       - call `POST /call`
+       - store `{callSid, startedAt}` in `step_state`
+       - return `RESCHEDULE(now + 120s)`
+     - Subsequent invocation:
+       - call `GET /calls/{callSid}`
+       - `in_progress` and elapsed <= 5 minutes: `RESCHEDULE(now + 120s)`
+       - elapsed > 5 minutes: complete with timeout terminal payload
+         (`status="timeout"`, `error.code/message`)
+       - terminal response from Python: complete and write full payload to
+         `outputs`
+   - Failure behavior:
+     - first-invocation transport/5xx -> terminal fail-fast
+     - polling transport transient failures -> reschedule
 
-**Engine note — state persistence across reinvocations:**
-The step needs `call_sid` + `started_at` to survive between invocations.
-Two options depending on what the engine supports:
-- **Preferred:** dedicated per-step scratch state on `RunContext`
-  (e.g. `steps.ai_call.state.call_sid`) kept separate from final `output`.
-- **Fallback:** write partial state into step output on first invocation,
-  overwrite with full `CallResult` on terminal. Works if the engine lets a
-  step read its own prior output on reinvocation.
+4. Dedicated call-service adapter:
+   - Add a typed port/adapter + DTOs for call-service contract shapes.
+   - Add environment-backed config for base URL and HTTP timeouts.
+   - Do not add new HTTP endpoints.
 
-Confirm which the engine supports before Phase 2 starts. If neither works
-cleanly, fall back to the two-step split (revert to an earlier draft of
-this plan).
+5. Catalog and operator visibility:
+   - Register `ai_call` so it appears in `/admin/workflows/step-types` with
+     correct schema/result codes.
+   - Keep run detail behavior unchanged except new internal state persistence
+     path.
+
+**Delivery passes:**
+1. Pass 1: engine reschedule primitive + `step_state` migration + core execution tests.
+2. Pass 2: call-service adapter/DTO/config + adapter tests.
+3. Pass 3: `AiCallWorkflowStep` logic + unit tests (first call, poll, terminal, timeout).
+4. Pass 4: integration wiring (catalog + worker reschedule loop) + regression suites.
+
+**Pass tracking:**
+- Pass 1: `COMPLETED` (2026-04-21)
+  - Added engine `RESCHEDULE` outcome handling in `WorkflowStepExecutionService`.
+  - Added `workflow_run_steps.step_state` (Flyway `V16__add_step_state_to_workflow_run_steps.sql` + entity mapping).
+  - Added test coverage for reschedule behavior and step-state persistence.
+- Pass 2: `COMPLETED` (2026-04-21)
+  - Added typed call-service port (`AiCallServiceClient`) and HTTP adapter (`AiCallServiceHttpClientAdapter`).
+  - Added call-service DTOs for `POST /call` and `GET /calls/{sid}` payload mapping.
+  - Added `ai-call-service.*` config properties for base URL and timeouts.
+  - Added adapter test coverage for success, terminal/in-progress mapping, HTTP error mapping, and network failure behavior.
+- Pass 3: `COMPLETED` (2026-04-21)
+  - Added `AiCallWorkflowStep` (`id=ai_call`) with required `to` + `context` config schema.
+  - Added runtime polling semantics: initial `POST /call`, persisted `step_state` (`callSid`, `callKey`, `startedAt`), fixed `+120s` self-reschedule loop.
+  - Added terminal handling for service terminal statuses (`completed` / `failed`) plus caller-side timeout path (`timeout`) with synthetic terminal payload (`schema_version="1"`).
+  - Added explicit failure behavior: first-call fail-fast on client exception, transient poll failure reschedule, non-transient poll failure terminal fail.
+  - Extended `StepExecutionContext` + execution wiring to pass persisted `step_state` into step executors.
+  - Added unit coverage: `AiCallWorkflowStepTest` and `WorkflowRetryDispatchTest` context propagation assertion.
+- Pass 4: `COMPLETED` (2026-04-21)
+  - Extended admin step catalog assertions to include `ai_call` metadata (`required` keys, declared result codes, retry defaults).
+  - Added integration test coverage (`AiCallWorkflowIntegrationTest`) validating worker-loop behavior:
+    - same-step reschedule execution (`+120s` cadence)
+    - deterministic `call_key = runId:stepId`
+    - persisted `step_state` continuity across polls
+    - terminal payload transition and downstream step expression consumption
+    - timeout and non-transient poll-failure paths
+  - Ran full backend regression suite with Docker/Testcontainers enabled and confirmed green.
+
+**Test plan:**
+- Unit: reschedule handling updates step row (`PENDING`, `dueAt`, `step_state`)
+  without transition.
+- Unit: `AiCallWorkflowStep` payload mapping, idempotent key usage, 120s cadence,
+  timeout behavior.
+- Integration: due-worker reclaims same step after due time and eventually
+  completes with terminal output.
+- API: `/admin/workflows/step-types` includes `ai_call`.
+- Regression: run new tests plus existing backend suite; report blockers if
+  environment-dependent.
+
+**Assumptions and defaults:**
+- Poll interval for `ai_call` is always 120 seconds.
+- Timeout threshold is 5 minutes from persisted `startedAt`.
+- Scope excludes auth, status-callback/webhook push, and Python-side persistence changes.
+- Documentation workflow is mandatory:
+  - repo-wide decisions in `Docs/repo-decisions/`
+  - feature docs in `Docs/features/<feature-slug>/` updated per pass.
 
 **Exit criteria:**
 - Step runs in a workflow, phone actually rings on first invocation.

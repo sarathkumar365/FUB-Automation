@@ -76,6 +76,10 @@ public class WorkflowRunStepEntity {
     @Column(name = "outputs")
     private Map<String, Object> outputs;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "step_state")
+    private Map<String, Object> stepState;
+
     @Column(name = "error_message", length = 512)
     private String errorMessage;
 
