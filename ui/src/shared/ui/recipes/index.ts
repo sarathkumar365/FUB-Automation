@@ -6,5 +6,16 @@
  * feature-local component.
  */
 export { CopyableValue, type CopyableValueProps } from './CopyableValue'
+export {
+  FIELD_ROW_LONG_THRESHOLD,
+  FieldRow,
+  type FieldRowLayout,
+  type FieldRowProps,
+} from './FieldRow'
+export {
+  KeyValueList,
+  type KeyValueListItem,
+  type KeyValueListProps,
+} from './KeyValueList'
 export { Section, type SectionProps } from './Section'
 export { Skeleton, type SkeletonProps } from './Skeleton'
