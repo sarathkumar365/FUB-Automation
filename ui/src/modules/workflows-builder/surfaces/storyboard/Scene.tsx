@@ -68,7 +68,7 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
           padding: '10px 14px',
           borderRadius: 12,
           background: 'var(--color-surface)',
-          border: `1.5px solid ${selected ? 'var(--color-brand)' : 'var(--color-storyboard-card-border)'}`,
+          border: `1.5px solid ${selected ? 'var(--color-storyboard-card-ring-selected)' : 'var(--color-storyboard-card-border)'}`,
           boxShadow: selected
             ? 'var(--color-storyboard-card-shadow-selected)'
             : 'var(--color-storyboard-card-shadow)',

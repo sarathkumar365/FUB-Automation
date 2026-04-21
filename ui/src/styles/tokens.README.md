@@ -37,7 +37,7 @@ Each category has three shades:
 Accessed at runtime via `modules/workflows-builder/surfaces/storyboard/accentTokens.ts`. Adding a new category means updating both this file and that lookup.
 
 ### Storyboard surface hints — `--color-storyboard-*`
-Storyboard-specific visual effects: grid dot, card border, card shadow (normal + selected), edge stroke colors, arrow marker, neutral chip styling. Used only by `surfaces/storyboard/*` TSX and the `.storyboard-canvas` CSS class in this file.
+Storyboard-specific visual effects: grid dot, card border, selected-scene ring, card shadow (normal + selected), edge stroke colors, arrow marker, neutral chip styling, and per-kind terminal-pill palettes (`-terminal-{success|failure|skipped|noop}-{bg,border,text}`). Used only by `surfaces/storyboard/*` TSX and the `.storyboard-canvas` CSS class in this file.
 
 ### Radius — `--radius-sm`, `--radius-md`, `--radius-pill`
 8px / 12px / fully-round. Use the scale — don't hardcode arbitrary pixel values.
