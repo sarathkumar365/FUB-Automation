@@ -187,6 +187,7 @@ export const uiText = {
     sceneInspectorEmptyConfig: 'No configuration',
     sceneInspectorEmptyTransitions: 'No declared transitions',
     sceneInspectorTransitionTerminal: 'terminal',
+    sceneInspectorTransitionNode: 'node',
     sceneInspectorNotFound: 'Selected step not found in this graph.',
     detailRunsTitle: 'Workflow Runs',
     detailRunsEmptyMessage: 'No workflow runs found for this workflow and filters.',

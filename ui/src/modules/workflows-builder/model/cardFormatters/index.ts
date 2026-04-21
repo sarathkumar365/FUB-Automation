@@ -25,11 +25,29 @@ export interface FormattedScene {
 type Config = Record<string, unknown>
 type Formatter = (config: Config) => FormattedScene
 
-const DEFAULT: Formatter = (config) => ({
-  title: 'Unknown step',
-  summary: JSON.stringify(config).slice(0, 72),
-  accent: 'neutral',
-})
+/**
+ * Humane fallback: when a step type has no registered formatter, render the
+ * raw step-type id as a title-cased phrase (e.g. `my_custom_step` →
+ * `My Custom Step`) instead of the literal word "unknown". New step types
+ * added to the engine are legible on the card immediately, without needing
+ * a UI change first.
+ */
+function humaneTitle(stepType: string): string {
+  const cleaned = stepType.replace(/[_-]+/g, ' ').trim()
+  if (cleaned.length === 0) return 'Step'
+  return cleaned
+    .split(/\s+/)
+    .map((word) => (word.length === 0 ? word : word[0].toUpperCase() + word.slice(1).toLowerCase()))
+    .join(' ')
+}
+
+function makeDefaultFormatter(stepType: string): Formatter {
+  return (config) => ({
+    title: humaneTitle(stepType),
+    summary: stringifyShort(config),
+    accent: 'neutral',
+  })
+}
 
 const formatters: Record<string, Formatter> = {
   set_variable: (config) => {
@@ -113,14 +131,31 @@ const formatters: Record<string, Formatter> = {
 
 export function formatScene(stepType: string, config: Config): FormattedScene {
   if (stepType === '__trigger__') {
-    return {
-      title: 'Trigger',
-      summary: 'workflow start',
-      accent: 'trigger',
-    }
+    return formatTrigger(config ?? {})
   }
-  const formatter = formatters[stepType] ?? DEFAULT
+  const formatter = formatters[stepType] ?? makeDefaultFormatter(stepType)
   return formatter(config ?? {})
+}
+
+function formatTrigger(config: Config): FormattedScene {
+  const triggerType = asString(config.type)
+  const title = triggerType ? `Trigger: ${triggerType}` : 'Trigger'
+  const summary = triggerSummary(config)
+  return {
+    title,
+    summary,
+    accent: 'trigger',
+  }
+}
+
+function triggerSummary(config: Config): string {
+  const rest: Config = {}
+  for (const [key, value] of Object.entries(config)) {
+    if (key === 'type') continue
+    rest[key] = value
+  }
+  if (Object.keys(rest).length === 0) return ''
+  return stringifyShort(rest)
 }
 
 export function registeredStepTypes(): string[] {

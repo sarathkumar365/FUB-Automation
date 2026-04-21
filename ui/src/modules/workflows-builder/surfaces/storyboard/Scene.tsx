@@ -1,27 +1,34 @@
 /**
  * A single scene card on the storyboard.
  *
- * Scene rendering is read-only in Phase 1. Click selection flows through the
- * builder store so the debug overlay can record it as an action.
+ * Scene rendering is read-only in Phase 1. The card surfaces just enough to
+ * scan at graph-speed:
+ *   1. An accent-tinted step-type pill ("entry · set_variable") so category is
+ *      legible without reading config.
+ *   2. The formatted title ("Set variable x") as the primary copy.
+ * Anything richer — node id, config, transitions — lives in the floating
+ * inspector popover so the graph itself stays scannable. The summary/id lines
+ * the card used to carry were redundant once the popover existed and bloated
+ * the card height; they are intentionally gone here.
  *
  * We render as foreignObject inside the Storyboard SVG so cards can use real
- * HTML/CSS (text wrapping, font metrics) while still living in the same
+ * HTML/CSS (truncation, font metrics) while still living in the same
  * coordinate space as the spine + edges. Every interactive element has
  * `data-builder-region` so Playwright tests and the debug overlay can find
  * them without brittle CSS selectors.
  */
-import { formatScene, type FormatterAccent } from '../../model/cardFormatters'
+import { formatScene } from '../../model/cardFormatters'
 import type { SceneLayout } from '../../model/layoutEngine'
 import type { StoryboardScene } from '../../model/graphAdapters'
 
-const ACCENT_TOKENS: Record<FormatterAccent, { border: string; chip: string; text: string }> = {
-  trigger: { border: '#0f9fb8', chip: 'rgba(15, 159, 184, 0.18)', text: '#0f9fb8' },
-  'side-effect': { border: '#d97706', chip: 'rgba(217, 119, 6, 0.14)', text: '#b45309' },
-  wait: { border: '#6366f1', chip: 'rgba(99, 102, 241, 0.14)', text: '#4338ca' },
-  branch: { border: '#db2777', chip: 'rgba(219, 39, 119, 0.14)', text: '#9d174d' },
-  compute: { border: '#059669', chip: 'rgba(5, 150, 105, 0.14)', text: '#047857' },
-  neutral: { border: '#64748b', chip: 'rgba(100, 116, 139, 0.14)', text: '#334155' },
-}
+// Scene cards render neutral: no colored left stripe, no accent-tinted pill.
+// The `data-accent` attribute still reflects the step-type category so tests
+// and later features can read it, but the visible treatment is monochrome so
+// the graph reads calmly at scan-speed.
+const NEUTRAL_PILL_BG = 'rgba(100, 116, 139, 0.1)'
+const NEUTRAL_PILL_TEXT = '#475569'
+const SELECTION_BORDER = 'var(--color-brand)'
+const SELECTION_HALO = 'rgba(15, 23, 42, 0.12)'
 
 export interface SceneProps {
   scene: StoryboardScene
@@ -32,9 +39,11 @@ export interface SceneProps {
 
 export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
   const formatted = formatScene(scene.stepType, scene.config)
-  const accent = ACCENT_TOKENS[formatted.accent]
   const left = layout.x - layout.width / 2
   const top = layout.y - layout.height / 2
+  const isTrigger = scene.stepType === '__trigger__'
+  const tooltip = isTrigger ? 'trigger' : scene.stepType
+  const pillLabel = isTrigger ? 'trigger' : `${scene.isEntry ? 'entry · ' : ''}${scene.stepType}`
 
   return (
     <foreignObject x={left} y={top} width={layout.width} height={layout.height}>
@@ -46,6 +55,7 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
         data-scene-id={scene.id}
         data-step-type={scene.stepType}
         data-accent={formatted.accent}
+        title={tooltip}
         role="button"
         tabIndex={0}
         onClick={() => onSelect(scene.id)}
@@ -59,44 +69,59 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
           boxSizing: 'border-box',
           width: '100%',
           height: '100%',
-          padding: '12px 14px',
+          padding: '10px 14px',
           borderRadius: 12,
           background: '#ffffff',
-          border: `1.5px solid ${selected ? accent.border : 'rgba(15, 23, 42, 0.12)'}`,
+          border: `1.5px solid ${selected ? SELECTION_BORDER : 'rgba(15, 23, 42, 0.12)'}`,
           boxShadow: selected
-            ? `0 0 0 3px ${accent.chip}, 0 8px 24px rgba(15, 23, 42, 0.08)`
+            ? `0 0 0 3px ${SELECTION_HALO}, 0 8px 24px rgba(15, 23, 42, 0.08)`
             : '0 2px 10px rgba(15, 23, 42, 0.06)',
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
+          justifyContent: 'center',
           gap: 6,
           fontFamily: 'Manrope, system-ui, sans-serif',
+          minWidth: 0,
         }}
       >
-        <div
+        <span
+          data-builder-region="scene-type"
           style={{
-            display: 'inline-flex',
             alignSelf: 'flex-start',
+            maxWidth: '100%',
+            display: 'inline-flex',
             alignItems: 'center',
-            gap: 6,
-            padding: '2px 8px',
+            padding: '1px 8px',
             borderRadius: 999,
-            background: accent.chip,
-            color: accent.text,
+            background: NEUTRAL_PILL_BG,
+            color: NEUTRAL_PILL_TEXT,
             fontSize: 11,
             fontWeight: 600,
-            letterSpacing: 0.3,
-            textTransform: 'uppercase',
+            letterSpacing: 0.2,
+            fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
           }}
         >
-          {scene.isEntry ? 'entry · ' : ''}
-          {scene.stepType}
+          {pillLabel}
+        </span>
+        <div
+          data-builder-region="scene-name"
+          style={{
+            fontSize: 14,
+            fontWeight: 600,
+            color: '#0f172a',
+            lineHeight: 1.3,
+            whiteSpace: 'nowrap',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            maxWidth: '100%',
+          }}
+        >
+          {formatted.title}
         </div>
-        <div style={{ fontSize: 14, fontWeight: 600, color: '#0f172a' }}>{formatted.title}</div>
-        <div style={{ fontSize: 12, color: '#475569', fontFamily: 'JetBrains Mono, monospace' }}>
-          {formatted.summary}
-        </div>
-        <div style={{ marginTop: 'auto', fontSize: 11, color: '#94a3b8' }}>{scene.id}</div>
       </div>
     </foreignObject>
   )

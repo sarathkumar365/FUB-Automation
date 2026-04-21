@@ -62,11 +62,17 @@ export function graphToStoryboard(
   const terminals: StoryboardTerminal[] = []
 
   if (trigger) {
+    const triggerConfig = (trigger.config as Record<string, unknown> | undefined) ?? {}
+    const triggerType = typeof trigger.type === 'string' ? trigger.type : undefined
+    // The synthetic trigger scene always carries the `__trigger__` stepType so
+    // card formatters can recognize it. The real trigger type (e.g. `webhook`,
+    // `fub_event`) is exposed inside `config.type` so the formatter can render
+    // it in the title (e.g. "Trigger: webhook").
     scenes.push({
       id: TRIGGER_SCENE_ID,
       kind: 'trigger',
-      stepType: typeof trigger.type === 'string' ? trigger.type : '__trigger__',
-      config: (trigger.config as Record<string, unknown> | undefined) ?? {},
+      stepType: '__trigger__',
+      config: triggerType ? { ...triggerConfig, type: triggerType } : triggerConfig,
       isEntry: false,
     })
     exits.push({

@@ -8,6 +8,7 @@
  * along the bezier (see `edgeLabelT`) so the chips never overlap.
  */
 import type { SceneLayout } from '../../model/layoutEngine'
+import { CHIP_FONT_SIZE, estimateChipWidth } from './chipMetrics'
 import { cubicBezierPoint, edgeLabelT } from './edgeMath'
 
 export interface ExitEdgeProps {
@@ -34,11 +35,16 @@ export function ExitEdge({ id, from, to, resultCode, edgeIndex, edgeCount }: Exi
   const path = `M ${p0.x} ${p0.y} C ${p1.x} ${p1.y}, ${p2.x} ${p2.y}, ${p3.x} ${p3.y}`
   const t = edgeLabelT(edgeIndex, edgeCount)
   const labelPoint = cubicBezierPoint(t, p0, p1, p2, p3)
-  const rectWidth = resultCode.length * 7 + 20
+  const rectWidth = estimateChipWidth(resultCode, { minWidth: 48 })
   const rectHeight = 20
 
   return (
-    <g data-builder-region="exit-edge" data-edge-id={id} data-result-code={resultCode}>
+    <g
+      data-builder-region="exit-edge"
+      data-edge-id={id}
+      data-result-code={resultCode}
+      data-chip-width={rectWidth}
+    >
       <path
         d={path}
         fill="none"
@@ -61,7 +67,7 @@ export function ExitEdge({ id, from, to, resultCode, edgeIndex, edgeCount }: Exi
           x={0}
           y={4}
           textAnchor="middle"
-          fontSize={11}
+          fontSize={CHIP_FONT_SIZE}
           fontFamily="JetBrains Mono, monospace"
           fill="#334155"
         >

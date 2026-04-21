@@ -134,6 +134,22 @@ describe('cardFormatters', () => {
     expect(formatScene('does_not_exist', { foo: 'bar' }).accent).toBe('neutral')
   })
 
+  it('renders unregistered step types with a humane title-cased fallback', () => {
+    const formatted = formatScene('my_custom_thing', {})
+    expect(formatted.title).toBe('My Custom Thing')
+    expect(formatted.accent).toBe('neutral')
+  })
+
+  it('formats the synthetic trigger scene with a meaningful title', () => {
+    const withType = formatScene('__trigger__', { type: 'webhook' })
+    expect(withType.title).toBe('Trigger: webhook')
+    expect(withType.accent).toBe('trigger')
+
+    const bare = formatScene('__trigger__', {})
+    expect(bare.title).toBe('Trigger')
+    expect(bare.accent).toBe('trigger')
+  })
+
   it('registers all 10 engine step types', () => {
     expect(registeredStepTypes()).toEqual([
       'branch_on_field',

@@ -97,13 +97,25 @@ export function WorkflowHeaderStrip({
         ) : null}
         {triggerType ? (
           <span
-            className="inline-flex h-[26px] items-center gap-1 rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-2.5 text-xs"
+            className="inline-flex h-[26px] items-center gap-1 overflow-hidden rounded-full border border-[var(--color-border)] bg-[var(--color-surface-alt)] px-2.5 text-xs"
             data-testid="workflow-header-trigger-chip"
+            style={{ maxWidth: 240, minWidth: 0 }}
+            title={triggerType}
           >
-            <span className="text-[var(--color-text-muted)]">
+            <span className="shrink-0 text-[var(--color-text-muted)]">
               {uiText.workflows.detailTriggerMetaPrefix} ·
             </span>
-            <span className="font-mono text-[var(--color-text)]">{triggerType}</span>
+            <span
+              className="font-mono text-[var(--color-text)]"
+              style={{
+                minWidth: 0,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}
+            >
+              {triggerType}
+            </span>
           </span>
         ) : null}
       </div>

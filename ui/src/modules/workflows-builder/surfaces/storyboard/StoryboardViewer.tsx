@@ -8,7 +8,9 @@
  *
  * Layout is vertical (top → bottom). Edge labels are spread along their
  * bezier so multiple exits leaving the same scene (branching) don't stack
- * chips on top of each other.
+ * chips on top of each other. Terminal pills fly outward relative to the
+ * graph's horizontal midline so pills on the left branch never collide with
+ * subtrees on the right.
  */
 import { useMemo } from 'react'
 import type { Graph } from '../../state/runtimeContract'
@@ -30,7 +32,7 @@ export function StoryboardViewer({
   selectedSceneId = null,
   onSelectScene,
 }: StoryboardViewerProps) {
-  const { model, layout } = useStoryboardModel(graph, trigger)
+  const { model, layout, terminalPlacements, viewport } = useStoryboardModel(graph, trigger)
 
   const exitGroupings = useMemo(() => {
     const counts = new Map<string, number>()
@@ -49,36 +51,25 @@ export function StoryboardViewer({
     })
   }, [model.exits])
 
-  const terminalGroupings = useMemo(() => {
-    const totals = new Map<string, number>()
-    for (const terminal of model.terminals) {
-      totals.set(terminal.fromSceneId, (totals.get(terminal.fromSceneId) ?? 0) + 1)
-    }
-    const indices = new Map<string, number>()
-    return model.terminals.map((terminal) => {
-      const index = indices.get(terminal.fromSceneId) ?? 0
-      indices.set(terminal.fromSceneId, index + 1)
-      return {
-        terminal,
-        index,
-        totalTerminals: totals.get(terminal.fromSceneId) ?? 1,
-      }
-    })
-  }, [model.terminals])
+  const terminalsByIdLookup = useMemo(() => {
+    const byId = new Map<string, (typeof terminalPlacements)[number]>()
+    for (const placement of terminalPlacements) byId.set(placement.terminalId, placement)
+    return byId
+  }, [terminalPlacements])
 
   const handleSelect = onSelectScene ?? (() => {})
-  const svgWidth = Math.max(layout.width, 320)
-  const svgHeight = Math.max(layout.height + 24, 240)
+  const svgWidth = Math.max(viewport.width, 320)
+  const svgHeight = Math.max(viewport.height + 24, 240)
 
   return (
-    <div data-builder-region="storyboard" style={{ width: '100%', overflow: 'auto' }}>
+    <div data-builder-region="storyboard" style={{ width: '100%', overflowX: 'auto' }}>
       <svg
         role="img"
         aria-label="Workflow storyboard"
         width={svgWidth}
         height={svgHeight}
-        viewBox={`0 0 ${svgWidth} ${svgHeight}`}
-        style={{ fontFamily: 'Manrope, system-ui, sans-serif' }}
+        viewBox={`${viewport.x} ${viewport.y} ${svgWidth} ${svgHeight}`}
+        style={{ fontFamily: 'Manrope, system-ui, sans-serif', display: 'block', margin: '0 auto' }}
       >
         <defs>
           <marker
@@ -109,9 +100,10 @@ export function StoryboardViewer({
             />
           )
         })}
-        {terminalGroupings.map(({ terminal, index, totalTerminals }) => {
+        {model.terminals.map((terminal) => {
           const from = layout.scenes.get(terminal.fromSceneId)
-          if (!from) return null
+          const placement = terminalsByIdLookup.get(terminal.id)
+          if (!from || !placement) return null
           return (
             <TerminalPill
               key={terminal.id}
@@ -119,8 +111,9 @@ export function StoryboardViewer({
               from={from}
               resultCode={terminal.resultCode}
               reason={terminal.reason}
-              index={index}
-              totalTerminals={totalTerminals}
+              index={placement.index}
+              totalTerminals={placement.totalTerminals}
+              side={placement.side}
             />
           )
         })}

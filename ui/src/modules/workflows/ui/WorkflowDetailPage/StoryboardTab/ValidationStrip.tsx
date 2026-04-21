@@ -93,7 +93,12 @@ export function ValidationStrip({ state, onValidate, onDismiss, disabled }: Vali
         <div className="border-t px-4 py-3" style={{ borderColor: tone.border }}>
           <ul className="list-inside list-disc text-sm text-[var(--color-text-muted)]">
             {state.errors.map((err) => (
-              <li key={err}>{err}</li>
+              <li
+                key={err}
+                style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+              >
+                {err}
+              </li>
             ))}
           </ul>
         </div>

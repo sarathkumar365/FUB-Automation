@@ -17,7 +17,7 @@ import dagre from '@dagrejs/dagre'
 import type { StoryboardModel } from './graphAdapters'
 
 export const SCENE_WIDTH = 260
-export const SCENE_HEIGHT = 110
+export const SCENE_HEIGHT = 80
 const NODE_SEP = 64
 const RANK_SEP = 72
 const MARGIN = 40
