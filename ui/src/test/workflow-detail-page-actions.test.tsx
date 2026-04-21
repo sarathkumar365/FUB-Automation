@@ -258,7 +258,7 @@ describe('workflow detail page actions', () => {
     await screen.findByText('Workflow A')
     expect(workflowMocks.listWorkflowRunsForKey).not.toHaveBeenCalled()
 
-    await user.click(screen.getByRole('button', { name: 'Runs' }))
+    await user.click(screen.getByRole('tab', { name: 'Runs' }))
     expect(screen.getByLabelText('Run Status')).toBeInTheDocument()
 
     await screen.findByText('44')

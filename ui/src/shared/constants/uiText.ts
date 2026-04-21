@@ -163,6 +163,7 @@ export const uiText = {
     detailTabDefinition: 'Definition',
     detailTabStoryboard: 'Storyboard',
     detailTabRuns: 'Runs',
+    detailTabsAriaLabel: 'Workflow detail sections',
     detailBreadcrumbSeparator: '›',
     detailTriggerMetaPrefix: 'trigger',
     detailVersionMetaPrefix: 'v',

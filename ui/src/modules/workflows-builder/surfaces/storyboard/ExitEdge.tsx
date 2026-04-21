@@ -48,7 +48,7 @@ export function ExitEdge({ id, from, to, resultCode, edgeIndex, edgeCount }: Exi
       <path
         d={path}
         fill="none"
-        stroke="rgba(15, 23, 42, 0.28)"
+        stroke="var(--color-storyboard-edge)"
         strokeWidth={1.5}
         markerEnd="url(#storyboard-arrow)"
       />
@@ -60,16 +60,16 @@ export function ExitEdge({ id, from, to, resultCode, edgeIndex, edgeCount }: Exi
           ry={8}
           width={rectWidth}
           height={rectHeight}
-          fill="#ffffff"
-          stroke="rgba(15, 23, 42, 0.18)"
+          fill="var(--color-surface)"
+          stroke="var(--color-storyboard-edge-soft)"
         />
         <text
           x={0}
           y={4}
           textAnchor="middle"
           fontSize={CHIP_FONT_SIZE}
-          fontFamily="JetBrains Mono, monospace"
-          fill="#334155"
+          fontFamily="var(--font-mono)"
+          fill="var(--color-storyboard-chip-strong-text)"
         >
           {resultCode}
         </text>

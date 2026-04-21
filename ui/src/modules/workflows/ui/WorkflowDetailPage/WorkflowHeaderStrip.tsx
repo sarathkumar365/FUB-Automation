@@ -12,6 +12,7 @@
 import { Link } from 'react-router-dom'
 import { routes } from '../../../../shared/constants/routes'
 import { uiText } from '../../../../shared/constants/uiText'
+import { Badge } from '../../../../shared/ui/badge'
 import { StatusBadge } from '../../../../shared/ui/StatusBadge'
 import {
   canActivateWorkflow,
@@ -83,17 +84,10 @@ export function WorkflowHeaderStrip({
       <div className="flex flex-wrap items-center gap-2">
         <StatusBadge label={formatWorkflowStatus(workflow.status)} tone={statusTone} />
         {workflow.versionNumber !== null ? (
-          <span
-            className="inline-flex h-[26px] items-center rounded-full px-2.5 font-mono text-xs"
-            style={{
-              background: 'rgba(15, 159, 184, 0.12)',
-              color: 'var(--color-brand)',
-              border: '1px solid rgba(15, 159, 184, 0.22)',
-            }}
-          >
+          <Badge variant="default" className="h-[26px] font-mono">
             {uiText.workflows.detailVersionMetaPrefix}
             {workflow.versionNumber}
-          </span>
+          </Badge>
         ) : null}
         {triggerType ? (
           <span

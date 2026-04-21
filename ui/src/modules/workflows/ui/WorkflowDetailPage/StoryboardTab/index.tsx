@@ -98,10 +98,10 @@ function StoryboardTabBody({
   onDismissValidation,
   isValidationPending,
 }: StoryboardTabBodyProps) {
-  const { layout, viewport } = useStoryboardModel(graph, trigger)
+  const { layout, viewport, canvasSize } = useStoryboardModel(graph, trigger)
   const selectedSceneLayout = selectedSceneId ? layout.scenes.get(selectedSceneId) : undefined
-  const canvasWidth = Math.max(viewport.width, 320)
-  const canvasHeight = Math.max(viewport.height + 24, 240)
+  const canvasWidth = canvasSize.width
+  const canvasHeight = canvasSize.height
 
   return (
     <div className="flex flex-col gap-3">
@@ -113,14 +113,8 @@ function StoryboardTabBody({
       />
       <div
         data-testid="workflow-storyboard-surface"
-        className="flex justify-center overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-subtle)]"
-        style={{
-          backgroundImage:
-            'radial-gradient(rgba(15, 23, 42, 0.05) 1px, transparent 1px)',
-          backgroundSize: '18px 18px',
-          backgroundPosition: '0 0',
-          position: 'relative',
-        }}
+        className="storyboard-canvas flex justify-center overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-subtle)]"
+        style={{ position: 'relative' }}
       >
         <div style={{ position: 'relative', width: canvasWidth }}>
           <StoryboardViewer

@@ -77,9 +77,11 @@ describe('StoryboardViewer', () => {
     expect(scene?.getAttribute('data-accent')).toBeTruthy()
     const pill = scene?.querySelector('[data-builder-region="scene-type"]') as HTMLElement | null
     expect(pill).toBeTruthy()
-    // Neutral tokens — muted slate background + slate text, no colored tinting.
-    expect(pill?.style.background).toMatch(/rgba\(100,\s*116,\s*139/)
-    expect(pill?.style.color).toMatch(/#475569|rgb\(71,\s*85,\s*105\)/i)
+    // Neutral tokens — resolved via CSS custom properties defined in
+    // `src/styles/tokens.css`. Assert the token reference so drift is caught
+    // without re-encoding the raw hex/rgba values in the test.
+    expect(pill?.style.background).toBe('var(--color-accent-neutral-bg)')
+    expect(pill?.style.color).toBe('var(--color-accent-neutral-fg)')
   })
 
   it('renders the trigger scene with a humane title, not "unknown"', () => {

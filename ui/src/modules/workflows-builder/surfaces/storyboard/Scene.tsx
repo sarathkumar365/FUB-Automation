@@ -20,15 +20,13 @@
 import { formatScene } from '../../model/cardFormatters'
 import type { SceneLayout } from '../../model/layoutEngine'
 import type { StoryboardScene } from '../../model/graphAdapters'
+import { getAccentTone } from './accentTokens'
 
-// Scene cards render neutral: no colored left stripe, no accent-tinted pill.
-// The `data-accent` attribute still reflects the step-type category so tests
-// and later features can read it, but the visible treatment is monochrome so
-// the graph reads calmly at scan-speed.
-const NEUTRAL_PILL_BG = 'rgba(100, 116, 139, 0.1)'
-const NEUTRAL_PILL_TEXT = '#475569'
-const SELECTION_BORDER = 'var(--color-brand)'
-const SELECTION_HALO = 'rgba(15, 23, 42, 0.12)'
+// Scene cards render neutral by default: no colored left stripe, no accent-tinted
+// pill. The `data-accent` attribute still reflects the step-type category so
+// tests and later features can read it, but the visible treatment is monochrome
+// so the graph reads calmly at scan-speed. All colors below come from
+// `ui/src/styles/tokens.css` — no hardcoded literals here.
 
 export interface SceneProps {
   scene: StoryboardScene
@@ -39,6 +37,7 @@ export interface SceneProps {
 
 export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
   const formatted = formatScene(scene.stepType, scene.config)
+  const tone = getAccentTone(formatted.accent)
   const left = layout.x - layout.width / 2
   const top = layout.y - layout.height / 2
   const isTrigger = scene.stepType === '__trigger__'
@@ -48,9 +47,6 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
   return (
     <foreignObject x={left} y={top} width={layout.width} height={layout.height}>
       <div
-        // xmlns is required for foreignObject HTML children
-        // @ts-expect-error — xmlns attribute is valid on divs inside foreignObject
-        xmlns="http://www.w3.org/1999/xhtml"
         data-builder-region="scene"
         data-scene-id={scene.id}
         data-step-type={scene.stepType}
@@ -71,22 +67,27 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
           height: '100%',
           padding: '10px 14px',
           borderRadius: 12,
-          background: '#ffffff',
-          border: `1.5px solid ${selected ? SELECTION_BORDER : 'rgba(15, 23, 42, 0.12)'}`,
+          background: 'var(--color-surface)',
+          border: `1.5px solid ${selected ? 'var(--color-brand)' : 'var(--color-storyboard-card-border)'}`,
           boxShadow: selected
-            ? `0 0 0 3px ${SELECTION_HALO}, 0 8px 24px rgba(15, 23, 42, 0.08)`
-            : '0 2px 10px rgba(15, 23, 42, 0.06)',
+            ? 'var(--color-storyboard-card-shadow-selected)'
+            : 'var(--color-storyboard-card-shadow)',
           cursor: 'pointer',
           display: 'flex',
           flexDirection: 'column',
           justifyContent: 'center',
           gap: 6,
-          fontFamily: 'Manrope, system-ui, sans-serif',
+          fontFamily: 'var(--font-ui)',
           minWidth: 0,
         }}
       >
         <span
           data-builder-region="scene-type"
+          // Tone currently resolves to neutral for every scene — see the comment
+          // at the top of the file. The accent tokens are still wired up so we
+          // can opt into colored categories per scene in a later pass without
+          // re-plumbing color resolution.
+          data-accent-fg={tone.fg}
           style={{
             alignSelf: 'flex-start',
             maxWidth: '100%',
@@ -94,12 +95,12 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
             alignItems: 'center',
             padding: '1px 8px',
             borderRadius: 999,
-            background: NEUTRAL_PILL_BG,
-            color: NEUTRAL_PILL_TEXT,
+            background: 'var(--color-accent-neutral-bg)',
+            color: 'var(--color-accent-neutral-fg)',
             fontSize: 11,
             fontWeight: 600,
             letterSpacing: 0.2,
-            fontFamily: 'JetBrains Mono, ui-monospace, monospace',
+            fontFamily: 'var(--font-mono)',
             whiteSpace: 'nowrap',
             overflow: 'hidden',
             textOverflow: 'ellipsis',
@@ -112,7 +113,7 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
           style={{
             fontSize: 14,
             fontWeight: 600,
-            color: '#0f172a',
+            color: 'var(--color-text)',
             lineHeight: 1.3,
             whiteSpace: 'nowrap',
             overflow: 'hidden',

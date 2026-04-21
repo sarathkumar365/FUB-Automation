@@ -29,6 +29,41 @@
   /* Live indicator */
   --color-live: #10b981;
 
+  /* Storyboard accent palette — keyed by FormatterAccent category.
+     Each tone has: fg (text), bg (chip/pill fill), dot (solid dot swatch). */
+  --color-accent-trigger-fg: #0f9fb8;
+  --color-accent-trigger-bg: rgba(15, 159, 184, 0.18);
+  --color-accent-trigger-dot: #0f9fb8;
+  --color-accent-side-effect-fg: #b45309;
+  --color-accent-side-effect-bg: rgba(217, 119, 6, 0.14);
+  --color-accent-side-effect-dot: #d97706;
+  --color-accent-wait-fg: #4338ca;
+  --color-accent-wait-bg: rgba(99, 102, 241, 0.14);
+  --color-accent-wait-dot: #6366f1;
+  --color-accent-branch-fg: #9d174d;
+  --color-accent-branch-bg: rgba(219, 39, 119, 0.14);
+  --color-accent-branch-dot: #db2777;
+  --color-accent-compute-fg: #047857;
+  --color-accent-compute-bg: rgba(5, 150, 105, 0.14);
+  --color-accent-compute-dot: #059669;
+  --color-accent-neutral-fg: #475569;
+  --color-accent-neutral-bg: rgba(100, 116, 139, 0.10);
+  --color-accent-neutral-dot: #64748b;
+
+  /* Storyboard surface hints */
+  --color-storyboard-grid-dot: rgba(15, 23, 42, 0.05);
+  --color-storyboard-card-border: rgba(15, 23, 42, 0.12);
+  --color-storyboard-card-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --color-storyboard-card-shadow-selected: 0 0 0 3px rgba(15, 23, 42, 0.12), 0 8px 24px rgba(15, 23, 42, 0.08);
+  --color-storyboard-edge: rgba(15, 23, 42, 0.28);
+  --color-storyboard-arrow: rgba(15, 23, 42, 0.55);
+  --color-storyboard-edge-soft: rgba(15, 23, 42, 0.18);
+  --color-storyboard-edge-dashed: rgba(15, 23, 42, 0.2);
+  --color-storyboard-chip-neutral-bg: rgba(100, 116, 139, 0.08);
+  --color-storyboard-chip-neutral-border: rgba(100, 116, 139, 0.35);
+  --color-storyboard-chip-neutral-text: #475569;
+  --color-storyboard-chip-strong-text: #334155;
+
   /* Radius */
   --radius-sm: 8px;
   --radius-md: 12px;
@@ -46,6 +81,13 @@
 
   /* Form controls */
   --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 8 10 12 14 8'/></svg>");
+}
+
+/* Storyboard canvas dot-grid background. Shared across builder + detail. */
+.storyboard-canvas {
+  background-image: radial-gradient(var(--color-storyboard-grid-dot) 1px, transparent 1px);
+  background-size: 18px 18px;
+  background-position: 0 0;
 }
 
 @keyframes heartbeat-flash {

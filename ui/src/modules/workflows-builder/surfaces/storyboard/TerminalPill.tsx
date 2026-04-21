@@ -60,7 +60,7 @@ export function TerminalPill({
         y1={anchorY}
         x2={lineEndX}
         y2={pillY}
-        stroke="rgba(15, 23, 42, 0.2)"
+        stroke="var(--color-storyboard-edge-dashed)"
         strokeWidth={1.25}
         strokeDasharray="3 3"
       />
@@ -71,15 +71,15 @@ export function TerminalPill({
         height={22}
         rx={11}
         ry={11}
-        fill="rgba(100, 116, 139, 0.08)"
-        stroke="rgba(100, 116, 139, 0.35)"
+        fill="var(--color-storyboard-chip-neutral-bg)"
+        stroke="var(--color-storyboard-chip-neutral-border)"
       />
       <text
         x={textX}
         y={pillY + 4}
         fontSize={CHIP_FONT_SIZE}
-        fontFamily="JetBrains Mono, monospace"
-        fill="#475569"
+        fontFamily="var(--font-mono)"
+        fill="var(--color-storyboard-chip-neutral-text)"
         textAnchor={textAnchor}
       >
         {label}

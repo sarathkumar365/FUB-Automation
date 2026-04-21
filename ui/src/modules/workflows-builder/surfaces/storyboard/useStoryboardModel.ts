@@ -13,17 +13,33 @@ import { graphToStoryboard, type StoryboardModel } from '../../model/graphAdapte
 import { layoutStoryboard, type StoryboardLayout } from '../../model/layoutEngine'
 import type { Graph } from '../../state/runtimeContract'
 import {
+  CANVAS_HEIGHT_TRAILING_SLACK,
+  MIN_CANVAS_HEIGHT,
+  MIN_CANVAS_WIDTH,
+} from './constants'
+import {
   computeTerminalPlacements,
   computeViewportBox,
   type TerminalPlacement,
   type ViewportBox,
 } from './viewport'
 
+export interface CanvasSize {
+  /** Rendered SVG width after applying the minimum-canvas-width floor. */
+  width: number
+  /** Rendered SVG height after applying the trailing slack + floor. */
+  height: number
+}
+
 export interface UseStoryboardModelResult {
   model: StoryboardModel
   layout: StoryboardLayout
   terminalPlacements: TerminalPlacement[]
   viewport: ViewportBox
+  /** Canonical canvas size for all surfaces that render this storyboard. Use
+   *  this instead of recomputing `Math.max(viewport.width, 320)` at call
+   *  sites to keep the builder + detail surfaces in lockstep. */
+  canvasSize: CanvasSize
 }
 
 export function useStoryboardModel(
@@ -40,5 +56,12 @@ export function useStoryboardModel(
     () => computeViewportBox({ layout, terminalPlacements }),
     [layout, terminalPlacements],
   )
-  return { model, layout, terminalPlacements, viewport }
+  const canvasSize = useMemo<CanvasSize>(
+    () => ({
+      width: Math.max(viewport.width, MIN_CANVAS_WIDTH),
+      height: Math.max(viewport.height + CANVAS_HEIGHT_TRAILING_SLACK, MIN_CANVAS_HEIGHT),
+    }),
+    [viewport],
+  )
+  return { model, layout, terminalPlacements, viewport, canvasSize }
 }

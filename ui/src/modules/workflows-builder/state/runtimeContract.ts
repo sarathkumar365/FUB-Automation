@@ -42,12 +42,18 @@ export type FanoutTransition = z.infer<typeof fanoutTransitionSchema>
 export type TransitionValue = z.infer<typeof transitionValueSchema>
 export type Graph = z.infer<typeof graphSchema>
 
-export function isTerminalTransition(value: TransitionValue): value is TerminalTransition {
-  return !Array.isArray(value) && typeof value === 'object' && value !== null && 'terminal' in value
+export function isTerminalTransition(value: unknown): value is TerminalTransition {
+  return (
+    !Array.isArray(value) &&
+    typeof value === 'object' &&
+    value !== null &&
+    'terminal' in value &&
+    typeof (value as { terminal: unknown }).terminal === 'string'
+  )
 }
 
-export function isFanoutTransition(value: TransitionValue): value is FanoutTransition {
-  return Array.isArray(value)
+export function isFanoutTransition(value: unknown): value is FanoutTransition {
+  return Array.isArray(value) && value.every((entry) => typeof entry === 'string')
 }
 
 /** Create an empty, valid graph seeded with a single entry placeholder. */

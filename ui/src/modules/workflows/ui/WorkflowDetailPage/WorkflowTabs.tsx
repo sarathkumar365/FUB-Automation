@@ -1,13 +1,16 @@
 /**
  * Underline-style tab bar for the workflow detail page.
  *
- * Two tabs: Storyboard (the new visualizer) and Runs. Active tab is marked
- * with a 2px brand-colored bottom border and a filled label; inactive tabs
- * render with a muted label. Reads / writes the current tab via
- * `useSearchParams` using the existing `tab` query param.
+ * Two tabs: Storyboard (the new visualizer) and Runs. Reads / writes the
+ * current tab via `useSearchParams` using the existing `tab` query param.
+ * The actual tab content lives in the page and switches on `state.tab`;
+ * this component only drives the search-param state, so we render hidden
+ * `TabsContent` placeholders to keep Radix happy without duplicating
+ * content here.
  */
 import { useSearchParams } from 'react-router-dom'
 import { uiText } from '../../../../shared/constants/uiText'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../shared/ui/Tabs'
 import {
   createWorkflowDetailSearchParamsFromState,
   parseWorkflowDetailSearchParams,
@@ -25,33 +28,25 @@ export function WorkflowTabs() {
   const [searchParams, setSearchParams] = useSearchParams()
   const state = parseWorkflowDetailSearchParams(searchParams)
 
-  const select = (tab: WorkflowDetailTab) => {
-    setSearchParams(createWorkflowDetailSearchParamsFromState({ ...state, tab }))
+  const handleValueChange = (value: string) => {
+    const next = value === 'runs' ? 'runs' : 'definition'
+    setSearchParams(createWorkflowDetailSearchParamsFromState({ ...state, tab: next }))
   }
 
   return (
-    <div
-      aria-label="Workflow detail sections"
-      className="flex items-center gap-6 border-b border-[var(--color-border)]"
-    >
-      {TABS.map((tab) => {
-        const active = state.tab === tab.id
-        return (
-          <button
-            key={tab.id}
-            type="button"
-            aria-selected={active}
-            onClick={() => select(tab.id)}
-            className={
-              active
-                ? 'relative -mb-px border-b-2 border-[var(--color-brand)] px-1 py-2 text-sm font-semibold text-[var(--color-text)]'
-                : 'relative -mb-px border-b-2 border-transparent px-1 py-2 text-sm font-medium text-[var(--color-text-muted)] hover:text-[var(--color-text)]'
-            }
-          >
+    <Tabs value={state.tab} onValueChange={handleValueChange}>
+      <TabsList aria-label={uiText.workflows.detailTabsAriaLabel}>
+        {TABS.map((tab) => (
+          <TabsTrigger key={tab.id} value={tab.id}>
             {tab.label}
-          </button>
-        )
-      })}
-    </div>
+          </TabsTrigger>
+        ))}
+      </TabsList>
+      {/* Hidden content placeholders keep Radix from warning. Real content
+          is rendered by the page based on state.tab. */}
+      {TABS.map((tab) => (
+        <TabsContent key={tab.id} value={tab.id} className="hidden" />
+      ))}
+    </Tabs>
   )
 }

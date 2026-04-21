@@ -32,7 +32,10 @@ export function StoryboardViewer({
   selectedSceneId = null,
   onSelectScene,
 }: StoryboardViewerProps) {
-  const { model, layout, terminalPlacements, viewport } = useStoryboardModel(graph, trigger)
+  const { model, layout, terminalPlacements, viewport, canvasSize } = useStoryboardModel(
+    graph,
+    trigger,
+  )
 
   const exitGroupings = useMemo(() => {
     const counts = new Map<string, number>()
@@ -58,8 +61,8 @@ export function StoryboardViewer({
   }, [terminalPlacements])
 
   const handleSelect = onSelectScene ?? (() => {})
-  const svgWidth = Math.max(viewport.width, 320)
-  const svgHeight = Math.max(viewport.height + 24, 240)
+  const svgWidth = canvasSize.width
+  const svgHeight = canvasSize.height
 
   return (
     <div data-builder-region="storyboard" style={{ width: '100%', overflowX: 'auto' }}>
@@ -69,7 +72,7 @@ export function StoryboardViewer({
         width={svgWidth}
         height={svgHeight}
         viewBox={`${viewport.x} ${viewport.y} ${svgWidth} ${svgHeight}`}
-        style={{ fontFamily: 'Manrope, system-ui, sans-serif', display: 'block', margin: '0 auto' }}
+        style={{ fontFamily: 'var(--font-ui)', display: 'block', margin: '0 auto' }}
       >
         <defs>
           <marker
@@ -81,7 +84,7 @@ export function StoryboardViewer({
             markerHeight="6"
             orient="auto-start-reverse"
           >
-            <path d="M 0 0 L 10 5 L 0 10 z" fill="rgba(15, 23, 42, 0.55)" />
+            <path d="M 0 0 L 10 5 L 0 10 z" fill="var(--color-storyboard-arrow)" />
           </marker>
         </defs>
         {exitGroupings.map(({ exit, edgeIndex, edgeCount }) => {

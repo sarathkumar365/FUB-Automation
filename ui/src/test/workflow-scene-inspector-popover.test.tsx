@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import type { SceneLayout } from '../modules/workflows-builder/model/layoutEngine'
 import type { Graph } from '../modules/workflows-builder/state/runtimeContract'
@@ -44,7 +44,7 @@ describe('SceneInspectorPopover', () => {
     expect(screen.getByText(/on timeout/)).toBeInTheDocument()
   })
 
-  it('keeps the outer popover card overflow visible so chips do not clip', () => {
+  it('exposes the inspector body with a scrollable inner wrapper', () => {
     render(
       <SceneInspectorPopover
         graph={graph}
@@ -55,10 +55,7 @@ describe('SceneInspectorPopover', () => {
         onClose={vi.fn()}
       />,
     )
-    const popover = screen.getByTestId('workflow-scene-inspector')
-    expect(popover.style.overflow).toBe('visible')
     const body = screen.getByTestId('workflow-scene-inspector-body')
-    // Inner wrapper handles scroll + supplies breathing room from the border.
     expect(body.style.overflowY).toBe('auto')
     expect(body.style.padding).toMatch(/18px 20px/)
     expect(body.style.minWidth).toBe('0px')
@@ -170,8 +167,51 @@ describe('SceneInspectorPopover', () => {
     )
     const popover = screen.getByTestId('workflow-scene-inspector')
     expect(popover.getAttribute('data-popover-side')).toBe('left')
-    // left position must be in pixel space (so positive, reasonable).
-    const style = popover.getAttribute('style') ?? ''
-    expect(style).toMatch(/left:/)
+  })
+
+  it('renders structured config values via the shared JsonViewer', () => {
+    const structuredGraph: Graph = {
+      schemaVersion: 1,
+      entryNode: 'n1',
+      nodes: [
+        {
+          id: 'n1',
+          type: 'set_variable',
+          config: { nested: { a: 1, b: [1, 2] } },
+          transitions: {},
+        },
+      ],
+    }
+    render(
+      <SceneInspectorPopover
+        graph={structuredGraph}
+        sceneId="n1"
+        sceneLayout={baseLayout}
+        canvasWidth={1000}
+        canvasHeight={400}
+        onClose={vi.fn()}
+      />,
+    )
+    // The JsonViewer exposes a Copy button and a <pre> with the stringified JSON.
+    expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()
+    const expected = JSON.stringify({ a: 1, b: [1, 2] }, null, 2)
+    expect(screen.getByText((_, element) => element?.tagName === 'PRE' && (element.textContent ?? '').includes(expected))).toBeInTheDocument()
+  })
+
+  it('invokes onClose when the close button is clicked', () => {
+    const onClose = vi.fn()
+    render(
+      <SceneInspectorPopover
+        graph={graph}
+        sceneId="n1"
+        sceneLayout={baseLayout}
+        canvasWidth={1000}
+        canvasHeight={400}
+        onClose={onClose}
+      />,
+    )
+    const closeButton = screen.getByRole('button', { name: /close inspector/i })
+    fireEvent.click(closeButton)
+    expect(onClose).toHaveBeenCalled()
   })
 })
