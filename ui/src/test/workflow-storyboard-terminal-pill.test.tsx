@@ -56,6 +56,53 @@ describe('TerminalPill', () => {
     expect(text?.getAttribute('text-anchor')).toBe('start')
   })
 
+  it('renders first-class kinds with a glyph prefix and kind-specific token triple (D6.2-c)', () => {
+    const { container } = renderSvg(
+      <TerminalPill
+        id="t-success"
+        from={parent}
+        resultCode="success"
+        reason="booked"
+        index={0}
+        totalTerminals={1}
+        side="right"
+      />,
+    )
+    const group = container.querySelector('[data-terminal-id="t-success"]')
+    expect(group?.getAttribute('data-terminal-kind')).toBe('success')
+    // Glyph prepended to the label.
+    expect(container.querySelector('text')?.textContent).toBe('✓ success → booked')
+    // Rect + text reference the semantic tokens, not the neutral fallback.
+    const rect = container.querySelector('rect')
+    expect(rect?.getAttribute('fill')).toContain('terminal-success-bg')
+    expect(rect?.getAttribute('stroke')).toContain('terminal-success-border')
+    expect(container.querySelector('text')?.getAttribute('fill')).toContain(
+      'terminal-success-text',
+    )
+  })
+
+  it('falls back to neutral chip tokens for unknown resultCodes (D6.4-a)', () => {
+    const { container } = renderSvg(
+      <TerminalPill
+        id="t-custom"
+        from={parent}
+        resultCode="communication_received"
+        reason="lead responded"
+        index={0}
+        totalTerminals={1}
+        side="right"
+      />,
+    )
+    const group = container.querySelector('[data-terminal-id="t-custom"]')
+    expect(group?.getAttribute('data-terminal-kind')).toBe('neutral')
+    // No glyph — label starts with the resultCode.
+    expect(container.querySelector('text')?.textContent).toBe(
+      'communication_received → lead responded',
+    )
+    const rect = container.querySelector('rect')
+    expect(rect?.getAttribute('fill')).toContain('chip-neutral-bg')
+  })
+
   it('exposes data-terminal-side="left" and end-anchored text when side=left', () => {
     const { container } = renderSvg(
       <TerminalPill
