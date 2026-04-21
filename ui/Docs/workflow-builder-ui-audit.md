@@ -59,8 +59,8 @@
 | M7 | [ ] | M | `WorkflowHeaderStrip.tsx:126-130` | `readTriggerType` duplicates logic in `graphAdapters.ts:66` + `cardFormatters`. | Single `lib/readTriggerType.ts` shared by adapters + header. |
 | M8 | [ ] | M | `WorkflowDetailPage/index.tsx:147` | React `key` hack `${key}-${version}-${open/closed}` on `WorkflowEditModal` to force remount. | Move state reset inside modal via `useEffect` on open transition. |
 | M9 | [x] | M | `ExitEdge.tsx:64` | Label rect literal `#ffffff` — breaks dark theme. | `style={{fill: 'var(--color-surface)'}}`. |
-| M10 | [ ] | M | `Scene.tsx` (selected state) | Selected scene card shows a harsh green-ish outline that clashes with the storyboard palette. | Replace the selection ring with a softer treatment — token-driven (e.g. `--color-storyboard-card-ring-selected`), likely an inset + subtle halo matching the accent of the scene's category rather than a flat green border. Confirm final look in Slice 3 visual pass (needs user sign-off on ring color + width). |
-| M11 | [ ] | M | `TerminalPill.tsx` | All terminal pills look identical regardless of kind (success / failure / skipped / noop / custom resultCode). Users can't distinguish outcomes at a glance. | Give each terminal kind a small visual tell — e.g. leading glyph (✓ / ✕ / ◻ / ↷), a token-driven color per kind, or both. Must stay readable against the dot-grid and not clash with accent palette. Needs user sign-off on glyph set + color mapping before implementation. |
+| M10 | [x] | M | `Scene.tsx` (selected state) | Selected scene card shows a harsh green-ish outline that clashes with the storyboard palette. | Replace the selection ring with a softer treatment — token-driven (e.g. `--color-storyboard-card-ring-selected`), likely an inset + subtle halo matching the accent of the scene's category rather than a flat green border. Confirm final look in Slice 3 visual pass (needs user sign-off on ring color + width). |
+| M11 | [x] | M | `TerminalPill.tsx` | All terminal pills look identical regardless of kind (success / failure / skipped / noop / custom resultCode). Users can't distinguish outcomes at a glance. | Give each terminal kind a small visual tell — e.g. leading glyph (✓ / ✕ / ◻ / ↷), a token-driven color per kind, or both. Must stay readable against the dot-grid and not clash with accent palette. Needs user sign-off on glyph set + color mapping before implementation. |
 
 ---
 
@@ -91,7 +91,7 @@ Slice 3 + Slice 4 are being rolled out as four phases of small commits. Gate per
 | **A** — Slice 3 structural | [x] | S3-A, S3-B, S3-C | 1 commit: barrel + READMEs |
 | **B** — Slice 3 recipes | [x] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
 | **C** — Slice 4 popover v2 | [x] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional — skipped) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
-| **D** — Slice 6 storyboard polish | [ ] | S6-A, S6-B, S6-C | 4 commits: decisions doc / ring token / terminal kinds / tests |
+| **D** — Slice 6 storyboard polish | [x] | S6-A, S6-B, S6-C | 4 commits: decisions doc / ring token / terminal kinds / tests |
 | **E** — remaining tracks (pick any order) | [ ] | Slice 2 (no decisions), Slice 5 (D5.1 first — may drop) | TBD |
 
 Rules:
@@ -261,9 +261,9 @@ Standalone slice — does not depend on Slice 3/4/5.
 
 | id | status | task |
 | --- | --- | --- |
-| S6-A | [ ] | Apply D6.1: add token(s) to `tokens.css`, update `Scene.tsx` selected-state styling. |
-| S6-B | [ ] | Apply D6.2/D6.3/D6.4: update `TerminalPill.tsx`; add kind → glyph/token lookup in a sibling module. |
-| S6-C | [ ] | Snapshot or screenshot-coverage test for each terminal kind; visual regression acceptable via DOM assertions on token class / glyph text. |
+| S6-A | [x] | Apply D6.1: add token(s) to `tokens.css`, update `Scene.tsx` selected-state styling. |
+| S6-B | [x] | Apply D6.2/D6.3/D6.4: update `TerminalPill.tsx`; add kind → glyph/token lookup in a sibling module. |
+| S6-C | [x] | Snapshot or screenshot-coverage test for each terminal kind; visual regression acceptable via DOM assertions on token class / glyph text. |
 
 ### Execution ordering
 
