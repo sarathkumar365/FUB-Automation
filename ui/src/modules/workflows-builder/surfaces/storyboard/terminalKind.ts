@@ -61,15 +61,39 @@ const KIND_TOKENS: Record<Exclude<TerminalKind, 'neutral'>, TerminalKindTokens> 
 }
 
 /**
- * Resolve a transition's `resultCode` to a `TerminalKind`. The match is
- * case-insensitive on the exact canonical kind name; anything else —
- * including `default`, `timeout`, or custom step-declared codes — returns
- * `neutral` so it renders the existing chip (per D6.4-a).
+ * Canonical → backend-emitted aliases. The Java step registry doesn't emit
+ * the literal strings `success` / `failure` / `skipped` / `noop`; it emits
+ * `SUCCESS` / `FAILED` / `DONE` / `COMPLETED` / `TIMEOUT` etc. D6.4-a's
+ * intent (four first-class kinds, everything else neutral) is preserved —
+ * this table just captures the real vocabulary so the four categories
+ * actually light up on real graphs.
+ *
+ * Matching is case-insensitive. To intentionally render as neutral, use a
+ * step-declared custom code (e.g. `CONVERSATIONAL`, `COMM_NOT_FOUND`) —
+ * those are not in this table and fall through to the neutral chip.
+ */
+const KIND_ALIASES: Record<Exclude<TerminalKind, 'neutral'>, readonly string[]> = {
+  success: ['success', 'ok', 'done', 'completed'],
+  // `timeout` is grouped with failure: D6.4-a ruled out a dedicated
+  // timed_out kind, and a timeout is functionally a fail outcome. Flip to
+  // neutral later if product calls it out as its own thing.
+  failure: ['failure', 'failed', 'error', 'timeout'],
+  skipped: ['skipped'],
+  noop: ['noop', 'no_op'],
+}
+
+/**
+ * Resolve a transition's `resultCode` to a `TerminalKind`. Matches against
+ * the canonical + backend-alias table above; anything else — including
+ * step-declared custom codes — returns `neutral` (per D6.4-a).
  */
 export function resolveTerminalKind(resultCode: string): TerminalKind {
   const key = resultCode.toLowerCase()
-  if (key === 'success' || key === 'failure' || key === 'skipped' || key === 'noop') {
-    return key
+  for (const [kind, aliases] of Object.entries(KIND_ALIASES) as [
+    Exclude<TerminalKind, 'neutral'>,
+    readonly string[],
+  ][]) {
+    if (aliases.includes(key)) return kind
   }
   return 'neutral'
 }

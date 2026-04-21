@@ -20,10 +20,29 @@ describe('resolveTerminalKind (D6.4-a)', () => {
 
   it('returns neutral for unknown / custom / near-miss codes', () => {
     expect(resolveTerminalKind('default')).toBe('neutral')
-    expect(resolveTerminalKind('timeout')).toBe('neutral')
     expect(resolveTerminalKind('gave_up')).toBe('neutral')
     expect(resolveTerminalKind('on_success')).toBe('neutral')
     expect(resolveTerminalKind('')).toBe('neutral')
+    // Step-declared custom codes from the backend are intentionally neutral.
+    expect(resolveTerminalKind('CONVERSATIONAL')).toBe('neutral')
+    expect(resolveTerminalKind('COMM_NOT_FOUND')).toBe('neutral')
+  })
+
+  it('maps backend-emitted aliases onto the four first-class kinds', () => {
+    // Backend vocabulary (uppercase) — this is what real graphs actually use.
+    expect(resolveTerminalKind('SUCCESS')).toBe('success')
+    expect(resolveTerminalKind('DONE')).toBe('success')
+    expect(resolveTerminalKind('COMPLETED')).toBe('success')
+    expect(resolveTerminalKind('OK')).toBe('success')
+
+    expect(resolveTerminalKind('FAILED')).toBe('failure')
+    expect(resolveTerminalKind('ERROR')).toBe('failure')
+    // TIMEOUT is intentionally grouped with failure (D6.4-a ruled out a
+    // dedicated timed_out kind; timeout is functionally a fail outcome).
+    expect(resolveTerminalKind('TIMEOUT')).toBe('failure')
+
+    expect(resolveTerminalKind('SKIPPED')).toBe('skipped')
+    expect(resolveTerminalKind('NO_OP')).toBe('noop')
   })
 })
 

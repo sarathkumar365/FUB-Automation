@@ -31,6 +31,16 @@ describe('Scene selected-ring treatment (D6.1-a)', () => {
     expect(border).not.toContain('--color-brand')
   })
 
+  it('carries the .storyboard-scene-card class that suppresses the native mouse focus outline', () => {
+    const { container } = render(
+      <svg>
+        <Scene scene={scene} layout={layout} selected onSelect={vi.fn()} />
+      </svg>,
+    )
+    const card = container.querySelector('[data-builder-region="scene"]') as HTMLElement | null
+    expect(card?.className).toContain('storyboard-scene-card')
+  })
+
   it('uses the neutral card-border token when not selected', () => {
     const { container } = render(
       <svg>

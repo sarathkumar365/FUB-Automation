@@ -47,6 +47,7 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
   return (
     <foreignObject x={left} y={top} width={layout.width} height={layout.height}>
       <div
+        className="storyboard-scene-card"
         data-builder-region="scene"
         data-scene-id={scene.id}
         data-step-type={scene.stepType}
