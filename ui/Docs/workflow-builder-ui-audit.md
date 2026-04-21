@@ -59,6 +59,8 @@
 | M7 | [ ] | M | `WorkflowHeaderStrip.tsx:126-130` | `readTriggerType` duplicates logic in `graphAdapters.ts:66` + `cardFormatters`. | Single `lib/readTriggerType.ts` shared by adapters + header. |
 | M8 | [ ] | M | `WorkflowDetailPage/index.tsx:147` | React `key` hack `${key}-${version}-${open/closed}` on `WorkflowEditModal` to force remount. | Move state reset inside modal via `useEffect` on open transition. |
 | M9 | [x] | M | `ExitEdge.tsx:64` | Label rect literal `#ffffff` — breaks dark theme. | `style={{fill: 'var(--color-surface)'}}`. |
+| M10 | [ ] | M | `Scene.tsx` (selected state) | Selected scene card shows a harsh green-ish outline that clashes with the storyboard palette. | Replace the selection ring with a softer treatment — token-driven (e.g. `--color-storyboard-card-ring-selected`), likely an inset + subtle halo matching the accent of the scene's category rather than a flat green border. Confirm final look in Slice 3 visual pass (needs user sign-off on ring color + width). |
+| M11 | [ ] | M | `TerminalPill.tsx` | All terminal pills look identical regardless of kind (success / failure / skipped / noop / custom resultCode). Users can't distinguish outcomes at a glance. | Give each terminal kind a small visual tell — e.g. leading glyph (✓ / ✕ / ◻ / ↷), a token-driven color per kind, or both. Must stay readable against the dot-grid and not clash with accent palette. Needs user sign-off on glyph set + color mapping before implementation. |
 
 ---
 
@@ -128,13 +130,14 @@ Motivation: we have **primitives** (`Button`, `Badge`, `Tabs`, `Popover`, `JsonV
 
 | # | Question | Options to present | Decision |
 | --- | --- | --- | --- |
-| D3.1 | `Section` recipe — caption treatment? | (a) uppercase + letter-spacing (current style), (b) sentence-case bold, (c) small icon + label, (d) user picks per-use via prop | _TBD_ |
-| D3.2 | `FieldRow` recipe — default layout? | (a) `auto` (infer from value type), (b) always stacked, (c) always inline, (d) caller must specify | _TBD_ |
-| D3.3 | `CopyableValue` recipe — copy button visibility? | (a) always visible, (b) visible on hover only, (c) visible after click on the value, (d) caller picks | _TBD_ |
-| D3.4 | `CopyableValue` recipe — feedback on copy? | (a) inline "Copied" swap for 1.5s (like `JsonViewer` today), (b) toast via `useNotify`, (c) icon change only | _TBD_ |
-| D3.5 | `DefinitionCard` recipe — header slot? | (a) just a title, (b) title + optional action button, (c) title + badge + action, (d) fully slot-based | _TBD_ |
-| D3.6 | `Skeleton` recipe — shapes supported? | (a) just line + block, (b) line + block + circle (avatar), (c) full set (line, block, circle, table-row, card), (d) punt — add shapes as needed | _TBD_ |
-| D3.7 | `KeyValueList` — default layout? | (a) 2-col grid, (b) stacked, (c) responsive (grid on wide, stacked on narrow), (d) caller picks | _TBD_ |
+| D3.1 | `Section` recipe — caption treatment? | (a) uppercase + letter-spacing (current style), (b) sentence-case bold, (c) small icon + label, (d) user picks per-use via prop | **(a) — locked 2026-04-21** |
+| D3.2 | `FieldRow` recipe — default layout? | (a) `auto` (infer from value type), (b) always stacked, (c) always inline, (d) caller must specify | **(a) — locked 2026-04-21.** Heuristic: short scalars (booleans, numbers, enums, ≤ threshold chars) render inline; long strings / multi-line / structured render stacked. Exact threshold settled in D4.3. |
+| D3.3 | `CopyableValue` recipe — copy button visibility? | (a) always visible, (b) visible on hover only, (c) visible after click on the value, (d) caller picks | **(b) — locked 2026-04-21.** Fallback: always-visible under `@media (hover: none)` for touch; focus-visible for keyboard. |
+| D3.4 | `CopyableValue` recipe — feedback on copy? | (a) inline "Copied" swap for 1.5s (like `JsonViewer` today), (b) toast via `useNotify`, (c) icon change only | **(a) — locked 2026-04-21** |
+| D3.5 | `DefinitionCard` recipe — header slot? | (a) just a title, (b) title + optional action button, (c) title + badge + action, (d) fully slot-based | **(c) — locked 2026-04-21.** Badge legibility handled by D3.5a. |
+| D3.5a | If D3.5 is (c): how does the user know what each badge means? | (a) badge renders `displayName` (e.g. "Create Task") not id, (b) badge shows short label + native `title` tooltip with description, (c) both — human label + hover tooltip showing id + description from step-type catalog, (d) add a small "?" next to the badge opening a legend popover | **(c) — locked 2026-04-21.** Pull `displayName` + `description` from the step-type / trigger-type catalog endpoints (backend B1). Until catalog lands, fall back to id + no tooltip. |
+| D3.6 | `Skeleton` recipe — shapes supported? | (a) just line + block, (b) line + block + circle (avatar), (c) full set (line, block, circle, table-row, card), (d) punt — add shapes as needed | **(d) — locked 2026-04-21.** Start with `line` + `block`; add shapes only when a real screen needs one. |
+| D3.7 | `KeyValueList` — default layout? | (a) 2-col grid, (b) stacked, (c) responsive (grid on wide, stacked on narrow), (d) caller picks | **(a) with `stacked` / `dense` override prop — locked 2026-04-21.** Popover + other narrow surfaces opt into stacked; wide surfaces keep the grid. |
 
 After decisions are recorded, implement per the task table below. Items S3-A, S3-B, S3-C (barrel + READMEs) can proceed without decisions.
 
@@ -221,13 +224,39 @@ After decisions are filled in, update the task table below (or mark the slice dr
 | S5-F | [ ] | Tests: shell-level test asserting Inspector switches content on scene selection; popover tests updated for coexistence behavior. |
 | S5-G | [ ] | If D5.6 is (a): update `AGENTS.md` "UX decisions" section. |
 
+### Slice 6 — storyboard visual polish (from 2026-04-21 review)
+
+Motivation: two cosmetic regressions surfaced during Slice 3 decision walkthrough.
+- **M10** — selected-scene outline reads as a harsh green, clashing with the storyboard palette.
+- **M11** — every terminal pill looks identical regardless of kind (success / failure / skipped / noop / custom); no glanceable differentiation.
+
+Standalone slice — does not depend on Slice 3/4/5.
+
+#### Decisions required (collaborate with user before implementing)
+
+| id | question | options | status |
+| --- | --- | --- | --- |
+| D6.1 | **Selected-scene ring** treatment? | (a) keep ring but swap to a calm neutral token (e.g. slate-500), (b) ring color matches the scene's category accent (trigger/side-effect/etc.), (c) drop the ring entirely; indicate selection via subtle lift + shadow intensification only, (d) double treatment — soft halo outside + 1px inner border using the accent | _TBD_ |
+| D6.2 | **Terminal pill differentiation** — visual strategy? | (a) leading glyph only (✓ / ✕ / ◻ / ↷) + existing neutral pill, (b) color-per-kind via tokens + existing text, (c) both glyph and color, (d) shape-per-kind (pill / squared / notched) | _TBD_ |
+| D6.3 | If D6.2 involves color — **mapping**? | (a) success=green, failure=red, skipped=amber, noop=slate, custom=accent-neutral; tokens added to `tokens.css`, (b) stay monochrome (accent-neutral) and rely on glyph alone, (c) user-supplied palette | _TBD_ |
+| D6.4 | Which **terminal kinds** are first-class? | (a) `success` / `failure` / `skipped` / `noop` only, (b) add `retryable` / `timed_out`, (c) whatever result codes the workflow's step types declare (dynamic) | _TBD_ |
+
+#### Implementation tasks (refine after decisions)
+
+| id | status | task |
+| --- | --- | --- |
+| S6-A | [ ] | Apply D6.1: add token(s) to `tokens.css`, update `Scene.tsx` selected-state styling. |
+| S6-B | [ ] | Apply D6.2/D6.3/D6.4: update `TerminalPill.tsx`; add kind → glyph/token lookup in a sibling module. |
+| S6-C | [ ] | Snapshot or screenshot-coverage test for each terminal kind; visual regression acceptable via DOM assertions on token class / glyph text. |
+
 ### Execution ordering
 
 1. **Slice 1 — COMPLETE.**
 2. **Slice 3 (recipes foundation)** — prerequisite for Slice 4. Small, no behavior change; low risk.
 3. **Slice 4 (popover layout v2)** — the visible pain. Depends on Slice 3.
-4. **Slice 2 (remaining mediums/lows)** — can interleave with or follow Slice 4; no dependency either way.
-5. **Slice 5 (right-rail inspector)** — product decision; do last or skip if popover v2 is sufficient.
+4. **Slice 6 (storyboard visual polish)** — standalone; can run in parallel with Slice 2/4 once D6.* are locked.
+5. **Slice 2 (remaining mediums/lows)** — can interleave with or follow Slice 4; no dependency either way.
+6. **Slice 5 (right-rail inspector)** — product decision; do last or skip if popover v2 is sufficient.
 
 ---
 
