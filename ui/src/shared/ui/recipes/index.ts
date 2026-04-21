@@ -6,6 +6,7 @@
  * feature-local component.
  */
 export { CopyableValue, type CopyableValueProps } from './CopyableValue'
+export { DefinitionCard, type DefinitionCardProps } from './DefinitionCard'
 export {
   FIELD_ROW_LONG_THRESHOLD,
   FieldRow,

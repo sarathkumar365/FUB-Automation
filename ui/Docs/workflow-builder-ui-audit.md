@@ -89,7 +89,7 @@ Slice 3 + Slice 4 are being rolled out as four phases of small commits. Gate per
 | phase | status | tasks | commit shape |
 | --- | --- | --- | --- |
 | **A** — Slice 3 structural | [x] | S3-A, S3-B, S3-C | 1 commit: barrel + READMEs |
-| **B** — Slice 3 recipes | [ ] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
+| **B** — Slice 3 recipes | [x] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
 | **C** — Slice 4 popover v2 | [ ] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
 | **D** — parallel tracks (pick any order) | [ ] | Slice 2 (no decisions), Slice 6 (decisions first), Slice 5 (D5.1 first — may drop) | TBD |
 
@@ -162,13 +162,13 @@ After decisions are recorded, implement per the task table below. Items S3-A, S3
 | S3-A | [x] | **Phase A — done 2026-04-21.** `ui/src/shared/ui/index.ts` barrel re-exporting primitives (recipe section commented out until Phase B). |
 | S3-B | [x] | **Phase A — done 2026-04-21.** `ui/src/shared/ui/README.md` covering the three tiers, token rule, barrel guidance, strings rule, tests policy. |
 | S3-C | [x] | **Phase A — done 2026-04-21.** `ui/src/styles/tokens.README.md` covering all token categories, add-vs-reuse criteria, naming convention, dark-mode forward note. |
-| S3-D | [ ] | **Phase B.** Create `shared/ui/recipes/Section.tsx` per **D3.1-a**: uppercase + letter-spacing caption, body container. Props: `title`, `children`, optional `action` slot. |
-| S3-E | [ ] | **Phase B.** Create `shared/ui/recipes/FieldRow.tsx` per **D3.2-a** (auto-layout) + **D4.3-b** (60-char threshold): `{ label, value, layout?: 'inline' \| 'stacked' \| 'auto' }`. `auto` → inline when value is a short scalar or string ≤ 60 chars; stacked otherwise. Export the threshold constant so Slice 4 can override per field kind. |
-| S3-F | [ ] | **Phase B.** Create `shared/ui/recipes/KeyValueList.tsx` per **D3.7-a**: default 2-col grid; `dense` / `stacked` override prop flips to stacked rows. Wraps `FieldRow[]`. |
-| S3-G | [ ] | **Phase B.** Create `shared/ui/recipes/CopyableValue.tsx` per **D3.3-b** (hover-only button, focus-visible for keyboard, always-visible under `@media (hover: none)`) + **D3.4-a** (inline "Copied" swap for 1.5s). Extract pattern from `JsonViewer`; share. |
-| S3-H | [ ] | **Phase B.** Create `shared/ui/recipes/DefinitionCard.tsx` per **D3.5-c** + **D3.5a-c**: header = title + optional badge + optional action; badge shows `displayName` + native `title` tooltip (id + description) sourced from step-type / trigger-type catalog. Until catalog endpoint (backend B1) lands, fall back to id, no tooltip — document fallback in code comment. |
-| S3-I | [ ] | **Phase B.** Create `shared/ui/recipes/Skeleton.tsx` per **D3.6-d**: start with `line` and `block` shapes only. Additional shapes added on demand. |
-| S3-J | [ ] | **Phase B.** Each new recipe gets at least one test in `ui/src/test/*.test.tsx` following the AGENTS.md policy. Ships in the same commit as the recipe. |
+| S3-D | [x] | **Phase B — done 2026-04-21.** `shared/ui/recipes/Section.tsx` per **D3.1-a**. |
+| S3-E | [x] | **Phase B — done 2026-04-21.** `shared/ui/recipes/FieldRow.tsx` per **D3.2-a** + **D4.3-b**; exports `FIELD_ROW_LONG_THRESHOLD`. |
+| S3-F | [x] | **Phase B — done 2026-04-21.** `shared/ui/recipes/KeyValueList.tsx` per **D3.7-a**; `grid` default, `stacked` variant + `stacked` shorthand prop. |
+| S3-G | [x] | **Phase B — done 2026-04-21.** `shared/ui/recipes/CopyableValue.tsx` per **D3.3-b** + **D3.4-a**. |
+| S3-H | [x] | **Phase B — done 2026-04-21.** `shared/ui/recipes/DefinitionCard.tsx` per **D3.5-c**; catalog-driven badge rule (**D3.5a-c**) documented in the JSDoc, applied at call sites when Slice 4 rebuilds the inspector header. |
+| S3-I | [x] | **Phase B — done 2026-04-21.** `shared/ui/recipes/Skeleton.tsx` per **D3.6-d** (line + block only). |
+| S3-J | [x] | **Phase B — done 2026-04-21.** 34 recipe tests across 6 files under `ui/src/test/shared-ui-recipes-*.test.tsx`. |
 
 ### Slice 4 — popover layout v2 (long-text + detail UX)
 
