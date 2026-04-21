@@ -5,6 +5,7 @@
  * `../README.md` (tier 2) for when to add a recipe vs. a primitive vs. a
  * feature-local component.
  */
+export { ClampedText, type ClampedTextProps } from './ClampedText'
 export { CopyableValue, type CopyableValueProps } from './CopyableValue'
 export { DefinitionCard, type DefinitionCardProps } from './DefinitionCard'
 export {

@@ -381,6 +381,8 @@ export const uiText = {
     paginationNext: 'Next',
     jsonCopy: 'Copy',
     jsonCopied: 'Copied',
+    showMore: 'Show more',
+    showLess: 'Show less',
   },
   filters: {
     apply: 'Apply',
