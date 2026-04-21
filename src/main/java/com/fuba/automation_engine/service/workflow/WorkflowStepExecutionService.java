@@ -13,8 +13,8 @@ import java.time.Duration;
 import java.time.Clock;
 import java.time.OffsetDateTime;
 import java.util.ArrayList;
-import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -105,7 +105,8 @@ public class WorkflowStepExecutionService {
                 run.getSourceLeadId(),
                 rawConfig,
                 resolvedConfig,
-                runContext);
+                runContext,
+                step.getStepState());
 
         StepExecutionResult result;
         try {
@@ -114,6 +115,11 @@ public class WorkflowStepExecutionService {
             log.error("Unhandled step executor exception stepId={} runId={} stepType={}",
                     claimedStep.id(), claimedStep.runId(), claimedStep.stepType(), ex);
             markStepAndRunFailed(step, run, EXECUTION_EXCEPTION, "Unhandled executor exception");
+            return;
+        }
+
+        if (result.reschedule()) {
+            scheduleReschedule(step, result);
             return;
         }
 
@@ -489,6 +495,29 @@ public class WorkflowStepExecutionService {
                 step.getRetryCount(),
                 backoffMs,
                 result.resultCode());
+    }
+
+    private void scheduleReschedule(WorkflowRunStepEntity step, StepExecutionResult result) {
+        step.setStatus(WorkflowRunStepStatus.PENDING);
+        step.setResultCode(null);
+        step.setErrorMessage(null);
+        step.setDueAt(result.nextDueAt() != null ? result.nextDueAt() : OffsetDateTime.now(clock));
+        step.setStepState(mergeStepState(step.getStepState(), result.statePatch()));
+        stepRepository.save(step);
+        log.info("Workflow step rescheduled stepId={} runId={} nodeId={} dueAt={}",
+                step.getId(), step.getRunId(), step.getNodeId(), step.getDueAt());
+    }
+
+    private Map<String, Object> mergeStepState(Map<String, Object> currentState, Map<String, Object> patch) {
+        if (patch == null || patch.isEmpty()) {
+            return currentState;
+        }
+        Map<String, Object> merged = new LinkedHashMap<>();
+        if (currentState != null && !currentState.isEmpty()) {
+            merged.putAll(currentState);
+        }
+        merged.putAll(patch);
+        return merged;
     }
 
     private long computeBackoffMs(RetryPolicy retryPolicy, int retryCount) {

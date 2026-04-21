@@ -2,7 +2,7 @@
 
 This document tracks currently known issues identified in the codebase.
 
-**Last reviewed:** 2026-04-20
+**Last reviewed:** 2026-04-21
 
 | # | Issue | Priority | Status |
 |---|-------|----------|--------|
@@ -18,6 +18,7 @@ This document tracks currently known issues identified in the codebase.
 | 10 | JSONata evaluator swallows expression errors and returns null | High | Open |
 | 11 | Time-sensitive workflow steps can execute after business validity window under sustained backlog | High | Open |
 | 12 | Workflow steps are not consistently local-first and still rely on direct FUB calls | High | Open |
+| 13 | Workflow run can deadlock on OR-style fan-in because engine enforces AND-only join activation | High | Open |
 
 ---
 
@@ -124,3 +125,12 @@ This document tracks currently known issues identified in the codebase.
 - **Issue:** Local-first behavior is currently step-specific; multiple workflow steps still depend on direct FUB reads for outcome classification instead of using locally persisted webhook/call snapshots as primary evidence.
 - **Impact:** Increased external dependency at execution time (latency/rate-limit risk), inconsistent behavior across steps, and weaker determinism when remote state changes after webhook ingestion.
 - **Suggested fix:** Standardize all workflow decision steps to local-first evaluation with explicit fallback policy, and align result-code contracts/tests for each step without changing `wait_and_check_claim` behavior until separately planned.
+## 13) Workflow run can deadlock on OR-style fan-in because engine enforces AND-only join activation
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/WorkflowExecutionManager.java`, `service/workflow/WorkflowStepExecutionService.java`
+- **Issue:** Nodes with multiple inbound edges are always materialized/executed with AND-join semantics (`pending_dependency_count = predecessor count`; activate only when count reaches `0`). Workflows that intentionally model OR-join behavior ("activate if any inbound branch routes here") can become permanently stuck.
+- **Impact:** Runs remain `PENDING` indefinitely with no claimable `PENDING` steps; downstream automation side effects never execute.
+- **Observed evidence:** Workflow key `fub-lead-claim-contact-followup--v1` version `5`; runs `80`, `83`, `84` stuck with `move_to_pond` in `WAITING_DEPENDENCY` and `pending_dependency_count=1` after `check_communication` completed as `COMM_NOT_FOUND`.
+- **Suggested fix:** Introduce explicit join semantics at graph/runtime level (for example `joinMode: ALL|ANY`, default `ALL` for backward compatibility), update validator/materialization/transition activation accordingly, and add migration/runbook guidance for existing stuck runs.

@@ -148,7 +148,8 @@ class WorkflowAdminApiIntegrationTest {
 
         mockMvc.perform(get("/admin/workflows/step-types"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(greaterThan(0)));
+                .andExpect(jsonPath("$.length()").value(greaterThan(0)))
+                .andExpect(jsonPath("$[*].id", hasItem("ai_call")));
 
         mockMvc.perform(get("/admin/workflows/trigger-types"))
                 .andExpect(status().isOk())

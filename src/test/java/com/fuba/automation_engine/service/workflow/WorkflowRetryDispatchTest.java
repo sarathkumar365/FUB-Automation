@@ -16,6 +16,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -173,6 +174,101 @@ class WorkflowRetryDispatchTest {
         assertEquals(OffsetDateTime.parse("2026-01-01T12:00:00.800Z"), step.getDueAt());
         assertEquals(WorkflowRunStatus.PENDING, run.getStatus());
         verify(runRepository, never()).save(run);
+    }
+
+    @Test
+    void shouldRescheduleStepAndPersistStepStateWithoutApplyingTransition() {
+        OffsetDateTime nextDueAt = OffsetDateTime.parse("2026-01-01T12:02:00Z");
+        WorkflowStepType stepType = new TestStepType(
+                "test_step",
+                RetryPolicy.NO_RETRY,
+                StepExecutionResult.reschedule(nextDueAt, Map.of(
+                        "callSid", "CA123",
+                        "startedAt", "2026-01-01T12:00:00Z")));
+        WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
+        WorkflowStepExecutionService service = new WorkflowStepExecutionService(
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, fixedClock);
+
+        WorkflowRunEntity run = buildRun();
+        WorkflowRunStepEntity step = buildStep(Map.of(), 0);
+        step.setStepState(Map.of("existing", "value"));
+
+        when(stepRepository.findById(step.getId())).thenReturn(Optional.of(step));
+        when(runRepository.findById(run.getId())).thenReturn(Optional.of(run));
+
+        service.executeClaimedStep(claimedRow(step));
+
+        assertEquals(WorkflowRunStepStatus.PENDING, step.getStatus());
+        assertEquals(nextDueAt, step.getDueAt());
+        assertEquals("CA123", step.getStepState().get("callSid"));
+        assertEquals("2026-01-01T12:00:00Z", step.getStepState().get("startedAt"));
+        assertEquals("value", step.getStepState().get("existing"));
+        assertEquals(WorkflowRunStatus.PENDING, run.getStatus());
+        verify(runRepository, never()).save(run);
+    }
+
+    @Test
+    void shouldPassPersistedStepStateIntoStepExecutionContext() {
+        AtomicReference<Map<String, Object>> observedState = new AtomicReference<>();
+        WorkflowStepType stepType = new WorkflowStepType() {
+            @Override
+            public String id() {
+                return "test_step";
+            }
+
+            @Override
+            public String displayName() {
+                return "test";
+            }
+
+            @Override
+            public String description() {
+                return "test";
+            }
+
+            @Override
+            public Map<String, Object> configSchema() {
+                return Map.of();
+            }
+
+            @Override
+            public Set<String> declaredResultCodes() {
+                return Set.of("DONE");
+            }
+
+            @Override
+            public RetryPolicy defaultRetryPolicy() {
+                return RetryPolicy.NO_RETRY;
+            }
+
+            @Override
+            public StepExecutionResult execute(StepExecutionContext context) {
+                observedState.set(context.stepState());
+                return StepExecutionResult.success("DONE");
+            }
+        };
+        WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
+        WorkflowStepExecutionService service = new WorkflowStepExecutionService(
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, fixedClock);
+
+        WorkflowRunEntity run = buildRun();
+        run.setWorkflowGraphSnapshot(Map.of(
+                "entryNode", "n1",
+                "nodes", List.of(Map.of(
+                        "id", "n1",
+                        "type", "test_step",
+                        "transitions", Map.of("DONE", Map.of("terminal", "COMPLETED"))))));
+        WorkflowRunStepEntity step = buildStep(Map.of(), 0);
+        step.setStepState(Map.of("callSid", "CA123", "startedAt", "2026-01-01T12:00:00Z"));
+
+        when(stepRepository.findById(step.getId())).thenReturn(Optional.of(step));
+        when(runRepository.findById(run.getId())).thenReturn(Optional.of(run));
+        when(stepRepository.findByRunId(run.getId())).thenReturn(List.of(step));
+
+        service.executeClaimedStep(claimedRow(step));
+
+        assertEquals("CA123", observedState.get().get("callSid"));
+        assertEquals("2026-01-01T12:00:00Z", observedState.get().get("startedAt"));
     }
 
     private WorkflowRunEntity buildRun() {
