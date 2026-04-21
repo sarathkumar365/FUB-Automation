@@ -146,12 +146,12 @@ After decisions are recorded, implement per the task table below. Items S3-A, S3
 | S3-A | [ ] | Create `ui/src/shared/ui/index.ts` barrel re-exporting every primitive + recipe for ergonomic imports. Keep the explicit-path option working — just offer the barrel. |
 | S3-B | [ ] | Create `ui/src/shared/ui/README.md` documenting the three tiers (primitives / recipes / feature compositions), how to pick where a new component goes, and the token rule. |
 | S3-C | [ ] | Add `ui/src/styles/tokens.README.md` explaining the token categories (core surfaces, brand, status, storyboard, accent) and when to add a new one vs reusing an existing var. |
-| S3-D | [ ] | Create `shared/ui/recipes/Section.tsx` — uppercase caption label + body container. Props: `title`, `children`, optional `action` slot. Used wherever the popover / header / inspector has an "CONFIG / TRANSITIONS / METADATA" heading. |
-| S3-E | [ ] | Create `shared/ui/recipes/FieldRow.tsx` — value-type-aware row. Accepts `{ label, value, layout?: 'inline' \| 'stacked' \| 'auto' }`. `auto` picks layout from value (see S4 rules). |
-| S3-F | [ ] | Create `shared/ui/recipes/KeyValueList.tsx` — wraps `FieldRow[]`, supports 2-col grid OR stacked list. |
-| S3-G | [ ] | Create `shared/ui/recipes/CopyableValue.tsx` — monospace chip + copy button (pattern already in `JsonViewer`, extract + share). |
-| S3-H | [ ] | Create `shared/ui/recipes/DefinitionCard.tsx` — surface + header + body composition used by popover body and any future detail card. |
-| S3-I | [ ] | Create `shared/ui/recipes/Skeleton.tsx` — block/line/avatar skeleton placeholders for loading states (currently nothing exists; features roll their own). |
+| S3-D | [ ] | Create `shared/ui/recipes/Section.tsx` per **D3.1-a**: uppercase + letter-spacing caption, body container. Props: `title`, `children`, optional `action` slot. |
+| S3-E | [ ] | Create `shared/ui/recipes/FieldRow.tsx` per **D3.2-a** (auto-layout) + **D4.3-b** (60-char threshold): `{ label, value, layout?: 'inline' \| 'stacked' \| 'auto' }`. `auto` → inline when value is a short scalar or string ≤ 60 chars; stacked otherwise. Export the threshold constant so Slice 4 can override per field kind. |
+| S3-F | [ ] | Create `shared/ui/recipes/KeyValueList.tsx` per **D3.7-a**: default 2-col grid; `dense` / `stacked` override prop flips to stacked rows (used by popover + other narrow surfaces). Wraps `FieldRow[]`. |
+| S3-G | [ ] | Create `shared/ui/recipes/CopyableValue.tsx` per **D3.3-b** (hover-only button, focus-visible for keyboard, always-visible under `@media (hover: none)`) + **D3.4-a** (inline "Copied" swap for 1.5s). Extract pattern from `JsonViewer`; share. |
+| S3-H | [ ] | Create `shared/ui/recipes/DefinitionCard.tsx` per **D3.5-c**: header = title + optional badge + optional action; body slot. Badge rendering rule per **D3.5a-c**: show `displayName` + native `title` tooltip (id + description) sourced from step-type / trigger-type catalog. Until the catalog endpoint (backend B1) lands, fall back to id with no tooltip — document the fallback in a code comment. |
+| S3-I | [ ] | Create `shared/ui/recipes/Skeleton.tsx` per **D3.6-d**: start with `line` and `block` shapes only. Additional shapes added on demand. |
 | S3-J | [ ] | Each new recipe gets at least one test in `ui/src/test/*.test.tsx` following the AGENTS.md policy. |
 
 ### Slice 4 — popover layout v2 (long-text + detail UX)
@@ -177,19 +177,18 @@ Motivation: in the current popover, long `transitions` and long config values (`
 | D4.9 | **Copy action** — on which field types? | (a) all long strings, (b) only URL + templating strings, (c) every field has a copy affordance, (d) none (keep clean) | **(b) — locked 2026-04-21.** Only URLs (D4.5) and templating strings (D4.2) carry `CopyableValue`. Plain long strings and short scalars render without copy. |
 | D4.10 | **"Show more" disclosure** — at how many lines? | (a) 3, (b) 4, (c) 6, (d) no cap — always show full | **(b) 4 lines — locked 2026-04-21.** |
 
-After decisions are filled in, update the task table below to reflect the chosen approach, then implement.
-
-#### Implementation tasks (refine after decisions are recorded)
+#### Implementation tasks (decisions locked 2026-04-21)
 
 | id | status | item |
 | --- | --- | --- |
-| S4-A | [ ] | Rebuild `StoryboardTab/inspector/ConfigRow.tsx` on top of `FieldRow` recipe per decisions D4.1–D4.5. |
-| S4-B | [ ] | Rebuild `StoryboardTab/inspector/TransitionRow.tsx` per decision D4.6. |
-| S4-C | [ ] | Apply popover sizing per decisions D4.7–D4.8 in `StoryboardTab/constants.ts`; verify side-decision math. |
-| S4-D | [ ] | If D4.4 or D4.10 selects disclosure, build the "Show more" helper (hook or small recipe). Skip otherwise. |
-| S4-E | [ ] | If D4.5 enables URL handling, add URL-shape detection helper in `StoryboardTab/inspector/formatConfigValue.ts`. Skip otherwise. |
-| S4-F | [ ] | Update `ui/src/test/workflow-scene-inspector-popover.test.tsx` to match the chosen rendering. |
-| S4-G | [ ] | Optional: visual regression / screenshot sanity for a worst-case graph. |
+| S4-A | [ ] | Rebuild `StoryboardTab/inspector/ConfigRow.tsx` on top of `FieldRow` recipe. Rules: **D4.1-a** short scalars stay inline; **D4.2-b** templating strings (contain `$` / `{{` / `}}`) render as stacked monospace `CopyableValue`; **D4.3-b** 60-char threshold; **D4.4-a** long plain strings stack with `pre-wrap`; **D4.5-c** URL-shape values render stacked with copy-only affordance (no anchor/nav). |
+| S4-B | [ ] | Rebuild `StoryboardTab/inspector/TransitionRow.tsx` per **D4.6-a**: card-per-transition. Top line = resultCode chip (color/glyph per Slice 6 **D6.3** once locked — fall back to current neutral chip in the meantime). Bottom line = full-width `→ target_scene_id` row that wraps cleanly in monospace. |
+| S4-C | [ ] | Update `StoryboardTab/constants.ts`: **D4.7-c** `POPOVER_WIDTH` 340 → 420; **D4.8-a** `POPOVER_MAX_HEIGHT` 480 → 560. Re-verify side-picker math in `SceneInspectorPopover` against the wider footprint; adjust `POPOVER_EDGE_PADDING` if the picker flips sides too eagerly. |
+| S4-D | [ ] | Build a small `useClampLines({ maxLines: 4 })` helper (or inline disclosure in `FieldRow`) per **D4.10-b**. Renders full value if it fits in 4 lines; otherwise clamps + exposes "Show more" / "Show less" toggle. |
+| S4-E | [ ] | Add value-kind detection helper in `StoryboardTab/inspector/formatConfigValue.ts`. Returns a discriminated `{ kind: 'url' \| 'templating' \| 'plain' \| 'scalar' \| 'structured', value }` consumed by `ConfigRow`. URL detection covers `http` / `https`; does not special-case `mailto` / `tel`. |
+| S4-F | [ ] | Apply copy affordance wrapping per **D4.9-b**: `CopyableValue` only on `url` and `templating` kinds. Plain long strings and short scalars render without copy. |
+| S4-G | [ ] | Update `ui/src/test/workflow-scene-inspector-popover.test.tsx`: (1) short scalar → inline, (2) 80-char plain string → stacked with Show more, (3) templating string → monospace + copy button, (4) URL → stacked + copy button, no `<a>`, (5) card-per-transition structure with long resultCode/target, (6) width/max-height tokens updated. |
+| S4-H | [ ] | Optional: visual regression / screenshot sanity for a worst-case graph with long URLs + long transitions. |
 
 ### Slice 5 — scene inspector in right rail (optional, bigger lift)
 
