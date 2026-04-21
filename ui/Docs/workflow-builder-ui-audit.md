@@ -90,7 +90,7 @@ Slice 3 + Slice 4 are being rolled out as four phases of small commits. Gate per
 | --- | --- | --- | --- |
 | **A** — Slice 3 structural | [x] | S3-A, S3-B, S3-C | 1 commit: barrel + READMEs |
 | **B** — Slice 3 recipes | [x] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
-| **C** — Slice 4 popover v2 | [ ] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
+| **C** — Slice 4 popover v2 | [x] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional — skipped) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
 | **D** — parallel tracks (pick any order) | [ ] | Slice 2 (no decisions), Slice 6 (decisions first), Slice 5 (D5.1 first — may drop) | TBD |
 
 Rules:
@@ -197,13 +197,13 @@ Motivation: in the current popover, long `transitions` and long config values (`
 
 | id | status | item |
 | --- | --- | --- |
-| S4-A | [ ] | **Phase C.** Rebuild `StoryboardTab/inspector/ConfigRow.tsx` on top of `FieldRow` recipe. Rules: **D4.1-a** short scalars stay inline; **D4.2-b** templating strings (contain `$` / `{{` / `}}`) render as stacked monospace `CopyableValue`; **D4.3-b** 60-char threshold; **D4.4-a** long plain strings stack with `pre-wrap`; **D4.5-c** URL-shape values render stacked with copy-only affordance (no anchor/nav). |
-| S4-B | [ ] | **Phase C.** Rebuild `StoryboardTab/inspector/TransitionRow.tsx` per **D4.6-a**: card-per-transition. Top line = resultCode chip (color/glyph per Slice 6 **D6.3** once locked — fall back to current neutral chip in the meantime). Bottom line = full-width `→ target_scene_id` row that wraps cleanly in monospace. |
-| S4-C | [ ] | **Phase C.** Update `StoryboardTab/constants.ts`: **D4.7-c** `POPOVER_WIDTH` 340 → 420; **D4.8-a** `POPOVER_MAX_HEIGHT` 480 → 560. Re-verify side-picker math in `SceneInspectorPopover` against the wider footprint; adjust `POPOVER_EDGE_PADDING` if the picker flips sides too eagerly. |
-| S4-D | [ ] | **Phase C.** Build a small `useClampLines({ maxLines: 4 })` helper (or inline disclosure in `FieldRow`) per **D4.10-b**. Renders full value if it fits in 4 lines; otherwise clamps + exposes "Show more" / "Show less" toggle. |
-| S4-E | [ ] | **Phase C.** Add value-kind detection helper in `StoryboardTab/inspector/formatConfigValue.ts`. Returns a discriminated `{ kind: 'url' \| 'templating' \| 'plain' \| 'scalar' \| 'structured', value }` consumed by `ConfigRow`. URL detection covers `http` / `https`; does not special-case `mailto` / `tel`. |
-| S4-F | [ ] | **Phase C.** Apply copy affordance wrapping per **D4.9-b**: `CopyableValue` only on `url` and `templating` kinds. Plain long strings and short scalars render without copy. |
-| S4-G | [ ] | **Phase C.** Update `ui/src/test/workflow-scene-inspector-popover.test.tsx`: (1) short scalar → inline, (2) 80-char plain string → stacked with Show more, (3) templating string → monospace + copy button, (4) URL → stacked + copy button, no `<a>`, (5) card-per-transition structure with long resultCode/target, (6) width/max-height tokens updated. |
+| S4-A | [x] | **Phase C.** Rebuild `StoryboardTab/inspector/ConfigRow.tsx` on top of `FieldRow` recipe. Rules: **D4.1-a** short scalars stay inline; **D4.2-b** templating strings (contain `$` / `{{` / `}}`) render as stacked monospace `CopyableValue`; **D4.3-b** 60-char threshold; **D4.4-a** long plain strings stack with `pre-wrap`; **D4.5-c** URL-shape values render stacked with copy-only affordance (no anchor/nav). |
+| S4-B | [x] | **Phase C.** Rebuild `StoryboardTab/inspector/TransitionRow.tsx` per **D4.6-a**: card-per-transition. Top line = resultCode chip (color/glyph per Slice 6 **D6.3** once locked — fall back to current neutral chip in the meantime). Bottom line = full-width `→ target_scene_id` row that wraps cleanly in monospace. |
+| S4-C | [x] | **Phase C.** Update `StoryboardTab/constants.ts`: **D4.7-c** `POPOVER_WIDTH` 340 → 420; **D4.8-a** `POPOVER_MAX_HEIGHT` 480 → 560. Re-verify side-picker math in `SceneInspectorPopover` against the wider footprint; adjust `POPOVER_EDGE_PADDING` if the picker flips sides too eagerly. |
+| S4-D | [x] | **Phase C.** Build a small `useClampLines({ maxLines: 4 })` helper (or inline disclosure in `FieldRow`) per **D4.10-b**. Renders full value if it fits in 4 lines; otherwise clamps + exposes "Show more" / "Show less" toggle. |
+| S4-E | [x] | **Phase C.** Add value-kind detection helper in `StoryboardTab/inspector/formatConfigValue.ts`. Returns a discriminated `{ kind: 'url' \| 'templating' \| 'plain' \| 'scalar' \| 'structured', value }` consumed by `ConfigRow`. URL detection covers `http` / `https`; does not special-case `mailto` / `tel`. |
+| S4-F | [x] | **Phase C.** Apply copy affordance wrapping per **D4.9-b**: `CopyableValue` only on `url` and `templating` kinds. Plain long strings and short scalars render without copy. |
+| S4-G | [x] | **Phase C.** Update `ui/src/test/workflow-scene-inspector-popover.test.tsx`: (1) short scalar → inline, (2) 80-char plain string → stacked with Show more, (3) templating string → monospace + copy button, (4) URL → stacked + copy button, no `<a>`, (5) card-per-transition structure with long resultCode/target, (6) width/max-height tokens updated. |
 | S4-H | [ ] | **Phase C (optional).** Visual regression / screenshot sanity for a worst-case graph with long URLs + long transitions. |
 
 ### Slice 5 — scene inspector in right rail (optional, bigger lift)
