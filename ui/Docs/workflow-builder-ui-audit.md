@@ -166,16 +166,16 @@ Motivation: in the current popover, long `transitions` and long config values (`
 
 | # | Question | Options to present | Decision |
 | --- | --- | --- | --- |
-| D4.1 | How should **short scalar** config values render (booleans, numbers, short strings)? | (a) inline 2-col grid like today, (b) always stacked label-above-value, (c) pill/badge on the right side of a stacked row | _TBD_ |
-| D4.2 | How should **templating strings** (containing `$`, `{{`, `}}`) render? | (a) monospace chip with horizontal scroll, (b) `CopyableValue` stacked block, (c) syntax-highlighted code block, (d) collapsed by default with "Show" toggle | _TBD_ |
-| D4.3 | What is the **length threshold** for "short" vs "long" strings? | (a) 40 chars, (b) 60 chars, (c) container-width-based (measure), (d) no threshold — always stacked | _TBD_ |
-| D4.4 | How should **long plain strings** render? | (a) stacked with `pre-wrap` + "Show more" at N lines, (b) full stacked always, (c) collapsed preview + modal on expand, (d) truncated + tooltip | _TBD_ |
-| D4.5 | Should **URL-shaped** strings get special treatment? | (a) yes — link styling + copy button, (b) no — treat as normal string, (c) yes but behind a "copy URL" affordance only | _TBD_ |
-| D4.6 | How should **transitions** render for long resultCodes + long targets? | (a) card-per-transition, stacked caption above target, (b) wider horizontal rows with better wrapping rules, (c) table with fixed columns + ellipsis + tooltip on overflow, (d) disclosure — collapsed summary, expand to see target | _TBD_ |
-| D4.7 | Popover **default width**? | (a) keep 340px, (b) widen to 380px, (c) widen to 420px, (d) fully responsive min/max envelope | _TBD_ |
-| D4.8 | Popover **max height** behavior for tall content? | (a) keep inner scroll (today), (b) remove max-height and let it grow, (c) split tall content across tabs inside the popover | _TBD_ |
-| D4.9 | **Copy action** — on which field types? | (a) all long strings, (b) only URL + templating strings, (c) every field has a copy affordance, (d) none (keep clean) | _TBD_ |
-| D4.10 | **"Show more" disclosure** — at how many lines? | (a) 3, (b) 4, (c) 6, (d) no cap — always show full | _TBD_ |
+| D4.1 | How should **short scalar** config values render (booleans, numbers, short strings)? | (a) inline 2-col grid like today, (b) always stacked label-above-value, (c) pill/badge on the right side of a stacked row | **(a) — locked 2026-04-21** |
+| D4.2 | How should **templating strings** (containing `$`, `{{`, `}}`) render? | (a) monospace chip with horizontal scroll, (b) `CopyableValue` stacked block, (c) syntax-highlighted code block, (d) collapsed by default with "Show" toggle | **(b) — locked 2026-04-21.** Stacked monospace block with `CopyableValue` wrapper. |
+| D4.3 | What is the **length threshold** for "short" vs "long" strings? | (a) 40 chars, (b) 60 chars, (c) container-width-based (measure), (d) no threshold — always stacked | **(b) 60 chars — locked 2026-04-21.** Threshold lives in `StoryboardTab/inspector/constants.ts` (or sibling) so we can tune without code review elsewhere. |
+| D4.4 | How should **long plain strings** render? | (a) stacked with `pre-wrap` + "Show more" at N lines, (b) full stacked always, (c) collapsed preview + modal on expand, (d) truncated + tooltip | **(a) — locked 2026-04-21.** Line count set in D4.10. |
+| D4.5 | Should **URL-shaped** strings get special treatment? | (a) yes — link styling + copy button, (b) no — treat as normal string, (c) yes but behind a "copy URL" affordance only | **(c) — locked 2026-04-21.** No navigation affordance; copy-only. URL-shape detection helper in `formatConfigValue.ts`. |
+| D4.6 | How should **transitions** render for long resultCodes + long targets? | (a) card-per-transition, stacked caption above target, (b) wider horizontal rows with better wrapping rules, (c) table with fixed columns + ellipsis + tooltip on overflow, (d) disclosure — collapsed summary, expand to see target | **(a) — locked 2026-04-21.** Each transition = card. Top line: resultCode chip (color-coded once Slice 6 D6.3 resolves). Bottom line: `→ target_scene_id` wrapping cleanly on its own full-width row. |
+| D4.7 | Popover **default width**? | (a) keep 340px, (b) widen to 380px, (c) widen to 420px, (d) fully responsive min/max envelope | **(c) 420px — locked 2026-04-21.** Update `POPOVER_WIDTH` in `StoryboardTab/constants.ts`; verify side-picker math against wider footprint. |
+| D4.8 | Popover **max height** behavior for tall content? | (a) keep inner scroll (today), (b) remove max-height and let it grow, (c) split tall content across tabs inside the popover | **(a) with 560px max-height — locked 2026-04-21.** Scale `POPOVER_MAX_HEIGHT` from 480 → 560 to match the wider width. |
+| D4.9 | **Copy action** — on which field types? | (a) all long strings, (b) only URL + templating strings, (c) every field has a copy affordance, (d) none (keep clean) | **(b) — locked 2026-04-21.** Only URLs (D4.5) and templating strings (D4.2) carry `CopyableValue`. Plain long strings and short scalars render without copy. |
+| D4.10 | **"Show more" disclosure** — at how many lines? | (a) 3, (b) 4, (c) 6, (d) no cap — always show full | **(b) 4 lines — locked 2026-04-21.** |
 
 After decisions are filled in, update the task table below to reflect the chosen approach, then implement.
 
