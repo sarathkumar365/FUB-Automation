@@ -15,6 +15,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.web.client.RestClient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -173,6 +174,7 @@ class AiCallServiceHttpClientAdapterTest {
         return new AiCallServiceHttpClientAdapter(
                 RestClient.builder(),
                 new com.fasterxml.jackson.databind.ObjectMapper(),
-                properties);
+                properties,
+                new MockEnvironment());
     }
 }

@@ -12,4 +12,5 @@ public class AiCallServiceProperties {
     private String baseUrl = "";
     private int connectTimeoutMs = 3000;
     private int readTimeoutMs = 5000;
+    private String localSafeToNumber = "";
 }

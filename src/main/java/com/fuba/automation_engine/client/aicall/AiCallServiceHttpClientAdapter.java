@@ -14,6 +14,8 @@ import com.fuba.automation_engine.service.workflow.aicall.PlaceCallResponse;
 import java.time.Duration;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
@@ -32,13 +34,16 @@ public class AiCallServiceHttpClientAdapter implements AiCallServiceClient {
     private final RestClient restClient;
     private final ObjectMapper objectMapper;
     private final AiCallServiceProperties properties;
+    private final Environment environment;
 
     public AiCallServiceHttpClientAdapter(
             RestClient.Builder restClientBuilder,
             ObjectMapper objectMapper,
-            AiCallServiceProperties properties) {
+            AiCallServiceProperties properties,
+            Environment environment) {
         this.objectMapper = objectMapper;
         this.properties = properties;
+        this.environment = environment;
         this.restClient = restClientBuilder
                 .requestFactory(requestFactory(properties))
                 .baseUrl(trimTrailingSlash(properties.getBaseUrl()))
@@ -52,10 +57,11 @@ public class AiCallServiceHttpClientAdapter implements AiCallServiceClient {
             throw new AiCallServiceClientException("placeCall request is required", false, null);
         }
         try {
+            String to = resolveToNumber(request.to());
             String body = restClient.post()
                     .uri("/call")
                     .contentType(MediaType.APPLICATION_JSON)
-                    .body(new AiCallPlaceRequestDto(request.callKey(), request.to(), request.context()))
+                    .body(new AiCallPlaceRequestDto(request.callKey(), to, request.context()))
                     .retrieve()
                     .body(String.class);
 
@@ -153,5 +159,15 @@ public class AiCallServiceHttpClientAdapter implements AiCallServiceClient {
             return null;
         }
         return value.endsWith("/") ? value.substring(0, value.length() - 1) : value;
+    }
+
+    String resolveToNumber(String requestedTo) {
+        String safeTo = properties.getLocalSafeToNumber();
+        if (environment.acceptsProfiles(Profiles.of("local"))
+                && safeTo != null
+                && !safeTo.isBlank()) {
+            return safeTo.trim();
+        }
+        return requestedTo;
     }
 }

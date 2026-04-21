@@ -18,6 +18,7 @@ import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.mock.env.MockEnvironment;
 import org.springframework.web.client.RestClient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -78,7 +79,7 @@ class AiCallAdapterStepIntegrationTest {
         AiCallServiceProperties properties = new AiCallServiceProperties();
         properties.setBaseUrl(baseUrl);
         AiCallServiceHttpClientAdapter adapter = new AiCallServiceHttpClientAdapter(
-                RestClient.builder(), new ObjectMapper(), properties);
+                RestClient.builder(), new ObjectMapper(), properties, new MockEnvironment());
         Clock clock = Clock.fixed(Instant.parse("2026-04-21T12:00:00Z"), ZoneOffset.UTC);
         AiCallWorkflowStep step = new AiCallWorkflowStep(adapter, clock);
 
