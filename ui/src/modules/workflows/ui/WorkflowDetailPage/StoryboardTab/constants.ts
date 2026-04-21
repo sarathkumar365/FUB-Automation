@@ -4,9 +4,14 @@
  * extracted inspector subcomponents agree on spacing without drifting.
  */
 
-export const POPOVER_WIDTH = 340
+/** Popover width per D4.7-c. Bumped from 340 → 420 so stacked long
+ *  values (URLs, templating, long plain strings) and card-per-transition
+ *  layouts have room to breathe. */
+export const POPOVER_WIDTH = 420
 export const POPOVER_OFFSET = 16
-export const POPOVER_MAX_HEIGHT = 480
+/** Popover max-height per D4.8-a. Bumped from 480 → 560 to scale with
+ *  the wider footprint; inner body still handles overflow via scroll. */
+export const POPOVER_MAX_HEIGHT = 560
 export const POPOVER_MIN_HEIGHT = 120
 export const POPOVER_EDGE_PADDING = 16
 /** Absolute offset (from the top/right edge) of the floating close button. */
