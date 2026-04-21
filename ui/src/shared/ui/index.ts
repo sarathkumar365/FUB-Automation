@@ -58,7 +58,4 @@ export {
 } from './icons'
 
 // --- Recipes ---
-// Recipes will be re-exported from `./recipes` as Slice 3 Phase B lands.
-// Intentionally commented out until at least one recipe exists, so this
-// barrel does not reference a non-existent file.
-// export * from './recipes'
+export * from './recipes'
