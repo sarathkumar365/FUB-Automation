@@ -10,6 +10,8 @@ public record ExpressionScope(Map<String, Object> data) {
     public static ExpressionScope from(RunContext runContext) {
         Map<String, Object> scope = new LinkedHashMap<>();
 
+        // Workflow expressions only see the trigger payload passed at plan time.
+        // There is no automatic hydration of local lead snapshots here.
         scope.put("event", Map.of("payload",
                 runContext.triggerPayload() != null ? runContext.triggerPayload() : Map.of()));
 

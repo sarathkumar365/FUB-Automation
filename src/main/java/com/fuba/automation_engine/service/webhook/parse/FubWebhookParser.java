@@ -70,6 +70,9 @@ public class FubWebhookParser implements WebhookParser {
         String sourceLeadId = resolveSourceLeadId(sourceEventType, resourceIdsNode);
 
         ObjectNode payloadNode = objectMapper.createObjectNode();
+        // Keep normalized payload intentionally minimal for routing/idempotency.
+        // Note: this does NOT include expanded lead/contact fields (for example phone),
+        // so workflow expression paths under event.payload cannot resolve lead phone today.
         payloadNode.put("eventType", sourceEventType);
 
         ArrayNode resourceIds = payloadNode.putArray("resourceIds");

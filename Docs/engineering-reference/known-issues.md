@@ -19,6 +19,7 @@ This document tracks currently known issues identified in the codebase.
 | 11 | Time-sensitive workflow steps can execute after business validity window under sustained backlog | High | Open |
 | 12 | Workflow steps are not consistently local-first and still rely on direct FUB calls | High | Open |
 | 13 | Workflow run can deadlock on OR-style fan-in because engine enforces AND-only join activation | High | Open |
+| 14 | Workflow expressions cannot resolve lead phone from webhook payload for ai_call `to` | High | Open |
 
 ---
 
@@ -134,3 +135,12 @@ This document tracks currently known issues identified in the codebase.
 - **Impact:** Runs remain `PENDING` indefinitely with no claimable `PENDING` steps; downstream automation side effects never execute.
 - **Observed evidence:** Workflow key `fub-lead-claim-contact-followup--v1` version `5`; runs `80`, `83`, `84` stuck with `move_to_pond` in `WAITING_DEPENDENCY` and `pending_dependency_count=1` after `check_communication` completed as `COMM_NOT_FOUND`.
 - **Suggested fix:** Introduce explicit join semantics at graph/runtime level (for example `joinMode: ALL|ANY`, default `ALL` for backward compatibility), update validator/materialization/transition activation accordingly, and add migration/runbook guidance for existing stuck runs.
+
+## 14) Workflow expressions cannot resolve lead phone from webhook payload for ai_call `to`
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/webhook/parse/FubWebhookParser.java`, `service/workflow/trigger/WorkflowTriggerRouter.java`, `service/workflow/expression/ExpressionScope.java`
+- **Issue:** FUB webhook payload normalization exposes only minimal event metadata (`eventType`, `resourceIds`, `uri`, headers, `rawBody`) to workflow trigger payload. Lead phone is not materialized into trigger payload or expression scope, so `ai_call.config.to` cannot reliably bind to a phone path from `event.payload`.
+- **Impact:** AI call workflows must hardcode `to` or depend on local dev safe override. Production-safe dynamic dialing from lead data is blocked in graph config.
+- **Suggested fix:** Enrich workflow planning scope with resolved lead contact fields (for example from local `leads` snapshot) or add explicit step-level lead lookup for `ai_call` when resolving `to`.
