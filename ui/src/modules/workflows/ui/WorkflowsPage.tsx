@@ -29,6 +29,7 @@ import { useCreateWorkflowMutation } from '../data/useCreateWorkflowMutation'
 import { useStepTypesQuery } from '../data/useStepTypesQuery'
 import { useTriggerTypesQuery } from '../data/useTriggerTypesQuery'
 import { WorkflowCreateModal } from './WorkflowCreateModal'
+import { WorkflowsSubNav } from './WorkflowsSubNav'
 
 const WORKFLOW_STATUS_OPTIONS: WorkflowStatus[] = ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED']
 
@@ -204,6 +205,7 @@ export function WorkflowsPage() {
 
   return (
     <div className="space-y-4">
+      <WorkflowsSubNav />
       <PageHeader title={uiText.workflows.title} subtitle={uiText.workflows.subtitleCreate}>
         <Button type="button" size="sm" onClick={() => setCreateOpen(true)}>
           {uiText.workflows.createButton}

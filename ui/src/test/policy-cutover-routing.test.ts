@@ -25,8 +25,10 @@ describe('policy route/nav cutover', () => {
     expect(appNavItems.some((item) => String(item.key) === 'workflows')).toBe(true)
     expect(panelNavItems.some((item) => String(item.key) === 'workflows')).toBe(true)
     expect(routes.workflows).toBe('/admin-ui/workflows')
-    expect(appNavItems.some((item) => String(item.key) === 'workflowRuns')).toBe(true)
-    expect(panelNavItems.some((item) => String(item.key) === 'workflowRuns')).toBe(true)
+    // After nav consolidation (D-Nav.1=A), workflowRuns is no longer a top-level
+    // nav entry — it's reached via the Workflows sub-tab bar. Route still exists.
+    expect(appNavItems.some((item) => String(item.key) === 'workflowRuns')).toBe(false)
+    expect(panelNavItems.some((item) => String(item.key) === 'workflowRuns')).toBe(false)
     expect(routes.workflowRuns).toBe('/admin-ui/workflow-runs')
 
     const router = createAppRouter()

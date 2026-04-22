@@ -20,7 +20,6 @@ export const uiText = {
       webhooks: 'Webhooks',
       processedCalls: 'Processed Calls',
       workflows: 'Workflows',
-      workflowRuns: 'Workflow Runs',
     },
   },
   session: {
@@ -137,6 +136,9 @@ export const uiText = {
   workflows: {
     title: 'Workflows',
     subtitle: 'Read-only workflow management surface (Phase 2.1 foundation).',
+    subNavAriaLabel: 'Workflows sections',
+    subNavDefinitions: 'Definitions',
+    subNavRuns: 'Runs',
     subtitleCreate: 'Workflow management workspace with create flow (Phase 2.2).',
     panelTitle: 'Workflow Catalog',
     inspectorTitle: 'Workflow Inspector',

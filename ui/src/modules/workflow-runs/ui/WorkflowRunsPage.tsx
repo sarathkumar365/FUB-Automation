@@ -24,6 +24,7 @@ import {
   type WorkflowRunsPageSearchState,
 } from '../lib/workflowRunsSearchParams'
 import { formatWorkflowRunReasonCode, formatWorkflowRunStatus, getWorkflowRunStatusTone } from '../lib/workflowRunsDisplay'
+import { WorkflowsSubNav } from '../../workflows/ui/WorkflowsSubNav'
 
 const WORKFLOW_RUN_STATUS_OPTIONS: WorkflowRunStatus[] = ['PENDING', 'BLOCKED', 'DUPLICATE_IGNORED', 'CANCELED', 'COMPLETED', 'FAILED']
 
@@ -164,6 +165,7 @@ export function WorkflowRunsPage() {
 
   return (
     <div className="space-y-4">
+      <WorkflowsSubNav />
       <PageHeader title={uiText.workflowRuns.title} subtitle={uiText.workflowRuns.subtitle} />
 
       <FilterBar

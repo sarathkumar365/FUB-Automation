@@ -1,4 +1,4 @@
-export type AppNavKey = 'webhooks' | 'processedCalls' | 'workflows' | 'workflowRuns'
+export type AppNavKey = 'webhooks' | 'processedCalls' | 'workflows'
 
 export const routes = {
   root: '/',
@@ -15,44 +15,54 @@ export const routes = {
   sessionDisabled: '/admin-ui/session-disabled',
 } as const
 
-export const appNavItems = [
+/**
+ * Nav items are the *canonical* sidebar entries. Each entry's `matchPaths`
+ * list declares every route prefix that should keep the nav item visually
+ * "active". This lets a single sidebar entry cover multiple routes — in
+ * particular, `Workflows` stays active across both the workflows
+ * definitions list (`/workflows`) and the runs list (`/workflow-runs`),
+ * which sit under a shared sub-tab bar inside the Workflows domain
+ * (see `ui/Docs/workflow-ux-audit.md` D-Nav.1 / N1.2).
+ */
+type NavItem = {
+  key: AppNavKey
+  to: string
+  railLabel: string
+  matchPaths: readonly string[]
+}
+
+export const appNavItems: readonly NavItem[] = [
   {
-    key: 'webhooks' as AppNavKey,
+    key: 'webhooks',
     to: routes.webhooks,
     railLabel: 'WH',
+    matchPaths: [routes.webhooks],
   },
   {
-    key: 'processedCalls' as AppNavKey,
+    key: 'processedCalls',
     to: routes.processedCalls,
     railLabel: 'PC',
+    matchPaths: [routes.processedCalls],
   },
   {
-    key: 'workflows' as AppNavKey,
+    key: 'workflows',
     to: routes.workflows,
     railLabel: 'WF',
-  },
-  {
-    key: 'workflowRuns' as AppNavKey,
-    to: routes.workflowRuns,
-    railLabel: 'WR',
+    // Active on both the Definitions sub-tab (/workflows) and the Runs
+    // sub-tab (/workflow-runs). Detail pages under each also qualify.
+    matchPaths: [routes.workflows, routes.workflowRuns],
   },
 ] as const
 
-export const panelNavItems = [
-  {
-    key: 'webhooks' as AppNavKey,
-    to: routes.webhooks,
-  },
-  {
-    key: 'processedCalls' as AppNavKey,
-    to: routes.processedCalls,
-  },
-  {
-    key: 'workflows' as AppNavKey,
-    to: routes.workflows,
-  },
-  {
-    key: 'workflowRuns' as AppNavKey,
-    to: routes.workflowRuns,
-  },
-] as const
+export const panelNavItems: readonly Pick<NavItem, 'key' | 'to' | 'matchPaths'>[] = appNavItems.map(
+  ({ key, to, matchPaths }) => ({ key, to, matchPaths }),
+)
+
+/**
+ * `true` when `pathname` is covered by any of `matchPaths` — either exact
+ * match or a nested path (`/admin-ui/workflows/foo` still activates the
+ * `Workflows` entry because `/admin-ui/workflows` is a match prefix).
+ */
+export function navItemIsActive(matchPaths: readonly string[], pathname: string): boolean {
+  return matchPaths.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`))
+}
