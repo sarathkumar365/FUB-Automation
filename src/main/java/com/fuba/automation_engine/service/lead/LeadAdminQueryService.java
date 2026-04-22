@@ -58,6 +58,17 @@ public class LeadAdminQueryService {
 
     private static final int DEFAULT_LIMIT = 50;
     private static final int MAX_LIMIT = 200;
+    // KNOWN LIMITATION (Phase 1): the summary endpoint returns at most the top 10
+    // rows per stream (processed calls / workflow runs / webhook events) and a
+    // merged top-20 unified activity timeline. Leads with more history will have
+    // older rows silently truncated — there is no "…and N more" indicator yet.
+    // The intended fix is not to grow these caps but to cross-link out to the
+    // existing list pages with a `sourceLeadId` filter (see phases.md Slice D
+    // deferral note). Until the list endpoints accept that filter, the caps are
+    // the authoritative slice of history exposed on the detail surface.
+    // Touched by: PER_STREAM_TOP_N used in findTop10BySourceLeadId… repo methods
+    // (derived-query method names encode the limit, so changing this constant
+    // alone is NOT sufficient — the repo signatures must be renamed too).
     private static final int PER_STREAM_TOP_N = 10;
     private static final int UNIFIED_ACTIVITY_TOP_N = 20;
     private static final String DEFAULT_SOURCE_SYSTEM = "FUB";
