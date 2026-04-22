@@ -12,6 +12,7 @@ import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
 import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
 import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
 import { LeadsPage } from '../modules/leads/ui/LeadsPage'
+import { LeadDetailPage } from '../modules/leads/ui/LeadDetailPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
 
 export function createAppRouter() {
@@ -46,6 +47,10 @@ export function createAppRouter() {
             {
               path: 'leads',
               element: <LeadsPage />,
+            },
+            {
+              path: 'leads/:sourceLeadId',
+              element: <LeadDetailPage />,
             },
             {
               path: 'workflows',

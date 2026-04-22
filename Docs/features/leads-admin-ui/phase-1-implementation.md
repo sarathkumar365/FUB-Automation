@@ -12,7 +12,7 @@ cross-links. Slice definitions and task tables live in `phases.md`.
 | --- | --- | --- | --- |
 | A | Backend read API (list + summary with unified-activity merge) | unit + integration tests | [x] landed 2026-04-21 |
 | B | Frontend list page (port, adapter, hooks, `LeadsPage`, nav entry) | `npm run lint && npm run build && npm run test` | [x] landed 2026-04-21 |
-| C | Frontend detail page (route, hero, unified timeline, rail, raw snapshot) | `npm run lint && npm run build && npm run test` | [ ] pending |
+| C | Frontend detail page (route, hero, unified timeline, rail, raw snapshot) | `npm run lint && npm run build && npm run test` | [x] landed 2026-04-21 |
 | D | Cross-linking polish (sourceLeadId → lead detail from workflow runs / processed calls / webhooks) | `npm run lint && npm run build && npm run test` | [ ] pending |
 
 Feature-end: `./mvnw test` (per user directive 2026-04-21 — backend suite
@@ -77,3 +77,17 @@ _Entries are appended as each slice lands._
 **Tests** (UI gate: 65 files / 314 tests pass, lint + build clean)
 - `ui/src/test/http-leads-adapter.test.ts` — list query-param serialization + feed-page parsing; summary `sourceLeadId` URL-encoding + `includeLive` forwarding.
 
+
+### Slice C — Frontend detail page (2026-04-21)
+
+**Shipped**
+- New admin route `/admin-ui/leads/:sourceLeadId` wired to `LeadDetailPage`. Hero shows resolved display name + `sourceSystem · sourceLeadId`, Back link, and "Refresh from FUB" button that flips `includeLive=true` and invalidates the cache.
+- Two-column layout: main column renders unified top-20 activity timeline with filter chips (All / Calls / Workflow runs / Webhooks) and a `JsonViewer` for the stored snapshot; right rail shows Identifiers, Timestamps, and Live refresh status.
+- Query hook `useLeadSummaryQuery(sourceLeadId, filters)` disables when id is absent; backLink honours a `backTo` query param (same safe-prefix check as workflow-runs detail).
+
+**Files**
+- Module: `ui/src/modules/leads/ui/LeadDetailPage.tsx`, `ui/src/modules/leads/data/useLeadSummaryQuery.ts`
+- Wiring: `ui/src/app/router.tsx` (+ `/leads/:sourceLeadId` child)
+
+**Tests** (UI gate: 67 files / 317 tests pass, lint + build clean)
+- `ui/src/test/lead-detail-page.test.tsx` — hero + rail render, activity chip filter narrows to selected kind, "Refresh from FUB" re-invokes port with `includeLive=true`.
