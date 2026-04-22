@@ -34,31 +34,31 @@ Storyboard + workflow-detail polish from the previous tracker already landed. Th
 
 ---
 
-## Pending decisions (lock before implementation)
+## Pending decisions (locked 2026-04-21 — "go with defaults")
 
 ### Slice 1 — Navigation consolidation
 
-| id | question | options | status |
-| --- | --- | --- | --- |
-| N1.1 | What label for the unified sidebar entry? | (a) `Workflows`, (b) `Workflows & Runs`, (c) `Automations` | _TBD_ |
-| N1.2 | Route strategy? | (a) Both `/workflows` and `/workflow-runs` keep their URLs; sub-tab bar renders on each page (cheapest, preserves bookmarks), (b) collapse to `/workflows?view=definitions` and `/workflows?view=runs` (cleaner URL but breaks deep-links), (c) new `/workflows` landing that redirects to the selected sub-tab | _TBD_ |
-| N1.3 | Sub-tab labels? | (a) `Definitions` / `Runs`, (b) `All Workflows` / `All Runs`, (c) `Workflows` / `Runs` | _TBD_ |
-| N1.4 | When a user is on a workflow detail page (`/workflows/:key`), is the sub-tab bar shown? | (a) yes — stays visible so they can jump back to the Definitions list, (b) no — detail pages own the whole surface; breadcrumb handles navigation back | _TBD_ |
-| N1.5 | What happens to the existing `RunsTab` inside `WorkflowDetailPage`? | (a) keep — it's scoped to this workflow and is useful in context, (b) remove and direct users to the global Runs sub-tab pre-filtered by workflow key, (c) keep but rebrand to match the new Pattern B language (e.g. add hero strip for the selected workflow) | _TBD_ |
+| id | question | decision |
+| --- | --- | --- |
+| N1.1 | Sidebar entry label | **(a)** `Workflows` |
+| N1.2 | Route strategy | **(a)** Keep both `/workflows` and `/workflow-runs` URLs; sub-tab bar renders on each page. Preserves bookmarks and `backTo` round-trips. |
+| N1.3 | Sub-tab labels | **(a)** `Definitions` / `Runs` |
+| N1.4 | Sub-tab bar on detail pages? | **(b)** No — detail pages own the whole surface; breadcrumb handles navigation back. |
+| N1.5 | Existing `RunsTab` inside `WorkflowDetailPage` | **(a)** Keep — scoped-to-this-workflow is a distinct task from "what's failing across everything". |
 
 ### Slice 2 — Run Detail redesign
 
-| id | question | options | status |
-| --- | --- | --- | --- |
-| R2.1 | What goes in the **hero band**? | (a) status + duration + workflow-key link + version + reason code (failure only); Cancel action top-right when cancelable, (b) the above + source lead ID chip, (c) status + duration only, everything else to the rail | _TBD_ |
-| R2.2 | **Step row collapsed** content | (a) status dot + node id + step type + duration, (b) status dot + step type + timestamp (started or completed, whichever is latest), (c) status dot + node id + result code | _TBD_ |
-| R2.3 | **Step row expanded** content | (a) current 8-field grid (node id / step type / status / result code / retry count / due at / started / completed) + outputs + errorMessage, (b) 4-field summary (status / result code / duration / retry count) + outputs + errorMessage, (c) same as (b) plus a raw-JSON toggle | _TBD_ |
-| R2.4 | Rail **grouping** of identifiers | (a) one flat list, (b) two sections: `Identifiers` (run id / workflow key / version) and `Source` (lead id / event id), (c) three sections: adds `Timing` for started/completed (though those also live in the hero) | _TBD_ |
-| R2.5 | **Trigger payload** placement | (a) collapsed disclosure at the bottom of the rail, (b) separate collapsed section below the step list in the main column, (c) dedicated tab inside the hero | _TBD_ |
-| R2.6 | **Cancel** action placement | (a) hero top-right, disabled when not cancelable, (b) stay inside steps card, (c) shell-level action menu | _TBD_ |
-| R2.7 | On **failure** runs — should the failing step auto-expand? | (a) yes, (b) no — user clicks to expand, (c) yes + scroll into view | _TBD_ |
-| R2.8 | Should scroll-anchor **deep-linking to a specific step** (`?step=<nodeId>`) be supported? | (a) yes, (b) no — deferred until requested | _TBD_ |
-| R2.9 | Workflow-detail page already has **its own RunsTab** — should its row layout adopt the same step-preview compact pattern we're building for Run Detail? | (a) yes — unified look, (b) no — list stays terse, detail is where density changes | _TBD_ |
+| id | question | decision |
+| --- | --- | --- |
+| R2.1 | Hero band content | **(a)** status + duration + workflow-key link + version + reason code (non-success only) + Cancel action top-right. |
+| R2.2 | Step row collapsed content | **(a)** status dot + node id + step type + duration. |
+| R2.3 | Step row expanded content | **(b)** 4-field summary (status / result code / duration / retry count) + outputs + errorMessage. Drop the 8-field grid. |
+| R2.4 | Rail identifier grouping | **(b)** Two sections — `Identifiers` (run id / workflow key / version) and `Source` (lead id / event id). Timing lives in hero, not the rail. |
+| R2.5 | Trigger payload placement | **(a)** Collapsed disclosure at the bottom of the rail. |
+| R2.6 | Cancel action | **(a)** Hero top-right; disabled when not cancelable. |
+| R2.7 | Auto-expand failing step? | **(a)** Yes. No auto-scroll — visual expansion is enough. |
+| R2.8 | `?step=<nodeId>` deep-linking | **(b)** Defer — no concrete ask. Revisit if a user requests shareable step links. |
+| R2.9 | Unify `WorkflowDetailPage/RunsTab` row layout with the new compact step preview? | **(a)** Yes — single row component, consistent across both surfaces. |
 
 ---
 
