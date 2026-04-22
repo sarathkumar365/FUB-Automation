@@ -14,6 +14,7 @@ export {
   type FieldRowLayout,
   type FieldRowProps,
 } from './FieldRow'
+export { FilterBar, type FilterBarProps } from './FilterBar'
 export {
   KeyValueList,
   type KeyValueListItem,

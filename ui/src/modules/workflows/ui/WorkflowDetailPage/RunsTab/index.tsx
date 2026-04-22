@@ -14,6 +14,7 @@ import { DataTable, type ColumnDef } from '../../../../../shared/ui/DataTable'
 import { ErrorState } from '../../../../../shared/ui/ErrorState'
 import { LoadingState } from '../../../../../shared/ui/LoadingState'
 import { PagePagination } from '../../../../../shared/ui/PagePagination'
+import { FilterBar } from '../../../../../shared/ui/recipes'
 import { Select } from '../../../../../shared/ui/select'
 import { StatusBadge } from '../../../../../shared/ui/StatusBadge'
 import { formatDateTime } from '../../../../../shared/lib/date'
@@ -152,7 +153,19 @@ export function RunsTab({ workflow }: RunsTabProps) {
 
   return (
     <div className="space-y-4">
-      <div className="flex flex-wrap items-end gap-3">
+      <FilterBar
+        bordered={false}
+        actions={
+          <>
+            <Button type="button" size="sm" onClick={handleApply}>
+              {uiText.filters.apply}
+            </Button>
+            <Button type="button" size="sm" variant="outline" onClick={handleReset}>
+              {uiText.filters.reset}
+            </Button>
+          </>
+        }
+      >
         <label className="flex items-center gap-2">
           <span className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">
             {uiText.workflows.detailRunsFilterStatusLabel}
@@ -178,15 +191,7 @@ export function RunsTab({ workflow }: RunsTabProps) {
             ))}
           </Select>
         </label>
-        <div className="flex items-center gap-2">
-          <Button type="button" size="sm" onClick={handleApply}>
-            {uiText.filters.apply}
-          </Button>
-          <Button type="button" size="sm" variant="outline" onClick={handleReset}>
-            {uiText.filters.reset}
-          </Button>
-        </div>
-      </div>
+      </FilterBar>
 
       <div className="rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-4">
         {runsQuery.isError ? (
