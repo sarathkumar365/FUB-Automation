@@ -11,6 +11,7 @@ import { WorkflowBuilderPage } from '../modules/workflows-builder/ui/WorkflowBui
 import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
 import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
 import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
+import { LeadsPage } from '../modules/leads/ui/LeadsPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
 
 export function createAppRouter() {
@@ -41,6 +42,10 @@ export function createAppRouter() {
             {
               path: 'processed-calls',
               element: <ProcessedCallsPage />,
+            },
+            {
+              path: 'leads',
+              element: <LeadsPage />,
             },
             {
               path: 'workflows',

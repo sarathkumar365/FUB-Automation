@@ -11,7 +11,7 @@ cross-links. Slice definitions and task tables live in `phases.md`.
 | slice | scope | gate | status |
 | --- | --- | --- | --- |
 | A | Backend read API (list + summary with unified-activity merge) | unit + integration tests | [x] landed 2026-04-21 |
-| B | Frontend list page (port, adapter, hooks, `LeadsPage`, nav entry) | `npm run lint && npm run build && npm run test` | [ ] pending |
+| B | Frontend list page (port, adapter, hooks, `LeadsPage`, nav entry) | `npm run lint && npm run build && npm run test` | [x] landed 2026-04-21 |
 | C | Frontend detail page (route, hero, unified timeline, rail, raw snapshot) | `npm run lint && npm run build && npm run test` | [ ] pending |
 | D | Cross-linking polish (sourceLeadId → lead detail from workflow runs / processed calls / webhooks) | `npm run lint && npm run build && npm run test` | [ ] pending |
 
@@ -59,4 +59,21 @@ _Entries are appended as each slice lands._
 
 **Deviations from plan**
 - Dropped `POST /admin/leads/{id}/refresh` — see phases.md §C / superseded banner on plan.md. Refresh is reached by re-requesting the summary endpoint with `includeLive=true`.
+
+### Slice B — Frontend list page (2026-04-21)
+
+**Shipped**
+- New admin route `/admin-ui/leads` (rail entry `LD`, nav label "Leads"). `LeadsPage` reuses `FilterBar` + `DataTable` + `PageCard` primitives. Filters: `sourceSystem` input, `status` select (ALL / ACTIVE / ARCHIVED / MERGED), `sourceLeadIdPrefix` input, `from` / `to` date inputs. Apply/Reset + cursor-based Next pagination. Row click navigates to `routes.leadDetail(sourceLeadId)` (target route lands in Slice C).
+- Ports/adapters: `LeadsPort` interface + `HttpLeadsAdapter` (Zod-validated) wired through `platform/container.ts`. Detail path uses `encodeURIComponent` on `sourceLeadId`.
+- Search params round-trip via `parseLeadsSearchParams` / `createSearchParamsFromState` so filters + cursor are shareable URLs. Draft filter state mirrors the `WebhooksPage` pattern (keyed by committed-state fingerprint so external URL changes reset the draft).
+
+**Files**
+- Types: `ui/src/shared/types/lead.ts`
+- Port/adapter: `ui/src/platform/ports/leadsPort.ts`, `ui/src/platform/adapters/http/httpLeadsAdapter.ts`, `ui/src/platform/adapters/http/leadSchemas.ts`
+- Wiring: `ui/src/platform/container.ts`, `ui/src/platform/query/queryKeys.ts`, `ui/src/app/router.tsx`
+- Labels/nav: `ui/src/shared/constants/routes.ts` (added `leads` nav item + `routes.leads` / `routes.leadDetail`), `ui/src/shared/constants/uiText.ts` (added `leads` block — list labels now, detail labels staged for Slice C)
+- Module: `ui/src/modules/leads/ui/LeadsPage.tsx`, `ui/src/modules/leads/data/useLeadsQuery.ts`, `ui/src/modules/leads/lib/leadSearchParams.ts`, `ui/src/modules/leads/lib/leadDisplay.ts`
+
+**Tests** (UI gate: 65 files / 314 tests pass, lint + build clean)
+- `ui/src/test/http-leads-adapter.test.ts` — list query-param serialization + feed-page parsing; summary `sourceLeadId` URL-encoding + `includeLive` forwarding.
 

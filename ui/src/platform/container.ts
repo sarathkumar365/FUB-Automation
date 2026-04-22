@@ -1,10 +1,12 @@
 import { HttpAdminWebhookAdapter } from './adapters/http/httpAdminWebhookAdapter'
 import { HttpJsonClient } from './adapters/http/httpJsonClient'
+import { HttpLeadsAdapter } from './adapters/http/httpLeadsAdapter'
 import { HttpProcessedCallsAdapter } from './adapters/http/httpProcessedCallsAdapter'
 import { HttpWorkflowAdapter } from './adapters/http/httpWorkflowAdapter'
 import { HttpWorkflowRunAdapter } from './adapters/http/httpWorkflowRunAdapter'
 import { SseWebhookStreamAdapter } from './adapters/sse/sseWebhookStreamAdapter'
 import type { AdminWebhookPort } from './ports/adminWebhookPort'
+import type { LeadsPort } from './ports/leadsPort'
 import type { ProcessedCallsPort } from './ports/processedCallsPort'
 import type { WebhookStreamPort } from './ports/webhookStreamPort'
 import type { WorkflowPort } from './ports/workflowPort'
@@ -13,11 +15,13 @@ import type { WorkflowRunPort } from './ports/workflowRunPort'
 const httpClient = new HttpJsonClient()
 const adminWebhookPort: AdminWebhookPort = new HttpAdminWebhookAdapter(httpClient)
 const processedCallsPort: ProcessedCallsPort = new HttpProcessedCallsAdapter(httpClient)
+const leadsPort: LeadsPort = new HttpLeadsAdapter(httpClient)
 const workflowPort: WorkflowPort = new HttpWorkflowAdapter(httpClient)
 const workflowRunPort: WorkflowRunPort = new HttpWorkflowRunAdapter(httpClient)
 
 export type AppPorts = {
   adminWebhookPort: AdminWebhookPort
+  leadsPort: LeadsPort
   processedCallsPort: ProcessedCallsPort
   webhookStreamPort: WebhookStreamPort
   workflowPort: WorkflowPort
@@ -26,6 +30,7 @@ export type AppPorts = {
 
 export const appPorts: AppPorts = {
   adminWebhookPort,
+  leadsPort,
   processedCallsPort,
   webhookStreamPort: new SseWebhookStreamAdapter(adminWebhookPort),
   workflowPort,

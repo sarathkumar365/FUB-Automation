@@ -1,4 +1,4 @@
-export type AppNavKey = 'webhooks' | 'processedCalls' | 'workflows'
+export type AppNavKey = 'webhooks' | 'processedCalls' | 'leads' | 'workflows'
 
 export const routes = {
   root: '/',
@@ -6,6 +6,8 @@ export const routes = {
   dashboard: '/admin-ui',
   webhooks: '/admin-ui/webhooks',
   processedCalls: '/admin-ui/processed-calls',
+  leads: '/admin-ui/leads',
+  leadDetail: (sourceLeadId: string) => `/admin-ui/leads/${encodeURIComponent(sourceLeadId)}`,
   workflows: '/admin-ui/workflows',
   workflowDetail: (key: string) => `/admin-ui/workflows/${encodeURIComponent(key)}`,
   workflowBuilderNew: '/admin-ui/workflows/new',
@@ -43,6 +45,14 @@ export const appNavItems: readonly NavItem[] = [
     to: routes.processedCalls,
     railLabel: 'PC',
     matchPaths: [routes.processedCalls],
+  },
+  {
+    key: 'leads',
+    to: routes.leads,
+    railLabel: 'LD',
+    // Active on both the list (/admin-ui/leads) and detail
+    // (/admin-ui/leads/:sourceLeadId) routes.
+    matchPaths: [routes.leads],
   },
   {
     key: 'workflows',
