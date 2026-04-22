@@ -10,6 +10,7 @@
  * band. A thin bottom border separates the strip from the body content.
  */
 import { Link } from 'react-router-dom'
+import { readTriggerType } from '../../lib/readTriggerType'
 import { routes } from '../../../../shared/constants/routes'
 import { uiText } from '../../../../shared/constants/uiText'
 import { Badge } from '../../../../shared/ui/badge'
@@ -117,8 +118,3 @@ export function WorkflowHeaderStrip({
   )
 }
 
-function readTriggerType(trigger: Record<string, unknown> | null): string | null {
-  if (!trigger) return null
-  const candidate = trigger.type
-  return typeof candidate === 'string' && candidate.length > 0 ? candidate : null
-}
