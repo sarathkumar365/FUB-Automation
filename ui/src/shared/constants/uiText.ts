@@ -193,6 +193,20 @@ export const uiText = {
      *  e.g. "on default" / "on timeout". */
     sceneInspectorTransitionOn: 'on',
     sceneInspectorNotFound: 'Selected step not found in this graph.',
+    /* Builder (edit / new workflow) page. */
+    builderInspectorTitle: 'Builder info',
+    builderNewTitle: 'New workflow',
+    builderNewSubtitle: 'Start with a single entry step.',
+    builderEditSubtitle: 'Storyboard view of this workflow definition.',
+    builderGraphInvalidTitle: 'Invalid graph',
+    builderGraphInvalidMessage:
+      "This workflow's graph does not match the current runtime schema.",
+    builderStoryboardCardTitle: 'Storyboard',
+    builderInfoHashLabel: 'Hash',
+    builderInfoSurfaceLabel: 'Surface',
+    /** Title-prefix used when editing an existing workflow. Combined with
+     *  the workflow key at the call site (`Edit: <key>`). */
+    builderEditTitlePrefix: 'Edit',
     detailRunsTitle: 'Workflow Runs',
     detailRunsEmptyMessage: 'No workflow runs found for this workflow and filters.',
     detailRunsFilterStatusLabel: 'Run Status',

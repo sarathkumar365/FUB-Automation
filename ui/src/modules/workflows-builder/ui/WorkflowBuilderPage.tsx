@@ -55,15 +55,20 @@ export function WorkflowBuilderPage() {
   useShellRegionRegistration({
     panel: null,
     inspector: {
-      title: 'Builder info',
+      title: uiText.workflows.builderInspectorTitle,
       body: (
         <div className="space-y-2 text-xs text-[var(--color-text-muted)]">
           <p>
-            <span className="font-medium text-[var(--color-text)]">Hash</span>{' '}
+            <span className="font-medium text-[var(--color-text)]">
+              {uiText.workflows.builderInfoHashLabel}
+            </span>{' '}
             <span className="font-mono">{graphHash}</span>
           </p>
           <p>
-            <span className="font-medium text-[var(--color-text)]">Surface</span> {surface}
+            <span className="font-medium text-[var(--color-text)]">
+              {uiText.workflows.builderInfoSurfaceLabel}
+            </span>{' '}
+            {surface}
           </p>
           <p className="mt-3">
             Press <kbd>⌘⇧D</kbd> (or <kbd>Ctrl+Shift+D</kbd>) for the action log.
@@ -73,10 +78,12 @@ export function WorkflowBuilderPage() {
     },
   })
 
-  const title = key ? `Edit: ${key}` : 'New workflow'
+  const title = key
+    ? `${uiText.workflows.builderEditTitlePrefix}: ${key}`
+    : uiText.workflows.builderNewTitle
   const subtitle = key
-    ? 'Storyboard view of this workflow definition.'
-    : 'Start with a single entry step.'
+    ? uiText.workflows.builderEditSubtitle
+    : uiText.workflows.builderNewSubtitle
 
   if (key && detailQuery.isPending) {
     return <LoadingState />
@@ -95,8 +102,8 @@ export function WorkflowBuilderPage() {
     return (
       <div className="space-y-4">
         <PageHeader title={title} subtitle={subtitle} />
-        <PageCard title="Invalid graph">
-          <ErrorState message="This workflow's graph does not match the current runtime schema." />
+        <PageCard title={uiText.workflows.builderGraphInvalidTitle}>
+          <ErrorState message={uiText.workflows.builderGraphInvalidMessage} />
         </PageCard>
       </div>
     )
@@ -110,7 +117,7 @@ export function WorkflowBuilderPage() {
         </Link>
       </PageHeader>
 
-      <PageCard title="Storyboard">
+      <PageCard title={uiText.workflows.builderStoryboardCardTitle}>
         <Storyboard />
       </PageCard>
 
