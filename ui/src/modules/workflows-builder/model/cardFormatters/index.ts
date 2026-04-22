@@ -13,6 +13,7 @@
  * If the engine gains a new step type and no formatter is registered, the
  * default fallback renders the step type id verbatim — never crashes.
  */
+import { readTriggerType } from '../../../workflows/lib/readTriggerType'
 
 export type FormatterAccent = 'side-effect' | 'wait' | 'branch' | 'compute' | 'trigger' | 'neutral'
 
@@ -138,7 +139,7 @@ export function formatScene(stepType: string, config: Config): FormattedScene {
 }
 
 function formatTrigger(config: Config): FormattedScene {
-  const triggerType = asString(config.type)
+  const triggerType = readTriggerType(config)
   const title = triggerType ? `Trigger: ${triggerType}` : 'Trigger'
   const summary = triggerSummary(config)
   return {

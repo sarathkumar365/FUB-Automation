@@ -54,10 +54,10 @@
 | M2 | [-] | M | `ExitEdge.tsx:62-73`, `TerminalPill.tsx:67-83` | SVG chip rect+text pattern duplicated with different literals (`#ffffff` vs `rgba(100,116,139,0.08)`, `#334155` vs `#475569`). | Dropped: the actual color drift is already fixed by token unification (Slice 1.2–1.3); the two chips differ in shape (rx 8 vs 11), text anchoring (centered vs side-anchored), and positioning (transform vs explicit x), so a shared primitive would add abstraction without meaningful payoff. |
 | M3 | [x] | M | `StoryboardViewer.tsx:62-72` + `StoryboardTab/index.tsx:103-104` | `Math.max(viewport.width, 320)` / `viewport.height+24, 240` duplicated. | Expose `canvasSize` from `useStoryboardModel`. |
 | M4 | [x] | M | `chipMetrics.ts`, `layoutEngine.ts`, `viewport.ts` | Geometry constants scattered, no barrel. | Create `surfaces/storyboard/constants.ts` re-exporting canonical values. |
-| M5 | [ ] | M | `ValidationStrip.tsx:110-151` | `ToneSet` builder rebuilt on every render; collapsed list has no severity aria. | Module-level frozen map keyed by `state.mode`; add `aria-label` per severity. |
-| M6 | [ ] | M | `RunsTab/index.tsx:155-189` | Filter row hand-built (`<label><Select/></label>` + buttons) instead of `shared/ui/FilterBar`. Comment says "FilterBar border removed". | Extend `FilterBar` with `bordered={false}` variant and consume. |
-| M7 | [ ] | M | `WorkflowHeaderStrip.tsx:126-130` | `readTriggerType` duplicates logic in `graphAdapters.ts:66` + `cardFormatters`. | Single `lib/readTriggerType.ts` shared by adapters + header. |
-| M8 | [ ] | M | `WorkflowDetailPage/index.tsx:147` | React `key` hack `${key}-${version}-${open/closed}` on `WorkflowEditModal` to force remount. | Move state reset inside modal via `useEffect` on open transition. |
+| M5 | [x] | M | `ValidationStrip.tsx:110-151` | `ToneSet` builder rebuilt on every render; collapsed list has no severity aria. | Module-level frozen map keyed by `state.mode`; add `aria-label` per severity. Done Slice 2 — `TONE_BY_MODE` frozen record + `SEVERITY_BY_MODE` with role/aria-live/label per mode. |
+| M6 | [x] | M | `RunsTab/index.tsx:155-189` | Filter row hand-built (`<label><Select/></label>` + buttons) instead of `shared/ui/FilterBar`. Comment says "FilterBar border removed". | Extend `FilterBar` with `bordered={false}` variant and consume. Done Slice 2 — new `shared/ui/recipes/FilterBar.tsx` (no pre-existing FilterBar; created with `bordered?: boolean`); RunsTab consumes with `bordered={false}`. |
+| M7 | [x] | M | `WorkflowHeaderStrip.tsx:126-130` | `readTriggerType` duplicates logic in `graphAdapters.ts:66` + `cardFormatters`. | Single `lib/readTriggerType.ts` shared by adapters + header. Done Slice 2 — `workflows/lib/readTriggerType.ts`; all three call sites migrated (`WorkflowHeaderStrip`, `graphAdapters.ts:66`, `cardFormatters.formatTrigger`). |
+| M8 | [-] | M | `WorkflowDetailPage/index.tsx:147` | React `key` hack `${key}-${version}-${open/closed}` on `WorkflowEditModal` to force remount. | Move state reset inside modal via `useEffect` on open transition. **Dropped Slice 2** — React 19's `react-hooks/set-state-in-effect` rule (now enabled in our lint config) correctly flags that pattern; React docs actually recommend the `key`-remount for "reset state on prop change". Kept the key and added an inline JSDoc justifying it + noting the rejected alternative. |
 | M9 | [x] | M | `ExitEdge.tsx:64` | Label rect literal `#ffffff` — breaks dark theme. | `style={{fill: 'var(--color-surface)'}}`. |
 | M10 | [x] | M | `Scene.tsx` (selected state) | Selected scene card shows a harsh green-ish outline that clashes with the storyboard palette. | Replace the selection ring with a softer treatment — token-driven (e.g. `--color-storyboard-card-ring-selected`), likely an inset + subtle halo matching the accent of the scene's category rather than a flat green border. Confirm final look in Slice 3 visual pass (needs user sign-off on ring color + width). |
 | M11 | [x] | M | `TerminalPill.tsx` | All terminal pills look identical regardless of kind (success / failure / skipped / noop / custom resultCode). Users can't distinguish outcomes at a glance. | Give each terminal kind a small visual tell — e.g. leading glyph (✓ / ✕ / ◻ / ↷), a token-driven color per kind, or both. Must stay readable against the dot-grid and not clash with accent palette. Needs user sign-off on glyph set + color mapping before implementation. |
@@ -68,13 +68,13 @@
 
 | id | status | sev | file:line | issue | fix |
 | --- | --- | --- | --- | --- | --- |
-| L1 | [ ] | L | `Scene.tsx:46` | Trigger label special-cased inline (`isTrigger ? 'trigger' …`). | Move to `cardFormatters`. |
-| L2 | [ ] | L | `StoryboardViewer.tsx:60` | `const handleSelect = onSelectScene ?? (() => {})`. | Accept `undefined` on `Scene.onSelect`. |
-| L3 | [ ] | L | `SceneInspectorPopover.tsx:459` | Literal `"on "` prefix not in `uiText`. | Add to `uiText`. |
-| L4 | [ ] | L | `WorkflowBuilderPage.tsx:58,76-79,98,113` | Inline strings: "Builder info", "New workflow", "Start with a single entry step.", "Invalid graph", "Storyboard". | Route through `uiText`. |
+| L1 | [x] | L | `Scene.tsx:46` | Trigger label special-cased inline (`isTrigger ? 'trigger' …`). | Move to `cardFormatters`. Done Slice 2 — `formatSceneHeader(stepType, isEntry)` owns the `__trigger__` branch; Scene.tsx consumes the pill label + tooltip. |
+| L2 | [x] | L | `StoryboardViewer.tsx:60` | `const handleSelect = onSelectScene ?? (() => {})`. | Accept `undefined` on `Scene.onSelect`. Done Slice 2 — `Scene.onSelect?` is optional; StoryboardViewer forwards `onSelectScene` directly. |
+| L3 | [x] | L | `SceneInspectorPopover.tsx:459` | Literal `"on "` prefix not in `uiText`. | Add to `uiText`. Done Slice 2 — `uiText.workflows.sceneInspectorTransitionOn`. |
+| L4 | [x] | L | `WorkflowBuilderPage.tsx:58,76-79,98,113` | Inline strings: "Builder info", "New workflow", "Start with a single entry step.", "Invalid graph", "Storyboard". | Route through `uiText`. Done Slice 2 — 10 new `uiText.workflows.builder*` keys; all inline copy in `WorkflowBuilderPage.tsx` now sourced from `uiText`. |
 | L5 | [x] | L | `WorkflowTabs.tsx:34` | `aria-label="Workflow detail sections"` not in `uiText`. | Done in Slice 1.1 — routed via `uiText.workflows.detailTabsAriaLabel`. |
 | L6 | [x] | L | `SceneInspectorPopover.tsx:206` | `×` character instead of icon. | Done in Slice 1.1 — replaced with `CloseIcon` from `shared/ui/icons.tsx`. |
-| L7 | [ ] | L | `ValidationStrip.tsx:23` | `showIssues` default `true` — not persisted across route changes. | Persist in URL or session if product wants. Track only. |
+| L7 | [x] | L | `ValidationStrip.tsx:23` | `showIssues` default `true` — not persisted across route changes. | Persist in URL or session if product wants. Track only. Done Slice 2 (track-only) — inline decision note on the useState line: session-local by design until real user signal justifies sessionStorage + the SSR/hydration cost. |
 
 ---
 
@@ -92,7 +92,7 @@ Slice 3 + Slice 4 are being rolled out as four phases of small commits. Gate per
 | **B** — Slice 3 recipes | [x] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
 | **C** — Slice 4 popover v2 | [x] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional — skipped) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
 | **D** — Slice 6 storyboard polish | [x] | S6-A, S6-B, S6-C | 4 commits: decisions doc / ring token / terminal kinds / tests |
-| **E** — remaining tracks (pick any order) | [ ] | Slice 2 (no decisions), Slice 5 (D5.1 first — may drop) | TBD |
+| **E** — remaining tracks (pick any order) | [~] | Slice 2 **complete 2026-04-21** (M8 dropped — React 19 lint forbids the planned fix); Slice 5 pending D5.1 | 6 commits for Slice 2 (L1-L3 / L4 / M5 / M6 / M7 / M8-docs / L7) |
 
 Rules:
 - Phase B recipes are additive only — no existing surface consumes them yet.

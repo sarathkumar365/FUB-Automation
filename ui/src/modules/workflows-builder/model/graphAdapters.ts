@@ -15,6 +15,7 @@ import {
   type Graph,
   type GraphNode,
 } from '../state/runtimeContract'
+import { readTriggerType } from '../../workflows/lib/readTriggerType'
 
 export type SceneKind = 'trigger' | 'step'
 
@@ -63,7 +64,7 @@ export function graphToStoryboard(
 
   if (trigger) {
     const triggerConfig = (trigger.config as Record<string, unknown> | undefined) ?? {}
-    const triggerType = typeof trigger.type === 'string' ? trigger.type : undefined
+    const triggerType = readTriggerType(trigger) ?? undefined
     // The synthetic trigger scene always carries the `__trigger__` stepType so
     // card formatters can recognize it. The real trigger type (e.g. `webhook`,
     // `fub_event`) is exposed inside `config.type` so the formatter can render
