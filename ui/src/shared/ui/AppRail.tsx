@@ -10,7 +10,7 @@ export function AppRail() {
       aria-label={uiText.app.shell.railAriaLabel}
     >
       <NavLink
-        to={routes.root}
+        to={routes.dashboard}
         aria-label={uiText.app.nav.home}
         className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-brand)] text-sm font-bold text-white"
       >
