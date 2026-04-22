@@ -105,7 +105,22 @@ export function WorkflowRunDetailPage() {
           <MetadataRow label={uiText.workflowRuns.detailReasonCodeLabel} value={formatWorkflowRunReasonCode(workflowRun.reasonCode)} />
           <MetadataRow label={uiText.workflowRuns.detailStartedAtLabel} value={formatNullableDate(workflowRun.startedAt)} />
           <MetadataRow label={uiText.workflowRuns.detailCompletedAtLabel} value={formatNullableDate(workflowRun.completedAt)} />
-          <MetadataRow label={uiText.workflowRuns.detailSourceLeadIdLabel} value={workflowRun.sourceLeadId ?? uiText.workflowRuns.missingValue} />
+          <MetadataRow
+            label={uiText.workflowRuns.detailSourceLeadIdLabel}
+            value={
+              workflowRun.sourceLeadId ? (
+                <Link
+                  className="font-mono underline"
+                  to={`${routes.leadDetail(workflowRun.sourceLeadId)}?backTo=${encodeURIComponent(routes.workflowRunDetail(workflowRun.id))}`}
+                  data-testid="workflow-run-source-lead-link"
+                >
+                  {workflowRun.sourceLeadId}
+                </Link>
+              ) : (
+                uiText.workflowRuns.missingValue
+              )
+            }
+          />
           <MetadataRow label={uiText.workflowRuns.detailEventIdLabel} value={workflowRun.eventId ?? uiText.workflowRuns.missingValue} />
         </div>
       </PageCard>

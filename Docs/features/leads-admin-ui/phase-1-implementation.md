@@ -13,7 +13,7 @@ cross-links. Slice definitions and task tables live in `phases.md`.
 | A | Backend read API (list + summary with unified-activity merge) | unit + integration tests | [x] landed 2026-04-21 |
 | B | Frontend list page (port, adapter, hooks, `LeadsPage`, nav entry) | `npm run lint && npm run build && npm run test` | [x] landed 2026-04-21 |
 | C | Frontend detail page (route, hero, unified timeline, rail, raw snapshot) | `npm run lint && npm run build && npm run test` | [x] landed 2026-04-21 |
-| D | Cross-linking polish (sourceLeadId → lead detail from workflow runs / processed calls / webhooks) | `npm run lint && npm run build && npm run test` | [ ] pending |
+| D | Cross-linking polish (sourceLeadId → lead detail from workflow runs / processed calls / webhooks) | `npm run lint && npm run build && npm run test` | [x] landed 2026-04-21 |
 
 Feature-end: `./mvnw test` (per user directive 2026-04-21 — backend suite
 runs once at the end, not per slice).
@@ -91,3 +91,18 @@ _Entries are appended as each slice lands._
 
 **Tests** (UI gate: 67 files / 317 tests pass, lint + build clean)
 - `ui/src/test/lead-detail-page.test.tsx` — hero + rail render, activity chip filter narrows to selected kind, "Refresh from FUB" re-invokes port with `includeLive=true`.
+
+### Slice D — Cross-linking polish (2026-04-21)
+
+**Shipped**
+- `WorkflowRunDetailPage` now wraps the sourceLeadId metadata value in a `Link` pointing to `routes.leadDetail(sourceLeadId)` with `backTo=<run-detail URL>` encoded so the detail page "Back" link returns to the originating run. Null sourceLeadId still renders the missing-value placeholder.
+
+**Files**
+- `ui/src/modules/workflow-runs/ui/WorkflowRunDetailPage.tsx`
+- `ui/src/test/workflow-run-detail-page.test.tsx` (added sourceLeadId cross-link assertion)
+
+**Tests** (UI gate: 66 files / 318 tests pass, lint + build clean)
+- New case: "links the sourceLeadId to the lead detail page with a backTo" asserts the generated href and visible text.
+
+**Deviations from plan — D-2 / D-3 deferred**
+Task list called for the same link on ProcessedCalls and Webhooks surfaces (D-2 / D-3), but neither page currently renders a `sourceLeadId` — the respective backend DTOs (`ProcessedCallListItemResponse`, `WebhookEventListItemResponse`) don't project that column, and the UI schemas don't request it. Surfacing the value there is a prerequisite surface-expansion task that isn't part of the Phase 1 "leads admin UI" scope. Flagged here; no actionable link work remains on existing UI surfaces.
