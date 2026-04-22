@@ -143,6 +143,15 @@ function WorkflowDetailReady({
         />
       )}
 
+      {/*
+        The composite `key` is load-bearing: it forces WorkflowEditModal to
+        remount whenever the workflow snapshot changes (different key, bumped
+        version) or the dialog is reopened, so the form's lazy-initialised
+        state reseeds from `toFormState(workflow)` without an imperative
+        reset. This is the React-documented "reset state on prop change"
+        pattern — preferred over the `useEffect` + `setState` alternative,
+        which `react-hooks/set-state-in-effect` correctly flags.
+      */}
       <WorkflowEditModal
         key={`${workflow.key}-${workflow.version ?? 'none'}-${actions.editModal.open ? 'open' : 'closed'}`}
         open={actions.editModal.open}
