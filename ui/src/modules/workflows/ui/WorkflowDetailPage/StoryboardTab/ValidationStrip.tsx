@@ -21,7 +21,8 @@ export interface ValidationStripProps {
 export function ValidationStrip({ state, onValidate, onDismiss, disabled }: ValidationStripProps) {
   const [showIssues, setShowIssues] = useState(true)
 
-  const tone = toneFor(state.mode)
+  const tone = TONE_BY_MODE[state.mode]
+  const severity = SEVERITY_BY_MODE[state.mode]
 
   return (
     <div
@@ -32,6 +33,9 @@ export function ValidationStrip({ state, onValidate, onDismiss, disabled }: Vali
         borderColor: tone.border,
         background: tone.background,
       }}
+      role={severity.role}
+      aria-live={severity.ariaLive}
+      aria-label={severity.label}
     >
       <div className="flex items-center gap-3 px-4 py-2.5">
         <span
@@ -109,43 +113,70 @@ export function ValidationStrip({ state, onValidate, onDismiss, disabled }: Vali
 
 type ToneSet = { border: string; background: string; dot: string; text: string }
 
-function toneFor(mode: ValidationViewState['mode']): ToneSet {
-  switch (mode) {
-    case 'valid':
-      return {
-        border: 'var(--color-status-ok)',
-        background: 'var(--color-status-ok-bg)',
-        dot: 'var(--color-status-ok)',
-        text: 'var(--color-status-ok)',
-      }
-    case 'invalid':
-      return {
-        border: 'var(--color-status-warn)',
-        background: 'var(--color-status-warn-bg)',
-        dot: 'var(--color-status-warn)',
-        text: 'var(--color-status-warn)',
-      }
-    case 'error':
-      return {
-        border: 'var(--color-status-bad)',
-        background: 'var(--color-status-bad-bg)',
-        dot: 'var(--color-status-bad)',
-        text: 'var(--color-status-bad)',
-      }
-    case 'pending':
-      return {
-        border: 'var(--color-brand)',
-        background: 'var(--color-brand-soft)',
-        dot: 'var(--color-brand)',
-        text: 'var(--color-brand)',
-      }
-    case 'idle':
-    default:
-      return {
-        border: 'var(--color-border)',
-        background: 'var(--color-surface)',
-        dot: 'var(--color-border)',
-        text: 'var(--color-text)',
-      }
-  }
-}
+/**
+ * Static tone lookup — resolved once at module load, not per-render. The five
+ * validation modes never change; recomputing the switch on every keystroke up
+ * the tree was wasted work.
+ */
+const TONE_BY_MODE: Record<ValidationViewState['mode'], ToneSet> = Object.freeze({
+  valid: {
+    border: 'var(--color-status-ok)',
+    background: 'var(--color-status-ok-bg)',
+    dot: 'var(--color-status-ok)',
+    text: 'var(--color-status-ok)',
+  },
+  invalid: {
+    border: 'var(--color-status-warn)',
+    background: 'var(--color-status-warn-bg)',
+    dot: 'var(--color-status-warn)',
+    text: 'var(--color-status-warn)',
+  },
+  error: {
+    border: 'var(--color-status-bad)',
+    background: 'var(--color-status-bad-bg)',
+    dot: 'var(--color-status-bad)',
+    text: 'var(--color-status-bad)',
+  },
+  pending: {
+    border: 'var(--color-brand)',
+    background: 'var(--color-brand-soft)',
+    dot: 'var(--color-brand)',
+    text: 'var(--color-brand)',
+  },
+  idle: {
+    border: 'var(--color-border)',
+    background: 'var(--color-surface)',
+    dot: 'var(--color-border)',
+    text: 'var(--color-text)',
+  },
+})
+
+/**
+ * Accessibility mapping per mode. `role="alert"` + `aria-live="assertive"` is
+ * reserved for `error` (transport failure — demands attention). `invalid`
+ * uses `status` + `polite` so screen readers announce the issue count without
+ * interrupting the user. `pending`/`valid` are polite status updates; `idle`
+ * is a passive hint with no live region so it does not announce on mount.
+ */
+const SEVERITY_BY_MODE: Record<
+  ValidationViewState['mode'],
+  { role: 'status' | 'alert' | undefined; ariaLive: 'off' | 'polite' | 'assertive'; label: string }
+> = Object.freeze({
+  idle: { role: undefined, ariaLive: 'off', label: uiText.workflows.storyboardValidationIdleHint },
+  pending: { role: 'status', ariaLive: 'polite', label: uiText.workflows.validationPendingTitle },
+  valid: {
+    role: 'status',
+    ariaLive: 'polite',
+    label: uiText.workflows.storyboardValidationValidLabel,
+  },
+  invalid: {
+    role: 'status',
+    ariaLive: 'polite',
+    label: uiText.workflows.storyboardValidationInvalidLabel,
+  },
+  error: {
+    role: 'alert',
+    ariaLive: 'assertive',
+    label: uiText.workflows.storyboardValidationRetry,
+  },
+})
