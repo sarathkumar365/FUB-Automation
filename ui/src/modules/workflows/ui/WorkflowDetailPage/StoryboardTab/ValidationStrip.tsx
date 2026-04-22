@@ -19,6 +19,10 @@ export interface ValidationStripProps {
 }
 
 export function ValidationStrip({ state, onValidate, onDismiss, disabled }: ValidationStripProps) {
+  // Session-local only (L7): preference does not persist across navigations.
+  // Audit decision was to keep volatile until we have real user signal that
+  // the default-open policy annoys people — sessionStorage adds an SSR /
+  // hydration burden that is not yet justified.
   const [showIssues, setShowIssues] = useState(true)
 
   const tone = TONE_BY_MODE[state.mode]
