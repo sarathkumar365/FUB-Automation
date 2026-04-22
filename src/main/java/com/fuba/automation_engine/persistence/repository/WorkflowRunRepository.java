@@ -2,6 +2,7 @@ package com.fuba.automation_engine.persistence.repository;
 
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
+import java.util.List;
 import java.util.Optional;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -45,4 +46,10 @@ public interface WorkflowRunRepository extends JpaRepository<WorkflowRunEntity, 
     Page<WorkflowRunEntity> findByStatusFilter(
             @Param("status") WorkflowRunStatus status,
             Pageable pageable);
+
+    /**
+     * Top 10 most recent runs for a lead, ordered by created_at then id
+     * (both DESC). Used by the leads detail endpoint's timeline aggregation.
+     */
+    List<WorkflowRunEntity> findTop10BySourceLeadIdOrderByCreatedAtDescIdDesc(String sourceLeadId);
 }

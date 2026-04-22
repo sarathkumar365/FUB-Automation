@@ -1,4 +1,23 @@
-# Leads Page (List + Modal Detail Timeline) - Implementation Plan
+# Leads Page (List + Detail Timeline) - Implementation Plan
+
+> **UX supersession banner (2026-04-21).** This plan's UX choices — **modal
+> detail** and **three separate "recent" lists** (calls / workflow runs /
+> webhooks) — have been superseded by [`phases.md`](./phases.md):
+>
+> - Detail is now a **dedicated route** `/admin-ui/leads/:sourceLeadId`
+>   (decision D-Lead.1). Bookmarkable, shareable, back-linkable from workflow
+>   run detail + processed calls + webhook events.
+> - The three recent streams are merged into a **unified chronological
+>   timeline** with client-side filter chips `All / Calls / Workflows /
+>   Webhooks` (decision D-Lead.2).
+> - No separate `POST /admin/leads/:id/refresh` endpoint. "Refresh from FUB"
+>   button re-fires `GET /summary?includeLive=true` with cache bust.
+>
+> The **data contracts, endpoint shapes, cursor strategy, live-refresh
+> fallback behavior, and test plan in this file remain authoritative.** Only
+> the UX framing above is overridden. Read this plan alongside `phases.md`
+> when implementing.
+
 
 ## Summary
 Build a new `/admin-ui/leads` operator page with:

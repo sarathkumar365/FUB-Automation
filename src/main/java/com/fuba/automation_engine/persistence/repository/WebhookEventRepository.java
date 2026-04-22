@@ -20,4 +20,11 @@ public interface WebhookEventRepository extends JpaRepository<WebhookEventEntity
 
     @Query("SELECT DISTINCT w.eventType FROM WebhookEventEntity w WHERE w.eventType IS NOT NULL ORDER BY w.eventType ASC")
     List<String> findDistinctEventTypes();
+
+    /**
+     * Top 10 most recent webhook events for a lead, ordered by received_at
+     * then id (both DESC). Used by the leads detail endpoint's timeline
+     * aggregation.
+     */
+    List<WebhookEventEntity> findTop10BySourceLeadIdOrderByReceivedAtDescIdDesc(String sourceLeadId);
 }

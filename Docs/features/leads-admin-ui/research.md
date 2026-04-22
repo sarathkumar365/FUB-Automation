@@ -23,5 +23,16 @@ Create a dedicated Leads page in the internal admin UI so operators can:
 ## Existing UX patterns to align with
 - Table-driven pages with filter bar + apply/reset.
 - Cursor pagination pattern already used by webhooks.
-- Inspector/detail pattern is common, but this feature will use modal detail by product choice.
+- Shell-inspector rail + hero + accordion pattern adopted by the workflow-run
+  detail redesign (see `ui/Docs/workflow-ux-audit.md`). Lead detail follows
+  the same pattern for consistency.
 - URL-serializable filter state is expected for operability.
+
+## UX decisions (updated 2026-04-21)
+- **Detail surface:** dedicated route `/admin-ui/leads/:sourceLeadId` (not
+  modal). Supersedes the modal-by-product-choice note above. Rationale:
+  bookmarkable, shareable, cross-linkable from workflow-run / processed-call
+  / webhook-event detail surfaces. Tracked as D-Lead.1 in `phases.md`.
+- **Activity display:** one unified chronological timeline with client-side
+  filter chips (All / Calls / Workflows / Webhooks), not three parallel
+  "recent" lists. Tracked as D-Lead.2 in `phases.md`.

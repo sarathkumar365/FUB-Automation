@@ -15,4 +15,10 @@ public interface ProcessedCallRepository
     List<ProcessedCallEntity> findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
             String sourceLeadId,
             OffsetDateTime since);
+
+    /**
+     * Top 10 most recent calls for a lead, no time bound. Used by the
+     * leads detail endpoint's timeline aggregation.
+     */
+    List<ProcessedCallEntity> findTop10BySourceLeadIdOrderByCallStartedAtDescIdDesc(String sourceLeadId);
 }
