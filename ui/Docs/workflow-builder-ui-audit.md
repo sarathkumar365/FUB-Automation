@@ -92,7 +92,7 @@ Slice 3 + Slice 4 are being rolled out as four phases of small commits. Gate per
 | **B** — Slice 3 recipes | [x] | S3-I, S3-D, S3-G, S3-E, S3-F, S3-H (each + its test from S3-J) | 4 commits: Skeleton+Section / CopyableValue / FieldRow+KeyValueList / DefinitionCard |
 | **C** — Slice 4 popover v2 | [x] | S4-E, S4-D, S4-C, S4-A+S4-F, S4-B, S4-G, S4-H (optional — skipped) | 5 commits: kind+clamp / envelope / ConfigRow / TransitionRow / tests |
 | **D** — Slice 6 storyboard polish | [x] | S6-A, S6-B, S6-C | 4 commits: decisions doc / ring token / terminal kinds / tests |
-| **E** — remaining tracks (pick any order) | [~] | Slice 2 **complete 2026-04-21** (M8 dropped — React 19 lint forbids the planned fix); Slice 5 pending D5.1 | 6 commits for Slice 2 (L1-L3 / L4 / M5 / M6 / M7 / M8-docs / L7) |
+| **E** — remaining tracks (pick any order) | [x] | Slice 2 **complete 2026-04-21** (M8 dropped — React 19 lint forbids the planned fix); Slice 5 **dropped 2026-04-21** (D5.1 = c). | 7 commits for Slice 2 (L1-L3 / L4 / M5 / M6 / M7 / M7-followup / M8-docs / L7) |
 
 Rules:
 - Phase B recipes are additive only — no existing surface consumes them yet.
@@ -207,7 +207,7 @@ Motivation: in the current popover, long `transitions` and long config values (`
 | S4-G | [x] | **Phase C.** Update `ui/src/test/workflow-scene-inspector-popover.test.tsx`: (1) short scalar → inline, (2) 80-char plain string → stacked with Show more, (3) templating string → monospace + copy button, (4) URL → stacked + copy button, no `<a>`, (5) card-per-transition structure with long resultCode/target, (6) width/max-height tokens updated. |
 | S4-H | [ ] | **Phase C (optional).** Visual regression / screenshot sanity for a worst-case graph with long URLs + long transitions. |
 
-### Slice 5 — scene inspector in right rail (optional, bigger lift)
+### Slice 5 — scene inspector in right rail — **DROPPED** (2026-04-21, D5.1 = c)
 
 Motivation: the shell already exposes an **Inspector region** (`src/app/shell/...`) as a first-class layout zone. Today it hosts `WorkflowVersionList` on the workflow detail page. Surfacing scene detail there would give users more real estate and match the "selection drives right rail" pattern seen in Figma / Notion / Linear — but it's a product call whether this is worth the extra layout complexity on top of a polished popover.
 
@@ -219,12 +219,12 @@ Motivation: the shell already exposes an **Inspector region** (`src/app/shell/..
 
 | # | Question | Options to present | Decision |
 | --- | --- | --- | --- |
-| D5.1 | Is scene-detail-in-right-rail worth doing at all, given a polished Slice 4 popover? | (a) yes — right rail becomes the authoritative view, (b) yes — but only as an alternative, user toggles, (c) no — skip this slice entirely | _TBD_ |
-| D5.2 | If (a) or (b): how should the Inspector region handle both **Versions** and **Scene** content? | (a) tabbed (Versions / Scene), (b) swap — scene replaces versions while selected, versions return on deselect, (c) stacked — both visible, versions compressed, (d) accordion sections | _TBD_ |
-| D5.3 | Should the **floating popover** coexist with the right-rail inspector? | (a) yes — popover = quick glance, rail = authoritative, (b) popover hides when rail shows the same scene, (c) popover removed entirely — rail is the only detail view | _TBD_ |
-| D5.4 | What is the **entry affordance** for opening the right-rail inspector? | (a) single-click a scene (same as popover today), (b) double-click a scene, (c) dedicated "expand" button on the popover, (d) keyboard shortcut | _TBD_ |
-| D5.5 | Should scene selection **persist in the URL** (so links are shareable)? | (a) yes — add `?scene=<id>` search param, (b) no — selection is transient, (c) yes but only when the right rail is open | _TBD_ |
-| D5.6 | Does this pattern become **canonical** for all workflow detail surfaces going forward? | (a) yes — update `AGENTS.md` "UX decisions" to lock it, (b) no — scene inspector only, other surfaces stay feature-specific | _TBD_ |
+| D5.1 | Is scene-detail-in-right-rail worth doing at all, given a polished Slice 4 popover? | (a) yes — right rail becomes the authoritative view, (b) yes — but only as an alternative, user toggles, (c) no — skip this slice entirely | **(c) — locked 2026-04-21.** Slice 4 popover v2 solved the long-text pain that motivated Slice 5; right-rail would be ergonomic-only with significant shell complexity. Revisit only if persistent-scene-detail becomes a real user ask. |
+| D5.2 | If (a) or (b): how should the Inspector region handle both **Versions** and **Scene** content? | (a) tabbed (Versions / Scene), (b) swap — scene replaces versions while selected, versions return on deselect, (c) stacked — both visible, versions compressed, (d) accordion sections | _N/A — D5.1 = (c)_ |
+| D5.3 | Should the **floating popover** coexist with the right-rail inspector? | (a) yes — popover = quick glance, rail = authoritative, (b) popover hides when rail shows the same scene, (c) popover removed entirely — rail is the only detail view | _N/A — D5.1 = (c)_ |
+| D5.4 | What is the **entry affordance** for opening the right-rail inspector? | (a) single-click a scene (same as popover today), (b) double-click a scene, (c) dedicated "expand" button on the popover, (d) keyboard shortcut | _N/A — D5.1 = (c)_ |
+| D5.5 | Should scene selection **persist in the URL** (so links are shareable)? | (a) yes — add `?scene=<id>` search param, (b) no — selection is transient, (c) yes but only when the right rail is open | _N/A — D5.1 = (c)_ |
+| D5.6 | Does this pattern become **canonical** for all workflow detail surfaces going forward? | (a) yes — update `AGENTS.md` "UX decisions" to lock it, (b) no — scene inspector only, other surfaces stay feature-specific | _N/A — D5.1 = (c)_ |
 
 After decisions are filled in, update the task table below (or mark the slice dropped) before implementing.
 
@@ -232,13 +232,13 @@ After decisions are filled in, update the task table below (or mark the slice dr
 
 | id | status | item |
 | --- | --- | --- |
-| S5-A | [ ] | If D5.1 is (a) or (b): extract `InspectorBody` into a width-aware component that mounts at popover-width or rail-width without branching layout logic. |
-| S5-B | [ ] | Wire scene selection into the Inspector region per D5.2. |
-| S5-C | [ ] | Popover/rail coexistence behavior per D5.3. |
-| S5-D | [ ] | Entry affordance per D5.4. |
-| S5-E | [ ] | URL persistence per D5.5. |
-| S5-F | [ ] | Tests: shell-level test asserting Inspector switches content on scene selection; popover tests updated for coexistence behavior. |
-| S5-G | [ ] | If D5.6 is (a): update `AGENTS.md` "UX decisions" section. |
+| S5-A | [-] | Dropped — D5.1 = (c). |
+| S5-B | [-] | Dropped — D5.1 = (c). |
+| S5-C | [-] | Dropped — D5.1 = (c). |
+| S5-D | [-] | Dropped — D5.1 = (c). |
+| S5-E | [-] | Dropped — D5.1 = (c). |
+| S5-F | [-] | Dropped — D5.1 = (c). |
+| S5-G | [-] | Dropped — D5.1 = (c). |
 
 ### Slice 6 — storyboard visual polish (from 2026-04-21 review)
 
