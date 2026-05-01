@@ -22,37 +22,41 @@ captured as Phase 0 below.
 
 ## Phase 0 — Branch hygiene (pre-implementation)
 
-Status: `[ ]` todo
+Status: `[x]` done
 
-- [ ] **H** Confirm with operator: cut `feature/dev-hosting-security-hardening` from `dev` (or accept an explicit deviation, mirroring how `leads-admin-ui` was handled).
-- [ ] Stash / commit / move unrelated changes currently on `feature/lead-management-platform` so this feature's branches start clean.
+- [x] **H** `feature/lead-management-platform` merged into `dev` (commit `26a3149`); `feature/dev-hosting-security-hardening` cut from updated `dev`; phase work happens on `phase/dev-hosting-security-phase-1` off the feature parent.
+- [x] No unrelated WIP — the previous WIP files were already committed on `feature/lead-management-platform` (commits `89a5674`, `8f708b6`) before merge.
 
-No code in this phase — it exists so that the very first commit of Phase 1 lands on the right parent. No `phase-0-implementation.md` needed.
+No `phase-0-implementation.md` — pre-implementation only.
 
 ## Phase 1 — Hardened `prod` profile + pre-deploy verification (A3, A5, A6, A7)
 
-Status: `[ ]` todo
+Status: `[x]` done — see [`phase-1-implementation.md`](./phase-1-implementation.md).
 
 The cheap, low-risk wins. Nothing in this phase touches authentication or runtime auth code.
 
 ### Slice 1A — `application-prod.properties` (A3 + A7)
 
-- [ ] **M** Create `src/main/resources/application-prod.properties` with the body cap and log hardening from [plan.md § A3](./plan.md#a3--tomcat-body-size-cap-10-mb).
-- [ ] Confirm `scripts/run-app.sh prod` activates the file (no script change expected).
+- [x] **M** Created `src/main/resources/application-prod.properties` with body cap (10 MB) + log hardening per [plan.md § A3](./plan.md#a3--tomcat-body-size-cap-10-mb).
+- [x] Confirmed `scripts/run-app.sh prod` activates the file (`SPRING_PROFILES_ACTIVE=prod` set at line 407; no script change needed).
 
 ### Slice 1B — `.gitignore` audit (A5)
 
-- [ ] **L** Visually confirm `.gitignore:38,41-43` already cover `.env*` and `logs/`. No change expected.
+- [x] **L** Visually confirmed `.gitignore:38,41-43` already cover `.env*` and `logs/`. No change made.
 
 ### Slice 1C — Devtools exclusion verify (A6)
 
-- [ ] **M** Run `./mvnw -P prod clean package -DskipTests` then `jar tf target/automation-engine-*.jar | grep -i devtools`. Expected empty.
-- [ ] If non-empty, add `<excludeDevtools>true</excludeDevtools>` to `spring-boot-maven-plugin` in `pom.xml`.
+- [x] **M** Ran `./mvnw clean package -DskipTests` → `jar tf target/automation-engine-*.jar | grep -i devtools` returned empty. 57 MB packaged jar contains no devtools classes.
+- [-] `<excludeDevtools>true</excludeDevtools>` in `pom.xml` not needed — already absent from the packaged jar.
 
 ### Phase gate
 
-- [ ] `./mvnw -P prod clean test` passes.
-- [ ] Smoke-run `./mvnw -P prod spring-boot:run -Dspring-boot.run.profiles=prod`; large-body curl against `/webhooks/fub` returns 413/400 instead of OOMing.
+- [x] `./mvnw clean test` → **365 tests, 0 failures, 0 errors, 36 skipped** (≫ 85% required by `developer-rules.md`).
+- [-] Live large-body curl smoke against `/webhooks/fub` deferred to deploy-time. Justification: this phase only adds a properties file; live smoke requires a running instance with FUB signing key configured. To be re-confirmed in Phase 4 housekeeping.
+
+### Plan correction logged for Phase 4
+
+The plan's verification commands say `./mvnw -P prod ...` — `-P` is a *Maven* profile flag, but there is no Maven profile named `prod` in `pom.xml`. Maven prints a warning and runs anyway. The correct invocation is plain `./mvnw clean test`; the `prod` Spring profile is activated at runtime via `SPRING_PROFILES_ACTIVE=prod`. Phase 4 will correct the verification snippets in `plan.md`.
 
 ## Phase 2 — Backend auth foundation (A1a)
 
