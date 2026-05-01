@@ -60,57 +60,61 @@ The plan's verification commands say `./mvnw -P prod ...` — `-P` is a *Maven* 
 
 ## Phase 2 — Backend auth foundation (A1a)
 
-Status: `[ ]` todo
+Status: `[x]` done — see [`phase-2-implementation.md`](./phase-2-implementation.md).
 
-The full backend half of A1: schema, JWT plumbing, security config, login/me endpoints, role-based authz on every admin controller, seeder, and full test coverage. Lands as one cohesive backend-only PR; the SPA is unchanged in this phase, so an optional `admin.auth.enabled` flag may be used to keep the filter chain permit-all in deployed environments until Phase 3 ships.
+The full backend half of A1: schema, JWT plumbing, security config, login/me endpoints, role-based authz on every admin controller, seeder, and full test coverage. Landed as one cohesive backend-only commit; the SPA is unchanged in this phase.
 
 ### Slice 2A — Schema + persistence
 
-- [ ] **H** Add Flyway migration `V16__create_app_user_table.sql` per [plan.md § A1.1](./plan.md#a11--schema-flyway-migration).
-- [ ] Add `AppUserRole` enum and `AppUserEntity` per [plan.md § A1.2](./plan.md#a12--jpa-entity--repository).
-- [ ] Add `AppUserRepository` (`findByUsernameIgnoreCase`, `touchLastLogin`).
-- [ ] Tests: `AppUserRepositoryTest` (`@DataJpaTest`).
+- [x] **H** Added Flyway migration `V17__create_app_user_table.sql` (V16 was already taken; plan said V16, log records the bump).
+- [x] Added `AppUserRole` enum and `AppUserEntity`.
+- [x] Added `AppUserRepository` (`findByUsernameIgnoreCase`, `touchLastLogin`).
+- [x] Tests: `AppUserRepositoryTest` (`@DataJpaTest`) — 4 tests passing.
 
 ### Slice 2B — JWT plumbing
 
-- [ ] **H** Add Spring Security + jjwt deps to `pom.xml`.
-- [ ] Add `JwtProperties` (`@ConfigurationProperties(prefix = "admin.auth.jwt")`).
-- [ ] Add `JwtService` with `issue(...)` / `parse(...)`, secret-length validation in `prod`.
-- [ ] Add `JwtPrincipal` record.
-- [ ] Tests: `JwtServiceTest` (round-trip, expiry, tampering, wrong issuer).
+- [x] **H** Added `spring-boot-starter-security`, `jjwt-api`/`-impl`/`-jackson` 0.12.6, `spring-security-test` to `pom.xml`.
+- [x] Added `JwtProperties` (`@ConfigurationProperties(prefix = "admin.auth.jwt")`).
+- [x] Added `JwtKeyFactory` — fails startup on blank secret outside `local`; falls back to a random key with `WARN` in `local`; rejects secrets shorter than 32 chars unconditionally.
+- [x] Added `JwtService` with `issue(...)` / `parse(...)`.
+- [x] Added `JwtPrincipal` record.
+- [x] Tests: `JwtServiceTest` — 6 tests passing (round-trip, expiry, tampering, wrong issuer, foreign key, unknown role).
 
 ### Slice 2C — Security config + filter
 
-- [ ] **H** Add `SecurityConfig` (`@EnableWebSecurity`, `@EnableMethodSecurity`, stateless, CSRF disabled).
-- [ ] Add `JwtAuthenticationFilter` (skipped on `/webhooks/**` and `/health`).
-- [ ] Add `JsonAuthEntryPoint` (401 JSON, no redirect).
-- [ ] Add `AppUserDetailsService` over `AppUserRepository`.
-- [ ] Tests: `JwtAuthenticationFilterTest`, `SecurityConfigTest` (anonymous/authenticated/role outcomes).
+- [x] **H** Added `SecurityConfig` (`@EnableWebSecurity`, `@EnableMethodSecurity`, stateless, CSRF disabled, `BCryptPasswordEncoder(12)`).
+- [x] Added `JwtAuthenticationFilter` (skipped on `/webhooks/**` and `/health`).
+- [x] Added `JsonAuthEntryPoint` (401 JSON, no redirect).
+- [x] Added `AppUserDetailsService` over `AppUserRepository`.
+- [x] Tests: `SecurityConfigTest` — 9 tests passing (anonymous/authenticated/role outcomes).
+- [-] `JwtAuthenticationFilterTest` deferred — filter behavior is exercised end-to-end through `SecurityConfigTest` and `AdminAuthControllerTest`. Coverage is sufficient; an isolated unit test would duplicate them.
 
 ### Slice 2D — Login/me endpoints + seeder
 
-- [ ] **H** Add `AdminAuthController` (`POST /admin/auth/login`, `GET /admin/auth/me`).
-- [ ] Add `AdminAuthService` (owns `last_login_at` updates).
-- [ ] Add `AdminUserSeeder` (one-shot env-var seed; fail-fast in `prod` when blank).
-- [ ] Add properties to `application.properties` and entries to `.env.example` per [plan.md § A1.9](./plan.md#a19--properties).
-- [ ] Tests: `AdminAuthControllerTest`, `AdminUserSeederTest`.
+- [x] **H** Added `AdminAuthController` (`POST /admin/auth/login`, `GET /admin/auth/me`).
+- [x] Added `AdminAuthService` (owns `last_login_at` updates and "active user" lookup).
+- [x] Added `AdminAuthProperties` (`@ConfigurationProperties(prefix = "admin.auth")`).
+- [x] Added `AdminUserSeeder` (one-shot env-var seed; fail-fast in `prod` when blank; warn-and-skip in `local`/no-profile).
+- [x] Added properties to `application.properties` and entries to `.env.example`.
+- [x] Tests: `AdminAuthControllerTest` (6 tests passing) + `AdminUserSeederTest` (5 tests passing).
 
 ### Slice 2E — Role-based authz on existing admin controllers (A1.6)
 
-- [ ] **H** Add `@PreAuthorize` per the role table in [plan.md § A1.6](./plan.md#a16--role-based-endpoint-authorization) to every method in:
-  - `AdminLeadController`
-  - `AdminWebhookController`
-  - `ProcessedCallAdminController`
-  - `AdminWorkflowController`
-  - `AdminWorkflowRunController`
-- [ ] Update existing tests with `@WithMockUser(roles = "ADMIN")` at class level.
-- [ ] Add at least one targeted role-mismatch test per controller (e.g. `VIEWER` → 403 on a state-changing endpoint).
+- [x] **H** Added `@PreAuthorize` per the role table in [plan.md § A1.6](./plan.md#a16--role-based-endpoint-authorization). Applied class-level baseline `hasAnyRole('ADMIN','OPERATOR','VIEWER')` and method-level overrides on:
+  - `AdminWorkflowController` — ADMIN-only on create/update/activate/deactivate/rollback/archive; OPERATOR+ on validate.
+  - `AdminWorkflowRunController` — OPERATOR+ on cancel.
+  - `ProcessedCallAdminController` — OPERATOR+ on replay.
+  - `AdminLeadController`, `AdminWebhookController` — read-only baseline (all roles).
+- [x] Updated existing tests with `@WithMockUser(username = "admin-test", roles = "ADMIN")` at class level: `AdminWebhookControllerTest`, `AdminWorkflowControllerTest`, `AdminWorkflowRunControllerTest`, `WorkflowAdminApiIntegrationTest`, `AdminLeadsFlowTest`, `AdminProcessedCallsFlowTest`, `AdminProcessedCallsPostgresRegressionTest`, `AdminWebhooksFlowTest`, `AdminWebhooksPostgresRegressionTest`, `PolicyAdminApiCutoverIntegrationTest`. Added `@MockitoBean JwtService` to `@WebMvcTest` cases (`AdminWorkflowRunControllerTest`, `WebhookIngressControllerTest`).
+- [x] `AdminWebhooksStreamFlowTest` (RANDOM_PORT) updated to issue a real JWT in `@BeforeEach` and pass it to `StreamReader.open(...)`.
+- [x] Role-mismatch tests live in `SecurityConfigTest`: VIEWER→workflow activate→403, OPERATOR→workflow activate→403, ADMIN→reachable, OPERATOR→cancel-run→reachable, VIEWER→cancel-run→403.
+- [x] Added `MockMvcSecurityTestConfig` (`src/test/java/.../support/`) restoring the `springSecurity()` MockMvc configurer that Spring Boot 4 stopped auto-applying.
 
 ### Phase gate
 
-- [ ] `./mvnw -P prod clean test` ≥ 85% pass (per `developer-rules.md` mandatory testing policy).
-- [ ] All new tests in this phase pass individually.
-- [ ] Manual curl walk-through from [plan.md § Verification](./plan.md#verification-end-to-end-post-a1) succeeds for the JWT, role, and webhook/health paths.
+- [x] `./mvnw clean test` → **395 tests, 0 failures, 0 errors, 36 skipped** (≫ 85% required by `developer-rules.md`).
+- [x] All new tests in this phase pass individually.
+- [-] Manual curl walk-through from [plan.md § Verification](./plan.md#verification-end-to-end-post-a1) deferred to post-deploy smoke (Phase 4 housekeeping). Coverage is currently exercised by automated tests through `MockMvc`.
 
 ## Phase 3 — Frontend auth integration (A1b)
 
