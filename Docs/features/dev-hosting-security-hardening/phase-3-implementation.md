@@ -71,3 +71,9 @@ flowchart LR
 ## Repo decisions impact
 
 `No` — the SPA wiring is a consumer of the auth pattern already promoted in [`RD-004`](../../repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md). No new repo-wide decision; everything in this phase honors the contract that document established (Bearer header, role enum, login endpoint shape, server-side BCrypt). Future SPA-side auth work (refresh tokens, MFA UI, login attempt feedback) reads as additions on top of this layer, still under RD-004.
+
+## Follow-up: logout button (2026-05-01)
+
+Added [`LogoutButton`](../../../ui/src/modules/auth/ui/LogoutButton.tsx) and wired it into the [`AppRail`](../../../ui/src/shared/ui/AppRail.tsx) (bottom of the desktop sidebar) and the mobile header in [`AppShell`](../../../ui/src/app/AppShell.tsx). Two variants — `rail` (compact icon, username in the title attribute) and `inline` (icon + text). The component renders nothing when there is no token, so it's safe to drop into shared chrome. Click clears the token via `tokenStore.clearToken()` and navigates to `/admin-ui/login`. Confirms RD-004's "logout is purely client-side; backend has no /logout endpoint" decision.
+
+UI suite after this addition: **346 / 346 passing** (4 net-new tests in `auth-logout-button.test.tsx`).
