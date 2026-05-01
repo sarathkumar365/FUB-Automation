@@ -37,6 +37,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -44,6 +45,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin/workflows")
+@PreAuthorize("hasAnyRole('ADMIN','OPERATOR','VIEWER')")
 public class AdminWorkflowController {
 
     private final AutomationWorkflowService workflowService;
@@ -60,6 +62,7 @@ public class AdminWorkflowController {
     }
 
     @PostMapping
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> createWorkflow(@RequestBody(required = false) CreateWorkflowRequest request) {
         if (request == null) {
             return ResponseEntity.badRequest().body("Invalid workflow request");
@@ -76,6 +79,7 @@ public class AdminWorkflowController {
     }
 
     @PostMapping("/validate")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<?> validateWorkflow(@RequestBody(required = false) ValidateWorkflowRequest request) {
         if (request == null) {
             return ResponseEntity.badRequest().body("Invalid validation request");
@@ -150,6 +154,7 @@ public class AdminWorkflowController {
     }
 
     @PutMapping("/{key}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> updateWorkflow(@PathVariable String key, @RequestBody(required = false) UpdateWorkflowRequest request) {
         if (request == null) {
             return ResponseEntity.badRequest().body("Invalid workflow request");
@@ -172,18 +177,21 @@ public class AdminWorkflowController {
     }
 
     @PostMapping("/{key}/activate")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> activateWorkflow(@PathVariable String key) {
         ActivateResult result = workflowService.activate(key);
         return toActivateResponse(result);
     }
 
     @PostMapping("/{key}/deactivate")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> deactivateWorkflow(@PathVariable String key) {
         DeactivateResult result = workflowService.deactivate(key);
         return toDeactivateResponse(result);
     }
 
     @PostMapping("/{key}/rollback")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> rollbackWorkflow(
             @PathVariable String key,
             @RequestBody(required = false) RollbackWorkflowRequest request) {
@@ -195,6 +203,7 @@ public class AdminWorkflowController {
     }
 
     @DeleteMapping("/{key}")
+    @PreAuthorize("hasRole('ADMIN')")
     public ResponseEntity<?> archiveWorkflow(@PathVariable String key) {
         ArchiveResult result = workflowService.archive(key);
         return toArchiveResponse(result);

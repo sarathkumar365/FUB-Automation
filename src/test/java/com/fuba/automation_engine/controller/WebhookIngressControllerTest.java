@@ -3,6 +3,7 @@ package com.fuba.automation_engine.controller;
 import com.fuba.automation_engine.exception.webhook.InvalidWebhookSignatureException;
 import com.fuba.automation_engine.exception.webhook.MalformedWebhookPayloadException;
 import com.fuba.automation_engine.exception.webhook.UnsupportedWebhookSourceException;
+import com.fuba.automation_engine.service.auth.JwtService;
 import com.fuba.automation_engine.service.webhook.WebhookIngressService;
 import com.fuba.automation_engine.service.webhook.model.WebhookIngressResult;
 import org.junit.jupiter.api.Test;
@@ -28,6 +29,9 @@ class WebhookIngressControllerTest {
 
     @MockitoBean
     private WebhookIngressService webhookIngressService;
+
+    @MockitoBean
+    private JwtService jwtService;
 
     @Test
     void shouldReturnAcceptedForValidRequest() throws Exception {
