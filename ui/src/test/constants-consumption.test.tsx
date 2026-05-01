@@ -1,9 +1,19 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../app/App'
 import { uiText } from '../shared/constants/uiText'
+import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('centralized text usage', () => {
+  beforeEach(() => {
+    seedMockAdminToken()
+  })
+
+  afterEach(() => {
+    clearMockAdminToken()
+  })
+
+
   it('renders nav and page titles from uiText constants', async () => {
     window.history.pushState({}, '', '/admin-ui/webhooks')
 

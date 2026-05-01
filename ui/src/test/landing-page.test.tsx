@@ -1,10 +1,20 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../app/App'
 import { uiText } from '../shared/constants/uiText'
+import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('Landing page', () => {
+  beforeEach(() => {
+    seedMockAdminToken()
+  })
+
+  afterEach(() => {
+    clearMockAdminToken()
+  })
+
+
   it('renders five milestones and key labels', async () => {
     window.history.pushState({}, '', '/')
 
