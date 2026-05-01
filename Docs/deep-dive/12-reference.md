@@ -35,16 +35,15 @@
 
 | # | Issue | Impact | Location |
 |---|-------|--------|----------|
-| 1 | Action mutation endpoints still log-only | Execution path is complete and returns `ACTION_SUCCESS`, but external provider mutation is deferred | `OnCommunicationMissActionStepExecutor`, `FubFollowUpBossClient` |
-| 2 | Stale `PROCESSING` watchdog/reaper missing | Resolved in Phase 6 | `PolicyExecutionDueWorker` |
-| 3 | Call processing non-atomic claim | Duplicate concurrent deliveries can both pass terminal guard | `WebhookEventProcessorService.processCall` |
-| 4 | SSE `Map.of` null safety | `WebhookSseHub.publish` can NPE if `eventId` is null | `WebhookSseHub` |
-| 5 | Replay doesn't reset `retryCount` | Replayed calls show inflated retry counts from previous attempt | `ProcessedCallAdminService.replay` |
-| 6 | Duplicate detection too broad on save | `DataIntegrityViolationException` catch masks non-duplicate integrity failures | `WebhookIngressService.ingest` |
-| 7 | Parser `sourceLeadId` always null | Lead ID not extracted from `peopleCreated`/`peopleUpdated` payloads — derived later in processor from `resourceIds` instead. See [07-flow-assignment-policy.md](07-flow-assignment-policy.md#sourcelead-id-lifecycle--important-nuance) | `FubWebhookParser` |
-| 8 | Decision engine outcome-first ordering | Stale outcome labels can trigger tasks on connected calls | `CallDecisionEngine.decide` |
-| 9 | `PolicyStepTransitionContractTest` incomplete | Only 3 of 6 transitions are tested. Missing: `NOT_CLAIMED`, `COMM_NOT_FOUND`, `ACTION_SUCCESS`. All 6 entries exist in `PolicyStepTransitionContract.TRANSITIONS` but the test class only covers `CLAIMED → NEXT`, `COMM_FOUND → TERMINAL`, `ACTION_FAILED → TERMINAL` | `PolicyStepTransitionContractTest` |
-| 10 | No retry in ASSIGNMENT processor fan-out | ASSIGNMENT planning failures are logged but not retried. CALL domain uses exponential backoff. See [07-flow-assignment-policy.md](07-flow-assignment-policy.md#retry-behaviour--assignment-vs-call-domain) | `WebhookEventProcessorService.processAssignmentDomainEvent` |
+| 1 | Stale `PROCESSING` watchdog/reaper missing | Resolved in Phase 6 | `PolicyExecutionDueWorker` |
+| 2 | Call processing non-atomic claim | Duplicate concurrent deliveries can both pass terminal guard | `WebhookEventProcessorService.processCall` |
+| 3 | SSE `Map.of` null safety | `WebhookSseHub.publish` can NPE if `eventId` is null | `WebhookSseHub` |
+| 4 | Replay doesn't reset `retryCount` | Replayed calls show inflated retry counts from previous attempt | `ProcessedCallAdminService.replay` |
+| 5 | Duplicate detection too broad on save | `DataIntegrityViolationException` catch masks non-duplicate integrity failures | `WebhookIngressService.ingest` |
+| 6 | Parser `sourceLeadId` always null | Lead ID not extracted from `peopleCreated`/`peopleUpdated` payloads — derived later in processor from `resourceIds` instead. See [07-flow-assignment-policy.md](07-flow-assignment-policy.md#sourcelead-id-lifecycle--important-nuance) | `FubWebhookParser` |
+| 7 | Decision engine outcome-first ordering | Stale outcome labels can trigger tasks on connected calls | `CallDecisionEngine.decide` |
+| 8 | `PolicyStepTransitionContractTest` incomplete | Only 3 of 6 transitions are tested. Missing: `NOT_CLAIMED`, `COMM_NOT_FOUND`, `ACTION_SUCCESS`. All 6 entries exist in `PolicyStepTransitionContract.TRANSITIONS` but the test class only covers `CLAIMED → NEXT`, `COMM_FOUND → TERMINAL`, `ACTION_FAILED → TERMINAL` | `PolicyStepTransitionContractTest` |
+| 9 | No retry in ASSIGNMENT processor fan-out | ASSIGNMENT planning failures are logged but not retried. CALL domain uses exponential backoff. See [07-flow-assignment-policy.md](07-flow-assignment-policy.md#retry-behaviour--assignment-vs-call-domain) | `WebhookEventProcessorService.processAssignmentDomainEvent` |
 
 ---
 
@@ -58,7 +57,7 @@ This document set was verified in 10 recursive passes against current branch cod
 4. **Assignment-domain planning** — validated `processAssignmentDomainEvent` fan-out, `PolicyExecutionManager.plan` with idempotency key SHA-256 construction, blueprint validation rules (7 checks), `getActivePolicy` lookup, step materialization with PENDING/WAITING_DEPENDENCY initial states, and `dueAt` calculation from blueprint `delayMinutes`.
 5. **Due worker execution** — validated `pollAndProcessDueSteps` cycle/budget algorithm, `JdbcPolicyExecutionStepClaimRepository` SQL (`FOR UPDATE SKIP LOCKED`), `PolicyStepExecutionService.executeClaimedStep` method chain, and `compensateClaimedStepFailure` with `REQUIRES_NEW` and 3-attempt retry.
 6. **Transition contract** — validated all 6 transition entries in `PolicyStepTransitionContract`, terminal transition logic (skip remaining steps, mark run COMPLETED), and next-step activation (WAITING_DEPENDENCY → PENDING with computed `dueAt`).
-7. **Executor implementations** — validated all 3 executors: claim check (`claimed` field with `assignedUserId` fallback), communication check (derived from `contacted > 0`), action executor (validates action type + target and executes log-only adapter methods returning `ACTION_SUCCESS` in dev mode). Verified failure codes for invalid config/targets.
+7. **Executor implementations** — validated all 3 executors: claim check (`claimed` field with `assignedUserId` fallback), communication check (derived from `contacted > 0`), action executor (validates action type + target and executes through live FUB adapter methods returning `ACTION_SUCCESS` on success). Verified failure codes for invalid config/targets.
 8. **FUB client adapter** — validated Basic Auth encoding, header construction, exception mapping (429/5xx → transient, 4xx → permanent, network → transient), `checkPersonCommunication` derivation from `getPersonById`, and `registerWebhook` stub status.
 9. **Admin APIs** — validated all 12 endpoints with request/response shapes, cursor-based pagination (Base64 JSON encoding, keyset queries), JPA Specification filtering, replay behavior (field reset, synthetic event dispatch, retryCount TODO), policy CRUD with optimistic locking, activation with deactivation query, and SSE hub implementation (heartbeat, subscriber management, filter matching, event names).
 10. **Database schema** — validated all 8 Flyway migrations (V1–V8) including table structures, column types, indexes, unique constraints, partial indexes, foreign keys, check constraints, and V8 identity resolver removal.

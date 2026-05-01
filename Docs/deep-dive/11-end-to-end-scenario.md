@@ -47,7 +47,7 @@ To tie all flows together, here is the complete lifecycle of an assignment event
    → OnCommunicationMissActionStepExecutor:
      reads actionConfig.actionType = "REASSIGN"
      reads actionConfig.targetUserId = 77
-     → executes log-only action via FollowUpBossClient.reassignPerson(...)
+     → executes FollowUpBossClient.reassignPerson(...) -> PUT /people/{id}
      → returns ACTION_SUCCESS
    → transition: ACTION_SUCCESS → terminal
    → remaining steps: none to skip

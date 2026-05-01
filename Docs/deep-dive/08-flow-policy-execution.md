@@ -173,16 +173,13 @@ flowchart TB
    → missing target field: ACTION_TARGET_MISSING
    → invalid target value: ACTION_TARGET_INVALID
 3. Execute through FollowUpBossClient action methods:
-   - REASSIGN -> reassignPerson(personId, targetUserId)
-   - MOVE_TO_POND -> movePersonToPond(personId, targetPondId)
-4. Current adapter mode (dev): log-only success -> ACTION_SUCCESS
+   - REASSIGN -> reassignPerson(personId, targetUserId) -> PUT /people/{id} {"assignedUserId": ...}
+   - MOVE_TO_POND -> movePersonToPond(personId, targetPondId) -> PUT /people/{id} {"assignedPondId": ...}
+4. Adapter result mapping:
+   - 2xx response -> ActionExecutionResult.ok() -> ACTION_SUCCESS
+   - 429 / 5xx / network error -> FubTransientException -> retried by step transient-failure path
+   - Other 4xx -> FubPermanentException -> ACTION_FAILED
 ```
-
-**Why this is log-only for now:** The execution path is fully wired and contract-validating, but provider mutation endpoints remain deferred for a later increment. This keeps end-to-end flow testable in dev without external side effects.
-
-**Next step for full mutation mode:**
-1. Replace log-only adapter methods with concrete FUB mutation endpoint calls.
-2. Preserve result mapping contract (`ACTION_SUCCESS` / `ACTION_FAILED`) and reason-code handling.
 
 ## Worker exception compensation
 

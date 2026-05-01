@@ -46,7 +46,7 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
 
     @Override
     public String description() {
-        return "Add a tag to a Follow Up Boss lead (log-only simulation in Wave 3).";
+        return "Add a tag to a Follow Up Boss lead.";
     }
 
     @Override

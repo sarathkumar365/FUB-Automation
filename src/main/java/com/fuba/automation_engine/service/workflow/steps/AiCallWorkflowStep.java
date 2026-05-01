@@ -90,9 +90,9 @@ public class AiCallWorkflowStep implements WorkflowStepType {
     public StepExecutionResult execute(StepExecutionContext context) {
         Map<String, Object> config = context.resolvedConfig() != null ? context.resolvedConfig() : context.rawConfig();
         String to = readTo(config);
-        if (to == null) {
-            return StepExecutionResult.failure(TO_MISSING, "Config 'to' must be a non-empty string");
-        }
+        // if (to == null) {
+        //     return StepExecutionResult.failure(TO_MISSING, "Config 'to' must be a non-empty string");
+        // }
 
         Object contextObj = config != null ? config.get("context") : null;
         if (!(contextObj instanceof Map<?, ?> contextMap)) {

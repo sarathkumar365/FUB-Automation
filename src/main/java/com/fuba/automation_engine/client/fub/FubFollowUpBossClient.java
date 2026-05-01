@@ -2,8 +2,11 @@ package com.fuba.automation_engine.client.fub;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fuba.automation_engine.client.fub.dto.FubAssignedPondUpdateRequestDto;
+import com.fuba.automation_engine.client.fub.dto.FubAssignedUserUpdateRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubCallResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubCreateTaskRequestDto;
+import com.fuba.automation_engine.client.fub.dto.FubTagsUpdateRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubTaskResponseDto;
 import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
@@ -18,7 +21,9 @@ import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
 import java.util.Base64;
+import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -153,29 +158,66 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
 
     @Override
     public ActionExecutionResult reassignPerson(long personId, long targetUserId) {
-        log.info(
-                "FUB action simulated: reassign person personId={} targetUserId={} mode=log-only",
-                personId,
-                targetUserId);
+        log.info("Calling FUB reassignPerson personId={} targetUserId={}", personId, targetUserId);
+        putPersonUpdate(personId, new FubAssignedUserUpdateRequestDto(targetUserId), "reassignPerson");
+        log.info("FUB reassignPerson succeeded personId={} targetUserId={}", personId, targetUserId);
         return ActionExecutionResult.ok();
     }
 
     @Override
     public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
-        log.info(
-                "FUB action simulated: move person to pond personId={} targetPondId={} mode=log-only",
-                personId,
-                targetPondId);
+        log.info("Calling FUB movePersonToPond personId={} targetPondId={}", personId, targetPondId);
+        putPersonUpdate(personId, new FubAssignedPondUpdateRequestDto(targetPondId), "movePersonToPond");
+        log.info("FUB movePersonToPond succeeded personId={} targetPondId={}", personId, targetPondId);
         return ActionExecutionResult.ok();
     }
 
     @Override
     public ActionExecutionResult addTag(long personId, String tagName) {
-        log.info(
-                "FUB action simulated: add tag personId={} tagName={} mode=log-only",
-                personId,
-                tagName);
+        log.info("Calling FUB addTag personId={} tagName={}", personId, tagName);
+        JsonNode person = getPersonRawById(personId);
+        List<String> existingTags = readTags(person);
+        if (existingTags.contains(tagName)) {
+            log.info("FUB addTag noop personId={} tagName={} reason=already-present", personId, tagName);
+            return ActionExecutionResult.ok();
+        }
+        List<String> nextTags = new ArrayList<>(existingTags);
+        nextTags.add(tagName);
+        putPersonUpdate(personId, new FubTagsUpdateRequestDto(nextTags), "addTag");
+        log.info("FUB addTag succeeded personId={} tagName={}", personId, tagName);
         return ActionExecutionResult.ok();
+    }
+
+    private void putPersonUpdate(long personId, Object requestBody, String operationLabel) {
+        try {
+            restClient.put()
+                    .uri("/people/{id}", personId)
+                    .headers(this::applyDefaultHeaders)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(requestBody)
+                    .retrieve()
+                    .toBodilessEntity();
+        } catch (RestClientResponseException ex) {
+            log.warn("FUB {} returned HTTP error personId={} status={}", operationLabel, personId, ex.getStatusCode().value());
+            throw mapResponseException("PUT /people/{id}", ex);
+        } catch (ResourceAccessException ex) {
+            log.warn("FUB {} network error personId={}", operationLabel, personId);
+            throw new FubTransientException("FUB network failure on PUT /people/{id}", null, ex);
+        }
+    }
+
+    private List<String> readTags(JsonNode person) {
+        JsonNode tagsNode = person == null ? null : person.get("tags");
+        if (tagsNode == null || !tagsNode.isArray()) {
+            return List.of();
+        }
+        List<String> tags = new ArrayList<>(tagsNode.size());
+        tagsNode.forEach(node -> {
+            if (node != null && node.isTextual()) {
+                tags.add(node.asText());
+            }
+        });
+        return tags;
     }
 
     @Override

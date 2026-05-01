@@ -27,4 +27,4 @@ All phases are **completed**:
 | Phase 6 | Stale `PROCESSING` watchdog/reaper | Completed |
 | Phase 7 | Action target contract + log-only action execution | Completed |
 
-**Current runtime state:** Assignment flow is in planning + execution mode. Due worker claims and executes steps. Action step validates required targets and executes through log-only adapter methods, returning `ACTION_SUCCESS` in dev mode.
+**Current runtime state:** Assignment flow is in planning + execution mode. Due worker claims and executes steps. Action step validates required targets and executes through live FUB adapter methods (`PUT /people/{id}`), returning `ACTION_SUCCESS` on success.
