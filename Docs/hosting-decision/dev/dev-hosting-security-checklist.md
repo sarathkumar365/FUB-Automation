@@ -1,113 +1,100 @@
 # Dev Hosting — Security Checklist
 
-Findings from the codebase security review, scoped for a publicly reachable **dev/showcase** environment (not production). Items are grouped by whether they block exposing the app or can be deferred.
+Findings from the codebase security review, scoped for a publicly reachable **dev/showcase** environment (not production). Items are grouped by status: completed, accepted-as-known-issues, nice-to-haves, and verified-safe.
 
-- Date: 2026-04-28
-- Branch reviewed: `feature/lead-management-platform`
+- Original review: 2026-04-28, branch `feature/lead-management-platform`
+- Implementation: feature `dev-hosting-security-hardening` (2026-05-01)
 - Reviewer: Claude (manual scan)
 
----
-
-## A. Must-have BEFORE dev hosting goes public
-
-These all involve risks that an unauthenticated stranger on the internet can exploit. Without them, the URL must stay behind a tunnel / IP allowlist / Basic-auth proxy.
-
-### A1. Add authentication on `/admin/**` (CRITICAL)
-- **Problem:** `pom.xml` has no `spring-boot-starter-security`. There is no `SecurityFilterChain`. All admin endpoints are anonymous: `/admin/leads`, `/admin/workflows`, `/admin/workflow-runs/{id}/cancel`, `POST /admin/processed-calls/{id}/replay`, `POST /admin/workflows/{key}/activate`, etc.
-- **Impact:** anyone with the URL can read leads, replay calls, and activate/deactivate workflows. Replay/activation triggers outbound calls to FUB using your real API key.
-- **Fix:** add `spring-boot-starter-security` and either HTTP Basic auth (single env-driven user) or a static `X-Admin-Token` header filter. Permit `/webhooks/**` and `/health` anonymously, deny everything else.
-
-### A2. SSRF guard on workflow HTTP steps (CRITICAL)
-- **Files:** `src/main/java/com/fuba/automation_engine/client/http/WorkflowRestHttpClientAdapter.java`, used by `HttpRequestWorkflowStep` and `SlackNotifyWorkflowStep`.
-- **Problem:** the workflow definition supplies the URL, with no host allowlist and no block on private/loopback/link-local/metadata addresses.
-- **Impact:** combined with A1, an unauthenticated user can create a workflow targeting `http://169.254.169.254/...` (cloud metadata), `http://127.0.0.1:...`, or any internal service, then trigger it and read the response back via `/admin/workflow-runs/{id}`.
-- **Fix:** before dispatch, resolve the host, reject non-HTTPS, and reject private / loopback / link-local / metadata IPs. Optionally maintain an allowlist (e.g. `hooks.slack.com`, FUB hosts).
-
-### A3. Webhook body size cap before buffering (HIGH)
-- **File:** `src/main/java/com/fuba/automation_engine/controller/WebhookIngressController.java` line 38 — `@RequestBody String rawBody`.
-- **Problem:** the 1 MB `webhook.max-body-bytes` check runs after Spring has fully buffered the body. No `server.tomcat.max-http-form-post-size` / `max-swallow-size` set.
-- **Impact:** unauthenticated POST to `/webhooks/fub` with a 100 MB body buffers fully before rejection — easy memory exhaustion DoS.
-- **Fix:** in `application.properties` (or a `prod` profile):
-  ```
-  server.tomcat.max-http-form-post-size=2MB
-  server.tomcat.max-swallow-size=2MB
-  ```
-  Ideally also stream-read the body with a hard cap.
-
-### A4. Unbounded HTTP response read (HIGH)
-- **Files:** `WorkflowRestHttpClientAdapter.java:83`, also `AiCallServiceHttpClientAdapter`.
-- **Problem:** `bodyStream.readAllBytes()` with no ceiling. A malicious or buggy upstream returning multi-GB OOMs the JVM. The 512 MB Render free tier will fall over very quickly.
-- **Fix:** cap reads at e.g. 1 MB with a bounded reader and surface a `WorkflowHttpClientException` if exceeded.
-
-### A5. Add `.env` to `.gitignore` (HIGH)
-- **Problem:** `.gitignore` does not list `.env` (verified). `.env` holds real `FUB_API_KEY` and `FUB_X_SYSTEM_KEY`.
-- **Impact:** one accidental `git add .` ships the keys to GitHub. (No leak in history yet.)
-- **Fix:** add to `.gitignore`:
-  ```
-  .env
-  .env.local
-  .env.*.local
-  logs/
-  ```
-
-### A6. Confirm `spring-boot-devtools` is not in the deployed jar (MEDIUM, easy)
-- **Problem:** devtools is declared `runtime` + `optional`. The Spring Boot Maven plugin normally excludes it from the repackaged fat-jar, but worth verifying for the actual deployed artifact.
-- **Fix:** after `./mvnw -P prod package`, run `jar tf target/automation-engine-*.jar | grep -i devtools` — output must be empty.
-
-### A7. Disable verbose SQL logging in deployed profile (MEDIUM)
-- **File:** `src/main/resources/application.properties` line 12 — `spring.jpa.show-sql=true`.
-- **Problem:** logs every query; FUB payloads carry PII (names, emails, phone numbers). Combined with public access to the host's logs (Render dashboard, etc.), this is a soft data leak.
-- **Fix:** override in deployed env:
-  ```
-  SPRING_JPA_SHOW_SQL=false
-  ```
-  Or set `spring.jpa.show-sql=false` and `spring.jpa.properties.hibernate.format_sql=false` in `application-prod.properties`.
+For implementation details see [`Docs/features/dev-hosting-security-hardening/`](../../features/dev-hosting-security-hardening/) — `plan.md` for the design (with end-to-end lifecycle diagram), `phase-N-implementation.md` for what shipped in each phase.
 
 ---
 
-## B. Nice-to-have for dev hosting (do soon, not blocking)
+## A. Completed before dev hosting goes public
+
+### A1. Authentication on `/admin/**` ✅
+- **Status:** Done in `phase/dev-hosting-security-phase-2` + `phase/dev-hosting-security-phase-3`.
+- **Shape shipped:** Spring Security stateless + JWT bearer (HS256, jjwt) + DB-backed users in `app_user` (Flyway V17). Three-role enum (`ADMIN`, `OPERATOR`, `VIEWER`) enforced per endpoint via `@PreAuthorize`. SPA login page + token store + AuthGuard + RoleGate.
+- **Promoted to repo-decisions:** [`RD-004-admin-auth-uses-jwt-bearer.md`](../../repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md).
+
+### A3. Webhook body size cap before buffering ✅
+- **Status:** Done in `phase/dev-hosting-security-phase-1`.
+- **Shape shipped:** new `src/main/resources/application-prod.properties` sets `server.tomcat.max-http-form-post-size=10MB` and `max-swallow-size=10MB` (operator chose 10 MB, raised from the originally-proposed 2 MB). The existing `webhook.max-body-bytes=1MB` application-level cap stays as the inner wall — defense in depth.
+- **Known sub-gap (documented):** Spring's `@RequestBody String` for JSON isn't strictly bounded by these properties; `max-swallow-size` is what protects the JVM. A streaming counting filter is over-scope for dev.
+
+### A5. `.env` gitignored ✅
+- **Status:** Already done; verified in Phase 1.
+- **Note:** `.gitignore:38,41-43` already cover `logs/`, `.env`, `.env.*` (with `!.env.example` exception). No edit was needed.
+
+### A6. `spring-boot-devtools` excluded from deployed jar ✅
+- **Status:** Verified in Phase 1.
+- **Evidence:** `./mvnw clean package -DskipTests` produces a 57 MB jar; `jar tf target/automation-engine-*.jar | grep -i devtools` returns empty. No `pom.xml` change needed. Re-run before each deploy.
+
+### A7. `spring.jpa.show-sql` disabled in deployed env ✅
+- **Status:** Done in `phase/dev-hosting-security-phase-1` (same `application-prod.properties` as A3).
+- **Shape shipped:** `spring.jpa.show-sql=false` and `spring.jpa.properties.hibernate.format_sql=false` apply automatically when `SPRING_PROFILES_ACTIVE=prod`. Local dev keeps `show-sql=true` for ergonomics.
+
+---
+
+## B. Known issues — accepted for dev, revisit when…
+
+These are real findings, deliberately deferred for a single-admin dev host. The risk preconditions are absent today; revisit at the trigger events listed.
+
+### A2. SSRF guard on workflow HTTP steps (deferred)
+- **Files:** `client/http/WorkflowRestHttpClientAdapter.java`, used by `HttpRequestWorkflowStep` and `SlackNotifyWorkflowStep`.
+- **Risk shape:** the workflow definition supplies the URL; no host allowlist, no block on private/loopback/link-local/metadata addresses. An admin who can edit workflows could pivot to AWS metadata, internal services, etc.
+- **Proposed fix:** before dispatch, resolve the host, reject non-HTTPS, reject private / loopback / link-local / metadata IPs, optional allowlist.
+- **Accepted because:** today only `ADMIN` can create or edit workflows, and the seeded admin is the operator. The threat is "I attack myself," which isn't a real threat.
+- **Revisit when:** any of (a) a non-trusted user is granted workflow-edit rights (OPERATOR/VIEWER promoted, second admin added, self-service registration introduced); (b) a workflow URL becomes derivable from end-user input; (c) audit logs would benefit from outbound-host visibility.
+
+### A4. Bounded HTTP response reads (deferred)
+- **Files:** `client/http/WorkflowRestHttpClientAdapter.java:83`, `client/aicall/AiCallServiceHttpClientAdapter.java`.
+- **Risk shape:** `bodyStream.readAllBytes()` (and the AI-call adapter's `String` body materialization) has no ceiling. A buggy or malicious upstream returning multi-GB OOMs the JVM on a 512 MB instance.
+- **Proposed fix:** cap reads at e.g. 1 MB with a bounded reader; throw `WorkflowHttpClientException("response too large", false)` past that.
+- **Accepted because:** all current upstreams are trusted (Slack webhooks, FUB API, our own AI service). Realistic risk is a buggy upstream, not a malicious one.
+- **Revisit when:** any of (a) workflow steps target user-supplied or untrusted upstreams; (b) a buggy upstream incident forces a hardening fix anyway; (c) memory-pressure incidents on the dev host correlate with an outbound HTTP call.
+
+---
+
+## C. Nice-to-have for dev hosting (not blocking)
 
 ### B1. Auth & rate limiting on the SSE live feed
-- **Endpoint:** `GET /admin/webhooks/stream`, with `webhook.live-feed.emitter-timeout-ms` defaulting to 30 minutes.
-- **Risk:** unauthenticated long-lived connections → easy connection exhaustion. A1 covers the auth side; also add a per-IP connection cap if exposed.
+- **Endpoint:** `GET /admin/webhooks/stream`, `webhook.live-feed.emitter-timeout-ms` default 30 min.
+- **Status (auth):** Covered by A1 — the SSE endpoint is now under `/admin/**` auth.
+- **Outstanding:** per-IP connection cap. Skip for dev; revisit if SSE connection counts become a problem.
 
 ### B2. Scrub sensitive headers and bodies from logs
-- **File:** `WebhookIngressController.java` line 41 logs full header count and content length per request. Other call sites log payload-related fields.
-- **Action:** ensure `FUB-Signature` and any auth headers are never logged; never log full webhook bodies in `INFO`.
+- **Action:** ensure `FUB-Signature` and any auth headers are never logged; never log full webhook bodies in `INFO`. Worth a sweep before the host is exposed; not blocking.
 
-### B3. Add basic security response headers
-- Without spring-security, Spring 4.x does not add `X-Content-Type-Options`, `X-Frame-Options`, or a default CSP. The admin SPA can be iframed → clickjacking risk.
-- **Action:** A1 (adding spring-security) gives these defaults for free; otherwise add a `OncePerRequestFilter` that sets them.
+### B3. Basic security response headers
+- **Status:** A1 added Spring Security, which sets `X-Content-Type-Options`, `X-Frame-Options`, etc. by default. Confirm via curl after first deploy and add a `OncePerRequestFilter` for any missing headers.
 
 ### B4. Fail fast when webhook signing key is missing
-- **File:** `FubWebhookSignatureVerifier.java` — when `FUB_X_SYSTEM_KEY` is blank, every webhook is silently 401'd. Currently no startup check.
-- **Action:** if `webhook.sources.fub.enabled=true` and the signing key is blank, fail application startup with a clear error.
+- **Status:** Open. `FubWebhookSignatureVerifier` silently 401s when `FUB_X_SYSTEM_KEY` is blank. A startup check would surface misconfiguration loudly.
 
 ### B5. Pin and review transitive dependencies
-- Run `./mvnw dependency:tree` and `./mvnw org.owasp:dependency-check-maven:check` once before going public. Spring Boot 4.0.3 is recent, so unlikely to have known CVEs, but confirm.
+- **Action:** run `./mvnw dependency:tree` + `./mvnw org.owasp:dependency-check-maven:check` once before exposing the host.
 
 ### B6. CORS posture
-- No CORS config exists. That is correct **only if** the SPA is bundled into the Spring jar and served same-origin (Option 1 of the hosting plan). If you ever split FE and BE onto different origins, add an explicit, narrow CORS config — do not allow `*`.
+- **Status:** No CORS config exists, which is correct as long as the SPA and backend share an origin. If they're ever split, add an explicit narrow CORS config — never `*`.
 
 ---
 
-## C. Verified safe (no action)
+## D. Verified safe (no action)
 
-- **HMAC webhook verification** — `FubWebhookSignatureVerifier` uses `MessageDigest.isEqual` (constant-time) and rejects when the key is blank. Implementation is correct.
-- **SQL injection** — all repositories use JPA `@Query` with named parameters; no string concatenation found.
-- **Actuator** — `spring-boot-starter-actuator` is not on the classpath; nothing exposed at `/actuator/**`.
-- **Flyway** — migrations are forward-only, no drop/recreate; run on startup with `ddl-auto=none`.
-- **Committed secrets** — `git log` shows no `.env`/credential file ever committed; documentation references use placeholder values only.
+- **HMAC webhook verification** — `FubWebhookSignatureVerifier` uses constant-time compare and rejects when the key is blank. ✅
+- **SQL injection** — all JPA repositories use named-parameter `@Query`; no string concatenation. ✅
+- **Actuator** — `spring-boot-starter-actuator` is not on the classpath; nothing at `/actuator/**`. ✅
+- **Flyway** — forward-only migrations; `ddl-auto=none`. ✅
+- **Committed secrets** — `git log` shows no `.env` / credential file ever committed; docs use placeholders only. ✅
+- **Devtools in deployed jar** — verified absent (A6). ✅
 
 ---
 
-## Suggested order of execution
+## Sign-off
 
-1. A5 (gitignore) — 1 minute
-2. A7 + A6 (logging + devtools verify) — 5 minutes
-3. A3 + A4 (size caps) — 30 minutes
-4. A1 (admin auth) — half day; biggest single risk reduction
-5. A2 (SSRF guard) — half day; closes the pivot path A1 still allows for an authenticated insider
-6. B1–B4 — pick up after the host is live
+- A1, A3, A5, A6, A7 — landed.
+- A2, A4 — accepted as known-issues with explicit revisit triggers (section B).
+- B1–B6 — flagged for follow-up; not blockers.
 
-Once A1–A7 are merged, the dev host is safe to expose with a public URL.
+Dev host is safe to expose publicly under the assumptions in section B.
