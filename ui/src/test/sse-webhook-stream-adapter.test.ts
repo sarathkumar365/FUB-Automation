@@ -1,85 +1,147 @@
 import { SseWebhookStreamAdapter } from '../platform/adapters/sse/sseWebhookStreamAdapter'
 import type { AdminWebhookPort } from '../platform/ports/adminWebhookPort'
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import {
+  __resetTokenStoreCacheForTests,
+  setToken,
+} from '../modules/auth/state/tokenStore'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
-type Listener = (event: Event) => void
-
-class FakeEventSource {
-  public listeners = new Map<string, Listener[]>()
-  public onerror: ((event: Event) => void) | null = null
-  public closed = false
-  public url: string
-
-  constructor(url: string) {
-    this.url = url
-  }
-
-  addEventListener(type: string, listener: Listener) {
-    const current = this.listeners.get(type) ?? []
-    current.push(listener)
-    this.listeners.set(type, current)
-  }
-
-  emit(type: string, data: string) {
-    const event = new MessageEvent(type, { data })
-    const listeners = this.listeners.get(type) ?? []
-    listeners.forEach((listener) => listener(event))
-  }
-
-  close() {
-    this.closed = true
-  }
+/**
+ * Builds a fake fetch response that streams the given SSE-formatted body.
+ * Each event in `events` becomes one `event: ...\ndata: ...\n\n` block.
+ */
+function sseResponse(events: Array<{ name: string; data: string }>): Response {
+  const encoder = new TextEncoder()
+  const body = events
+    .map((event) => `event: ${event.name}\ndata: ${event.data}\n\n`)
+    .join('')
+  const stream = new ReadableStream<Uint8Array>({
+    start(controller) {
+      controller.enqueue(encoder.encode(body))
+      controller.close()
+    },
+  })
+  return new Response(stream, {
+    status: 200,
+    headers: { 'Content-Type': 'text/event-stream' },
+  })
 }
 
 describe('SseWebhookStreamAdapter', () => {
-  let latestSource: FakeEventSource | null
+  let fetchMock: ReturnType<typeof vi.fn>
 
   beforeEach(() => {
-    latestSource = null
-    const recordSource = (source: FakeEventSource) => {
-      latestSource = source
-    }
-
-    class EventSourceMock extends FakeEventSource {
-      constructor(url: string) {
-        super(url)
-        recordSource(this)
-      }
-    }
-
-    vi.stubGlobal('EventSource', EventSourceMock)
+    fetchMock = vi.fn(async () => sseResponse([]))
+    vi.stubGlobal('fetch', fetchMock)
+    window.sessionStorage.clear()
+    __resetTokenStoreCacheForTests()
   })
 
-  it('handles webhook and heartbeat events and tears down stream', () => {
-    const adminWebhookPort: AdminWebhookPort = {
+  afterEach(() => {
+    window.sessionStorage.clear()
+    __resetTokenStoreCacheForTests()
+  })
+
+  function buildPort(streamUrl = '/admin/webhooks/stream?source=FUB'): AdminWebhookPort {
+    return {
       listWebhooks: vi.fn(),
       getWebhookDetail: vi.fn(),
       listEventTypes: vi.fn(async () => []),
-      buildWebhookStreamRequest: vi.fn(() => '/admin/webhooks/stream?source=FUB'),
+      buildWebhookStreamRequest: vi.fn(() => streamUrl),
     }
+  }
 
-    const adapter = new SseWebhookStreamAdapter(adminWebhookPort)
-    const received: Array<{ name: string; data: unknown }> = []
+  it('attaches Authorization: Bearer header when a token is in the store', async () => {
+    setToken({
+      token: 'jwt.value',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      username: 'admin',
+      role: 'ADMIN',
+    })
 
-    const close = adapter.openWebhookStream(
-      { source: 'FUB' },
-      {
-        onEvent: (name, data) => received.push({ name, data }),
-      },
+    const adapter = new SseWebhookStreamAdapter(buildPort())
+    const close = adapter.openWebhookStream({ source: 'FUB' }, { onEvent: () => {} })
+
+    // Wait one microtask tick for fetchEventSource to invoke fetch.
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    const headers = init.headers as Record<string, string>
+    expect(headers.Authorization).toBe('Bearer jwt.value')
+    // Token must NOT appear in the URL — that was the whole point of the migration.
+    const requestedUrl = String(fetchMock.mock.calls[0][0])
+    expect(requestedUrl).not.toContain('token=')
+    expect(requestedUrl).toBe('/admin/webhooks/stream?source=FUB')
+
+    close()
+  })
+
+  it('omits Authorization when no token is set', async () => {
+    const adapter = new SseWebhookStreamAdapter(buildPort())
+    const close = adapter.openWebhookStream({ source: 'FUB' }, { onEvent: () => {} })
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    expect(fetchMock).toHaveBeenCalledTimes(1)
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    const headers = init.headers as Record<string, string>
+    expect(headers.Authorization).toBeUndefined()
+
+    close()
+  })
+
+  it('parses webhook.received and heartbeat events into onEvent callbacks', async () => {
+    setToken({
+      token: 'jwt.value',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      username: 'admin',
+      role: 'ADMIN',
+    })
+    fetchMock.mockResolvedValue(
+      sseResponse([
+        { name: 'webhook.received', data: '{"id":1}' },
+        { name: 'heartbeat', data: '{"serverTime":"2026-03-18T12:00:00Z"}' },
+      ]),
     )
 
-    expect(latestSource).not.toBeNull()
-    const fakeSource = latestSource as FakeEventSource
+    const adapter = new SseWebhookStreamAdapter(buildPort())
+    const received: Array<{ name: string; data: unknown }> = []
+    adapter.openWebhookStream(
+      { source: 'FUB' },
+      { onEvent: (name, data) => received.push({ name, data }) },
+    )
 
-    fakeSource.emit('webhook.received', '{"id":1}')
-    fakeSource.emit('heartbeat', '{"serverTime":"2026-03-18T12:00:00Z"}')
+    // Allow the stream to drain.
+    await new Promise((resolve) => setTimeout(resolve, 20))
 
     expect(received).toEqual([
       { name: 'webhook.received', data: { id: 1 } },
       { name: 'heartbeat', data: { serverTime: '2026-03-18T12:00:00Z' } },
     ])
+  })
+
+  it('teardown via close() aborts the underlying fetch', async () => {
+    setToken({
+      token: 'jwt.value',
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+      username: 'admin',
+      role: 'ADMIN',
+    })
+
+    const adapter = new SseWebhookStreamAdapter(buildPort())
+    const close = adapter.openWebhookStream({ source: 'FUB' }, { onEvent: () => {} })
+
+    await Promise.resolve()
+    await Promise.resolve()
+
+    const init = fetchMock.mock.calls[0][1] as RequestInit
+    const signal = init.signal as AbortSignal
+    expect(signal.aborted).toBe(false)
 
     close()
-    expect(fakeSource.closed).toBe(true)
+    expect(signal.aborted).toBe(true)
   })
 })

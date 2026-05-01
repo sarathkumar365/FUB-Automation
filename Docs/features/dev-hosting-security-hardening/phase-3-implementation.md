@@ -77,3 +77,17 @@ flowchart LR
 Added [`LogoutButton`](../../../ui/src/modules/auth/ui/LogoutButton.tsx) and wired it into the [`AppRail`](../../../ui/src/shared/ui/AppRail.tsx) (bottom of the desktop sidebar) and the mobile header in [`AppShell`](../../../ui/src/app/AppShell.tsx). Two variants — `rail` (compact icon, username in the title attribute) and `inline` (icon + text). The component renders nothing when there is no token, so it's safe to drop into shared chrome. Click clears the token via `tokenStore.clearToken()` and navigates to `/admin-ui/login`. Confirms RD-004's "logout is purely client-side; backend has no /logout endpoint" decision.
 
 UI suite after this addition: **346 / 346 passing** (4 net-new tests in `auth-logout-button.test.tsx`).
+
+## Follow-up: SSE auth via Authorization header (2026-05-01)
+
+The webhook live feed (`GET /admin/webhooks/stream`) was returning 401 because the browser's native `EventSource` API cannot send custom headers, so the SPA had no way to attach `Authorization: Bearer <jwt>`.
+
+Two design options were on the table — short-lived "stream tickets" via a new `POST /admin/auth/stream-ticket` endpoint, or migrate the SSE consumer off native `EventSource`. Picked the second: dropped [`@microsoft/fetch-event-source`](https://github.com/Azure/fetch-event-source) into [`sseWebhookStreamAdapter.ts`](../../../ui/src/platform/adapters/sse/sseWebhookStreamAdapter.ts). The library is fetch-based, so it supports the same `Authorization` header path the rest of the SPA already uses. No new endpoint, no token in URLs, no edge-log leakage.
+
+Backend side: removed the temporary `?token=` query-param fallback that an interim fix had added to [`JwtAuthenticationFilter`](../../../src/main/java/com/fuba/automation_engine/config/security/JwtAuthenticationFilter.java). The filter is once again header-only, simpler, and one fewer auth surface to think about.
+
+Tests:
+- `SecurityConfigTest`: pinned the new shape with `streamEndpointRejectsTokenInQueryParam` and `streamEndpointAcceptsTokenInAuthorizationHeader`.
+- `sse-webhook-stream-adapter.test.ts`: rewritten for the fetch-based path — asserts the `Authorization` header is set, asserts the URL no longer contains a token, and verifies teardown via `AbortController`.
+
+This change resolves the priority known-issue B0 that an interim approach had introduced. RD-004 and the security checklist updated to reflect the new landing.

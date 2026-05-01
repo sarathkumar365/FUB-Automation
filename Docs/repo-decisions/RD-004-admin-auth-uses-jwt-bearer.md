@@ -22,6 +22,7 @@ Locked V1 decisions:
 - Spring Security runs `STATELESS` with CSRF disabled. No session cookies, no form login, no HTTP Basic.
 - The first ADMIN user is seeded on first boot from `ADMIN_AUTH_USERNAME` / `ADMIN_AUTH_PASSWORD` env vars. The seeder is one-shot — it never modifies an existing user.
 - `/webhooks/**` and `/health` remain anonymous (FUB delivers without credentials; platform health probes need open access). The JWT filter explicitly skips both via `shouldNotFilter`.
+- **SSE uses headers, not URL.** The admin live-feed endpoint (`GET /admin/webhooks/stream`) authenticates via the same `Authorization: Bearer <jwt>` header as every other admin endpoint. The SPA uses [`@microsoft/fetch-event-source`](https://github.com/Azure/fetch-event-source) instead of the native browser `EventSource` API specifically because the latter cannot send custom headers. Native `EventSource` would have forced the JWT into the URL query string, leaking it into hosting-platform edge access logs — that compromise is rejected by this decision.
 - Test infrastructure: `MockMvcSecurityTestConfig` re-applies the `springSecurity()` MockMvc configurer that Spring Boot 4 stopped auto-applying. Required for `@WithMockUser` to propagate into MockMvc requests.
 
 ## Impact

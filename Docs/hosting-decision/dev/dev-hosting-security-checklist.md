@@ -34,6 +34,12 @@ For implementation details see [`Docs/features/dev-hosting-security-hardening/`]
 - **Status:** Done in `phase/dev-hosting-security-phase-1` (same `application-prod.properties` as A3).
 - **Shape shipped:** `spring.jpa.show-sql=false` and `spring.jpa.properties.hibernate.format_sql=false` apply automatically when `SPRING_PROFILES_ACTIVE=prod`. Local dev keeps `show-sql=true` for ergonomics.
 
+### A8. SSE auth uses Authorization header, not URL ✅
+- **Background:** browser `EventSource` cannot send custom headers, which would have forced the JWT into `GET /admin/webhooks/stream?token=<jwt>` and leaked it into hosting-platform edge access logs.
+- **Status:** Resolved by switching the SPA from native `EventSource` to [`@microsoft/fetch-event-source`](https://github.com/Azure/fetch-event-source). The fetch-based library supports the standard `Authorization: Bearer <jwt>` header.
+- **Where the change lives:** `ui/src/platform/adapters/sse/sseWebhookStreamAdapter.ts` (SPA-side); `JwtAuthenticationFilter.java` (header-only, no query-param fallback).
+- **Tests pinning the new behaviour:** `SecurityConfigTest#streamEndpointRejectsTokenInQueryParam`, `streamEndpointAcceptsTokenInAuthorizationHeader`; `sse-webhook-stream-adapter.test.ts`.
+
 ---
 
 ## B. Known issues — accepted for dev, revisit when…
@@ -58,9 +64,9 @@ These are real findings, deliberately deferred for a single-admin dev host. The 
 
 ## C. Nice-to-have for dev hosting (not blocking)
 
-### B1. Auth & rate limiting on the SSE live feed
+### B1. Rate limiting on the SSE live feed
 - **Endpoint:** `GET /admin/webhooks/stream`, `webhook.live-feed.emitter-timeout-ms` default 30 min.
-- **Status (auth):** Covered by A1 — the SSE endpoint is now under `/admin/**` auth.
+- **Status (auth):** Covered by A1 — the SSE endpoint is under `/admin/**` auth. The token-in-URL trade-off that auth introduces is tracked separately as priority item **B0** above.
 - **Outstanding:** per-IP connection cap. Skip for dev; revisit if SSE connection counts become a problem.
 
 ### B2. Scrub sensitive headers and bodies from logs
@@ -93,7 +99,7 @@ These are real findings, deliberately deferred for a single-admin dev host. The 
 
 ## Sign-off
 
-- A1, A3, A5, A6, A7 — landed.
+- A1, A3, A5, A6, A7, A8 — landed.
 - A2, A4 — accepted as known-issues with explicit revisit triggers (section B).
 - B1–B6 — flagged for follow-up; not blockers.
 

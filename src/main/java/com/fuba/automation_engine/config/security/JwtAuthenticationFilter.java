@@ -21,9 +21,15 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
 
 /**
- * Reads `Authorization: Bearer <token>` and populates the security context with a
- * `ROLE_<role>` authority. Skipped for `/webhooks/**` and `/health` so high-volume
- * webhook traffic never pays the JWT-parse cost.
+ * Reads {@code Authorization: Bearer <token>} and populates the security context with a
+ * {@code ROLE_<role>} authority. Skipped for {@code /webhooks/**} and {@code /health}
+ * so high-volume webhook traffic never pays the JWT-parse cost.
+ *
+ * <p>The filter accepts the JWT only via the header. The SSE live-feed endpoint
+ * ({@code GET /admin/webhooks/stream}) used to need a query-param fallback because
+ * the browser {@code EventSource} API cannot send custom headers, but the SPA now
+ * uses {@code @microsoft/fetch-event-source} which can — see {@code RD-004} and
+ * {@code SseWebhookStreamAdapter}.
  */
 @Component
 public class JwtAuthenticationFilter extends OncePerRequestFilter {

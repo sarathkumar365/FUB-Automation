@@ -1,5 +1,8 @@
 package com.fuba.automation_engine.config;
 
+import com.fuba.automation_engine.persistence.entity.AppUserEntity;
+import com.fuba.automation_engine.persistence.entity.AppUserRole;
+import com.fuba.automation_engine.service.auth.JwtService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -25,6 +28,9 @@ class SecurityConfigTest {
 
     @Autowired
     private MockMvc mockMvc;
+
+    @Autowired
+    private JwtService jwtService;
 
     @Test
     @WithAnonymousUser
@@ -105,6 +111,42 @@ class SecurityConfigTest {
                     int status = result.getResponse().getStatus();
                     if (status == 401 || status == 403) {
                         throw new AssertionError("OPERATOR should reach /cancel; got " + status);
+                    }
+                });
+    }
+
+    @Test
+    @WithAnonymousUser
+    void streamEndpointRejectsTokenInQueryParam() throws Exception {
+        // The SPA now uses fetch-event-source which sends the JWT in a header,
+        // so the query-param fallback was removed. This test pins the new behaviour:
+        // a query-param token must not authenticate, even on the stream endpoint.
+        AppUserEntity admin = new AppUserEntity();
+        admin.setUsername("admin-test");
+        admin.setRole(AppUserRole.ADMIN);
+        String token = jwtService.issue(admin).token();
+
+        mockMvc.perform(get("/admin/webhooks/stream?source=FUB&token=" + token))
+                .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @WithAnonymousUser
+    void streamEndpointAcceptsTokenInAuthorizationHeader() throws Exception {
+        // The SPA's SSE client (fetch-event-source) attaches the JWT in the
+        // Authorization header. Verify the header path works on the stream URL.
+        AppUserEntity admin = new AppUserEntity();
+        admin.setUsername("admin-test");
+        admin.setRole(AppUserRole.ADMIN);
+        String token = jwtService.issue(admin).token();
+
+        mockMvc.perform(get("/admin/webhooks/stream?source=FUB")
+                        .header("Authorization", "Bearer " + token))
+                .andExpect(result -> {
+                    int status = result.getResponse().getStatus();
+                    if (status == 401) {
+                        throw new AssertionError(
+                                "Expected header-bearer auth to pass on /admin/webhooks/stream, got 401");
                     }
                 });
     }
