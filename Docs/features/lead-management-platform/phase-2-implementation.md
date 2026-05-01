@@ -74,6 +74,12 @@ Status: Completed (Step 1 through Step 7 completed)
   - mutation statuses: `SUCCESS`, `INVALID_INPUT`, `NOT_FOUND`, `STALE_VERSION`, `ACTIVE_CONFLICT`
 - Keep service side effects limited to policy persistence.
 
+> **Post-phase note (added in Phase 3):** Blueprint validation was introduced in Phase 3 and required two additional enum values that are not reflected in the above locked contract:
+> - `ReadStatus.POLICY_INVALID` — returned by `getActivePolicy` when an active policy exists but its stored blueprint fails validation. HTTP mapping: `422 Unprocessable Entity`. This allows detection of corrupted or stale blueprints without silently returning invalid data.
+> - `MutationStatus.INVALID_POLICY_BLUEPRINT` — returned by `createPolicy`, `updatePolicy`, and `activatePolicy` when the supplied blueprint fails `PolicyBlueprintValidator` checks. HTTP mapping: `422 Unprocessable Entity`.
+>
+> These values extend (not replace) the original enum contracts above. The controller maps both to `422` distinct from the `400` path used for `INVALID_INPUT`.
+
 ### Step 5: Add Admin Policy API
 - Add admin endpoints:
   - `GET /admin/policies/{domain}/{policyKey}/active`
@@ -153,10 +159,10 @@ Status: Completed (Step 1 through Step 7 completed)
     - integrity exceptions are now classified by active-scope constraint name so non-scope violations map to invalid input instead of false `ACTIVE_CONFLICT`
 - Step 4 completed: service-boundary semantics and status contracts are now locked to the existing generic `AutomationPolicyService`.
   - Locked read API semantics:
-    - `getActivePolicy(domain, policyKey)` -> `SUCCESS`/`INVALID_INPUT`/`NOT_FOUND`
+    - `getActivePolicy(domain, policyKey)` -> `SUCCESS`/`INVALID_INPUT`/`NOT_FOUND` (extended in Phase 3: `POLICY_INVALID`)
     - `listPolicies(domain, policyKey)` -> `SUCCESS`/`INVALID_INPUT`
   - Locked mutation API semantics:
-    - `createPolicy`, `updatePolicy`, `activatePolicy` -> `SUCCESS`/`INVALID_INPUT`/`NOT_FOUND`/`STALE_VERSION`/`ACTIVE_CONFLICT`
+    - `createPolicy`, `updatePolicy`, `activatePolicy` -> `SUCCESS`/`INVALID_INPUT`/`NOT_FOUND`/`STALE_VERSION`/`ACTIVE_CONFLICT` (extended in Phase 3: `INVALID_POLICY_BLUEPRINT`)
 - Step 5 completed: admin policy API surface added on top of `AutomationPolicyService`.
   - Added controller:
     - `AdminPolicyController` with base route `/admin/policies`
@@ -170,8 +176,8 @@ Status: Completed (Step 1 through Step 7 completed)
     - requests: `CreatePolicyRequest`, `UpdatePolicyRequest`, `ActivatePolicyRequest`
     - response: `PolicyResponse`
   - Added HTTP status mapping:
-    - read: `SUCCESS -> 200`, `INVALID_INPUT -> 400`, `NOT_FOUND -> 404`
-    - mutation: `SUCCESS -> 201 (create) / 200 (update, activate)`, `INVALID_INPUT -> 400`, `NOT_FOUND -> 404`, `STALE_VERSION -> 409`, `ACTIVE_CONFLICT -> 409`
+    - read: `SUCCESS -> 200`, `INVALID_INPUT -> 400`, `NOT_FOUND -> 404`, `POLICY_INVALID -> 422` (Phase 3 addition)
+    - mutation: `SUCCESS -> 201 (create) / 200 (update, activate)`, `INVALID_INPUT -> 400`, `NOT_FOUND -> 404`, `STALE_VERSION -> 409`, `ACTIVE_CONFLICT -> 409`, `INVALID_POLICY_BLUEPRINT -> 422` (Phase 3 addition)
   - Added controller test coverage:
     - `AdminPolicyControllerTest`
 - Step 6 completed: reliability and governance guards hardened for policy mutation concurrency.

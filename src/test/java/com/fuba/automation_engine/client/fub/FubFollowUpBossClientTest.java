@@ -4,8 +4,11 @@ import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import com.sun.net.httpserver.HttpServer;
@@ -60,7 +63,7 @@ class FubFollowUpBossClientTest {
             systemKeyHeader.set(exchange.getRequestHeaders().getFirst("X-System-Key"));
 
             byte[] payload = """
-                    {"id":123,"personId":42,"duration":15,"userId":30,"outcome":"No Answer"}
+                    {"id":123,"personId":42,"duration":15,"userId":30,"outcome":"No Answer","isIncoming":true,"created":"2026-04-17T19:30:09Z"}
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
@@ -77,6 +80,8 @@ class FubFollowUpBossClientTest {
         assertEquals(15, details.duration());
         assertEquals(30L, details.userId());
         assertEquals("No Answer", details.outcome());
+        assertEquals(true, details.isIncoming());
+        assertEquals(OffsetDateTime.parse("2026-04-17T19:30:09Z"), details.createdAt());
 
         assertEquals("Basic " + base64("my-api-key:"), authHeader.get());
         assertEquals("my-system", systemHeader.get());
@@ -96,6 +101,200 @@ class FubFollowUpBossClientTest {
         assertEquals(429, exception.getStatusCode());
         assertFalse(exception.getMessage().contains("secret-api-key"));
         assertFalse(exception.getMessage().contains("secret-system-key"));
+    }
+
+    @Test
+    void shouldFetchPersonById() {
+        server.createContext("/v1/people/798", exchange -> {
+            byte[] payload = """
+                    {"id":798,"claimed":true,"assignedUserId":1,"contacted":2}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        PersonDetails person = client.getPersonById(798L);
+
+        assertEquals(798L, person.id());
+        assertEquals(true, person.claimed());
+        assertEquals(1L, person.assignedUserId());
+        assertEquals(2, person.contacted());
+    }
+
+    @Test
+    void shouldMapPeople429AsTransientException() {
+        server.createContext("/v1/people/799", exchange -> {
+            exchange.sendResponseHeaders(429, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubTransientException exception = assertThrows(FubTransientException.class, () -> client.getPersonById(799L));
+        assertEquals(429, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldMapPeople400AsPermanentException() {
+        server.createContext("/v1/people/800", exchange -> {
+            exchange.sendResponseHeaders(400, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubPermanentException exception = assertThrows(FubPermanentException.class, () -> client.getPersonById(800L));
+        assertEquals(400, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldMapPeopleNetworkFailureAsTransientException() {
+        // deliberately use an unreachable local port
+        FubClientProperties properties = new FubClientProperties();
+        properties.setBaseUrl("http://localhost:65534/v1");
+        properties.setApiKey("api-key");
+        properties.setXSystem("sys");
+        properties.setXSystemKey("sys-key");
+        FubFollowUpBossClient client = new FubFollowUpBossClient(RestClient.builder(), properties, new com.fasterxml.jackson.databind.ObjectMapper());
+
+        FubTransientException exception = assertThrows(FubTransientException.class, () -> client.getPersonById(801L));
+        assertEquals(null, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldReturnCommunicationFoundWhenContactedIsGreaterThanZero() {
+        AtomicInteger hitCounter = new AtomicInteger();
+        server.createContext("/v1/people/798", exchange -> {
+            hitCounter.incrementAndGet();
+            byte[] payload = """
+                    {"id":798,"claimed":true,"assignedUserId":1,"contacted":1}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        PersonCommunicationCheckResult result = client.checkPersonCommunication(798L);
+
+        assertEquals(1, hitCounter.get());
+        assertEquals(798L, result.personId());
+        assertTrue(result.communicationFound());
+    }
+
+    @Test
+    void shouldReturnCommunicationNotFoundWhenContactedIsNull() {
+        server.createContext("/v1/people/799", exchange -> {
+            byte[] payload = """
+                    {"id":799,"claimed":true,"assignedUserId":1}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        PersonCommunicationCheckResult result = client.checkPersonCommunication(799L);
+
+        assertEquals(799L, result.personId());
+        assertFalse(result.communicationFound());
+    }
+
+    @Test
+    void shouldAppendTagAndPutUpdatedTagsArray() {
+        AtomicReference<String> putBody = new AtomicReference<>();
+        AtomicInteger putCount = new AtomicInteger();
+        server.createContext("/v1/people/18399", exchange -> {
+            if ("PUT".equalsIgnoreCase(exchange.getRequestMethod())) {
+                putCount.incrementAndGet();
+                putBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+                exchange.sendResponseHeaders(200, -1);
+                exchange.close();
+                return;
+            }
+            byte[] payload = """
+                    {"id":18399,"tags":["existing"]}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        ActionExecutionResult result = client.addTag(18399L, "VIP");
+
+        assertTrue(result.success());
+        assertEquals(1, putCount.get());
+        assertNotNull(putBody.get());
+        assertTrue(putBody.get().contains("\"tags\":[\"existing\",\"VIP\"]"));
+    }
+
+    @Test
+    void shouldNotPutWhenTagAlreadyPresent() {
+        AtomicInteger putCount = new AtomicInteger();
+        server.createContext("/v1/people/18400", exchange -> {
+            if ("PUT".equalsIgnoreCase(exchange.getRequestMethod())) {
+                putCount.incrementAndGet();
+                exchange.sendResponseHeaders(200, -1);
+                exchange.close();
+                return;
+            }
+            byte[] payload = """
+                    {"id":18400,"tags":["VIP","Other"]}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        ActionExecutionResult result = client.addTag(18400L, "VIP");
+
+        assertTrue(result.success());
+        assertEquals(0, putCount.get());
+    }
+
+    @Test
+    void shouldMapAddTagPutTransientFailure() {
+        server.createContext("/v1/people/18401", exchange -> {
+            if ("PUT".equalsIgnoreCase(exchange.getRequestMethod())) {
+                exchange.sendResponseHeaders(503, -1);
+                exchange.close();
+                return;
+            }
+            byte[] payload = "{\"id\":18401,\"tags\":[]}".getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(200, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubTransientException exception = assertThrows(FubTransientException.class, () -> client.addTag(18401L, "VIP"));
+        assertEquals(503, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldMapAddTagGetPermanentFailure() {
+        server.createContext("/v1/people/18402", exchange -> {
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubPermanentException exception = assertThrows(FubPermanentException.class, () -> client.addTag(18402L, "VIP"));
+        assertEquals(404, exception.getStatusCode());
     }
 
     @Test
@@ -169,13 +368,99 @@ class FubFollowUpBossClientTest {
         assertEquals("STUBBED", result.status());
     }
 
+    @Test
+    void shouldPutAssignedUserIdForReassign() {
+        AtomicReference<String> putBody = new AtomicReference<>();
+        AtomicReference<String> method = new AtomicReference<>();
+        server.createContext("/v1/people/19065", exchange -> {
+            method.set(exchange.getRequestMethod());
+            putBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        ActionExecutionResult result = client.reassignPerson(19065L, 77L);
+
+        assertTrue(result.success());
+        assertEquals("PUT", method.get());
+        assertEquals("{\"assignedUserId\":77}", putBody.get());
+    }
+
+    @Test
+    void shouldMapReassignTransientFailure() {
+        server.createContext("/v1/people/19066", exchange -> {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubTransientException exception = assertThrows(FubTransientException.class, () -> client.reassignPerson(19066L, 77L));
+        assertEquals(503, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldMapReassignPermanentFailure() {
+        server.createContext("/v1/people/19067", exchange -> {
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubPermanentException exception = assertThrows(FubPermanentException.class, () -> client.reassignPerson(19067L, 77L));
+        assertEquals(404, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldPutAssignedPondIdForMoveToPond() {
+        AtomicReference<String> putBody = new AtomicReference<>();
+        AtomicReference<String> method = new AtomicReference<>();
+        server.createContext("/v1/people/19068", exchange -> {
+            method.set(exchange.getRequestMethod());
+            putBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            exchange.sendResponseHeaders(200, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        ActionExecutionResult result = client.movePersonToPond(19068L, 44L);
+
+        assertTrue(result.success());
+        assertEquals("PUT", method.get());
+        assertEquals("{\"assignedPondId\":44}", putBody.get());
+    }
+
+    @Test
+    void shouldMapMoveToPondTransientFailure() {
+        server.createContext("/v1/people/19069", exchange -> {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubTransientException exception = assertThrows(FubTransientException.class, () -> client.movePersonToPond(19069L, 44L));
+        assertEquals(503, exception.getStatusCode());
+    }
+
+    @Test
+    void shouldMapMoveToPondPermanentFailure() {
+        server.createContext("/v1/people/19070", exchange -> {
+            exchange.sendResponseHeaders(404, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubPermanentException exception = assertThrows(FubPermanentException.class, () -> client.movePersonToPond(19070L, 44L));
+        assertEquals(404, exception.getStatusCode());
+    }
+
     private FubFollowUpBossClient newClient(String apiKey, String system, String systemKey) {
         FubClientProperties properties = new FubClientProperties();
         properties.setBaseUrl(baseUrl);
         properties.setApiKey(apiKey);
         properties.setXSystem(system);
         properties.setXSystemKey(systemKey);
-        return new FubFollowUpBossClient(RestClient.builder(), properties);
+        return new FubFollowUpBossClient(RestClient.builder(), properties, new com.fasterxml.jackson.databind.ObjectMapper());
     }
 
     private String base64(String value) {

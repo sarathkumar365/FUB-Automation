@@ -1,10 +1,18 @@
-import { createBrowserRouter, Navigate } from 'react-router-dom'
+import { createBrowserRouter } from 'react-router-dom'
 import { routes } from '../shared/constants/routes'
 import { AppShell } from './AppShell'
 import { SessionGuard } from './SessionGuard'
 import { LandingPage } from '../modules/landing/ui/LandingPage'
 import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
 import { ProcessedCallsPage } from '../modules/processed-calls/ui/ProcessedCallsPage'
+import { WorkflowsPage } from '../modules/workflows/ui/WorkflowsPage'
+import { WorkflowDetailPage } from '../modules/workflows/ui/WorkflowDetailPage'
+import { WorkflowBuilderPage } from '../modules/workflows-builder/ui/WorkflowBuilderPage'
+import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
+import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
+import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
+import { LeadsPage } from '../modules/leads/ui/LeadsPage'
+import { LeadDetailPage } from '../modules/leads/ui/LeadDetailPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
 
 export function createAppRouter() {
@@ -26,7 +34,7 @@ export function createAppRouter() {
           children: [
             {
               index: true,
-              element: <Navigate to="webhooks" replace />,
+              element: <DashboardPage />,
             },
             {
               path: 'webhooks',
@@ -36,11 +44,41 @@ export function createAppRouter() {
               path: 'processed-calls',
               element: <ProcessedCallsPage />,
             },
+            {
+              path: 'leads',
+              element: <LeadsPage />,
+            },
+            {
+              path: 'leads/:sourceLeadId',
+              element: <LeadDetailPage />,
+            },
+            {
+              path: 'workflows',
+              element: <WorkflowsPage />,
+            },
+            {
+              path: 'workflows/new',
+              element: <WorkflowBuilderPage />,
+            },
+            {
+              path: 'workflows/:key/edit',
+              element: <WorkflowBuilderPage />,
+            },
+            {
+              path: 'workflows/:key',
+              element: <WorkflowDetailPage />,
+            },
+            {
+              path: 'workflow-runs',
+              element: <WorkflowRunsPage />,
+            },
+            {
+              path: 'workflow-runs/:runId',
+              element: <WorkflowRunDetailPage />,
+            },
           ],
         },
       ],
     },
   ])
 }
-
-export const appRouter = createAppRouter()

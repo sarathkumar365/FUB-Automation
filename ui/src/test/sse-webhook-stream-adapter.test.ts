@@ -54,6 +54,7 @@ describe('SseWebhookStreamAdapter', () => {
     const adminWebhookPort: AdminWebhookPort = {
       listWebhooks: vi.fn(),
       getWebhookDetail: vi.fn(),
+      listEventTypes: vi.fn(async () => []),
       buildWebhookStreamRequest: vi.fn(() => '/admin/webhooks/stream?source=FUB'),
     }
 

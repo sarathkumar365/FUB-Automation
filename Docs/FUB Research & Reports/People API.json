@@ -1,0 +1,89 @@
+
+
+// API - /people/:id (details of a person in FUB system.)
+
+
+// curl --request GET \
+//      --url https://api.followupboss.com/v1/people/19046 \
+//      --header 'accept: application/json' \
+//      --header 'authorization: Basic ZmthXzAwTVIxcG9qNEZLbThpUnl2anozbVJld1I4VUNuMExjck46'
+
+{
+  "id": 19046,
+  "created": "2026-04-08T06:07:45Z",
+  "updated": "2026-04-08T06:07:49Z",
+  "createdVia": "API",
+  "lastActivity": "2026-04-08T06:07:49Z",
+  "name": "Syeda Asma Natasha",
+  "firstName": "Syeda",
+  "lastName": "Asma Natasha",
+  "stage": "Lead",
+  "stageId": 2,
+  "type": "Buyer",
+  "source": "facebook",
+  "sourceId": 20,
+  "sourceUrl": "",
+  "leadFlowId": 12,
+  "delayed": false,
+  "contacted": 0,
+  "price": null,
+  "assignedLenderId": null,
+  "assignedLenderName": null,
+  "assignedUserId": 25,
+  "assignedPondId": null,
+  "assignedTo": "Chirag Sharma",
+  "tags": [
+    "Dhesi.realestate Connected Page",
+    "PickeringDetachedHomes"
+  ],
+  "emails": [
+    {
+      "value": "anatasha@isrt.ac.bd",
+      "type": "home",
+      "status": "Valid",
+      "isPrimary": 1
+    }
+  ],
+  "phones": [
+    {
+      "value": "4375181389",
+      "type": "mobile",
+      "status": "Valid",
+      "isPrimary": 1,
+      "normalized": "4375181389",
+      "isLandline": false,
+      "isOnboardingNumber": false
+    }
+  ],
+  "addresses": [],
+  "picture": null,
+  "socialData": [],
+  "websiteVisits": 0,
+  "timeframeId": null,
+  "timeframeUpdated": null,
+  "timeframeStatus": null,
+  "timeframeDateRange": null,
+  "claimed": true,
+  "dealStatus": null,
+  "dealStage": null,
+  "dealName": null,
+  "dealCloseDate": null,
+  "dealPrice": null,
+  "firstToClaimOffer": false,
+  "collaborators": [
+    {
+      "id": 25,
+      "name": "Chirag Sharma",
+      "assigned": true,
+      "role": "Agent"
+    },
+    {
+      "id": 1,
+      "name": "Mandeep Dhesi",
+      "assigned": false,
+      "role": "Broker"
+    }
+  ],
+  "teamLeaders": [],
+  "pondMembers": []
+}

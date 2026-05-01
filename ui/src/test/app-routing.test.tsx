@@ -15,20 +15,20 @@ describe('App routing and shell', () => {
     expect(screen.getByText(uiText.landing.subtitle)).toBeInTheDocument()
   })
 
-  it('keeps admin-ui shell routes unchanged', async () => {
+  it('loads dashboard at admin-ui index route', async () => {
     window.history.pushState({}, '', '/admin-ui')
 
     render(<App />)
 
     expect(await screen.findByText('Automation Engine Admin')).toBeInTheDocument()
-    expect(await screen.findByRole('heading', { name: 'Webhooks' })).toBeInTheDocument()
-    expect(await screen.findByText(uiText.webhooks.subtitle)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: uiText.dashboard.title })).toBeInTheDocument()
+    expect(await screen.findByText(uiText.dashboard.subtitle)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.railAriaLabel)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.contentAriaLabel)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.inspectorAriaLabel)).toBeInTheDocument()
   })
 
-  it('navigates to landing when clicking rail brand icon', async () => {
+  it('navigates to dashboard when clicking rail brand icon from inside admin', async () => {
     const user = userEvent.setup()
     window.history.pushState({}, '', '/admin-ui/webhooks')
 
@@ -36,6 +36,6 @@ describe('App routing and shell', () => {
 
     await user.click(await screen.findByRole('link', { name: uiText.app.nav.home }))
 
-    expect(await screen.findByRole('heading', { name: uiText.landing.title })).toBeInTheDocument()
+    expect(await screen.findByText(uiText.dashboard.subtitle)).toBeInTheDocument()
   })
 })

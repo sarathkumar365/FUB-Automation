@@ -7,6 +7,7 @@ import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
+import com.fuba.automation_engine.persistence.repository.LeadRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.rules.CallDecision;
 import com.fuba.automation_engine.rules.CallDecisionAction;
@@ -16,18 +17,16 @@ import com.fuba.automation_engine.rules.CallbackTaskCommandFactory;
 import com.fuba.automation_engine.rules.PreValidationResult;
 import com.fuba.automation_engine.rules.ValidatedCallContext;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.lead.LeadUpsertService;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.policy.PolicyExecutionManager;
-import com.fuba.automation_engine.service.policy.PolicyExecutionPlanRequest;
-import com.fuba.automation_engine.service.policy.PolicyExecutionPlanningResult;
+import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
+import com.fuba.automation_engine.service.webhook.parse.WebhookPayloadExtractors;
 import java.time.OffsetDateTime;
-import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
@@ -52,8 +51,6 @@ public class WebhookEventProcessorService {
     private static final String UNEXPECTED_TASK_CREATE_FAILURE = "UNEXPECTED_TASK_CREATE_FAILURE";
     private static final String DEV_MODE_USER_FILTERED = "DEV_MODE_USER_FILTERED";
     private static final String DEV_MODE_TEST_USER_NOT_CONFIGURED = "DEV_MODE_TEST_USER_NOT_CONFIGURED";
-    private static final String ASSIGNMENT_POLICY_DOMAIN = "ASSIGNMENT";
-    private static final String ASSIGNMENT_POLICY_KEY = "FOLLOW_UP_SLA";
 
     private final ProcessedCallRepository processedCallRepository;
     private final FollowUpBossClient followUpBossClient;
@@ -63,7 +60,9 @@ public class WebhookEventProcessorService {
     private final FubRetryProperties fubRetryProperties;
     private final CallOutcomeRulesProperties callOutcomeRulesProperties;
     private final Environment environment;
-    private final PolicyExecutionManager policyExecutionManager;
+    private final WorkflowTriggerRouter workflowTriggerRouter;
+    private final LeadUpsertService leadUpsertService;
+    private final LeadRepository leadRepository;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
@@ -74,7 +73,9 @@ public class WebhookEventProcessorService {
             FubRetryProperties fubRetryProperties,
             CallOutcomeRulesProperties callOutcomeRulesProperties,
             Environment environment,
-            PolicyExecutionManager policyExecutionManager) {
+            WorkflowTriggerRouter workflowTriggerRouter,
+            LeadUpsertService leadUpsertService,
+            LeadRepository leadRepository) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
         this.callPreValidationService = callPreValidationService;
@@ -83,7 +84,9 @@ public class WebhookEventProcessorService {
         this.fubRetryProperties = fubRetryProperties;
         this.callOutcomeRulesProperties = callOutcomeRulesProperties;
         this.environment = environment;
-        this.policyExecutionManager = policyExecutionManager;
+        this.workflowTriggerRouter = workflowTriggerRouter;
+        this.leadUpsertService = leadUpsertService;
+        this.leadRepository = leadRepository;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -97,8 +100,31 @@ public class WebhookEventProcessorService {
                 event.sourceEventType());
         switch (domain) {
             case CALL -> processCallDomainEvent(event);
+            // TODO : Need to rename ASSIGNMENT domain and related fields to LEAD or PERSON since they are not specific to assignment events. 
+            // For now, keep the old domain name to avoid breaking changes in the workflow trigger router which relies on normalizedDomain and normalizedAction for routing.
             case ASSIGNMENT -> processAssignmentDomainEvent(event);
             case UNKNOWN -> processUnknownDomainEvent(event);
+        }
+
+        try {
+            WorkflowTriggerRouter.RoutingSummary summary = workflowTriggerRouter.route(event);
+            log.info(
+                    "Workflow trigger routing completed eventId={} source={} activeWorkflowCount={} matchedWorkflowCount={} candidatePlanCount={} plannedCount={} failedCount={} skippedCount={} cappedCount={}",
+                    event.eventId(),
+                    event.sourceSystem(),
+                    summary.activeWorkflowCount(),
+                    summary.matchedWorkflowCount(),
+                    summary.candidatePlanCount(),
+                    summary.plannedCount(),
+                    summary.failedCount(),
+                    summary.skippedCount(),
+                    summary.cappedCount());
+        } catch (RuntimeException ex) {
+            log.error(
+                    "Workflow trigger routing failed but webhook processing will continue eventId={} source={}",
+                    event.eventId(),
+                    event.sourceSystem(),
+                    ex);
         }
     }
 
@@ -123,28 +149,75 @@ public class WebhookEventProcessorService {
     }
 
     private void processAssignmentDomainEvent(NormalizedWebhookEvent event) {
-        PolicyExecutionPlanRequest request = new PolicyExecutionPlanRequest(
-                event.sourceSystem(),
-                event.eventId(),
-                event.payloadHash(),
-                event.sourceLeadId(),
-                event.normalizedDomain(),
-                event.normalizedAction(),
-                ASSIGNMENT_POLICY_DOMAIN,
-                ASSIGNMENT_POLICY_KEY,
-                null,
-                Map.of("sourceEventType", event.sourceEventType() == null ? "" : event.sourceEventType()));
-
-        PolicyExecutionPlanningResult result = policyExecutionManager.plan(request);
+        String eventType = extractEventType(event.payload());
+        String sourceEventType = event.sourceEventType() == null || event.sourceEventType().isBlank()
+                ? eventType
+                : event.sourceEventType();
+        List<Long> leadIds = extractResourceIds(event.payload());
         log.info(
-                "Assignment policy execution planned eventId={} source={} normalizedAction={} sourceEventType={} planningStatus={} runId={} reasonCode={}",
+                "Processing ASSIGNMENT domain event eventId={} source={} sourceEventType={} leadIdCount={}",
                 event.eventId(),
                 event.sourceSystem(),
-                event.normalizedAction(),
-                event.sourceEventType(),
-                result.status(),
-                result.runId(),
-                result.reasonCode());
+                sourceEventType,
+                leadIds.size());
+        if (leadIds.isEmpty()) {
+            log.warn(
+                    "No assignment resourceIds present; skipping assignment-specific processing eventId={} source={} sourceEventType={}",
+                    event.eventId(),
+                    event.sourceSystem(),
+                    sourceEventType);
+            return;
+        }
+
+        log.info(
+                "Assignment domain event accepted for workflow routing and lead upsert eventId={} source={} sourceEventType={} leadIdCount={}",
+                event.eventId(),
+                event.sourceSystem(),
+                sourceEventType,
+                leadIds.size());
+
+        for (Long leadId : leadIds) {
+            upsertLeadFromAssignmentEvent(event, sourceEventType, leadId);
+        }
+    }
+
+    private void upsertLeadFromAssignmentEvent(NormalizedWebhookEvent event, String sourceEventType, Long leadId) {
+        String sourceLeadId = String.valueOf(leadId);
+        try {
+            JsonNode personPayload = followUpBossClient.getPersonRawById(leadId);
+            // CREATE LEAD in system only if stage is actually lead
+            // Because this can get triggered for propleUpdate events too.
+            if (!leadUpsertService.isFubLeadPerson(personPayload)) {
+                log.info(
+                        "Skipping lead upsert because person payload is not lead-classified eventId={} sourceEventType={} sourceLeadId={} reason=missing-or-blank-stage",
+                        event.eventId(),
+                        sourceEventType,
+                        sourceLeadId);
+                return;
+            }
+            leadUpsertService.upsertFubPerson(sourceLeadId, personPayload);
+        } catch (FubTransientException ex) {
+            log.warn(
+                    "Transient FUB failure fetching person for lead upsert; skipping upsert eventId={} sourceEventType={} sourceLeadId={} status={}",
+                    event.eventId(),
+                    sourceEventType,
+                    sourceLeadId,
+                    stringifyStatus(ex.getStatusCode()));
+        } catch (FubPermanentException ex) {
+            log.warn(
+                    "Permanent FUB failure fetching person for lead upsert; skipping upsert eventId={} sourceEventType={} sourceLeadId={} status={}",
+                    event.eventId(),
+                    sourceEventType,
+                    sourceLeadId,
+                    stringifyStatus(ex.getStatusCode()));
+        } catch (RuntimeException ex) {
+            log.error(
+                    "Unexpected failure during lead upsert eventId={} sourceEventType={} sourceLeadId={}",
+                    event.eventId(),
+                    sourceEventType,
+                    sourceLeadId,
+                    ex);
+        }
     }
 
     private void processUnknownDomainEvent(NormalizedWebhookEvent event) {
@@ -179,6 +252,7 @@ public class WebhookEventProcessorService {
         try {
             CallDetails callDetails = executeWithRetry(entity, "GET_CALL", () -> followUpBossClient.getCallById(callId));
             log.info("Fetched call details from FUB callId={}", callId);
+            persistCallFacts(event, entity, callDetails);
             Optional<PreValidationResult> preValidationResult = callPreValidationService.validate(callDetails);
             if (preValidationResult.isPresent()) {
                 handlePreValidationTerminal(entity, callDetails, preValidationResult.get());
@@ -197,6 +271,30 @@ public class WebhookEventProcessorService {
         } catch (RuntimeException ex) {
             log.error("Unexpected processing failure callId={}", callId, ex);
             markFailed(entity, UNEXPECTED_PROCESSING_FAILURE);
+        }
+    }
+
+    private void persistCallFacts(NormalizedWebhookEvent event, ProcessedCallEntity entity, CallDetails callDetails) {
+        String sourceLeadId = callDetails.personId() == null ? null : String.valueOf(callDetails.personId());
+        entity.setSourceLeadId(sourceLeadId);
+        entity.setSourceUserId(callDetails.userId());
+        entity.setIsIncoming(callDetails.isIncoming());
+        entity.setDurationSeconds(callDetails.duration());
+        entity.setOutcome(callDetails.outcome());
+        entity.setCallStartedAt(callDetails.createdAt());
+        entity.setUpdatedAt(OffsetDateTime.now());
+        processedCallRepository.save(entity);
+
+        if (sourceLeadId == null || sourceLeadId.isBlank()) {
+            return;
+        }
+        if (leadRepository.findBySourceSystemAndSourceLeadId(LeadUpsertService.SOURCE_SYSTEM_FUB, sourceLeadId).isEmpty()) {
+            log.warn(
+                    "lead-missing-on-call eventId={} callId={} sourceLeadId={} sourceEventType={}",
+                    event.eventId(),
+                    entity.getCallId(),
+                    sourceLeadId,
+                    event.sourceEventType());
         }
     }
 
@@ -423,17 +521,8 @@ public class WebhookEventProcessorService {
     }
 
     private List<Long> extractResourceIds(JsonNode payload) {
-        List<Long> result = new ArrayList<>();
         JsonNode idsNode = payload == null ? null : payload.get("resourceIds");
-        if (idsNode == null || !idsNode.isArray()) {
-            return result;
-        }
-        for (JsonNode node : idsNode) {
-            if (node != null && node.canConvertToLong()) {
-                result.add(node.asLong());
-            }
-        }
-        return result;
+        return WebhookPayloadExtractors.extractResourceIdsAsLongs(idsNode);
     }
 
     private String stringifyStatus(Integer statusCode) {

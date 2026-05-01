@@ -1,12 +1,16 @@
 package com.fuba.automation_engine.integration;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.nio.charset.StandardCharsets;
@@ -123,8 +127,38 @@ class WebhookProcessingDevGuardMissingConfigFlowTest {
                 }
 
                 @Override
+                public PersonDetails getPersonById(long personId) {
+                    return new PersonDetails(personId, null, null, null);
+                }
+
+                @Override
+                public JsonNode getPersonRawById(long personId) {
+                    throw new UnsupportedOperationException("Not used in dev guard missing config tests");
+                }
+
+                @Override
+                public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+                    return new PersonCommunicationCheckResult(personId, false);
+                }
+
+                @Override
                 public CreatedTask createTask(CreateTaskCommand command) {
                     return new CreatedTask(0L, command.personId(), command.assignedUserId(), command.name(), command.dueDate(), null);
+                }
+
+                @Override
+                public ActionExecutionResult reassignPerson(long personId, long targetUserId) {
+                    return new ActionExecutionResult(true, "STUBBED", null);
+                }
+
+                @Override
+                public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
+                    return new ActionExecutionResult(true, "STUBBED", null);
+                }
+
+                @Override
+                public ActionExecutionResult addTag(long personId, String tagName) {
+                    return new ActionExecutionResult(true, "STUBBED", null);
                 }
             };
         }

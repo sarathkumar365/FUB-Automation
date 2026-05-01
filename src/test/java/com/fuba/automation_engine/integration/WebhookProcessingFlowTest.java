@@ -1,17 +1,25 @@
 package com.fuba.automation_engine.integration;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
+import com.fuba.automation_engine.persistence.entity.LeadEntity;
+import com.fuba.automation_engine.persistence.repository.LeadRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.rules.CallDecisionEngine;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import com.fuba.automation_engine.service.webhook.model.EventSupportState;
@@ -19,6 +27,7 @@ import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.nio.charset.StandardCharsets;
 import java.time.Duration;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Base64;
 import java.util.HashMap;
 import java.util.List;
@@ -60,11 +69,15 @@ class WebhookProcessingFlowTest {
     private WebhookEventRepository webhookEventRepository;
 
     @Autowired
+    private LeadRepository leadRepository;
+
+    @Autowired
     private TestFollowUpBossClient followUpBossClient;
 
     @BeforeEach
     void setUp() {
         processedCallRepository.deleteAll();
+        leadRepository.deleteAll();
         followUpBossClient.reset();
     }
 
@@ -124,6 +137,31 @@ class WebhookProcessingFlowTest {
     }
 
     @Test
+    void shouldPersistCallFactsFromFubCallDetails() throws Exception {
+        followUpBossClient.setCallDetails(
+                1300L,
+                new CallDetails(
+                        1300L,
+                        19355L,
+                        48,
+                        301L,
+                        "Connected",
+                        true,
+                        OffsetDateTime.parse("2026-04-17T19:30:09Z")));
+
+        sendWebhook("evt-step4-callfacts", "callsCreated", "[1300]")
+                .andExpect(status().isAccepted());
+
+        ProcessedCallEntity processedCall = waitForCall(1300L);
+        assertEquals("19355", processedCall.getSourceLeadId());
+        assertEquals(301L, processedCall.getSourceUserId());
+        assertEquals(true, processedCall.getIsIncoming());
+        assertEquals(48, processedCall.getDurationSeconds());
+        assertEquals("Connected", processedCall.getOutcome());
+        assertEquals(OffsetDateTime.parse("2026-04-17T19:30:09Z"), processedCall.getCallStartedAt());
+    }
+
+    @Test
     void shouldFailWhenDurationMissingAndOutcomeUnknown() throws Exception {
         followUpBossClient.setCallDetails(127L, new CallDetails(127L, 44L, null, 20L, "Connected"));
 
@@ -180,6 +218,19 @@ class WebhookProcessingFlowTest {
 
     @Test
     void shouldPersistSupportedPeopleCreatedWithoutCallProcessingSideEffects() throws Exception {
+        followUpBossClient.setPersonPayload(556L, """
+                {
+                  "id": 556,
+                  "name": "Lead 556",
+                  "stage": "Lead",
+                  "assignedUserId": 20,
+                  "claimed": true,
+                  "tags": ["new"],
+                  "phones": [{"value":"4036836868","type":"mobile","isPrimary":1}],
+                  "emails": []
+                }
+                """);
+
         sendWebhook("evt-step4-11", "peopleCreated", "[556]")
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.message").value("Webhook accepted for async processing"));
@@ -189,8 +240,15 @@ class WebhookProcessingFlowTest {
                 "evt-step4-11");
         assertTrue(persistedEvent.isPresent());
         assertEquals(EventSupportState.SUPPORTED, persistedEvent.orElseThrow().getCatalogState());
+        assertEquals("556", persistedEvent.orElseThrow().getSourceLeadId());
         assertTrue(processedCallRepository.findByCallId(556L).isEmpty());
         assertTrue(followUpBossClient.calledCallIds().isEmpty());
+        LeadEntity lead = waitForLead("556");
+        assertEquals(
+                "Lead 556",
+                lead.getLeadDetails()
+                        .path("name")
+                        .asText());
     }
 
     @Test
@@ -300,6 +358,20 @@ class WebhookProcessingFlowTest {
         return current.get();
     }
 
+    private LeadEntity waitForLead(String sourceLeadId) throws InterruptedException {
+        Instant deadline = Instant.now().plus(Duration.ofSeconds(10));
+        Optional<LeadEntity> current = Optional.empty();
+        while (Instant.now().isBefore(deadline)) {
+            current = leadRepository.findBySourceSystemAndSourceLeadId("FUB", sourceLeadId);
+            if (current.isPresent()) {
+                return current.get();
+            }
+            Thread.sleep(50);
+        }
+        assertTrue(current.isPresent(), "Expected lead row for sourceLeadId=" + sourceLeadId);
+        return current.orElseThrow();
+    }
+
     private String hmacHex(String payload, String key) throws Exception {
         Mac mac = Mac.getInstance("HmacSHA256");
         mac.init(new SecretKeySpec(key.getBytes(StandardCharsets.UTF_8), "HmacSHA256"));
@@ -326,7 +398,9 @@ class WebhookProcessingFlowTest {
     }
 
     static class TestFollowUpBossClient implements FollowUpBossClient {
+        private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
         private final Map<Long, CallDetails> callDetails = new HashMap<>();
+        private final Map<Long, JsonNode> personPayloads = new HashMap<>();
         private final Map<Long, AtomicInteger> fetchAttempts = new HashMap<>();
         private final Map<Long, Integer> fetchTransientFailuresRemaining = new HashMap<>();
         private final List<Long> calledCallIds = new CopyOnWriteArrayList<>();
@@ -340,6 +414,7 @@ class WebhookProcessingFlowTest {
 
         void reset() {
             callDetails.clear();
+            personPayloads.clear();
             calledCallIds.clear();
             createdTasks.clear();
             fetchAttempts.clear();
@@ -354,6 +429,10 @@ class WebhookProcessingFlowTest {
 
         void setCallDetails(Long callId, CallDetails details) {
             callDetails.put(callId, details);
+        }
+
+        void setPersonPayload(Long personId, String payloadJson) throws Exception {
+            personPayloads.put(personId, OBJECT_MAPPER.readTree(payloadJson));
         }
 
         void setRejectMissingPerson(boolean rejectMissingPerson) {
@@ -401,6 +480,46 @@ class WebhookProcessingFlowTest {
                 throw new FubTransientException("Simulated transient fetch failure", fetchTransientStatusCode);
             }
             return callDetails.getOrDefault(callId, new CallDetails(callId, 10L, 5, 20L, "Connected"));
+        }
+
+        @Override
+        public PersonDetails getPersonById(long personId) {
+            return new PersonDetails(personId, null, null, null);
+        }
+
+        @Override
+        public JsonNode getPersonRawById(long personId) {
+            return personPayloads.computeIfAbsent(personId, ignored -> {
+                ObjectNode node = OBJECT_MAPPER.createObjectNode();
+                node.put("id", personId);
+                node.put("name", "Lead " + personId);
+                node.put("assignedUserId", 0L);
+                node.put("claimed", false);
+                node.putArray("tags");
+                node.putArray("phones");
+                node.putArray("emails");
+                return node;
+            });
+        }
+
+        @Override
+        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+            return new PersonCommunicationCheckResult(personId, false);
+        }
+
+        @Override
+        public ActionExecutionResult reassignPerson(long personId, long targetUserId) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
+        public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
+        public ActionExecutionResult addTag(long personId, String tagName) {
+            return ActionExecutionResult.ok();
         }
 
         @Override

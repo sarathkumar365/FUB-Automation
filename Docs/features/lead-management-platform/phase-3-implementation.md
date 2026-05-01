@@ -36,14 +36,14 @@ Phase split:
 1. Assignment-domain event is received.
 2. `AutomationPolicyService` resolves the active assignment policy from `automation_policies`.
 3. Policy step blueprint is read from the selected `automation_policies` row (single source of truth).
-4. Identity mapping is resolved for executable flow eligibility.
+4. Source lead identity is used directly for executable flow eligibility.
 5. `PolicyExecutionManager` creates immutable run snapshot data.
 6. Persist `policy_execution_runs` row with run status.
 7. Materialize step rows in `policy_execution_steps` from blueprint:
    - step 1 `WAIT_AND_CHECK_CLAIM` -> `PENDING`, `due_at = +5m` (configurable)
    - step 2 `WAIT_AND_CHECK_COMMUNICATION` -> `WAITING_DEPENDENCY`
    - action step metadata (`ON_FAILURE_EXECUTE_ACTION`) stored for Phase 4
-8. If identity/policy is invalid, persist blocked run outcome (`BLOCKED_IDENTITY` or `BLOCKED_POLICY`) and do not create executable pending step.
+8. If policy is invalid, persist blocked run outcome (`BLOCKED_POLICY`) and do not create executable pending step.
 9. If duplicate trigger is detected, return `DUPLICATE_IGNORED` via idempotency logic.
 
 ## Chronological Implementation Steps
@@ -62,7 +62,6 @@ Phase split:
 7. Implement `PolicyExecutionManager` to:
    - resolve policy
    - read step blueprint from selected `automation_policies` row
-   - resolve identity
    - snapshot policy values
    - materialize and persist run + steps at ingestion time
 8. Integrate assignment branch in `WebhookEventProcessorService` to call `PolicyExecutionManager` instead of no-op logging.
@@ -71,7 +70,6 @@ Phase split:
 11. Add tests:
    - run + pending claim step creation
    - communication step waiting dependency shape
-   - blocked identity path
    - blocked policy path
    - duplicate suppression path
    - snapshot immutability
@@ -131,6 +129,13 @@ Next phase focus: Phase 4 worker execution flow.
   - full backend suite:
     - `./mvnw test`
     - result: pass
+- Post-completion maintenance validation (2026-04-06):
+  - targeted suites:
+    - `./mvnw test -Dtest=AdminPolicyExecutionServiceTest,AdminPolicyExecutionControllerTest`
+    - result: pass (8 tests run, 0 failures, 0 errors)
+  - full backend suite:
+    - `./mvnw test`
+    - result: pass (194 tests run, 0 failures, 0 errors, 6 skipped)
 
 ## Changes
 - Step 1 completed: policy blueprint contract + bootstrap behavior implemented.
@@ -171,11 +176,9 @@ Next phase focus: Phase 4 worker execution flow.
 - Step 7 completed: generic runtime planning orchestration implemented via `PolicyExecutionManager`.
   - new generic request contract: `PolicyExecutionPlanRequest`
   - new planning result contract: `PolicyExecutionPlanningResult`
-  - new identity boundary port: `LeadIdentityResolver` (with default unresolved adapter)
   - run planning behavior now persists:
     - `PENDING` runs + initial runtime steps
     - `BLOCKED_POLICY` for missing/invalid policy
-    - `BLOCKED_IDENTITY` for unresolved identity
     - duplicate conflict returns `DUPLICATE_IGNORED`
 - Step 8 completed: assignment trigger ownership wired in `WebhookEventProcessorService`.
   - processor now builds planning request and invokes `PolicyExecutionManager` for assignment domain events.
@@ -185,7 +188,6 @@ Next phase focus: Phase 4 worker execution flow.
 - Step 11 completed: planning runtime tests added for:
   - happy path run + step materialization
   - blocked policy
-  - blocked identity
   - duplicate suppression
   - snapshot immutability
 - Step 9 completed: duplicate/idempotency semantics finalized.
@@ -199,6 +201,11 @@ Next phase focus: Phase 4 worker execution flow.
     - `GET /admin/policy-executions/{id}`
   - added cursor pagination + filters (`status`, `policyKey`, `from`, `to`) and ordered step detail projection.
 - Step 12 completed: phase artifacts and status updated for handoff readiness.
+- Post-completion maintenance update (2026-04-06):
+  - fixed `GET /admin/policy-executions` null-filter query failure on PostgreSQL (`could not determine data type of parameter`).
+  - replaced static nullable JPQL query path with dynamic Specification-based filtering in `AdminPolicyExecutionService`.
+  - `PolicyExecutionRunRepository` now uses `JpaSpecificationExecutor` for null-safe predicate composition.
+  - added regression test `AdminPolicyExecutionServiceTest.shouldListWithoutOptionalFilters`.
 
 ## Phase 4 Handoff Contract
 - Worker source of truth: `policy_execution_steps` due pending rows.

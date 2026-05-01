@@ -70,6 +70,10 @@ public class AdminWebhookService {
         return webhookEventRepository.findById(id).map(this::toDetailResponse);
     }
 
+    public List<String> listDistinctEventTypes() {
+        return webhookEventRepository.findDistinctEventTypes();
+    }
+
     private WebhookFeedPageResponse buildPage(List<WebhookFeedItemResponse> rows, int limit) {
         boolean hasNext = rows.size() > limit;
         List<WebhookFeedItemResponse> pageItems = hasNext ? rows.subList(0, limit) : rows;

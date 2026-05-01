@@ -101,6 +101,26 @@ class AdminWebhookControllerTest {
     }
 
     @Test
+    void shouldReturnDistinctEventTypesSorted() throws Exception {
+        webhookEventRepository.saveAndFlush(buildEntity("evt-et-1", "callsUpdated", OffsetDateTime.parse("2026-03-17T10:00:00Z")));
+        webhookEventRepository.saveAndFlush(buildEntity("evt-et-2", "callsCreated", OffsetDateTime.parse("2026-03-17T11:00:00Z")));
+        webhookEventRepository.saveAndFlush(buildEntity("evt-et-3", "callsCreated", OffsetDateTime.parse("2026-03-17T12:00:00Z")));
+
+        mockMvc.perform(get("/admin/webhooks/event-types"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0]").value("callsCreated"))
+                .andExpect(jsonPath("$[1]").value("callsUpdated"));
+    }
+
+    @Test
+    void shouldReturnEmptyEventTypesWhenNoEvents() throws Exception {
+        mockMvc.perform(get("/admin/webhooks/event-types"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void shouldReturnDetailWhenFound() throws Exception {
         WebhookEventEntity saved = webhookEventRepository.saveAndFlush(
                 buildEntity("evt-ctrl-3", "callsCreated", OffsetDateTime.parse("2026-03-17T13:00:00Z")));

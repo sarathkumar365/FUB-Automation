@@ -1,7 +1,7 @@
 # RFC-003: Lead Identity Mapping Boundary (V1)
 
 ## Status
-Approved for Sprint 0
+Deferred for current implementation (identity resolver contract removed in current phase)
 
 ## Repo-Level Decision Reference
 - `RD-003-lead-identity-mapping-boundary.md`
@@ -10,24 +10,18 @@ Approved for Sprint 0
 ## Purpose
 Define the boundary contract that maps source lead identity (`sourceSystem`, `sourceLeadId`) to internal lead identity for domain logic.
 
+Current implementation note:
+- This boundary is not active in the current phase.
+- Runtime planning/execution uses `sourceLeadId` directly.
+- `internalLeadRef` and `BLOCKED_IDENTITY` runtime semantics were removed from active contracts.
+
 ## Decisions Locked
 - Mapping boundary exists as a service/port boundary (not parser responsibility)
 - Parser only extracts source identity fields; it does not resolve internal identity
 - V1 supports `internal` and `fub` as source systems
 
-## Boundary Interface Contract
-Input:
-- `sourceSystem` (required)
-- `sourceLeadId` (required for external sources)
-
-Output:
-- `resolved`: boolean
-- `internalLeadRef`: string or null
-- `resolutionType`: enum-like label
-  - `EXACT_MATCH`
-  - `SOURCE_IS_INTERNAL`
-  - `NOT_FOUND`
-  - `INVALID_INPUT`
+## Boundary Interface Contract (Deferred)
+The originally proposed interface for this RFC is deferred and not part of the active runtime contract in this phase.
 
 ## Ownership Split
 - Normalization layer:
@@ -40,22 +34,15 @@ Output:
   - Consume resolution output
   - Apply business behavior for unresolved leads
 
-## V1 Behavior Rules
-- For `sourceSystem=internal`:
-  - `internalLeadRef` may be directly provided by source payload path
-  - `resolutionType=SOURCE_IS_INTERNAL`
-- For `sourceSystem=fub`:
-  - `sourceLeadId` is required for assignment-domain execution
-  - missing/blank id => `INVALID_INPUT`
+## V1 Behavior Rules (Deferred)
+- For active runtime behavior, `sourceLeadId` is used directly for assignment-domain execution.
+- No identity-resolution gate is applied in current planning flow.
 
-Mapping not found behavior:
-- Do not hard-fail ingestion
-- Mark as non-executable for assignment action path
-- Persist observability context and reason
+Mapping not found behavior (deferred):
+- The non-executable identity-mapping fallback path is not active in current implementation.
 
 Temporary fallback in V1:
-- If mapping not found, event remains observable and can be replayed later once mapping exists
-- No automatic reassignment action may run without resolved internal lead identity
+- Deferred with identity boundary reintroduction in a later phase.
 
 ## Non-Goals in V1
 - Multi-key fuzzy identity matching
