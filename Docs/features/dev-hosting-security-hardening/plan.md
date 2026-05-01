@@ -22,6 +22,76 @@ Out of scope (accepted): A2 (SSRF guard), A4 (bounded HTTP reads). Tracked in th
 ### Why JWT bearer (vs session cookie)
 User-requested. Stateless (no server-side session table), role claim travels with the token, and CSRF is moot because cookies aren't used. Trade-off: token revocation is best-effort (TTL-based) without a denylist; for an 8 h dev session this is acceptable.
 
+### Auth flow at a glance
+
+Login then admin call:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    participant SPA as SPA (login page / admin UI)
+    participant SEC as Spring Security<br/>(JwtAuthenticationFilter)
+    participant CTRL as AdminAuthController / admin controllers
+    participant DB as Postgres (app_user)
+    participant JWT as JwtService
+
+    SPA->>CTRL: POST /admin/auth/login {username, password}
+    CTRL->>DB: AuthenticationManager → BCrypt verify
+    DB-->>CTRL: user row (enabled, role)
+    CTRL->>JWT: issue(user)
+    JWT-->>CTRL: JWT (HS256, role claim, 8h exp)
+    CTRL-->>SPA: 200 {token, role, expiresAt}
+
+    Note over SPA: stores token in sessionStorage
+
+    SPA->>SEC: GET /admin/leads<br/>Authorization: Bearer <jwt>
+    SEC->>JWT: parse(token)
+    JWT-->>SEC: JwtPrincipal{username, role}
+    SEC->>SEC: SecurityContext = ROLE_<role>
+    SEC->>CTRL: dispatch (passes @PreAuthorize)
+    CTRL-->>SPA: 200 leads payload
+```
+
+Webhook traffic bypasses the JWT filter entirely (`shouldNotFilter` matches `/webhooks/**` and `/health`); it remains anonymous and is gated by the existing FUB HMAC signature check.
+
+### Role / endpoint matrix (visual)
+
+```mermaid
+flowchart LR
+    classDef admin fill:#fde2e2,stroke:#a33
+    classDef op fill:#fef3d7,stroke:#a76
+    classDef view fill:#e2f0d9,stroke:#3a6
+    classDef open fill:#dde7ff,stroke:#36a
+
+    subgraph public["Public (no auth)"]
+        H[/health/]:::open
+        W[/webhooks/**/]:::open
+        L[/admin/auth/login/]:::open
+    end
+
+    subgraph reads["Reads — ADMIN, OPERATOR, VIEWER"]
+        R1[GET /admin/leads/**]:::view
+        R2[GET /admin/webhooks/**]:::view
+        R3[GET /admin/processed-calls/**]:::view
+        R4[GET /admin/workflow-runs/**]:::view
+        R5[GET /admin/workflows/**]:::view
+        R6[GET /admin/auth/me]:::view
+    end
+
+    subgraph operate["State changes — ADMIN, OPERATOR"]
+        O1[POST /admin/processed-calls/.../replay]:::op
+        O2[POST /admin/workflow-runs/.../cancel]:::op
+        O3[POST /admin/workflows/validate]:::op
+    end
+
+    subgraph admin["ADMIN-only"]
+        A1[POST/PUT/DELETE /admin/workflows/**]:::admin
+        A2[POST /admin/workflows/.../activate]:::admin
+        A3[POST /admin/workflows/.../deactivate]:::admin
+        A4[POST /admin/workflows/.../rollback]:::admin
+    end
+```
+
 ## Architecture / pattern compliance
 
 - Module boundaries from `developer-rules.md`: controller → service → client/persistence preserved.

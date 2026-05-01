@@ -11,6 +11,7 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-001-normalized-lead-event-contract.md` — Status: Accepted
 - `RD-002-event-catalog-state-and-routing-model.md` — Status: Accepted
 - `RD-003-lead-identity-mapping-boundary.md` — Status: Accepted
+- `RD-004-admin-auth-uses-jwt-bearer.md` — Status: Accepted
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`

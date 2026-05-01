@@ -20,6 +20,14 @@ captured as Phase 0 below.
 - Severity: **H** high-impact · **M** medium · **L** polish
 - Each phase has its own `phase-<n>-implementation.md` log once started.
 
+## Per-phase mandatory closing gate
+
+Every phase log MUST answer the **Repo decisions impact** question before being marked done:
+- *"Does anything in this phase warrant promoting to `Docs/repo-decisions/`?"*
+- Answer is one of: `No — local concern` (with one sentence why) or `Yes — RD-<id>-<slug>.md` (with the change made).
+
+This is enforced by `AGENTS.md` (Feature documentation workflow). The gate exists so the question is never silently skipped.
+
 ## Phase 0 — Branch hygiene (pre-implementation)
 
 Status: `[x]` done
@@ -53,6 +61,7 @@ The cheap, low-risk wins. Nothing in this phase touches authentication or runtim
 
 - [x] `./mvnw clean test` → **365 tests, 0 failures, 0 errors, 36 skipped** (≫ 85% required by `developer-rules.md`).
 - [-] Live large-body curl smoke against `/webhooks/fub` deferred to deploy-time. Justification: this phase only adds a properties file; live smoke requires a running instance with FUB signing key configured. To be re-confirmed in Phase 4 housekeeping.
+- [x] **Repo decisions impact**: `No` — properties tuning is a local feature concern.
 
 ### Plan correction logged for Phase 4
 
@@ -115,6 +124,7 @@ The full backend half of A1: schema, JWT plumbing, security config, login/me end
 - [x] `./mvnw clean test` → **395 tests, 0 failures, 0 errors, 36 skipped** (≫ 85% required by `developer-rules.md`).
 - [x] All new tests in this phase pass individually.
 - [-] Manual curl walk-through from [plan.md § Verification](./plan.md#verification-end-to-end-post-a1) deferred to post-deploy smoke (Phase 4 housekeeping). Coverage is currently exercised by automated tests through `MockMvc`.
+- [x] **Repo decisions impact**: see [phase-2-implementation.md § Repo decisions impact](./phase-2-implementation.md#repo-decisions-impact). Recommended `Yes — RD-004-admin-auth-uses-jwt-bearer.md` (proposed; not yet promoted pending operator review).
 
 ## Phase 3 — Frontend auth integration (A1b)
 
@@ -151,6 +161,7 @@ SPA changes that consume the backend from Phase 2.
   - admin login → original page reachable, ADMIN buttons visible;
   - VIEWER login → ADMIN buttons hidden via `<RoleGate>`;
   - JWT expiry → next admin call redirects to login.
+- [ ] **Repo decisions impact** recorded in `phase-3-implementation.md`.
 
 ## Phase 4 — Documentation finalization
 
@@ -165,3 +176,4 @@ Status: `[ ]` todo
 
 - [ ] All checklist items in `dev-hosting-security-checklist.md` are either ticked or moved to the known-issues section.
 - [ ] `Docs/features/dev-hosting-security-hardening/phases.md` (this file) reflects all `[x]` for Phases 0–4.
+- [ ] **Repo decisions impact** recorded in `phase-4-implementation.md`.

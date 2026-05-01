@@ -1,72 +1,27 @@
-# Phase 1 Implementation — Hardened `prod` profile + pre-deploy verification
+# Phase 1 — Hardened `prod` profile + pre-deploy verification
 
 ## Status
-
 `DONE` (2026-05-01)
 
-## Scope
+## What I was thinking
 
-Phase 1 covers the cheap, low-risk hardening items from
-[`plan.md`](./plan.md):
+The whole feature breaks into "auth" (Phase 2) and "everything else." The "everything else" is cheap, low-risk, and unblocks Phase 2's review by making sure the deployed profile actually exists and is hardened. So Phase 1 was deliberately small: ship the prod-properties file, verify the easy stuff, build confidence in the workflow, and move on.
 
-- **A3** — Tomcat body-size cap (10 MB) so anonymous webhook posts cannot OOM the JVM on a low-RAM dev host.
-- **A5** — `.gitignore` audit (already satisfied; verification only).
-- **A6** — Confirm `spring-boot-devtools` is excluded from the deployed jar.
-- **A7** — Disable `spring.jpa.show-sql` in deployed environments.
+## Decisions taken
 
-No authentication or runtime-auth code is touched in this phase.
+- **One properties file, one profile.** Rather than scatter env-var defaults through the base properties, I put everything that *only* applies in deployed environments into `application-prod.properties`. Local dev keeps `show-sql=true` for ergonomics; the prod profile turns it off and adds the body cap. `scripts/run-app.sh prod` already sets `SPRING_PROFILES_ACTIVE=prod`, so no script change.
+- **10 MB outer wall, 1 MB inner wall.** The user asked for 10 MB at the Tomcat level (raised from the 2 MB I originally proposed). The existing `webhook.max-body-bytes=1048576` in-app cap stays — it enforces the actual webhook contract. The 10 MB outer wall is purely there to stop a 500 MB anonymous post from OOM'ing the JVM on a 512 MB Render instance before the app-level check fires. Two walls, two purposes; keep both.
+- **A5 was already done.** `.gitignore` already covered `.env*` and `logs/`. The plan flagged this as a checklist item, not a code change. Verified visually and moved on.
+- **A6 is verification, not code.** I built the prod jar and grep'd for devtools — output empty. No `pom.xml` change needed. If devtools ever leaks into the deployed jar in future, that's where to fix it.
 
-## Branching
+## Surprises
 
-- Feature parent: `feature/dev-hosting-security-hardening` (cut from `dev` after merging `feature/lead-management-platform`, commit `26a3149`).
-- Phase branch: `phase/dev-hosting-security-phase-1` (cut from feature parent).
-
-## Implementation log
-
-- [x] Created [`src/main/resources/application-prod.properties`](../../../src/main/resources/application-prod.properties) with:
-  - `server.tomcat.max-http-form-post-size=10MB`
-  - `server.tomcat.max-swallow-size=10MB`
-  - `spring.servlet.multipart.max-request-size=10MB`
-  - `spring.servlet.multipart.max-file-size=10MB`
-  - `spring.jpa.show-sql=false`
-  - `spring.jpa.properties.hibernate.format_sql=false`
-- [x] Confirmed activation path: [`scripts/run-app.sh:407`](../../../scripts/run-app.sh) sets `SPRING_PROFILES_ACTIVE="${PROD_PROFILE}"` (`PROD_PROFILE="prod"` at line 11), so `./scripts/run-app.sh prod` picks the new file up. No script change required.
-- [x] Verified `.gitignore:38,41-43` already cover `logs/`, `.env`, `.env.*`, with `!.env.example` exception. A5 satisfied; no edit.
-- [x] Built the prod artifact and verified devtools is absent:
-  ```
-  ./mvnw clean package -DskipTests
-  jar tf target/automation-engine-0.0.1-SNAPSHOT.jar | grep -i devtools
-  ```
-  Output: empty. Packaged jar size: 57 MB. A6 satisfied; no `<excludeDevtools>` change needed.
+The plan's verification snippets used `./mvnw -P prod ...`. That's a *Maven* profile flag, but there is no Maven profile named `prod` in `pom.xml`; Maven prints a warning and runs the suite anyway. The correct invocation is plain `./mvnw clean test`; the `prod` *Spring* profile is activated at runtime via `SPRING_PROFILES_ACTIVE`. Logged for the Phase 4 plan-cleanup pass.
 
 ## Validation
 
-- [x] **Backend test suite** (`./mvnw clean test`):
-  - Tests run: **365**
-  - Failures: **0**
-  - Errors: **0**
-  - Skipped: **36**
-  - Duration: ~19.5 s
-  - Result: `BUILD SUCCESS`
-  - Pass rate ≫ 85% threshold from `developer-rules.md`.
-- [x] **No new tests added.** This phase is configuration-only — no Java/TS code was changed and the new properties file does not have a fast unit-testable shape (it's a runtime override). The plan's manual verification (live curl with oversized body) is deferred to deploy-time per the phase gate notes below.
+`./mvnw clean test` → **365 / 0F / 0E / 36 skipped**, `BUILD SUCCESS`. No new tests added (configuration-only phase). Live large-body curl smoke deferred to first deploy because it needs a running instance with FUB credentials.
 
-## Deferred verification (logged for later)
+## Repo decisions impact
 
-- **Live large-body smoke** against `/webhooks/fub` returning 413/400 — requires a running instance plus a configured FUB signing key. Will be confirmed once the dev host is provisioned (Phase 4 housekeeping or first deploy).
-
-## Plan corrections discovered
-
-- Several verification snippets in [`plan.md`](./plan.md) use `./mvnw -P prod ...`. `-P` is a *Maven* profile flag, and no Maven profile named `prod` exists in `pom.xml`. Maven prints a warning and runs anyway. The correct invocation for the test suite is plain `./mvnw clean test`; the `prod` Spring profile is activated at runtime via `SPRING_PROFILES_ACTIVE=prod`. Phase 4 will edit these snippets in `plan.md` (and any other docs that copy them).
-
-## Files changed
-
-- New: `src/main/resources/application-prod.properties`
-- New (this log): `Docs/features/dev-hosting-security-hardening/phase-1-implementation.md`
-- Updated: `Docs/features/dev-hosting-security-hardening/phases.md` (Phase 0 + Phase 1 marked done)
-
-## Repo decisions consulted
-
-Per `AGENTS.md` mandatory read order:
-1. `Docs/repo-decisions/README.md` — reviewed.
-2. `RD-001`, `RD-002`, `RD-003` — reviewed; all relate to lead/event contracts. None constrain configuration hardening. No conflicts; no promotion to repo-decisions.
+`No` — local feature concern. Body-size tuning and log-level overrides are scoped to this feature's deployed environment; nothing here generalizes into a repo-wide rule.

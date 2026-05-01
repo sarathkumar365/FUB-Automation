@@ -61,6 +61,12 @@ This agent acts as a pair programmer for this repository and supports:
   2. all `Accepted` repo decisions relevant to touched modules
   3. feature docs under `Docs/features/<feature-slug>/`
 - If a feature RFC introduces a repo-wide decision, promote it to `Docs/repo-decisions/` in the same phase.
+- **Repo-decisions impact check (mandatory).** Every `phase-<n>-implementation.md` must include a short "Repo decisions impact" section that explicitly answers one of:
+  - `No` — local feature concern only, with one sentence saying why.
+  - `Yes` — names the new/updated `RD-<id>-<slug>.md` file and the change made.
+  Do not omit the section. Forgetting to consider repo-wide impact is the failure mode this rule prevents.
+- **Implementation log style.** Phase implementation logs are *decision narratives*, not change-detail dumps. Capture: the goal, the meaningful decisions taken, the trade-offs accepted, surprises hit during implementation, and validation evidence. Do not exhaustively list every file path or copy code — git history and the working tree are the source of truth for the "what". The doc answers "why was it built this way?" for a future reader.
+- **Diagrams.** Where a flow or component layout is non-trivial, include a Mermaid diagram in `plan.md` (and optionally in the relevant `phase-<n>-implementation.md`). GitHub renders Mermaid natively. Skip diagrams when the change is purely textual / configuration.
 - If a user request does not mention this documentation workflow, the agent must still follow it and briefly remind the user that the repo uses:
   - repo-wide decisions in `Docs/repo-decisions/`
   - feature workflow docs in `Docs/features/<feature-slug>/`
