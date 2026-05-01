@@ -92,6 +92,53 @@ flowchart LR
     end
 ```
 
+### End-to-end lifecycle (login → admin call → 401 → re-login)
+
+Top-to-bottom, naming the actual file + method invoked at each hop. Read this diagram first; it's the fastest way to know which code matters for this feature.
+
+```mermaid
+flowchart TB
+    classDef ui fill:#dde7ff,stroke:#36a,color:#000
+    classDef be fill:#fde2e2,stroke:#a33,color:#000
+    classDef store fill:#fef3d7,stroke:#a76,color:#000
+    classDef db fill:#e2f0d9,stroke:#3a6,color:#000
+
+    A[User submits credentials<br/>at /admin-ui/login]:::ui
+    A --> B[LoginPage.handleSubmit<br/>ui/src/modules/auth/ui/LoginPage.tsx]:::ui
+    B --> C[AuthClient.login<br/>ui/src/modules/auth/data/authClient.ts]:::ui
+    C --> D[HttpJsonClient.post<br/>ui/src/platform/adapters/http/httpJsonClient.ts]:::ui
+    D -->|POST /admin/auth/login| E[AdminAuthController.login<br/>controller/AdminAuthController.java]:::be
+    E --> F[AuthenticationManager.authenticate<br/>Spring Security]:::be
+    F --> G[AppUserDetailsService.loadUserByUsername<br/>service/auth/AppUserDetailsService.java]:::be
+    G --> H[AppUserRepository.findByUsernameIgnoreCase<br/>persistence/repository/AppUserRepository.java]:::be
+    H --> I[(app_user table<br/>db/migration/V17)]:::db
+    I --> J[BCryptPasswordEncoder.matches<br/>SecurityConfig bean]:::be
+    J --> K[AdminAuthService.recordLogin<br/>updates last_login_at]:::be
+    K --> L[JwtService.issue<br/>service/auth/JwtService.java]:::be
+    L -->|HS256 via JwtKeyFactory| M[200 OK<br/>token + role + expiresAt JSON]:::be
+    M --> N[tokenStore.setToken<br/>ui/src/modules/auth/state/tokenStore.ts]:::store
+    N --> O[navigate to next path]:::ui
+
+    O --> P[User opens an admin page<br/>e.g. /admin-ui/leads]:::ui
+    P --> Q[Admin module fetch<br/>via HttpJsonClient.request]:::ui
+    Q -->|attaches Authorization: Bearer| R[Spring SecurityFilterChain]:::be
+    R --> S[JwtAuthenticationFilter.doFilterInternal<br/>config/security/JwtAuthenticationFilter.java]:::be
+    S --> T[JwtService.parse → JwtPrincipal<br/>service/auth/JwtService.java]:::be
+    T --> U[SecurityContextHolder = ROLE_ADMIN]:::be
+    U --> V[AuthorizationFilter checks @PreAuthorize<br/>per admin controller method]:::be
+    V --> W[Admin controller method<br/>e.g. AdminLeadController.list]:::be
+    W --> X[200 + payload back to SPA]:::be
+
+    %% 401 / runtime expiry path
+    T -. token expired or forged .-> Y[401 invalid_token JSON]:::be
+    V -. role mismatch .-> Z[403 Forbidden]:::be
+    Y --> AA[HttpJsonClient: tokenStore.clearToken<br/>+ dispatch admin-auth:unauthorized]:::ui
+    AA --> AB[AuthGuard event listener<br/>navigate to /admin-ui/login?next=...]:::ui
+    AB --> A
+```
+
+The same `JwtAuthenticationFilter` is **bypassed** for `/webhooks/**` and `/health` via `shouldNotFilter`, so FUB ingestion and platform health probes do not pay JWT-parse cost. First-boot user provisioning is a separate one-shot path: `AdminUserSeeder.run` (an `ApplicationRunner`) inserts a single ADMIN row into `app_user` from `ADMIN_AUTH_USERNAME` / `ADMIN_AUTH_PASSWORD` when the table is empty.
+
 ## Architecture / pattern compliance
 
 - Module boundaries from `developer-rules.md`: controller → service → client/persistence preserved.
@@ -328,7 +375,7 @@ Already covered (`.gitignore:38,41-43`). Visual confirm + tick the checklist.
 ### A6 — Verify devtools is excluded from deployed jar
 
 ```
-./mvnw -P prod clean package -DskipTests
+./mvnw clean package -DskipTests
 jar tf target/automation-engine-*.jar | grep -i devtools
 ```
 
@@ -394,7 +441,7 @@ Covered by `application-prod.properties` above (lands with A3 in the same phase)
 export JWT_SECRET="$(openssl rand -base64 48)"
 export ADMIN_AUTH_USERNAME=admin
 export ADMIN_AUTH_PASSWORD=devpass
-./mvnw -P prod spring-boot:run -Dspring-boot.run.profiles=prod
+SPRING_PROFILES_ACTIVE=prod ./mvnw spring-boot:run
 ```
 
 ```bash
@@ -438,14 +485,16 @@ UI check (post-frontend phase):
 
 Tests:
 ```bash
-./mvnw -P prod clean test
+./mvnw clean test
 cd ui && npm test
 ```
 
 Devtools verify (A6):
 ```bash
-./mvnw -P prod clean package -DskipTests
+./mvnw clean package -DskipTests
 jar tf target/automation-engine-*.jar | grep -i devtools                             # empty
 ```
+
+> **Note on Maven vs Spring profiles.** `-P` is a Maven profile flag, but no Maven profile named `prod` exists in `pom.xml`. The `prod` *Spring* profile is selected at runtime via `SPRING_PROFILES_ACTIVE=prod` (and is what activates `application-prod.properties`). Don't mix the two.
 
 Once all green, mark A1, A3, A5, A6, A7 as done in the security checklist, and A2/A4 as accepted-deferred. Dev host is safe to expose publicly.

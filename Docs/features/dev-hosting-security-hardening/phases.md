@@ -165,15 +165,18 @@ SPA changes that consume the backend from Phase 2.
 
 ## Phase 4 — Documentation finalization
 
-Status: `[ ]` todo
+Status: `[x]` done — see [`phase-4-implementation.md`](./phase-4-implementation.md).
 
-- [ ] **M** In `Docs/hosting-decision/dev/dev-hosting-security-checklist.md`: move A2 and A4 to a new "Known issues — accepted for dev, revisit when…" section. Each retains description + proposed fix; adds **Accepted because** and **Revisit when** lines per [plan.md § Deferred](./plan.md#deferred--a2-and-a4-tracked-as-known-issues).
-- [ ] Mark A1, A3, A5, A6, A7 as done with PR/commit references.
-- [ ] Add a short "Hosted dev environment" section to `README.md` with the env-var contract (`JWT_SECRET`, `JWT_EXPIRY`, `ADMIN_AUTH_USERNAME`, `ADMIN_AUTH_PASSWORD`).
-- [ ] Update each `phase-<n>-implementation.md` log with final status + validation evidence per `AGENTS.md`.
+- [x] **M** Rewrote [`dev-hosting-security-checklist.md`](../../hosting-decision/dev/dev-hosting-security-checklist.md): A1/A3/A5/A6/A7 marked done with phase references; A2 and A4 moved to a new "Known issues — accepted for dev, revisit when…" section with explicit `Accepted because` and `Revisit when` triggers.
+- [x] Added "Hosted dev environment" section to `README.md` with the env-var contract and pre-deploy verification.
+- [x] Fixed the lingering `./mvnw -P prod ...` snippets in `plan.md` (replaced with `./mvnw ...` + `SPRING_PROFILES_ACTIVE=prod` and added a clarifying note).
+- [x] Added a vertical end-to-end lifecycle diagram to `plan.md` showing which files / methods are invoked in the login + admin-call + 401 paths.
+- [x] Updated `AGENTS.md` to require the lifecycle diagram for every feature plan going forward.
+- [x] Phase implementation logs (1, 2, 3) already up-to-date (rewritten as decision narratives during the doc-cleanup commit).
 
 ### Phase gate
 
-- [ ] All checklist items in `dev-hosting-security-checklist.md` are either ticked or moved to the known-issues section.
-- [ ] `Docs/features/dev-hosting-security-hardening/phases.md` (this file) reflects all `[x]` for Phases 0–4.
-- [ ] **Repo decisions impact** recorded in `phase-4-implementation.md`.
+- [x] All checklist items in `dev-hosting-security-checklist.md` are either ticked or moved to the known-issues section.
+- [x] `Docs/features/dev-hosting-security-hardening/phases.md` (this file) reflects all `[x]` for Phases 0–4.
+- [x] Backend test suite still passes (`./mvnw clean test`); UI suite still passes (`npm test`). No code changes in this phase.
+- [x] **Repo decisions impact**: `No` — Phase 4 is doc-only, codifies the lifecycle-diagram requirement in `AGENTS.md` (a workflow rule, not a code-architecture decision). The auth pattern itself is already in `RD-004`.
