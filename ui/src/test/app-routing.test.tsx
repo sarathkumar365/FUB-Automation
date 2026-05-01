@@ -1,10 +1,20 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../app/App'
 import { uiText } from '../shared/constants/uiText'
+import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('App routing and shell', () => {
+  beforeEach(() => {
+    seedMockAdminToken()
+  })
+
+  afterEach(() => {
+    clearMockAdminToken()
+  })
+
+
   it('renders landing page at root', async () => {
     window.history.pushState({}, '', '/')
 

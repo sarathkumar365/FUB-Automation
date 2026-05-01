@@ -128,40 +128,40 @@ The full backend half of A1: schema, JWT plumbing, security config, login/me end
 
 ## Phase 3 — Frontend auth integration (A1b)
 
-Status: `[ ]` todo
+Status: `[x]` done — see [`phase-3-implementation.md`](./phase-3-implementation.md).
 
 SPA changes that consume the backend from Phase 2.
 
 ### Slice 3A — Token store
 
-- [ ] **H** Add `ui/src/modules/auth/state/tokenStore.ts` (in-memory + `sessionStorage` mirror, expiry-on-read).
-- [ ] Vitest tests for `setToken` / `getToken` / `clearToken` / expiry behavior.
+- [x] **H** Added `ui/src/modules/auth/state/tokenStore.ts` (in-memory + `sessionStorage` mirror, expiry-on-read).
+- [x] Vitest test `auth-token-store.test.ts` (6 tests passing).
 
 ### Slice 3B — Login page
 
-- [ ] **H** Add `ui/src/modules/auth/ui/LoginPage.tsx` and register `/admin-ui/login` in routes.
-- [ ] Add `login` to `ui/src/shared/constants/routes.ts`.
-- [ ] On success, call `tokenStore.setToken(...)` and navigate to `?next=` or `/admin-ui`.
+- [x] **H** Added `ui/src/modules/auth/ui/LoginPage.tsx` + `ui/src/modules/auth/data/authClient.ts`. Registered `/admin-ui/login` in `app/router.tsx`.
+- [x] Added `login` to `ui/src/shared/constants/routes.ts`.
+- [x] On success, calls `tokenStore.setToken(...)` and navigates to `?next=` (validated to stay inside `/admin-ui/...`) or the dashboard.
+- [x] Vitest test `auth-login-page.test.tsx` (5 tests passing).
 
 ### Slice 3C — Authenticated HTTP client + 401 redirect
 
-- [ ] **H** Update [`httpJsonClient.ts`](../../../ui/src/platform/adapters/http/httpJsonClient.ts) to set `Authorization: Bearer <token>` on `/admin/**` calls (excluding `/admin/auth/login`), and on `401` clear the token + navigate to `/admin-ui/login?next=<path>`.
-- [ ] Vitest test for 401 redirect.
+- [x] **H** Updated [`httpJsonClient.ts`](../../../ui/src/platform/adapters/http/httpJsonClient.ts) to attach `Authorization: Bearer <token>` for `/admin/**` calls except `/admin/auth/login`, and on `401` clear the token + dispatch a custom `admin-auth:unauthorized` event. The event keeps the client framework-agnostic; the route guard handles navigation.
+- [x] Vitest tests in `http-json-client.test.ts` (8 total — extended from 2 baseline).
 
 ### Slice 3D — Route guard + RoleGate
 
-- [ ] **M** Top-level App component: redirect to `/admin-ui/login` on first render if `tokenStore.getToken()` is missing/expired and the path is under `/admin-ui/**`.
-- [ ] Add `<RoleGate role="ADMIN">` and apply to ADMIN-only controls (workflow activate/deactivate/rollback buttons in admin workflow UI).
+- [x] **M** Added `ui/src/modules/auth/ui/AuthGuard.tsx` wrapping all protected admin routes inside the existing `SessionGuard`. Redirects to `/admin-ui/login?next=<path>` when no valid token is held, and listens for `admin-auth:unauthorized` for runtime 401s.
+- [x] Added `<RoleGate allow="ADMIN">` (also accepts a list) for hiding role-restricted controls in the SPA. UI gate is convenience only; the backend `@PreAuthorize` enforcement remains authoritative.
+- [x] Vitest tests `auth-guard.test.tsx` (3 tests) + `auth-role-gate.test.tsx` (4 tests).
 
 ### Phase gate
 
-- [ ] `cd ui && npm run lint && npm run build && npm run test` passes.
-- [ ] Manual UI walk-through:
-  - logged-out user redirected to login;
-  - admin login → original page reachable, ADMIN buttons visible;
-  - VIEWER login → ADMIN buttons hidden via `<RoleGate>`;
-  - JWT expiry → next admin call redirects to login.
-- [ ] **Repo decisions impact** recorded in `phase-3-implementation.md`.
+- [x] `npm run lint` clean.
+- [x] `npm run build` succeeds (`tsc -b && vite build`).
+- [x] `npm test` (vitest run) → **342 / 342 passing** (up from 326 baseline; 16 new tests).
+- [-] Live manual UI walk-through deferred to deploy-time smoke; coverage today is via the test suite.
+- [x] **Repo decisions impact**: `No` — the SPA wiring is the consumer of the auth pattern already promoted in `RD-004`. No new repo-wide decision; everything here follows the contract that document established.
 
 ## Phase 4 — Documentation finalization
 
