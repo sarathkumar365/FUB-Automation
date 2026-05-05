@@ -4,6 +4,7 @@ export const routes = {
   root: '/',
   adminUi: '/admin-ui',
   dashboard: '/admin-ui',
+  login: '/admin-ui/login',
   webhooks: '/admin-ui/webhooks',
   processedCalls: '/admin-ui/processed-calls',
   leads: '/admin-ui/leads',

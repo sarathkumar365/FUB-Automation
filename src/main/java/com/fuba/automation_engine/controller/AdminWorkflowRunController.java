@@ -12,6 +12,7 @@ import com.fuba.automation_engine.service.workflow.WorkflowRunQueryService.RunDe
 import com.fuba.automation_engine.service.workflow.WorkflowRunQueryService.RunDetailStatus;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -21,6 +22,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 @RestController
 @RequestMapping("/admin")
+@PreAuthorize("hasAnyRole('ADMIN','OPERATOR','VIEWER')")
 public class AdminWorkflowRunController {
 
     private final WorkflowRunQueryService workflowRunQueryService;
@@ -71,6 +73,7 @@ public class AdminWorkflowRunController {
     }
 
     @PostMapping("/workflow-runs/{runId}/cancel")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<?> cancelRun(@PathVariable Long runId) {
         CancelRunResult result = workflowRunControlService.cancelRun(runId);
         if (result.status() == CancelRunStatus.INVALID_INPUT) {

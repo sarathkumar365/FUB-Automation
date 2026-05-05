@@ -1,4 +1,5 @@
 import { NavLink, useLocation } from 'react-router-dom'
+import { LogoutButton } from '../../modules/auth/ui/LogoutButton'
 import { appNavItems, navItemIsActive, routes } from '../constants/routes'
 import { uiText } from '../constants/uiText'
 
@@ -6,9 +7,10 @@ export function AppRail() {
   const location = useLocation()
   return (
     <aside
-      className="hidden w-16 flex-col items-center border-r border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-4 md:flex"
+      className="hidden w-16 flex-col items-center justify-between border-r border-[var(--color-border)] bg-[var(--color-surface)] px-2 py-4 md:flex"
       aria-label={uiText.app.shell.railAriaLabel}
     >
+      <div className="flex w-full flex-col items-center">
       <NavLink
         to={routes.dashboard}
         aria-label={uiText.app.nav.home}
@@ -38,6 +40,8 @@ export function AppRail() {
           )
         })}
       </nav>
+      </div>
+      <LogoutButton variant="rail" />
     </aside>
   )
 }

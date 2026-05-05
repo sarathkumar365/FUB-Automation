@@ -3,6 +3,8 @@ import { routes } from '../shared/constants/routes'
 import { AppShell } from './AppShell'
 import { SessionGuard } from './SessionGuard'
 import { LandingPage } from '../modules/landing/ui/LandingPage'
+import { AuthGuard } from '../modules/auth/ui/AuthGuard'
+import { LoginPage } from '../modules/auth/ui/LoginPage'
 import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
 import { ProcessedCallsPage } from '../modules/processed-calls/ui/ProcessedCallsPage'
 import { WorkflowsPage } from '../modules/workflows/ui/WorkflowsPage'
@@ -30,8 +32,15 @@ export function createAppRouter() {
           element: <SessionDisabledPage />,
         },
         {
+          path: 'login',
+          element: <LoginPage />,
+        },
+        {
           element: <SessionGuard />,
           children: [
+            {
+              element: <AuthGuard />,
+              children: [
             {
               index: true,
               element: <DashboardPage />,
@@ -75,6 +84,8 @@ export function createAppRouter() {
             {
               path: 'workflow-runs/:runId',
               element: <WorkflowRunDetailPage />,
+            },
+              ],
             },
           ],
         },

@@ -150,6 +150,34 @@ cd ui && npm run test:e2e
 - Cloudflare quick tunnel URLs are temporary and change when restarted.
 - For external demo viewers, keep your local app process running while sharing tunnel URLs.
 
+## Hosted dev environment
+
+When the app is deployed (Render, Fly, Oracle Cloud, etc.) it must run with `SPRING_PROFILES_ACTIVE=prod`, which activates [`application-prod.properties`](src/main/resources/application-prod.properties) — body-size cap, `show-sql=false`, etc.
+
+The deployed instance also requires the admin-auth env vars (see [`Docs/repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md`](Docs/repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md) for the design):
+
+| Env var | Required | Notes |
+|---|---|---|
+| `JWT_SECRET` | yes (non-`local`) | HS256 signing key; ≥ 32 chars. Generate with `openssl rand -base64 48`. Blank fails startup outside `local`. |
+| `JWT_ISSUER` | optional | Default `automation-engine`. |
+| `JWT_EXPIRY` | optional | Default `8h`. ISO-8601 duration. |
+| `ADMIN_AUTH_USERNAME` | yes (first boot) | Used once to seed the initial ADMIN row in `app_user`. Subsequent rotations go through SQL or the future user-management UI. |
+| `ADMIN_AUTH_PASSWORD` | yes (first boot) | BCrypt-hashed before insert. The seeder is one-shot — it never modifies an existing user. |
+| `SPRING_PROFILES_ACTIVE` | yes | Set to `prod` so the hardened profile loads. |
+
+Pre-deploy verification:
+
+```bash
+# Confirm devtools is excluded from the packaged jar
+./mvnw clean package -DskipTests
+jar tf target/automation-engine-*.jar | grep -i devtools   # expect empty
+
+# Generate a long-lived JWT secret
+openssl rand -base64 48
+```
+
+Security posture for the dev host is tracked in [`Docs/hosting-decision/dev/dev-hosting-security-checklist.md`](Docs/hosting-decision/dev/dev-hosting-security-checklist.md).
+
 ## Roadmap
 
 - Scenario 2: intent/transcription-driven tasking

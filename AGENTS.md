@@ -61,6 +61,18 @@ This agent acts as a pair programmer for this repository and supports:
   2. all `Accepted` repo decisions relevant to touched modules
   3. feature docs under `Docs/features/<feature-slug>/`
 - If a feature RFC introduces a repo-wide decision, promote it to `Docs/repo-decisions/` in the same phase.
+- **Repo-decisions impact check (mandatory).** Every `phase-<n>-implementation.md` must include a short "Repo decisions impact" section that explicitly answers one of:
+  - `No` — local feature concern only, with one sentence saying why.
+  - `Yes` — names the new/updated `RD-<id>-<slug>.md` file and the change made.
+  Do not omit the section. Forgetting to consider repo-wide impact is the failure mode this rule prevents.
+- **Implementation log style.** Phase implementation logs are *decision narratives*, not change-detail dumps. Capture: the goal, the meaningful decisions taken, the trade-offs accepted, surprises hit during implementation, and validation evidence. Do not exhaustively list every file path or copy code — git history and the working tree are the source of truth for the "what". The doc answers "why was it built this way?" for a future reader.
+- **Diagrams.** Where a flow or component layout is non-trivial, include a Mermaid diagram in `plan.md` (and optionally in the relevant `phase-<n>-implementation.md`). GitHub renders Mermaid natively. Skip diagrams when the change is purely textual / configuration.
+- **Mandatory end-to-end lifecycle diagram.** Every feature's `plan.md` must include a vertical Mermaid diagram showing the feature's runtime lifecycle from a user-facing trigger down through the actual files / classes / methods invoked, ending at the response or terminal state. The goal is that a future developer can read this single diagram and understand which code paths matter for the feature without re-reading the implementation. Rules:
+  - Top-down (`flowchart TB` or sequence) so it scans naturally.
+  - Each node names the **file path** *and* the method/handler invoked, e.g. `LoginPage.handleSubmit()<br/>ui/src/modules/auth/ui/LoginPage.tsx`.
+  - Cover the realistic main path; secondary error paths (e.g. 401 → redirect) belong in the same diagram if they're load-bearing for understanding the feature.
+  - Update the diagram when phases land that change the lifecycle. Stale lifecycle diagrams are worse than missing ones — they mislead.
+  - For configuration-only or doc-only features (no runtime behavior change), state explicitly that no lifecycle diagram is needed and why.
 - If a user request does not mention this documentation workflow, the agent must still follow it and briefly remind the user that the repo uses:
   - repo-wide decisions in `Docs/repo-decisions/`
   - feature workflow docs in `Docs/features/<feature-slug>/`

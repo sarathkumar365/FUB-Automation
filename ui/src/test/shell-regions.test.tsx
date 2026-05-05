@@ -1,9 +1,19 @@
 import { render, screen } from '@testing-library/react'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../app/App'
 import { uiText } from '../shared/constants/uiText'
+import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('Option 1 shell regions', () => {
+  beforeEach(() => {
+    seedMockAdminToken()
+  })
+
+  afterEach(() => {
+    clearMockAdminToken()
+  })
+
+
   it('renders route-level inspector descriptors for webhooks without panel placeholder copy', async () => {
     window.history.pushState({}, '', '/admin-ui/webhooks')
 

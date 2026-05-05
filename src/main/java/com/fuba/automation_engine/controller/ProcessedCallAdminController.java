@@ -10,6 +10,7 @@ import java.time.OffsetDateTime;
 import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,6 +21,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 @RestController
 @RequestMapping("/admin/processed-calls")
+@PreAuthorize("hasAnyRole('ADMIN','OPERATOR','VIEWER')")
 public class ProcessedCallAdminController {
 
     private final ProcessedCallAdminService processedCallAdminService;
@@ -41,6 +43,7 @@ public class ProcessedCallAdminController {
     }
 
     @PostMapping("/{callId}/replay")
+    @PreAuthorize("hasAnyRole('ADMIN','OPERATOR')")
     public ResponseEntity<ReplayProcessedCallResponse> replay(@PathVariable long callId) {
         ReplayOutcome outcome = processedCallAdminService.replay(callId);
         if (outcome == ReplayOutcome.NOT_FOUND) {

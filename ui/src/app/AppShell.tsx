@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
+import { LogoutButton } from '../modules/auth/ui/LogoutButton'
 import { uiText } from '../shared/constants/uiText'
 import { AppContentFrame } from '../shared/ui/AppContentFrame'
 import { AppPanel } from '../shared/ui/AppPanel'
@@ -37,14 +38,17 @@ function ShellLayout() {
         ) : null}
 
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
-          <header className="flex items-center justify-between border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 lg:hidden">
+          <header className="flex items-center justify-between gap-2 border-b border-[var(--color-border)] bg-[var(--color-surface)] px-4 py-3 lg:hidden">
             <Button variant="outline" size="sm" onClick={() => setPanelOpen((value) => !value)}>
               {isPanelOpen ? uiText.app.shell.closePanel : uiText.app.shell.openPanel}
             </Button>
             <p className="text-sm font-semibold">{uiText.app.title}</p>
-            <Button variant="outline" size="sm" onClick={() => setInspectorOpen((value) => !value)}>
-              {isInspectorOpen ? uiText.app.shell.closeInspector : uiText.app.shell.openInspector}
-            </Button>
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={() => setInspectorOpen((value) => !value)}>
+                {isInspectorOpen ? uiText.app.shell.closeInspector : uiText.app.shell.openInspector}
+              </Button>
+              <LogoutButton variant="rail" className="md:hidden" />
+            </div>
           </header>
 
           <AppContentFrame className="min-h-0 flex-1 overflow-auto">
