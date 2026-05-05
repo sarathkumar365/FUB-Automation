@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 ENV_FILE="${ROOT_DIR}/.env"
+ENV_OVERRIDE_FILE="${ROOT_DIR}/.env.prod"
 EVENTS_FILE="${ROOT_DIR}/config/fub-webhook-events.txt"
 FUB_WEBHOOKS_ENDPOINT="https://api.followupboss.com/v1/webhooks"
 DRY_RUN=0
@@ -29,6 +30,14 @@ Environment:
   FUB_API_KEY       Required FUB API key
   FUB_X_SYSTEM      Required FUB X-System header value
   FUB_X_SYSTEM_KEY  Required FUB X-System-Key header value
+
+Env file precedence (later wins):
+  1. shell environment
+  2. .env           (typically dev credentials)
+  3. .env.prod      (optional; gitignored; if present, overrides .env so the
+                     script targets prod by default — useful when the running
+                     deployment uses different X-System credentials than
+                     local dev)
 USAGE
 }
 
@@ -40,15 +49,26 @@ require_cmd() {
 }
 
 load_env_file() {
-  if [[ ! -f "${ENV_FILE}" ]]; then
-    log_warn "No .env file found at ${ENV_FILE}; using current environment values."
-    return 0
+  if [[ -f "${ENV_FILE}" ]]; then
+    set -a
+    # shellcheck disable=SC1090
+    source "${ENV_FILE}"
+    set +a
+  else
+    log_warn "No .env file found at ${ENV_FILE}; relying on current environment values."
   fi
 
-  set -a
-  # shellcheck disable=SC1090
-  source "${ENV_FILE}"
-  set +a
+  # If a .env.prod overlay exists, source it AFTER .env so its values win.
+  # This lets the deployed prod environment (which may use a different FUB
+  # X-System credential set than local dev) be targeted by default without
+  # touching .env.
+  if [[ -f "${ENV_OVERRIDE_FILE}" ]]; then
+    log_info "Applying overrides from ${ENV_OVERRIDE_FILE}"
+    set -a
+    # shellcheck disable=SC1090
+    source "${ENV_OVERRIDE_FILE}"
+    set +a
+  fi
 }
 
 require_env_var() {
