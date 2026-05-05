@@ -51,6 +51,7 @@ public class WebhookEventProcessorService {
     private static final String UNEXPECTED_TASK_CREATE_FAILURE = "UNEXPECTED_TASK_CREATE_FAILURE";
     private static final String DEV_MODE_USER_FILTERED = "DEV_MODE_USER_FILTERED";
     private static final String DEV_MODE_TEST_USER_NOT_CONFIGURED = "DEV_MODE_TEST_USER_NOT_CONFIGURED";
+    private static final String TASK_CREATION_DISABLED = "TASK_CREATION_DISABLED";
 
     private final ProcessedCallRepository processedCallRepository;
     private final FollowUpBossClient followUpBossClient;
@@ -342,14 +343,14 @@ public class WebhookEventProcessorService {
 
         try {
             CreateTaskCommand command = callbackTaskCommandFactory.fromDecision(decision, callContext);
-            Optional<String> devGuardReason = evaluateDevGuard(command.assignedUserId());
-            if (devGuardReason.isPresent()) {
+            Optional<String> guardReason = evaluateActionGuard(command.assignedUserId());
+            if (guardReason.isPresent()) {
                 log.info(
-                        "Skipping task creation due to local dev guard callId={} assignedUserId={} reason={}",
+                        "Skipping task creation due to action guard callId={} assignedUserId={} reason={}",
                         entity.getCallId(),
                         command.assignedUserId(),
-                        devGuardReason.get());
-                markSkipped(entity, devGuardReason.get());
+                        guardReason.get());
+                markSkipped(entity, guardReason.get());
                 return;
             }
 
@@ -367,7 +368,19 @@ public class WebhookEventProcessorService {
         }
     }
 
-    private Optional<String> evaluateDevGuard(Long assignedUserId) {
+    /**
+     * Decides whether a task-creation action should be suppressed before any
+     * outbound FUB call. Order matters: the kill switch is checked first so
+     * a {@code false} value short-circuits regardless of profile.
+     *
+     * <p>Returns {@code Optional.empty()} when the action is allowed to
+     * proceed; otherwise returns the reason code recorded on the
+     * {@code processed_calls} row.
+     */
+    private Optional<String> evaluateActionGuard(Long assignedUserId) {
+        if (!callOutcomeRulesProperties.isTaskCreationEnabled()) {
+            return Optional.of(TASK_CREATION_DISABLED);
+        }
         if (!environment.acceptsProfiles(Profiles.of("local"))) {
             return Optional.empty();
         }
