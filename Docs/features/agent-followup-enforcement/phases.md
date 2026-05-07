@@ -131,9 +131,23 @@ Status: `DONE` (454 tests pass — adds `now.*` namespace and `GET /admin/settin
 ---
 
 ## Phase 4 — Workflow `config.*` namespace + DB column
-Status: `NOT_STARTED` (confirmed required — `config` is NOT in scope today, no column exists)
+Status: `DROPPED` (2026-05-07)
 
-**Goal:** workflow-level `config` block (e.g. `isaUserId`, `unorganicPondId`) is persisted, surfaced in `RunContext`, and accessible as `{{ config.* }}` in step configs. Operators set these per-workflow at creation time rather than via app properties.
+**Reason for drop:** the agent-followup-enforcement workflow needs only two operator-chosen constants (ISA user ID, unorganic pond ID), each referenced from exactly one step config. Literal values inline in the step JSON solve this without any new infrastructure:
+
+```json
+{ "id": "reassign_isa", "type": "fub_reassign",
+  "config": { "targetUserId": 30 } }
+
+{ "id": "to_pond", "type": "fub_move_to_pond",
+  "config": { "targetPondId": 7 } }
+```
+
+A `config.*` namespace would have provided DRY (single source of truth across multiple references), cleaner separation of "graph structure" vs "tunables," and a future editable-Settings story — none of which apply here. We don't have ≥3 references to the same value in any step, no editable-config UI, no validation requirement, no per-tenant overrides.
+
+The idea is preserved as a future feature in [Docs/product-discovery/ideas.md](../../product-discovery/ideas.md) "Per-workflow `config.*` namespace + JSONB column," with explicit triggers for picking it back up (3+ references to a single value, editable Settings UI, multi-tenancy).
+
+**Original goal (kept for context):** workflow-level `config` block (e.g. `isaUserId`, `unorganicPondId`) is persisted, surfaced in `RunContext`, and accessible as `{{ config.* }}` in step configs. Operators set these per-workflow at creation time rather than via app properties.
 
 ### Deliverables
 - Flyway migration: add `config JSONB` column to `automation_workflows` (nullable, default `'{}'`)

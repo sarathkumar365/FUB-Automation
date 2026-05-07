@@ -4,6 +4,39 @@ A freeform scratchpad for product ideas, future directions, and "would be nice" 
 
 ---
 
+## Idea: Per-workflow `config.*` namespace + JSONB column
+
+**Date:** 2026-05-07
+
+**The problem (when it becomes real):**
+A workflow's step configs sometimes need operator-tunable constants — ISA user ID, unorganic pond ID, retry windows, SLA thresholds — that are chosen per workflow at creation time, not derived from runtime data. Today these can be hardcoded as literal values in step configs (which works fine when each value is referenced exactly once, as in the agent-followup-enforcement workflow), but as soon as the same value is referenced from multiple step configs in the same workflow, hardcoding becomes a DRY problem.
+
+**What this would add:**
+- New `config JSONB DEFAULT '{}' NOT NULL` column on `automation_workflows`
+- Workflow JSON gains an optional top-level `config` block (free-form per-workflow tunables)
+- `RunContext` carries a `config` field; `ExpressionScope` exposes it under the `config` top-level key
+- Step configs reference `{{ config.foo }}` via the standard JSONata templating
+- Admin POST/PUT endpoints accept and persist the `config` block; GET returns it
+
+**Sketch when picked up:**
+- Mirror the same metadata-build pattern Phase 1's `lead.*` and Phase 3's `now.*` use — resolve at `buildRunContext` time, expose via `ExpressionScope` as a pure mapper
+- Per-step lookup of the workflow entity's `config` (one indexed query, same auto-fresh property as `lead.*`)
+- Validation deliberately deferred — workflow author owns the config shape until a real validation requirement appears
+- Trigger-filter scope deliberately omitted (same reasoning as known-issues #17 for `lead.*` and `now.*`)
+
+**Why deferred (Phase 4 of agent-followup-enforcement was originally scoped for this and was dropped):**
+- The driving use case (agent-followup-enforcement) only references each tunable value **once**, in one step. Literal hardcoded values in the step config work cleanly with no DRY tax.
+- We don't have an editable-config UI; operators PUT updated workflow JSON via the existing admin endpoint either way.
+- Validation is speculative without a concrete requirement.
+- Total v1 effort would have been ~1–2 days, all of which is now deferrable until a real driver appears.
+
+**Triggers worth picking this up:**
+- A new workflow has the same value referenced from **3+ steps**
+- An editable Settings UI is in scope and we want a clean separation between "graph structure" and "tunable values"
+- Per-tenant overrides become real (tied to the multi-CRM idea above)
+
+---
+
 ## Idea: Expose `lead.*` (and other run-context namespaces) in trigger-filter scope
 
 **Date:** 2026-05-07

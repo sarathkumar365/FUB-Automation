@@ -10,7 +10,7 @@ If an agent is given a lead and doesn't follow up, the platform should escalate 
    - **Off-hours** → move back to the **unorganic POND**
 3. If the agent calls before either checkpoint, the workflow stops.
 
-The escalation workflow is the driving use case, but half the work is reusable engine primitives that future workflows will share — see [phases.md](phases.md). Specifically: a CRM-agnostic event vocabulary, one new step type (`fub_create_note`), a `lead.*` JSONata namespace exposing the locally-snapshotted lead, business-hours in the JSONata scope, and a per-workflow `config.*` namespace.
+The escalation workflow is the driving use case, but half the work is reusable engine primitives that future workflows will share — see [phases.md](phases.md). Specifically: a CRM-agnostic event vocabulary, one new step type (`fub_create_note`), a `lead.*` JSONata namespace exposing the locally-snapshotted lead, business-hours in the JSONata scope, and a read-only `GET /admin/settings/config` endpoint surfacing platform configuration to operators.
 
 ## What already exists
 
@@ -42,7 +42,7 @@ These are addressed by the phased plan in [phases.md](phases.md):
 - **Webhook normalization names are misleading** — `peopleCreated/peopleUpdated` map to `NormalizedDomain.ASSIGNMENT`. Phase 0 renames to `LEAD` (CRM-agnostic; future-proofs for HubSpot/Salesforce/Pipedrive). ✅ DONE.
 - **`NormalizedAction.ASSIGNED` is a phantom value** — declared but no parser produces it. Phase 0 drops it; Phase 5 may reintroduce backed by a real source event. ✅ DONE.
 - **No `lead` namespace in JSONata scope** — workflows can't read `lead_details` today. Phase 1 exposes it as a top-level `lead` key in `ExpressionScope`, resolved per step from the local snapshot.
-- **No `config` namespace in JSONata scope** — `ExpressionScope` only exposes `event` / `sourceLeadId` / `steps`. Phase 4 adds it (with a new `config` JSONB column on `automation_workflows`).
+- ~~**No `config` namespace in JSONata scope**~~ — Phase 4 was originally scoped to add this; **dropped** because the workflow's two operator-tunable values (ISA user ID, unorganic pond ID) are each referenced from exactly one step, so inline literal values work fine. See [phases.md](phases.md) Phase 4 and the future-feature entry in [Docs/product-discovery/ideas.md](../../product-discovery/ideas.md).
 - **No `now` / time-aware fields in scope** — Phase 3 injects `now.isDaytime` / `now.hourLocal` via `BusinessHoursService`.
 - **No workflow seeding mechanism** — workflows are created via admin POST today. Phase 6 ships a Flyway data migration to seed this workflow.
 
@@ -129,8 +129,8 @@ Lives on the **Settings → Configuration** tab per the UI proposal. Single sour
 - Expose to JSONata via run context: extend `WorkflowExecutionManager` (or the expression evaluator scope builder) to populate `now.isDaytime` (boolean) and `now.hourLocal` (int 0–23) on every step evaluation. This way `branch_on_field` can read `now.isDaytime` directly with no new step type.
 - Surface on the Settings UI (read-only first pass) — the existing UI plan already calls for a `GET /admin/settings/config` endpoint; adding `business-hours` to its response is a one-line addition once that endpoint exists. Not blocking for this workflow.
 
-### Gap 3 — Per-workflow config inputs for ISA user / unorganic pond (small)
-The user wants to enter ISA user ID and unorganic POND ID **when creating the workflow**, not hardcode them. Workflow definitions already pass through arbitrary JSON, and step configs already resolve `{{ config.* }}` templates from the workflow's config block. Confirm this is wired (there's a `config` namespace in the JSONata scope) and, if not, add it — minor change in `WorkflowExecutionManager`'s scope builder.
+### Gap 3 — Operator-tunable values (ISA user ID, unorganic pond ID)
+**Resolved by literal step-config values, no new infrastructure.** Each value is referenced from exactly one step config in the workflow JSON, so an inline number works fine. A `config.*` namespace would have made sense if any value were referenced from 3+ steps, but that's not the case here. Tracked as a future feature in [Docs/product-discovery/ideas.md](../../product-discovery/ideas.md) "Per-workflow `config.*` namespace" with the explicit triggers for picking it up later.
 
 ## Workflow definition (JSON)
 
@@ -140,10 +140,6 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
   "trigger": {
     "type": "webhook_fub",
     "config": { "eventDomain": "LEAD", "eventAction": "UPDATED" }
-  },
-  "config": {
-    "isaUserId": 12345,
-    "unorganicPondId": 678
   },
   "nodes": [
     { "id": "wait_3m", "type": "wait_and_check_communication",
@@ -172,10 +168,10 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
       "next": { "DAYTIME": "reassign_isa", "OFFHOURS": "to_pond" } },
 
     { "id": "reassign_isa", "type": "fub_reassign",
-      "config": { "targetUserId": "{{ config.isaUserId }}" } },
+      "config": { "targetUserId": 30 } },
 
     { "id": "to_pond", "type": "fub_move_to_pond",
-      "config": { "targetPondId": "{{ config.unorganicPondId }}" } }
+      "config": { "targetPondId": 7 } }
   ]
 }
 ```
@@ -195,7 +191,7 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
 **Modified:**
 - `src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java` — add `createNote(...)` and `getUser(userId)`
 - Workflow step registry — register `fub_create_note`
-- `WorkflowExecutionManager` (or expression scope builder) — inject `now.isDaytime` / `now.hourLocal` and confirm `config.*` is in scope
+- `WorkflowExecutionManager` (or expression scope builder) — inject `now.isDaytime` / `now.hourLocal`
 - `src/main/resources/application.properties` (and `-prod`) — `automation.business-hours.timezone`, `.startHour`, `.endHour`, `.weekdaysOnly`
 
 ## Open items to confirm before implementation
@@ -210,7 +206,7 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
 2. **Integration:** with `FollowUpBossClient` mocked, simulate webhook + advance clock and assert each path:
    - Call within 3 min → END after `wait_3m`, no note, no reassignment
    - No call by 3 min, call by 20 min → note created, END after `wait_27m`
-   - No call by 30 min, daytime (mock clock at 14:00 local) → `fub_reassign` invoked with `config.isaUserId`
-   - No call by 30 min, off-hours (mock clock at 22:00 local) → `fub_move_to_pond` invoked with `config.unorganicPondId`
+   - No call by 30 min, daytime (mock clock at 14:00 local) → `fub_reassign` invoked with the seeded ISA user ID literal
+   - No call by 30 min, off-hours (mock clock at 22:00 local) → `fub_move_to_pond` invoked with the seeded unorganic pond ID literal
 3. **Staging end-to-end:** trigger a real FUB assignment webhook against a test lead; verify FUB note with @mention appears at 3 min and reassignment/pond move at 30 min; verify a parallel run where the agent calls within 3 min produces no note and no reassignment.
 4. **Kill-switchable:** confirm the workflow can be disabled via the existing workflow enable mechanism (consistent with the recent hardcoded-task-creation kill switch in `application-prod.properties`).
