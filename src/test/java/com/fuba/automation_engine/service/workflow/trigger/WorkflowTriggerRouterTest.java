@@ -135,7 +135,7 @@ class WorkflowTriggerRouterTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,

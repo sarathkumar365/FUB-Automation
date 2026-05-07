@@ -78,10 +78,10 @@ class FubWebhookParserNormalizedContractTest {
         NormalizedWebhookEvent peopleUpdated = parser.parse(peopleUpdatedRawBody, Map.of());
         NormalizedWebhookEvent unknown = parser.parse(unknownRawBody, Map.of());
 
-        assertEquals(NormalizedDomain.ASSIGNMENT, peopleCreated.normalizedDomain());
+        assertEquals(NormalizedDomain.LEAD, peopleCreated.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, peopleCreated.normalizedAction());
 
-        assertEquals(NormalizedDomain.ASSIGNMENT, peopleUpdated.normalizedDomain());
+        assertEquals(NormalizedDomain.LEAD, peopleUpdated.normalizedDomain());
         assertEquals(NormalizedAction.UPDATED, peopleUpdated.normalizedAction());
 
         assertEquals(NormalizedDomain.UNKNOWN, unknown.normalizedDomain());
@@ -136,7 +136,7 @@ class FubWebhookParserNormalizedContractTest {
         NormalizedWebhookEvent event = parser.parse(rawBody, Map.of());
 
         assertEquals("peopleCreated", event.sourceEventType());
-        assertEquals(NormalizedDomain.ASSIGNMENT, event.normalizedDomain());
+        assertEquals(NormalizedDomain.LEAD, event.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, event.normalizedAction());
         assertEquals(0, event.payload().get("resourceIds").size());
         assertTrue(event.payload().get("uri").isNull());

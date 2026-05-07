@@ -3,10 +3,13 @@ package com.fuba.automation_engine.service.webhook.model;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import java.time.OffsetDateTime;
+import java.util.Arrays;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 class NormalizedWebhookEventContractTest {
 
@@ -28,7 +31,7 @@ class NormalizedWebhookEventContractTest {
                 "peopleCreated",
                 occurredAt,
                 "123",
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.CREATED,
                 providerMeta,
                 WebhookEventStatus.RECEIVED,
@@ -41,7 +44,7 @@ class NormalizedWebhookEventContractTest {
         assertEquals("peopleCreated", event.sourceEventType());
         assertEquals(occurredAt, event.occurredAt());
         assertEquals("123", event.sourceLeadId());
-        assertEquals(NormalizedDomain.ASSIGNMENT, event.normalizedDomain());
+        assertEquals(NormalizedDomain.LEAD, event.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, event.normalizedAction());
         assertEquals("/v1/people/123", event.providerMeta().get("uri").asText());
         assertEquals(WebhookEventStatus.RECEIVED, event.status());
@@ -75,5 +78,36 @@ class NormalizedWebhookEventContractTest {
         assertNull(event.sourceLeadId());
         assertNull(event.providerMeta());
         assertNull(event.payloadHash());
+    }
+
+    /**
+     * Phase 0 (agent-followup-enforcement) renamed the misleading
+     * {@code NormalizedDomain.ASSIGNMENT} to CRM-agnostic {@code LEAD}.
+     * Lock that in: the old name must stay gone so a future re-introduction
+     * fails loudly here in addition to compile-time, and so the V18 migration's
+     * assumed source value can never legally re-appear.
+     */
+    @Test
+    void normalizedDomainShouldHaveLeadAndNotAssignment() {
+        assertTrue(
+                Arrays.stream(NormalizedDomain.values())
+                        .anyMatch(d -> d == NormalizedDomain.LEAD),
+                "NormalizedDomain.LEAD must be present (CRM-agnostic name for lead/contact events)");
+        assertFalse(
+                Arrays.stream(NormalizedDomain.values())
+                        .anyMatch(d -> d.name().equals("ASSIGNMENT")),
+                "NormalizedDomain.ASSIGNMENT was renamed to LEAD in Phase 0; do not re-add");
+    }
+
+    /**
+     * {@code NormalizedAction.ASSIGNED} was always a phantom — declared but never
+     * produced by any parser. Phase 0 dropped it. Lock it gone.
+     */
+    @Test
+    void normalizedActionShouldNotHaveAssigned() {
+        assertFalse(
+                Arrays.stream(NormalizedAction.values())
+                        .anyMatch(a -> a.name().equals("ASSIGNED")),
+                "NormalizedAction.ASSIGNED was a phantom value, removed in Phase 0; do not re-add");
     }
 }

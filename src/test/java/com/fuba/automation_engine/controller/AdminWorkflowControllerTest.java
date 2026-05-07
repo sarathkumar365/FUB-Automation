@@ -45,13 +45,13 @@ class AdminWorkflowControllerTest {
     void shouldCreateWorkflow() throws Exception {
         String requestJson = """
                 {
-                  "key": "ASSIGNMENT_FOLLOWUP_SLA",
+                  "key": "LEAD_FOLLOWUP_SLA",
                   "name": "Assignment Followup SLA",
                   "description": "Workflow for assignment follow-up",
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED"
                     }
                   },
@@ -76,7 +76,7 @@ class AdminWorkflowControllerTest {
                         .content(requestJson))
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.id").exists())
-                .andExpect(jsonPath("$.key").value("ASSIGNMENT_FOLLOWUP_SLA"))
+                .andExpect(jsonPath("$.key").value("LEAD_FOLLOWUP_SLA"))
                 .andExpect(jsonPath("$.name").value("Assignment Followup SLA"))
                 .andExpect(jsonPath("$.trigger.type").value("webhook_fub"))
                 .andExpect(jsonPath("$.status").value("DRAFT"))
@@ -169,7 +169,7 @@ class AdminWorkflowControllerTest {
     void shouldReturnBadRequestForInvalidGraph() throws Exception {
         String requestJson = """
                 {
-                  "key": "ASSIGNMENT_FOLLOWUP_SLA",
+                  "key": "LEAD_FOLLOWUP_SLA",
                   "name": "Invalid Workflow",
                   "graph": {
                     "schemaVersion": 2,
@@ -194,13 +194,13 @@ class AdminWorkflowControllerTest {
 
     @Test
     void shouldGetWorkflowByIdOnCompatibilityEndpoint() throws Exception {
-        AutomationWorkflowEntity saved = saveWorkflow("ASSIGNMENT_FOLLOWUP_SLA", 1, WorkflowStatus.DRAFT, baseGraph(0));
+        AutomationWorkflowEntity saved = saveWorkflow("LEAD_FOLLOWUP_SLA", 1, WorkflowStatus.DRAFT, baseGraph(0));
 
         mockMvc.perform(get("/admin/workflows/by-id/" + saved.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(saved.getId()))
-                .andExpect(jsonPath("$.key").value("ASSIGNMENT_FOLLOWUP_SLA"))
-                .andExpect(jsonPath("$.name").value("Workflow ASSIGNMENT_FOLLOWUP_SLA"));
+                .andExpect(jsonPath("$.key").value("LEAD_FOLLOWUP_SLA"))
+                .andExpect(jsonPath("$.name").value("Workflow LEAD_FOLLOWUP_SLA"));
     }
 
     @Test
@@ -263,7 +263,7 @@ class AdminWorkflowControllerTest {
         AutomationWorkflowEntity initial = saveWorkflow("WF_TRIGGER", 1, WorkflowStatus.INACTIVE, graphWithLabel("v1"));
         initial.setTrigger(Map.of(
                 "type", "webhook_fub",
-                "config", Map.of("eventDomain", "ASSIGNMENT", "eventAction", "UPDATED")));
+                "config", Map.of("eventDomain", "LEAD", "eventAction", "UPDATED")));
         workflowRepository.saveAndFlush(initial);
 
         String requestJson = """
@@ -273,7 +273,7 @@ class AdminWorkflowControllerTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }

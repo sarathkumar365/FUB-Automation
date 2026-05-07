@@ -174,7 +174,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED"
                     }
                   }
@@ -203,7 +203,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED"
                     }
                   }
@@ -224,7 +224,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }
@@ -373,7 +373,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }
@@ -468,7 +468,7 @@ class WorkflowAdminApiIntegrationTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,

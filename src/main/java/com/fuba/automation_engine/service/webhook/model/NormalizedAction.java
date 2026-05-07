@@ -1,16 +1,17 @@
 package com.fuba.automation_engine.service.webhook.model;
 
 /**
- * Source-agnostic action semantics used by lead-management routing.
+ * CRM-agnostic action verb paired with a {@link NormalizedDomain}.
  *
- * <p>CREATED: A new lead-domain record/event was created (for example, a new person/lead appears).
- * UPDATED: An existing lead-domain record/event changed (for example, lead attributes or ownership details changed).
- * ASSIGNED: Lead ownership was explicitly assigned/reassigned to a user or team.
- * UNKNOWN: Action could not be safely mapped from source payload and must be treated as non-specific.
+ * <ul>
+ *   <li>{@code CREATED} — a new record appeared.</li>
+ *   <li>{@code UPDATED} — an existing record changed. Specific changes (assignment, stage, tags)
+ *       are detected via field-diff inside the workflow rather than encoded as separate actions.</li>
+ *   <li>{@code UNKNOWN} — fallback when an action can't be safely mapped.</li>
+ * </ul>
  */
 public enum NormalizedAction {
     CREATED,
     UPDATED,
-    ASSIGNED,
     UNKNOWN
 }

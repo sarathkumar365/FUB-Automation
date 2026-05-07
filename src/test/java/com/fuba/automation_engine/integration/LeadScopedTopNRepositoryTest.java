@@ -157,7 +157,7 @@ class LeadScopedTopNRepositoryTest {
         entity.setEventId(eventId);
         entity.setEventType("peopleUpdated");
         entity.setCatalogState(EventSupportState.SUPPORTED);
-        entity.setNormalizedDomain(NormalizedDomain.ASSIGNMENT);
+        entity.setNormalizedDomain(NormalizedDomain.LEAD);
         entity.setNormalizedAction(NormalizedAction.UPDATED);
         entity.setStatus(WebhookEventStatus.RECEIVED);
         entity.setSourceLeadId(sourceLeadId);

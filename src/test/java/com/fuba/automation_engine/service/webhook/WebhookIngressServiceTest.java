@@ -126,7 +126,7 @@ class WebhookIngressServiceTest {
         assertEquals(1, liveFeedPublisher.publishCount);
         assertEquals(1, dispatcher.dispatchCount);
         assertEquals(EventSupportState.SUPPORTED, repositoryState.lastSavedEntity.getCatalogState());
-        assertEquals(NormalizedDomain.ASSIGNMENT, repositoryState.lastSavedEntity.getNormalizedDomain());
+        assertEquals(NormalizedDomain.LEAD, repositoryState.lastSavedEntity.getNormalizedDomain());
         assertEquals(NormalizedAction.CREATED, repositoryState.lastSavedEntity.getNormalizedAction());
         assertEquals("lead-123", repositoryState.lastSavedEntity.getSourceLeadId());
     }

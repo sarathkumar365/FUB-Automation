@@ -101,9 +101,7 @@ public class WebhookEventProcessorService {
                 event.sourceEventType());
         switch (domain) {
             case CALL -> processCallDomainEvent(event);
-            // TODO : Need to rename ASSIGNMENT domain and related fields to LEAD or PERSON since they are not specific to assignment events. 
-            // For now, keep the old domain name to avoid breaking changes in the workflow trigger router which relies on normalizedDomain and normalizedAction for routing.
-            case ASSIGNMENT -> processAssignmentDomainEvent(event);
+            case LEAD -> processLeadDomainEvent(event);
             case UNKNOWN -> processUnknownDomainEvent(event);
         }
 
@@ -149,21 +147,21 @@ public class WebhookEventProcessorService {
         }
     }
 
-    private void processAssignmentDomainEvent(NormalizedWebhookEvent event) {
+    private void processLeadDomainEvent(NormalizedWebhookEvent event) {
         String eventType = extractEventType(event.payload());
         String sourceEventType = event.sourceEventType() == null || event.sourceEventType().isBlank()
                 ? eventType
                 : event.sourceEventType();
         List<Long> leadIds = extractResourceIds(event.payload());
         log.info(
-                "Processing ASSIGNMENT domain event eventId={} source={} sourceEventType={} leadIdCount={}",
+                "Processing LEAD domain event eventId={} source={} sourceEventType={} leadIdCount={}",
                 event.eventId(),
                 event.sourceSystem(),
                 sourceEventType,
                 leadIds.size());
         if (leadIds.isEmpty()) {
             log.warn(
-                    "No assignment resourceIds present; skipping assignment-specific processing eventId={} source={} sourceEventType={}",
+                    "No lead resourceIds present; skipping lead-specific processing eventId={} source={} sourceEventType={}",
                     event.eventId(),
                     event.sourceSystem(),
                     sourceEventType);

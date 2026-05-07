@@ -161,7 +161,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void matchingWebhook_createsRun_executesTerminally() {
-        seedActiveWorkflow("WF_WAVE3_E2E_MATCH", triggerConfig("ASSIGNMENT", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_MATCH", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, false));
         slackResponsePlan.set(List.of(200));
 
@@ -189,7 +189,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void nonMatchingWebhook_createsNoWorkflowRun() {
-        seedActiveWorkflow("WF_WAVE3_E2E_NON_MATCH", triggerConfig("ASSIGNMENT", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_NON_MATCH", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, false));
 
         webhookEventProcessorService.process(webhook("evt-w3-e2e-2", "manual", 888L));
@@ -200,7 +200,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void notificationTransientFailure_thenRetrySuccess_completesRun() {
-        seedActiveWorkflow("WF_WAVE3_E2E_RETRY", triggerConfig("ASSIGNMENT", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_RETRY", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, true));
         slackResponsePlan.set(List.of(503, 200));
 
@@ -322,7 +322,7 @@ class WorkflowTriggerEndToEndTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,

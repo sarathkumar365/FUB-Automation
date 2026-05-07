@@ -167,7 +167,7 @@ class WebhookEventProcessorServiceTest {
     void shouldUpsertLeadAndRouteWorkflowForAssignmentEvent() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment",
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 777L));
         ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
@@ -190,7 +190,7 @@ class WebhookEventProcessorServiceTest {
     void shouldUpsertLeadForEachResourceIdOnAssignmentEvent() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-many",
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.UPDATED,
                 payloadWithResourceIds("peopleUpdated", 777L, 778L, 779L));
         ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
@@ -213,7 +213,7 @@ class WebhookEventProcessorServiceTest {
     void shouldSwallowFubFailureDuringLeadUpsertAndStillRouteWorkflow() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-fub-fail",
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 555L));
         when(followUpBossClient.getPersonRawById(555L))
@@ -229,7 +229,7 @@ class WebhookEventProcessorServiceTest {
     void shouldSkipLeadUpsertWhenPersonPayloadIsNotLeadClassified() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-non-lead",
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 991L));
         ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
@@ -248,7 +248,7 @@ class WebhookEventProcessorServiceTest {
     void shouldSkipAssignmentSpecificProcessingWhenNoResourceIdsPresent() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-empty",
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.UPDATED,
                 payloadWithoutResourceIds("peopleUpdated"));
 
@@ -278,7 +278,7 @@ class WebhookEventProcessorServiceTest {
     void shouldContinueDomainProcessingWhenRouterThrows() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-router-fail",
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 888L));
 

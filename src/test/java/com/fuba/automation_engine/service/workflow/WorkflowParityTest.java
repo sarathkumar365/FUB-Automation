@@ -301,7 +301,7 @@ class WorkflowParityTest {
 
     private void seedParityWorkflow() {
         AutomationWorkflowEntity entity = new AutomationWorkflowEntity();
-        entity.setKey("ASSIGNMENT_FOLLOWUP_SLA");
+        entity.setKey("LEAD_FOLLOWUP_SLA");
         entity.setName("Assignment Follow-Up SLA (Parity Test)");
         entity.setGraph(parityGraph());
         entity.setStatus(WorkflowStatus.ACTIVE);
@@ -324,7 +324,7 @@ class WorkflowParityTest {
         triggerPayload.put("resourceIds", List.of(Integer.parseInt(sourceLeadId)));
 
         return executionManager.plan(new WorkflowPlanRequest(
-                "ASSIGNMENT_FOLLOWUP_SLA", "TEST", eventId, null, sourceLeadId, triggerPayload));
+                "LEAD_FOLLOWUP_SLA", "TEST", eventId, null, sourceLeadId, triggerPayload));
     }
 
     private WorkflowPlanningResult planTaskRun(String sourceLeadId, String eventId) {
@@ -340,7 +340,7 @@ class WorkflowParityTest {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> parityGraph() {
-        // Mirrors ASSIGNMENT_FOLLOWUP_SLA_V1:
+        // Mirrors LEAD_FOLLOWUP_SLA_V1:
         //   wait_claim → CLAIMED: terminal COMPLIANT_CLOSED
         //              → NOT_CLAIMED: [wait_comm]
         //   wait_comm  → CONVERSATIONAL: terminal COMPLIANT_CLOSED
