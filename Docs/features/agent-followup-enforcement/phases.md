@@ -5,7 +5,7 @@ Each phase is independently shippable and verifiable. Complete in order.
 ---
 
 ## Phase 0 — Webhook normalization rename
-Status: `NOT_STARTED`
+Status: `DONE` (commit `4215b2d` on `feature/agent-followup-enforcement`)
 
 **Goal:** Fix the misleading `NormalizedDomain.ASSIGNMENT` naming with **CRM-agnostic, business-domain** terminology before any workflow JSON references it. `peopleCreated` / `peopleUpdated` are events about a lead/contact, not "assignments" (assignment is just one possible reason a lead gets updated). Using `LEAD` instead of FUB-specific jargon also future-proofs the engine for HubSpot/Salesforce/Pipedrive/etc. — see [Docs/product-discovery/ideas.md](../../../Docs/product-discovery/ideas.md) "CRM-agnostic event vocabulary" entry. Renaming now is cheap (zero seeded workflows reference the old names); renaming later means breaking workflow definitions in production DBs.
 
@@ -30,25 +30,68 @@ Status: `NOT_STARTED`
 
 ### Why this is Phase 0 (not later)
 - No seeded workflow JSON references the old enum strings yet — purely an internal rename right now
-- Phase 4 (trigger wiring) and Phase 5 (workflow JSON seed) both reference the domain. Doing those before the rename means churning the workflow JSON twice.
+- Phase 5 (trigger wiring) and Phase 6 (workflow JSON seed) both reference the domain. Doing those before the rename means churning the workflow JSON twice.
 - Cost grows once any production workflow references `eventDomain: "ASSIGNMENT"`
 
 ---
 
-## Phase 1 — `fub_create_note` step type
-Status: `NOT_STARTED` (contract verified — see [research.md](research.md))
+## Phase 1 — Expose `lead` namespace in JSONata scope
+Status: `DONE` (420 tests pass — adds `lead.*` resolved per step from the local snapshot)
 
-**Goal:** new workflow step that posts a FUB note with @mention support that renders as a clickable chip and triggers the standard mention notification. Ships independently — usable by any future workflow.
+**Goal:** make the locally-stored lead snapshot (already populated by ingestion — `leads.lead_details` JSONB) readable in workflow expressions as `{{ lead.assignedUserId }}`, `{{ lead.assignedTo }}`, etc. No new step type, no new API call, no fetch. Ships first because every subsequent phase (notes, branching, the actual workflow) depends on this primitive.
+
+### Why this is the right design (not a new fetch step)
+- The LEAD ingestion path **already calls `getPersonRawById`** and snapshots the result on every `peopleCreated/Updated` webhook ([WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java)). Re-fetching from a workflow step would duplicate work the system already did.
+- Snapshot is **auto-refreshed**: any reassignment in FUB triggers another `peopleUpdated` webhook → `LeadUpsertService` re-snapshots. So `lead.*` reads always reflect the latest known state without a per-step API call.
+- For long-running workflows (3-min / 30-min waits), resolving `lead.*` **at each step's expression evaluation** (not frozen at trigger time) means later steps see any in-flight changes that arrived via webhook during the wait.
+- DB read is cheap: indexed lookup by `(source_system, source_lead_id)` returning one JSONB blob.
+
+### Architectural choice — resolve at metadata-build time, not at scope-build time
+The `RunContext` is materialized per step in [WorkflowStepExecutionService.buildRunContext](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java) (line 203). That's where ingested data (step outputs, trigger payload, source IDs) is assembled today, so it's the natural insertion point for the lead snapshot too. `ExpressionScope.from(runContext)` stays a **pure mapper**: it just reads pre-resolved fields off `RunContext` and exposes them as scope keys. Any future namespace (Phase 3 `now`, Phase 4 `config`) follows the same pattern — resolved during `buildRunContext`, plucked into scope by `ExpressionScope`.
 
 ### Deliverables
-- `FubCreateNoteRequestDto` (incl. nested `Mentions(List<Long> user)` record), `FubNoteResponseDto`, and `FubUserResponseDto` in `src/main/java/com/fuba/automation_engine/client/fub/dto/`
+- `LeadSnapshotResolver` service: given a `sourceLeadId`, returns `LeadEntity.lead_details` (`JsonNode`), or empty `ObjectNode` if not yet ingested. Uses existing `LeadRepository.findBySourceSystemAndSourceLeadId("FUB", sourceLeadId)`. Source system hardcoded to `"FUB"` for now — see [known-issues.md](../../engineering-reference/known-issues.md) #18.
+  - **PER-STEP EAGER:** the resolver is called once per step, eagerly, inside `buildRunContext`. No caching; relies on the indexed lookup being cheap.
+- Add a `lead` field to `RunContext` (`JsonNode`).
+- Extend [WorkflowStepExecutionService.buildRunContext](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java:203) to call the resolver and stuff the result into `RunContext.lead`.
+- Extend [ExpressionScope.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java) to add a `lead` top-level key (`scope.put("lead", runContext.lead())`). No DB dep, no resolver injection here — pure mapping.
+- Trigger-filter scope ([FubWebhookTriggerType.java:79](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)) does **not** include `lead.*` for this phase — see [known-issues.md](../../engineering-reference/known-issues.md) #17 and the corresponding `Docs/product-discovery/ideas.md` entry.
+- Verify via a small JSONata test that `Jsonata.evaluate(map)` walks correctly into a `JsonNode` value when one of the map's values is a JsonNode (Q4). If it doesn't, convert via `objectMapper.convertValue(node, Map.class)` once when populating `RunContext.lead`.
+- Unit tests:
+  - `LeadSnapshotResolverTest` — happy path, missing lead, source-system hardcoded
+  - `ExpressionScopeTest` — `{{ lead.assignedUserId }}` resolves, `{{ lead.phones[0].value }}` works, missing snapshot returns null gracefully, `lead` absent when `sourceLeadId` is null
+- One integration test in `WorkflowEngineSmokeTest` (or new sibling): seed a lead, run a one-step workflow with `slack_notify text="{{ lead.assignedTo }}"` (Slack mocked), assert rendered output
+- Brief docs note in `Docs/features/workflow-engine/` describing the `lead` namespace and its fields
+
+### Verification
+- Unit tests green
+- Manual: define a one-step workflow that reads `{{ lead.assignedTo }}` into a `slack_notify` message; fire on a real lead, confirm the agent name appears
+
+### Exit criteria
+- Workflow steps can reference `{{ lead.* }}` for any field in the lead snapshot
+- No extra FUB API calls during workflow execution
+- Documented as a generic primitive
+
+### Out of scope (explicit non-goals for this phase)
+- Mentioning users who are NOT the lead's assigned agent — there's no `users` table locally; would need either a sync path or `getUser(id)` lazy lookup added later
+- Forcing fresh re-fetch from FUB mid-workflow — possible future step (`refresh_lead`) if a use case demands it; not needed for the escalation workflow because webhook ingestion keeps the snapshot fresh
+
+---
+
+## Phase 2 — `fub_create_note` step type
+Status: `NOT_STARTED` (contract verified — see [research.md](research.md))
+
+**Goal:** new workflow step that posts a FUB note with @mention support that renders as a clickable chip and triggers the standard mention notification. Ships after Phase 1 so the step's templates can naturally reference `{{ lead.assignedUserId }}` / `{{ lead.assignedTo }}`. Generic primitive — usable by any future workflow.
+
+### Deliverables
+- `FubCreateNoteRequestDto` (incl. nested `Mentions(List<Long> user)` record) and `FubNoteResponseDto` in `src/main/java/com/fuba/automation_engine/client/fub/dto/`
 - `FubFollowUpBossClient.createNote(CreateNoteCommand)` using `RetryPolicy.DEFAULT_FUB` — sends `body` (HTML), `isHtml=true`, `mentions.user[]`, optional `subject`
-- `FubFollowUpBossClient.getUser(userId)` — `GET /v1/users/{id}`, same retry policy. Used inline by the step to resolve names; no separate service or cache for v1
-- `FubCreateNoteWorkflowStep` registered in the workflow step registry, taking config `{ mentionUserIds, message, subject? }`
-  - For each id → `getUser` → grab `name`
-  - Builds body: `<p><span data-user-id="N">Name</span> ... {message}</p>`
-  - 4xx on `getUser` → fail step (`FAILED`); transient errors retry per the policy
-- Unit tests for body+mentions assembly (single user, multiple users, message templating, subject templating, missing-user → fail), client retry behavior, and `getUser` → 404 surfaces as `FAILED`
+- `FubCreateNoteWorkflowStep` registered in the workflow step registry, taking config `{ mentionUserIds, mentionUserNames, message, subject? }`
+  - Workflow author passes both IDs and matching display names from the Phase 1 `lead.*` namespace: `mentionUserIds: ["{{ lead.assignedUserId }}"]`, `mentionUserNames: ["{{ lead.assignedTo }}"]`
+  - Validates `mentionUserIds.length == mentionUserNames.length`; mismatch → `FAILED`
+  - Builds body: `<p><span data-user-id="ID1">Name1</span> ... {message}</p>`
+  - **No `getUser` API call**; **no `FubUserDirectoryService`** — see [research.md](research.md) "Why no `getUser` lookup"
+- Unit tests for body+mentions assembly (single user, multiple users, message+subject templating, length-mismatch → `FAILED`), client retry behavior, 4xx → `FAILED`, transient errors retry
 
 ### Verification
 - Unit tests green
@@ -60,35 +103,6 @@ Status: `NOT_STARTED` (contract verified — see [research.md](research.md))
 ### Exit criteria
 - Step type listed in registry, callable from workflow JSON, retries on transient FUB errors, fails permanently on 4xx
 - @mention rendering + notification + auto-collaborator-add all confirmed in staging
-
----
-
-## Phase 2 — `fub_fetch_person` enrichment step
-Status: `NOT_STARTED`
-
-**Goal:** new workflow step that fetches a person from FUB and exposes selected fields under `steps.<id>.outputs.*` for downstream steps. Needed because the webhook normalized payload only carries `resourceIds` (lead IDs) — fields like `assignedUserId` aren't in the event payload and must be hydrated from `GET /v1/people/{id}`.
-
-### Why this is its own step (not auto-enrichment in the normalizer)
-- Keeps the webhook normalizer fast and free of FUB API calls (which can be slow / rate-limited)
-- Aligns with Wave 2's step-plugin model — workflows opt in to enrichment when they need it
-- Generic — any future workflow that needs person fields gets it for free
-
-### Deliverables
-- `FubFollowUpBossClient.getPerson(personId)` if not already present — returns full person DTO. (Likely already exists; verify and reuse.)
-- `FubPersonResponseDto` covering at minimum: `id`, `assignedUserId`, `assignedTo`, `assignedPondId`, `stage`, `tags`, `name`, `firstName`, `lastName`. Add fields lazily as future workflows demand them.
-- `FubFetchPersonWorkflowStep` registered in the workflow step registry
-  - Config: `{ "personId": "{{ sourceLeadId }}" }` (template-resolvable; defaults to `sourceLeadId` if absent)
-  - Outputs the full person DTO under `steps.<id>.outputs.*` so downstream steps can use `{{ steps.fetch.outputs.assignedUserId }}`
-  - 4xx → `FAILED`; transient errors retry per `RetryPolicy.DEFAULT_FUB`
-- Unit tests for output mapping, missing-person → FAILED, retry behavior
-
-### Verification
-- Unit tests green
-- Manual: define a two-step workflow (`fub_fetch_person` → `slack_notify` with `{{ steps.fetch.outputs.assignedUserId }}` in the message); fire and confirm the user ID appears in the Slack message
-
-### Exit criteria
-- Step type registered, callable, exposes fields under `steps.<id>.outputs.*`
-- Documented in `Docs/features/workflow-engine/` as a generic enrichment primitive
 
 ---
 
@@ -158,7 +172,7 @@ Status: `NOT_STARTED`
 
 ### Path B (fallback if FUB only sends `peopleUpdated`)
 - Trigger on `PERSON.UPDATED`
-- Add a `filter` JSONata expression on the trigger config (already supported per Wave 2 design) that gates on something like `steps.fetch.outputs.assignedUserId != steps.fetch.outputs.previousAssignedUserId` — requires the enrichment step from Phase 2 plus a way to know the previous value, which may need extra payload work
+- Add a `filter` JSONata expression on the trigger config (already supported per Wave 2 design) that gates on a condition like "this peopleUpdated event included an assignedUserId change." Reading current `lead.assignedUserId` is easy via Phase 1's `lead.*` namespace; knowing the *previous* value is harder and may need a "previous snapshot" stash on the entity or a `changedFields` array on the webhook payload
 - More complex; only choose if Path A isn't available
 
 ### Deliverables (whichever path applies)
@@ -179,7 +193,7 @@ Status: `NOT_STARTED`
 **Goal:** ship the actual "lead assigned but not called" workflow using primitives from Phases 1–5.
 
 ### Deliverables
-- Workflow JSON definition (see [plan.md](plan.md) for the full shape, updated with Phase 2's `fub_fetch_person` step in front of the note)
+- Workflow JSON definition (see [plan.md](plan.md) for the full shape; uses Phase 1's `lead.*` namespace to read `assignedUserId` and `assignedTo` directly inside step configs — no fetch step in front)
 - Flyway data migration `V<next>__seed_lead_not_called_workflow.sql` that inserts the workflow row with `status='ACTIVE'`. Idempotent (`ON CONFLICT (key) DO UPDATE`)
 - Integration test with `FollowUpBossClient` mocked + clock advanced, asserting all four paths:
   1. Call within 3 min → END after `wait_3m`, no note, no reassignment

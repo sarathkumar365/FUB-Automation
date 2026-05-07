@@ -22,7 +22,14 @@ class ExpressionEvaluatorTest {
     private ExpressionScope buildScope(Map<String, Object> triggerPayload,
                                        String sourceLeadId,
                                        Map<String, Map<String, Object>> stepOutputs) {
-        RunContext runContext = new RunContext(null, triggerPayload, sourceLeadId, stepOutputs);
+        return buildScope(triggerPayload, sourceLeadId, Map.of(), stepOutputs);
+    }
+
+    private ExpressionScope buildScope(Map<String, Object> triggerPayload,
+                                       String sourceLeadId,
+                                       Map<String, Object> lead,
+                                       Map<String, Map<String, Object>> stepOutputs) {
+        RunContext runContext = new RunContext(null, triggerPayload, sourceLeadId, lead, stepOutputs);
         return ExpressionScope.from(runContext);
     }
 
@@ -133,5 +140,62 @@ class ExpressionEvaluatorTest {
 
         Object result = evaluator.evaluatePredicate("event.payload.lead.source = 'Zillow'", scope);
         assertTrue((Boolean) result);
+    }
+
+    // ---- Phase 1 (agent-followup-enforcement): lead.* namespace ----
+
+    @Test
+    void shouldResolveLeadAssignedUserIdFromScope() {
+        Map<String, Object> lead = Map.of(
+                "assignedUserId", 30,
+                "assignedTo", "ISA AuraKeyRealty");
+        ExpressionScope scope = buildScope(Map.of(), "18399", lead, Map.of());
+
+        Object result = evaluator.resolveTemplate("{{ lead.assignedUserId }}", scope);
+        assertInstanceOf(Number.class, result);
+        assertEquals(30, ((Number) result).intValue());
+    }
+
+    @Test
+    void shouldResolveLeadAssignedToDisplayName() {
+        Map<String, Object> lead = Map.of(
+                "assignedUserId", 30,
+                "assignedTo", "ISA AuraKeyRealty");
+        ExpressionScope scope = buildScope(Map.of(), "18399", lead, Map.of());
+
+        Object result = evaluator.resolveTemplate("{{ lead.assignedTo }}", scope);
+        assertEquals("ISA AuraKeyRealty", result);
+    }
+
+    @Test
+    void shouldResolveNestedLeadFields() {
+        Map<String, Object> lead = Map.of(
+                "phones", java.util.List.of(Map.of("value", "9059225917", "type", "mobile")));
+        ExpressionScope scope = buildScope(Map.of(), "18399", lead, Map.of());
+
+        Object result = evaluator.resolveTemplate("{{ lead.phones[0].value }}", scope);
+        assertEquals("9059225917", result);
+    }
+
+    @Test
+    void shouldReturnNullForMissingLeadFieldWithoutThrowing() {
+        ExpressionScope scope = buildScope(Map.of(), "18399", Map.of(), Map.of());
+
+        Object result = evaluator.resolveTemplate("{{ lead.assignedUserId }}", scope);
+        assertNull(result);
+    }
+
+    @Test
+    void shouldGracefullyHandleAbsentLeadSnapshotInBranchPredicate() {
+        // Mirrors the branch_on_field use case: even when lead is empty, a
+        // predicate that references lead.* should evaluate to a null/false-y
+        // value rather than throwing.
+        ExpressionScope scope = buildScope(Map.of(), "18399", Map.of(), Map.of());
+
+        Object result = evaluator.evaluatePredicate("lead.assignedUserId > 0", scope);
+        // dashjoin/jsonata returns null for missing-path comparisons; either null
+        // or Boolean.FALSE is acceptable here — we only require no exception.
+        assertTrue(result == null || Boolean.FALSE.equals(result),
+                "Missing lead field comparison should be null/false, got: " + result);
     }
 }

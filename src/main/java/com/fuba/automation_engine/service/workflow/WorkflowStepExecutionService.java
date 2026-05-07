@@ -7,6 +7,7 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
+import com.fuba.automation_engine.service.lead.LeadSnapshotResolver;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionScope;
 import java.time.Duration;
@@ -42,6 +43,7 @@ public class WorkflowStepExecutionService {
     private final WorkflowRunStepRepository stepRepository;
     private final WorkflowStepRegistry stepRegistry;
     private final ExpressionEvaluator expressionEvaluator;
+    private final LeadSnapshotResolver leadSnapshotResolver;
     private final Clock clock;
 
     public WorkflowStepExecutionService(
@@ -49,11 +51,13 @@ public class WorkflowStepExecutionService {
             WorkflowRunStepRepository stepRepository,
             WorkflowStepRegistry stepRegistry,
             ExpressionEvaluator expressionEvaluator,
+            LeadSnapshotResolver leadSnapshotResolver,
             Clock clock) {
         this.runRepository = runRepository;
         this.stepRepository = stepRepository;
         this.stepRegistry = stepRegistry;
         this.expressionEvaluator = expressionEvaluator;
+        this.leadSnapshotResolver = leadSnapshotResolver;
         this.clock = clock;
     }
 
@@ -213,10 +217,19 @@ public class WorkflowStepExecutionService {
                 run.getId(), run.getWorkflowKey(),
                 resolveWorkflowVersionNumber(run));
 
+        // PER-STEP EAGER: resolve lead snapshot once per step. The snapshot is
+        // auto-refreshed by webhook ingestion, so re-reading per step picks up
+        // any in-flight changes (e.g. the lead was reassigned during a wait
+        // step). Single indexed lookup; no caching needed.
+        // WOULD-BE-NICE: if we find performance issues, we could consider a short-lived in-memory cache here keyed by sourceLeadId.
+        // OR make it lazy and only resolve when {{ lead }} is actually referenced in expressions, but that adds complexity and edge cases (e.g. step outputs referencing {{ lead }} fields).
+        Map<String, Object> lead = leadSnapshotResolver.resolve(run.getSourceLeadId());
+
         return new RunContext(
                 metadata,
                 run.getTriggerPayload() != null ? run.getTriggerPayload() : Map.of(),
                 run.getSourceLeadId(),
+                lead,
                 stepOutputs);
     }
 

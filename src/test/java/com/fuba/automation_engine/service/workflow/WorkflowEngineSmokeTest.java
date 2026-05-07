@@ -5,19 +5,25 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.config.WorkflowWorkerProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
+import com.fuba.automation_engine.persistence.entity.LeadEntity;
+import com.fuba.automation_engine.persistence.entity.LeadStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
+import com.fuba.automation_engine.persistence.repository.LeadRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
 import java.time.Clock;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -86,6 +92,12 @@ class WorkflowEngineSmokeTest {
     private WorkflowRunStepClaimRepository stepClaimRepository;
 
     @Autowired
+    private LeadRepository leadRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
+
+    @Autowired
     private Clock clock;
 
     private WorkflowExecutionDueWorker worker;
@@ -95,6 +107,7 @@ class WorkflowEngineSmokeTest {
         stepRepository.deleteAll();
         runRepository.deleteAll();
         workflowRepository.deleteAll();
+        leadRepository.deleteAll();
         worker = new WorkflowExecutionDueWorker(workerProperties, stepClaimRepository, stepExecutionService, clock);
     }
 
@@ -257,6 +270,87 @@ class WorkflowEngineSmokeTest {
                         Map.of("id", "d1", "type", "delay",
                                 "config", Map.of("delayMinutes", delayMinutes),
                                 "transitions", Map.of("DONE", Map.of("terminal", "COMPLETED")))));
+    }
+
+    @Test
+    void shouldExposeLeadNamespaceFromLocalSnapshotInBranchOnFieldExpression() {
+        // Phase 1 (agent-followup-enforcement) end-to-end check:
+        // seed a LeadEntity locally, plan a workflow whose entry node is a
+        // branch_on_field referencing {{ lead.assignedUserId }}, run it, and
+        // assert the JSONata expression saw the snapshotted value (no FUB
+        // call) and routed the workflow accordingly.
+        seedLeadSnapshot("lead-phase1-match", 30, "ISA AuraKeyRealty");
+        seedActiveWorkflow("LEAD_NAMESPACE_E2E", branchOnLeadAssignedUserGraph());
+
+        WorkflowPlanningResult planResult = executionManager.plan(
+                new WorkflowPlanRequest(
+                        "LEAD_NAMESPACE_E2E", "TEST", "evt-lead-1", null, "lead-phase1-match", null));
+
+        assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
+        assertNotNull(planResult.runId());
+
+        worker.pollAndProcessDueSteps();
+
+        WorkflowRunStepEntity step = stepRepository.findByRunId(planResult.runId()).getFirst();
+        assertEquals(WorkflowRunStepStatus.COMPLETED, step.getStatus());
+        assertEquals("MATCHED", step.getResultCode(),
+                "branch_on_field should have read lead.assignedUserId=30 from the local snapshot and matched");
+
+        WorkflowRunEntity completedRun = runRepository.findById(planResult.runId()).orElseThrow();
+        assertEquals(WorkflowRunStatus.COMPLETED, completedRun.getStatus());
+        assertEquals("MATCHED", completedRun.getReasonCode());
+    }
+
+    @Test
+    void shouldGracefullyHandleMissingLeadSnapshotInBranchOnFieldExpression() {
+        // No lead seeded — lead.* should still be present as an empty map; the
+        // branch_on_field default branch should fire instead of throwing.
+        seedActiveWorkflow("LEAD_NAMESPACE_MISSING", branchOnLeadAssignedUserGraph());
+
+        WorkflowPlanningResult planResult = executionManager.plan(
+                new WorkflowPlanRequest(
+                        "LEAD_NAMESPACE_MISSING", "TEST", "evt-lead-2", null, "lead-not-ingested", null));
+
+        assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
+
+        worker.pollAndProcessDueSteps();
+
+        WorkflowRunStepEntity step = stepRepository.findByRunId(planResult.runId()).getFirst();
+        assertEquals(WorkflowRunStepStatus.COMPLETED, step.getStatus());
+        assertEquals("MISSED", step.getResultCode(),
+                "Missing lead snapshot should fall through to defaultResultCode without throwing");
+    }
+
+    private void seedLeadSnapshot(String sourceLeadId, int assignedUserId, String assignedTo) {
+        ObjectNode leadDetails = objectMapper.createObjectNode();
+        leadDetails.put("assignedUserId", assignedUserId);
+        leadDetails.put("assignedTo", assignedTo);
+
+        LeadEntity entity = new LeadEntity();
+        entity.setSourceSystem("FUB");
+        entity.setSourceLeadId(sourceLeadId);
+        entity.setStatus(LeadStatus.ACTIVE);
+        entity.setLeadDetails(leadDetails);
+        OffsetDateTime now = OffsetDateTime.now(clock);
+        entity.setCreatedAt(now);
+        entity.setUpdatedAt(now);
+        entity.setLastSyncedAt(now);
+        leadRepository.saveAndFlush(entity);
+    }
+
+    private Map<String, Object> branchOnLeadAssignedUserGraph() {
+        return Map.of(
+                "schemaVersion", 1,
+                "entryNode", "check",
+                "nodes", List.of(
+                        Map.of("id", "check", "type", "branch_on_field",
+                                "config", Map.of(
+                                        "expression", "lead.assignedUserId",
+                                        "resultMapping", Map.of("30", "MATCHED"),
+                                        "defaultResultCode", "MISSED"),
+                                "transitions", Map.of(
+                                        "MATCHED", Map.of("terminal", "MATCHED"),
+                                        "MISSED", Map.of("terminal", "MISSED")))));
     }
 
     private Map<String, Object> twoDelayLinearGraph() {

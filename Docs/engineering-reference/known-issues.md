@@ -22,6 +22,8 @@ This document tracks currently known issues identified in the codebase.
 | 14 | Workflow expressions cannot resolve lead phone from webhook payload for ai_call `to` | High | Open |
 | 15 | SSE async-dispatch logs `AuthorizationDeniedException: Access Denied` on subscriber disconnect | Low | Open |
 | 16 | `JAVA_TOOL_OPTIONS` IPv6 flags on Railway break outbound HTTPS to FUB | High | Resolved (2026-05-05) |
+| 17 | Trigger-filter scope does not include `lead.*` namespace | Low | Open |
+| 18 | `RunContext` hardcodes `"FUB"` as the source system | Low | Open |
 
 ---
 
@@ -166,3 +168,21 @@ This document tracks currently known issues identified in the codebase.
 - **Resolution:** `JAVA_TOOL_OPTIONS` removed from the Railway service. Postgres still connects without the flag because `postgres.railway.internal` resolves AAAA-only — the JVM uses IPv6 by necessity, no hint required. FUB calls now resolve and connect over IPv4.
 - **Verification marker:** logs show `FUB getPersonRawById succeeded`, `FUB getCallById succeeded`, and `Lead upserted (insert) sourceSystem=FUB ...` after the env-var change.
 - **Follow-up:** the deploy runbook still recommends the flag in its env-var contract block and Failure 3 fix; correct when convenient so the next operator hitting a Postgres reach issue does not reintroduce it.
+
+## 17) Trigger-filter scope does not include `lead.*` namespace
+
+- **Status:** Open
+- **Priority:** Low
+- **Location:** `service/workflow/trigger/FubWebhookTriggerType.java:79`, `service/workflow/expression/ExpressionScope.java`
+- **Issue:** Phase 1 of agent-followup-enforcement adds a `lead.*` namespace to the **step-execution** JSONata scope (resolved from `leads.lead_details`). The **trigger-filter** scope, built separately at webhook ingestion time, does not include `lead.*`. Trigger filters can therefore only match against `event.payload.*`, not against persistent lead state.
+- **Impact:** Workflow authors cannot write filters like `"lead.stage = 'Hot Lead'"` or `"$contains(lead.tags, 'DNC') = false"`. Most filtering needs are covered by webhook payload alone today, so this is low-priority. Tracked as a future enhancement in `Docs/product-discovery/ideas.md`.
+- **Suggested fix:** When picked up, share the per-step `RunContext`-style metadata-build with the trigger evaluator (single source of truth for scope shape) and cache the snapshot per webhook-event-id so N active workflows hitting the same lead share one DB read.
+
+## 18) `RunContext` hardcodes `"FUB"` as the source system
+
+- **Status:** Open
+- **Priority:** Low
+- **Location:** `service/workflow/RunContext.java`, `service/workflow/WorkflowStepExecutionService.buildRunContext`, `service/lead/LeadSnapshotResolver` (Phase 1)
+- **Issue:** `RunContext` carries only `sourceLeadId`, no `sourceSystem`. Lookups against `leads` (which has a composite key `(source_system, source_lead_id)`) hardcode `"FUB"` everywhere. Today this is correct because FUB is the only adapter, but it will silently misroute lookups when a second CRM lands.
+- **Impact:** None today. Becomes a real bug when HubSpot / Salesforce / Pipedrive adapters are added (see `Docs/product-discovery/ideas.md` "CRM-agnostic event vocabulary").
+- **Suggested fix:** Add `sourceSystem` to `RunContext` (default `"FUB"` until multi-CRM lands), thread it through from `WorkflowRunEntity`, replace hardcoded `"FUB"` strings in resolver call sites.

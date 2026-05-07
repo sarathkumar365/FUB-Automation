@@ -10,11 +10,12 @@ If an agent is given a lead and doesn't follow up, the platform should escalate 
    - **Off-hours** → move back to the **unorganic POND**
 3. If the agent calls before either checkpoint, the workflow stops.
 
-The escalation workflow is the driving use case, but half the work is reusable engine primitives that future workflows will share — see [phases.md](phases.md). Specifically: a CRM-agnostic event vocabulary, two new step types (`fub_create_note`, `fub_fetch_person`), business-hours in the JSONata scope, and a per-workflow `config.*` namespace.
+The escalation workflow is the driving use case, but half the work is reusable engine primitives that future workflows will share — see [phases.md](phases.md). Specifically: a CRM-agnostic event vocabulary, one new step type (`fub_create_note`), a `lead.*` JSONata namespace exposing the locally-snapshotted lead, business-hours in the JSONata scope, and a per-workflow `config.*` namespace.
 
 ## What already exists
 
 - Webhook trigger pipeline (parser → ingress → workflow trigger evaluation) — [FubWebhookTriggerType.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)
+- **LEAD ingestion auto-snapshots person data** — every `peopleCreated/Updated` webhook calls `getPersonRawById` and upserts the person blob (including `assignedUserId` + `assignedTo` display name) into `leads.lead_details` JSONB. See [WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java) and [LeadUpsertService.SNAPSHOT_FIELDS](../../../src/main/java/com/fuba/automation_engine/service/lead/LeadUpsertService.java)
 - `wait_and_check_communication` returns `COMM_NOT_FOUND` / `CONVERSATIONAL` / `CONNECTED_NON_CONVERSATIONAL` against `ProcessedCallEntity` — supports per-step `delayMinutes` + `lookbackMinutes`
 - `fub_reassign` and `fub_move_to_pond` — both accept template-resolved IDs
 - `branch_on_field` evaluates a **JSONata expression** against the run context and maps the stringified result to a result code via `resultMapping` — [BranchOnFieldWorkflowStep.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/steps/BranchOnFieldWorkflowStep.java) lines 46–111
@@ -22,13 +23,25 @@ The escalation workflow is the driving use case, but half the work is reusable e
 - `automation_workflows` table + `AutomationWorkflowEntity` + `AdminWorkflowController` POST/PUT for create/update
 - Settings page is planned in [ui/Docs/ui-product-design-proposal.md](../../../ui/Docs/ui-product-design-proposal.md) lines 202–233 with a Configuration tab — no settings entity yet, just `@ConfigurationProperties` beans
 
+## What is persisted locally
+
+| Entity | Stored? | Notes |
+|---|---|---|
+| Leads (FUB people) | ✅ | `leads.lead_details` JSONB; auto-refreshed on every webhook |
+| Calls | ✅ | `processed_calls`, minimal fields, used for SLA call-evidence checks |
+| Workflows / runs / events | ✅ | Internal engine state |
+| Users / agents | ❌ | No `users` table; FUB doesn't emit user webhooks. If ever needed, add a sync path or use `getUser(id)` on demand. |
+| Notes / tasks / ponds | ❌ | We post/move; we don't store. |
+
+Implication: workflows that need lead/agent data should read from the `lead.*` namespace (Phase 1), not refetch from FUB. Workflows that need to mention a non-assigned user have no local source today — out of scope here.
+
 ## What does NOT exist (gaps surfaced during research)
 
 These are addressed by the phased plan in [phases.md](phases.md):
 
-- **Webhook normalization names are misleading** — `peopleCreated/peopleUpdated` map to `NormalizedDomain.ASSIGNMENT`. Phase 0 renames to `LEAD` (CRM-agnostic; future-proofs for HubSpot/Salesforce/Pipedrive).
-- **`NormalizedAction.ASSIGNED` is a phantom value** — declared but no parser produces it. Phase 0 drops it; Phase 5 may reintroduce backed by a real source event.
-- **Webhook payload doesn't carry `assignedUserId`** — only `resourceIds` (lead IDs). Phase 2 adds an explicit `fub_fetch_person` enrichment step.
+- **Webhook normalization names are misleading** — `peopleCreated/peopleUpdated` map to `NormalizedDomain.ASSIGNMENT`. Phase 0 renames to `LEAD` (CRM-agnostic; future-proofs for HubSpot/Salesforce/Pipedrive). ✅ DONE.
+- **`NormalizedAction.ASSIGNED` is a phantom value** — declared but no parser produces it. Phase 0 drops it; Phase 5 may reintroduce backed by a real source event. ✅ DONE.
+- **No `lead` namespace in JSONata scope** — workflows can't read `lead_details` today. Phase 1 exposes it as a top-level `lead` key in `ExpressionScope`, resolved per step from the local snapshot.
 - **No `config` namespace in JSONata scope** — `ExpressionScope` only exposes `event` / `sourceLeadId` / `steps`. Phase 4 adds it (with a new `config` JSONB column on `automation_workflows`).
 - **No `now` / time-aware fields in scope** — Phase 3 injects `now.isDaytime` / `now.hourLocal` via `BusinessHoursService`.
 - **No workflow seeding mechanism** — workflows are created via admin POST today. Phase 6 ships a Flyway data migration to seed this workflow.
@@ -56,14 +69,16 @@ Three things must travel together for the mention to render as a chip and trigge
 
 Putting `@Name` plain text in body alone does **not** render as a chip and does **not** trigger notification — confirmed by smoke tests A/B vs C.
 
+**Key insight (verified via grep):** the existing LEAD ingestion path already snapshots the FUB person blob into `leads.lead_details` (JSONB) on every `peopleCreated` / `peopleUpdated` webhook — see [LeadUpsertService.java:26-42](../../../src/main/java/com/fuba/automation_engine/service/lead/LeadUpsertService.java) and [WebhookEventProcessorService.java:183-220](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java). The snapshot includes `assignedUserId` AND `assignedTo` (display name). So workflows that mention the *currently assigned agent* don't need a `getUser` API call — the name is already in our DB and is auto-refreshed every time FUB sends an update webhook.
+
+(Note: only **leads** and minimal **call records** are persisted locally — there's no `users` table. If a future workflow needs to mention a user who is NOT the lead's assigned agent, we'd need to either add a `users` ingestion path or add a `getUser(id)` client method then. Out of scope for this phase.)
+
 **New code:**
 - `FubCreateNoteRequestDto` (record) — `personId`, `body`, `isHtml`, `mentions` (nested `Mentions(List<Long> user)`), optional `subject`
 - `FubNoteResponseDto` — `id`, `personId`, `body`, `isHtml`, etc.
-- `FubUserResponseDto` — minimal shape (`id`, `name`, `firstName`, `lastName`, `role`, `status`)
 - Extend [FubFollowUpBossClient.java](../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java) with:
   - `createNote(CreateNoteCommand)` using `RetryPolicy.DEFAULT_FUB` (429 + 5xx transient, 4xx permanent)
-  - `getUser(userId)` — `GET /v1/users/{id}`, same retry policy
-- `FubCreateNoteWorkflowStep` registered in the workflow step registry — resolves names inline by calling `getUser` per mention (no service, no shared cache for v1; add later if profiling demands it)
+- `FubCreateNoteWorkflowStep` registered in the workflow step registry — accepts pre-resolved IDs and names from config; **no name lookup, no extra API call**
 
 **Step config (workflow JSON):**
 ```json
@@ -71,17 +86,21 @@ Putting `@Name` plain text in body alone does **not** render as a chip and does 
   "id": "note_agent",
   "type": "fub_create_note",
   "config": {
-    "mentionUserIds": ["{{ event.payload.assignedUserId }}"],
+    "mentionUserIds": ["{{ lead.assignedUserId }}"],
+    "mentionUserNames": ["{{ lead.assignedTo }}"],
     "message": "this lead hasn't been called yet — please reach out.",
     "subject": "Lead not called"
   }
 }
 ```
 
+The `lead` namespace comes from Phase 1, which exposes the `lead_details` snapshot in the JSONata scope.
+
 **Step inputs:**
 | Field | Type | Required | Notes |
 |---|---|---|---|
-| `mentionUserIds` | array of int (template-resolvable) | yes (or empty for plain note) | Step looks up names, builds spans, assembles `mentions.user` |
+| `mentionUserIds` | array of int (template-resolvable) | yes | Used in `mentions.user` and the `data-user-id` attribute |
+| `mentionUserNames` | array of string (template-resolvable, **same length** as `mentionUserIds`) | yes | Display text inside each `<span>` chip |
 | `message` | string (template-resolvable) | yes | Plain text appended after the mention chips |
 | `subject` | string (template-resolvable) | optional | FUB note subject |
 
@@ -92,11 +111,11 @@ Putting `@Name` plain text in body alone does **not** render as a chip and does 
 - `steps.<id>.outputs.noteId` — for downstream steps
 
 **Internal flow:**
-1. Resolve templates in `mentionUserIds`, `message`, `subject`
-2. For each id → `FollowUpBossClient.getUser(id)` → take `name`. 4xx fails the step; transient errors retry per `RetryPolicy.DEFAULT_FUB`
-3. Build body: `<p><span data-user-id="N">Name</span> ... {message}</p>`
+1. Resolve templates in `mentionUserIds`, `mentionUserNames`, `message`, `subject`
+2. Validate `mentionUserIds.length == mentionUserNames.length`; if not, fail step (`FAILED`) with a clear message
+3. Build body: `<p><span data-user-id="ID1">Name1</span> <span data-user-id="ID2">Name2</span> ... {message}</p>`
 4. POST `/v1/notes` with `personId=runContext.sourceLeadId`, `body`, `isHtml=true`, `mentions.user=[ids]`, optional `subject`
-5. Map response → `outputs.noteId`
+5. Map response → `outputs.noteId`. 4xx → `FAILED`; transient errors retry per `RetryPolicy.DEFAULT_FUB`
 
 **Important attribution caveat:** API-created notes are attributed to the **API key owner** (`createdBy`), not the assigned agent or any configurable user. Cannot impersonate. In our smoke test all three notes showed `createdBy: "Mandeep Dhesi"` (the key owner), regardless of who was mentioned.
 
@@ -120,7 +139,7 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
   "name": "Lead Assigned — Call Escalation",
   "trigger": {
     "type": "webhook_fub",
-    "config": { "eventDomain": "ASSIGNMENT", "eventAction": "ASSIGNED" }
+    "config": { "eventDomain": "LEAD", "eventAction": "UPDATED" }
   },
   "config": {
     "isaUserId": 12345,
@@ -133,7 +152,8 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
 
     { "id": "note_agent", "type": "fub_create_note",
       "config": {
-        "mentionUserIds": ["{{ event.payload.assignedUserId }}"],
+        "mentionUserIds": ["{{ lead.assignedUserId }}"],
+        "mentionUserNames": ["{{ lead.assignedTo }}"],
         "message": "this lead hasn't been called yet — please reach out.",
         "subject": "Lead not called (3 min)"
       },
@@ -167,7 +187,6 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
 **New:**
 - `src/main/java/com/fuba/automation_engine/client/fub/dto/FubCreateNoteRequestDto.java` (incl. nested `Mentions` record)
 - `src/main/java/com/fuba/automation_engine/client/fub/dto/FubNoteResponseDto.java`
-- `src/main/java/com/fuba/automation_engine/client/fub/dto/FubUserResponseDto.java`
 - `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubCreateNoteWorkflowStep.java`
 - `src/main/java/com/fuba/automation_engine/config/BusinessHoursProperties.java`
 - `src/main/java/com/fuba/automation_engine/service/BusinessHoursService.java`

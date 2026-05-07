@@ -128,7 +128,37 @@ Result: 201, note 21256. Shahrukh Baig (id 28) auto-added as collaborator.
 
 **Conclusion:** the `<span data-user-id="N">Name</span>` IS required. Without it, the agent silently becomes a collaborator but never knows they were mentioned. The whole point of the workflow is to nudge an unresponsive agent — silent collaborator-add doesn't satisfy the requirement.
 
-**Implication for the design:** the step must resolve `userId → displayName` to build the span. Picking `GET /v1/users/{id}` (verified working) over `GET /v1/users` (list) — one targeted call per mention, smaller payload, simpler error handling. No `FubUserDirectoryService` or shared cache for v1; add caching later only if profiling demands it.
+**Implication for the design:** the step must build a `<span data-user-id="N">Name</span>` per mention, which means we need the display name as well as the ID. See the next section ("Why no `getUser` lookup") for how we source that without an extra API call.
+
+## Why no `getUser` lookup in `fub_create_note`
+
+Earlier drafts of the design assumed the step would resolve `userId → displayName` via a fresh `GET /v1/users/{id}` call (or a cached `FubUserDirectoryService`). After inspecting the local persistence layer this turned out to be unnecessary work for our use case.
+
+**The system already snapshots person data on ingestion.** [WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java) calls `getPersonRawById(leadId)` for every `peopleCreated/Updated` webhook and hands the result to [LeadUpsertService.upsertFubPerson](../../../src/main/java/com/fuba/automation_engine/service/lead/LeadUpsertService.java). The snapshot stored in `leads.lead_details` (JSONB) explicitly includes both `assignedUserId` AND `assignedTo` (display name) — see `SNAPSHOT_FIELDS` at lines 26-42.
+
+**What's NOT stored locally:**
+
+| Entity | Stored? |
+|---|---|
+| Leads (FUB people) | ✅ Yes, with `assignedTo` display name |
+| Calls | ✅ Yes (minimal fields, for SLA evidence) |
+| Users / agents | ❌ No table, no entity, no sync — FUB doesn't emit user webhooks |
+| Notes / tasks / ponds | ❌ No |
+
+**Implication for `fub_create_note`:**
+
+For agent-followup-enforcement we mention the **lead's currently assigned agent**, whose name is already in `lead_details.assignedTo`. Phase 2 exposes this as the `lead.*` JSONata namespace. The step config becomes:
+
+```json
+{
+  "mentionUserIds": ["{{ lead.assignedUserId }}"],
+  "mentionUserNames": ["{{ lead.assignedTo }}"]
+}
+```
+
+Zero extra API calls per note. The snapshot is auto-refreshed on every `peopleUpdated` webhook, so the name stays current even if the lead is reassigned mid-workflow.
+
+**For mentions outside the assigned-agent path** (e.g. a future workflow that wants to mention a fixed ISA who is NOT the lead's assigned agent), we'd need either: (a) add a `users` ingestion / sync mechanism, or (b) add a lazy `FollowUpBossClient.getUser(id)`. Out of scope for this feature.
 
 ## Webhook normalization naming — rationale for Phase 0 rename
 

@@ -4,6 +4,31 @@ A freeform scratchpad for product ideas, future directions, and "would be nice" 
 
 ---
 
+## Idea: Expose `lead.*` (and other run-context namespaces) in trigger-filter scope
+
+**Date:** 2026-05-07
+
+**The problem:**
+The agent-followup-enforcement Phase 1 work adds a `lead.*` namespace to the **step-execution** JSONata scope, so workflow authors can write `{{ lead.assignedUserId }}` in step configs. But the **trigger-filter** scope ([FubWebhookTriggerType.java:79](../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)) is built separately and does NOT include `lead.*`. So a trigger filter can't yet say "fire only if the lead is in stage 'Hot Lead'" or "skip if the lead is already tagged DNC."
+
+**Why this is deferred (not done now):**
+- Trigger-filter eval runs on every active workflow's filter for every inbound webhook. Adding a DB read per filter eval has a different cost profile than a step's per-step DB read.
+- The webhook payload itself often carries enough info for current trigger filtering (`event.payload.eventType = 'peopleCreated'` etc.). Most workflows don't need persistent lead state at trigger time.
+- Scope shape consistency between trigger-filter and step is nice but not strictly required.
+
+**What this would unlock:**
+- Lead-stage gating: `"filter": "lead.stage = 'Hot Lead'"`
+- Tag-based skips: `"filter": "$contains(lead.tags, 'DNC') = false"`
+- Source filtering: `"filter": "lead.source = 'Zillow'"`
+- Branching workflows by attribute without needing a separate `branch_on_field` step at the start of every run
+
+**Sketch when picked up:**
+- Either share the per-step `RunContext`-style metadata-build with the trigger evaluator (best — single source of truth for the scope shape), or copy the resolution logic into `FubWebhookTriggerType`.
+- Cache the snapshot per webhook-event-id so N active workflows hitting the same lead share one DB read.
+- Decide whether `lead.*` is opt-in via a trigger config flag, or always on.
+
+---
+
 ## Idea: CRM-agnostic event vocabulary (multi-CRM support)
 
 **Date:** 2026-05-07
