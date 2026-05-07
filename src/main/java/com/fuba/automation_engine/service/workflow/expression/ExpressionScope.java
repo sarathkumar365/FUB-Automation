@@ -18,6 +18,9 @@ import java.util.Map;
  *   <li>{@code lead} — locally-snapshotted lead details (Map of
  *       {@code leads.lead_details}); empty map if no snapshot exists. Always
  *       present in scope for consistency, even when empty.</li>
+ *   <li>{@code now} — time-of-day flags pre-resolved by
+ *       {@code BusinessHoursService}: {@code now.isDaytime} (bool) and
+ *       {@code now.hourLocal} (int 0-23). Always present.</li>
  *   <li>{@code steps.<nodeId>.outputs.<key>} — outputs from prior steps</li>
  * </ul>
  */
@@ -34,6 +37,8 @@ public record ExpressionScope(Map<String, Object> data) {
         scope.put("sourceLeadId", runContext.sourceLeadId() != null ? runContext.sourceLeadId() : "");
 
         scope.put("lead", runContext.lead() != null ? runContext.lead() : Map.of());
+
+        scope.put("now", runContext.now() != null ? runContext.now() : Map.of());
 
         Map<String, Object> stepsMap = new LinkedHashMap<>();
         if (runContext.stepOutputs() != null) {

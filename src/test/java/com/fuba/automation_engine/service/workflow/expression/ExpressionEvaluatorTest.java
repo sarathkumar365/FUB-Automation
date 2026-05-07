@@ -29,7 +29,15 @@ class ExpressionEvaluatorTest {
                                        String sourceLeadId,
                                        Map<String, Object> lead,
                                        Map<String, Map<String, Object>> stepOutputs) {
-        RunContext runContext = new RunContext(null, triggerPayload, sourceLeadId, lead, stepOutputs);
+        return buildScope(triggerPayload, sourceLeadId, lead, Map.of(), stepOutputs);
+    }
+
+    private ExpressionScope buildScope(Map<String, Object> triggerPayload,
+                                       String sourceLeadId,
+                                       Map<String, Object> lead,
+                                       Map<String, Object> now,
+                                       Map<String, Map<String, Object>> stepOutputs) {
+        RunContext runContext = new RunContext(null, triggerPayload, sourceLeadId, lead, now, stepOutputs);
         return ExpressionScope.from(runContext);
     }
 
@@ -197,5 +205,48 @@ class ExpressionEvaluatorTest {
         // or Boolean.FALSE is acceptable here — we only require no exception.
         assertTrue(result == null || Boolean.FALSE.equals(result),
                 "Missing lead field comparison should be null/false, got: " + result);
+    }
+
+    // ---- Phase 3 (agent-followup-enforcement): now.* namespace ----
+
+    @Test
+    void shouldResolveNowIsDaytimeFromScope() {
+        Map<String, Object> now = Map.of("isDaytime", true, "hourLocal", 14);
+        ExpressionScope scope = buildScope(Map.of(), "1", Map.of(), now, Map.of());
+
+        Object result = evaluator.resolveTemplate("{{ now.isDaytime }}", scope);
+        assertEquals(Boolean.TRUE, result);
+    }
+
+    @Test
+    void shouldResolveNowHourLocalAsNumber() {
+        Map<String, Object> now = Map.of("isDaytime", true, "hourLocal", 14);
+        ExpressionScope scope = buildScope(Map.of(), "1", Map.of(), now, Map.of());
+
+        Object result = evaluator.resolveTemplate("{{ now.hourLocal }}", scope);
+        assertInstanceOf(Number.class, result);
+        assertEquals(14, ((Number) result).intValue());
+    }
+
+    @Test
+    void shouldEvaluateNowIsDaytimeAsBranchPredicate() {
+        // Replicates the agent-followup-enforcement 30-min branch_on_field shape.
+        ExpressionScope daytimeScope = buildScope(
+                Map.of(), "1", Map.of(), Map.of("isDaytime", true, "hourLocal", 14), Map.of());
+        ExpressionScope offhoursScope = buildScope(
+                Map.of(), "1", Map.of(), Map.of("isDaytime", false, "hourLocal", 22), Map.of());
+
+        assertEquals(Boolean.TRUE, evaluator.evaluatePredicate("now.isDaytime", daytimeScope));
+        assertEquals(Boolean.FALSE, evaluator.evaluatePredicate("now.isDaytime", offhoursScope));
+    }
+
+    @Test
+    void shouldGracefullyHandleAbsentNowMap() {
+        // Defensive: if buildRunContext somehow leaves now empty, expressions
+        // reading now.* should not throw.
+        ExpressionScope scope = buildScope(Map.of(), "1", Map.of(), Map.of(), Map.of());
+
+        Object result = evaluator.resolveTemplate("{{ now.isDaytime }}", scope);
+        assertNull(result);
     }
 }

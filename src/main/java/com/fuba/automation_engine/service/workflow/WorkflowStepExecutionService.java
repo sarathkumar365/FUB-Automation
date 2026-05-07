@@ -7,6 +7,7 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
+import com.fuba.automation_engine.service.BusinessHoursService;
 import com.fuba.automation_engine.service.lead.LeadSnapshotResolver;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionScope;
@@ -44,6 +45,7 @@ public class WorkflowStepExecutionService {
     private final WorkflowStepRegistry stepRegistry;
     private final ExpressionEvaluator expressionEvaluator;
     private final LeadSnapshotResolver leadSnapshotResolver;
+    private final BusinessHoursService businessHoursService;
     private final Clock clock;
 
     public WorkflowStepExecutionService(
@@ -52,12 +54,14 @@ public class WorkflowStepExecutionService {
             WorkflowStepRegistry stepRegistry,
             ExpressionEvaluator expressionEvaluator,
             LeadSnapshotResolver leadSnapshotResolver,
+            BusinessHoursService businessHoursService,
             Clock clock) {
         this.runRepository = runRepository;
         this.stepRepository = stepRepository;
         this.stepRegistry = stepRegistry;
         this.expressionEvaluator = expressionEvaluator;
         this.leadSnapshotResolver = leadSnapshotResolver;
+        this.businessHoursService = businessHoursService;
         this.clock = clock;
     }
 
@@ -225,11 +229,21 @@ public class WorkflowStepExecutionService {
         // OR make it lazy and only resolve when {{ lead }} is actually referenced in expressions, but that adds complexity and edge cases (e.g. step outputs referencing {{ lead }} fields).
         Map<String, Object> lead = leadSnapshotResolver.resolve(run.getSourceLeadId());
 
+        // PER-STEP EAGER: resolve business-hours flags at step time so
+        // long-running workflows that cross the daytime/off-hours boundary
+        // see the updated value at the next step (instead of a stale value
+        // captured when the run started).
+        java.time.Instant nowInstant = clock.instant();
+        Map<String, Object> now = Map.of(
+                "isDaytime", businessHoursService.isDaytime(nowInstant),
+                "hourLocal", businessHoursService.hourLocal(nowInstant));
+
         return new RunContext(
                 metadata,
                 run.getTriggerPayload() != null ? run.getTriggerPayload() : Map.of(),
                 run.getSourceLeadId(),
                 lead,
+                now,
                 stepOutputs);
     }
 

@@ -106,8 +106,8 @@ Status: `DONE` (434 tests pass — verified contract from research.md ships as a
 
 ---
 
-## Phase 3 — Business-hours infrastructure
-Status: `NOT_STARTED`
+## Phase 3 — Business-hours infrastructure + Settings backend (read-only)
+Status: `DONE` (454 tests pass — adds `now.*` namespace and `GET /admin/settings/config`)
 
 **Goal:** `now.isDaytime` / `now.hourLocal` available in the JSONata expression scope so any workflow's `branch_on_field` can branch on time-of-day. No new step type required.
 
@@ -216,15 +216,15 @@ Status: `NOT_STARTED`
 
 ---
 
-## Phase 7 — Surface business-hours on Settings page (follow-up)
+## Phase 7 — Settings page UI (frontend) + editable settings (follow-up)
 Status: `OUT_OF_SCOPE` *(tracked here for visibility; ship separately)*
 
-**Goal:** business-hours values visible (and eventually editable) on the admin Settings → Configuration tab per [ui/Docs/ui-product-design-proposal.md](../../../ui/Docs/ui-product-design-proposal.md) lines 202–233.
+**What's already done in Phase 3:**
+- ✅ Read-only `GET /admin/settings/config` endpoint (`AdminSettingsController`)
+- ✅ Sensitive fields redacted to `"***"` with presence flag
+- ✅ Aggregates `BusinessHoursProperties`, `FubClientProperties`, `WebhookProperties`, `CallOutcomeRulesProperties`, `FubRetryProperties`
 
-### Deliverables (when picked up)
-- Extend the planned `GET /admin/settings/config` endpoint to include `businessHours`
-- UI rendering on the Configuration tab (read-only first pass)
-- Editable second pass: persistence layer + write API (separate ticket)
-
-### Why split out
-Phases 0–6 deliver the working escalation workflow with business-hours read from properties. The Settings UI surfacing is purely operator UX and depends on the broader Settings tab work.
+**What remains for Phase 7:**
+- Frontend UI rendering on the Configuration tab per [ui/Docs/ui-product-design-proposal.md](../../../ui/Docs/ui-product-design-proposal.md) lines 202–233
+- Managed Webhooks tab (separate concern from this feature; covered by the same UI doc)
+- **Editable second pass** — write API + persistence layer + per-tenant overrides + audit trail. This is its own initiative (estimated 1–2 weeks of work) and intentionally not bundled with the agent-followup-enforcement scope.

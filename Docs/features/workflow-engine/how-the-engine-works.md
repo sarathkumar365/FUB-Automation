@@ -52,6 +52,8 @@ Each entry: what it is, one example. Skim this list first; you'll recognize ever
 
 **`lead.*` namespace** — Resolved at the start of every step from the `leads.lead_details` JSONB column via `LeadSnapshotResolver`. Auto-fresh: any `peopleUpdated` webhook re-snapshots the lead via the standard ingestion path, so a step running 30 minutes after its workflow started sees the latest field values without an extra FUB API call. Always present in scope; an empty map (`{}`) when the lead hasn't been ingested yet, so `{{ lead.foo }}` returns null gracefully via JSONata path navigation. Source system is currently hardcoded to `"FUB"` — see [known-issues.md](../../engineering-reference/known-issues.md) #18. Trigger-filter scope does NOT yet include `lead.*` — see [known-issues.md](../../engineering-reference/known-issues.md) #17 and `Docs/product-discovery/ideas.md`.
 
+**`now.*` namespace** — Time-of-day flags resolved at the start of every step via `BusinessHoursService`. Two fields: `now.isDaytime` (boolean — true when within configured business hours in the configured timezone) and `now.hourLocal` (int 0–23, hour-of-day in local timezone). Driven by `BusinessHoursProperties` (`automation.business-hours.*`): timezone, startHour, endHour, weekdaysOnly. Per-step resolution means long-running workflows that cross the daytime/off-hours boundary see the correct value at each subsequent step. Workflows branch via `branch_on_field` with `expression: "now.isDaytime"`.
+
 **Expression Evaluator** — There is exactly **one evaluator**: `JsonataExpressionEvaluator`. It is not multiple evaluators — the same class does everything expression-related in the engine. It has two modes (methods): `resolveTemplate(str, scope)` for fill-in-the-blanks strings with `{{ ... }}` markers, and `evaluatePredicate(expr, scope)` for raw boolean/scalar expressions with no markers. Same class, same scope, two different ways to call it.
 
 **RunContext** — A rebuilt-each-time record carrying metadata (runId, workflowKey), the frozen trigger payload, the sourceLeadId, the resolved lead snapshot, and a map of every completed step's outputs. Used to build the Expression Scope.
@@ -399,9 +401,9 @@ It has **two modes**:
 - **`resolveTemplate(String template, ExpressionScope scope)`** — the "fill in the blanks" mode. You hand it a string like `"Hello {{ event.payload.firstName }}"` and it finds the `{{ ... }}` parts, evaluates each one against the scope, and returns the filled-in result.
 - **`evaluatePredicate(String expression, ExpressionScope scope)`** — the "is this true?" mode. You hand it a raw expression with no `{{ }}` markers, like `event.payload.score > 5`, and it evaluates it and returns the result (a boolean, a string, a number — whatever JSONata computes).
 
-The **scope** is the context — the map where the answers live. It has four keys: `event.payload` (the webhook payload), `sourceLeadId`, `lead.<field>` (the locally-snapshotted lead details, auto-refreshed by webhook ingestion), and `steps.<nodeId>.outputs.<key>` (previous steps' outputs). There is no `trigger` key — all webhook data is reached via `event.payload.<key>`. JSONata walks this map to find the value your expression points at.
+The **scope** is the context — the map where the answers live. It has five keys: `event.payload` (the webhook payload), `sourceLeadId`, `lead.<field>` (the locally-snapshotted lead details, auto-refreshed by webhook ingestion), `now.<field>` (time-of-day flags from `BusinessHoursService`), and `steps.<nodeId>.outputs.<key>` (previous steps' outputs). There is no `trigger` key — all webhook data is reached via `event.payload.<key>`. JSONata walks this map to find the value your expression points at.
 
-Both modes evaluate against an `ExpressionScope` — a map with `event`, `sourceLeadId`, `lead.<field>`, and `steps.<nodeId>.outputs.<key>`.
+Both modes evaluate against an `ExpressionScope` — a map with `event`, `sourceLeadId`, `lead.<field>`, `now.<field>`, and `steps.<nodeId>.outputs.<key>`.
 
 ### End-to-end trace: how a value lands on a step's input
 

@@ -7,6 +7,7 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
+import com.fuba.automation_engine.service.BusinessHoursService;
 import com.fuba.automation_engine.service.lead.LeadSnapshotResolver;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
 import java.time.Clock;
@@ -46,6 +47,9 @@ class WorkflowRetryDispatchTest {
     @Mock
     private LeadSnapshotResolver leadSnapshotResolver;
 
+    @Mock
+    private BusinessHoursService businessHoursService;
+
     private Clock fixedClock;
 
     @BeforeEach
@@ -62,7 +66,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_503", "Service unavailable"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, businessHoursService, fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 0);
@@ -88,7 +92,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_503", "Service unavailable"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, businessHoursService, fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 2);
@@ -112,7 +116,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.failure("PERM_400", "Bad request"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, businessHoursService, fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 0);
@@ -137,7 +141,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_CAP", "Retry me"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, businessHoursService, fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 5);
@@ -161,7 +165,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_OVERRIDE", "Retry with override"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, businessHoursService, fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(
@@ -191,7 +195,7 @@ class WorkflowRetryDispatchTest {
                         "startedAt", "2026-01-01T12:00:00Z")));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, businessHoursService, fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 0);
@@ -253,7 +257,7 @@ class WorkflowRetryDispatchTest {
         };
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, leadSnapshotResolver, businessHoursService, fixedClock);
 
         WorkflowRunEntity run = buildRun();
         run.setWorkflowGraphSnapshot(Map.of(

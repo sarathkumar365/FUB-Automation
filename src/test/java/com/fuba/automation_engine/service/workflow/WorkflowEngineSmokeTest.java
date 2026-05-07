@@ -302,6 +302,42 @@ class WorkflowEngineSmokeTest {
     }
 
     @Test
+    void shouldExposeNowIsDaytimeFromBusinessHoursServiceInBranchOnFieldExpression() {
+        // Phase 3 (agent-followup-enforcement) end-to-end check: the engine's
+        // fixed test clock is 2026-01-01 12:00 UTC (= 07:00 Toronto local) on
+        // a Thursday. With default business hours (9-18 weekdays), 07:00 is
+        // OFF-hours, so the workflow should route to the OFFHOURS branch.
+        seedActiveWorkflow("NOW_NS_E2E_OFFHOURS", branchOnNowIsDaytimeGraph());
+
+        WorkflowPlanningResult planResult = executionManager.plan(
+                new WorkflowPlanRequest(
+                        "NOW_NS_E2E_OFFHOURS", "TEST", "evt-now-1", null, "lead-now-1", null));
+        assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
+
+        worker.pollAndProcessDueSteps();
+
+        WorkflowRunStepEntity step = stepRepository.findByRunId(planResult.runId()).getFirst();
+        assertEquals(WorkflowRunStepStatus.COMPLETED, step.getStatus());
+        assertEquals("OFFHOURS", step.getResultCode(),
+                "07:00 Toronto local should route to OFFHOURS branch");
+    }
+
+    private Map<String, Object> branchOnNowIsDaytimeGraph() {
+        return Map.of(
+                "schemaVersion", 1,
+                "entryNode", "check",
+                "nodes", List.of(
+                        Map.of("id", "check", "type", "branch_on_field",
+                                "config", Map.of(
+                                        "expression", "now.isDaytime",
+                                        "resultMapping", Map.of("true", "DAYTIME", "false", "OFFHOURS"),
+                                        "defaultResultCode", "OFFHOURS"),
+                                "transitions", Map.of(
+                                        "DAYTIME", Map.of("terminal", "DAYTIME"),
+                                        "OFFHOURS", Map.of("terminal", "OFFHOURS")))));
+    }
+
+    @Test
     void shouldGracefullyHandleMissingLeadSnapshotInBranchOnFieldExpression() {
         // No lead seeded — lead.* should still be present as an empty map; the
         // branch_on_field default branch should fire instead of throwing.
