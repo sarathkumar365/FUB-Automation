@@ -79,7 +79,7 @@ The `RunContext` is materialized per step in [WorkflowStepExecutionService.build
 ---
 
 ## Phase 2 — `fub_create_note` step type
-Status: `NOT_STARTED` (contract verified — see [research.md](research.md))
+Status: `DONE` (434 tests pass — verified contract from research.md ships as a step)
 
 **Goal:** new workflow step that posts a FUB note with @mention support that renders as a clickable chip and triggers the standard mention notification. Ships after Phase 1 so the step's templates can naturally reference `{{ lead.assignedUserId }}` / `{{ lead.assignedTo }}`. Generic primitive — usable by any future workflow.
 

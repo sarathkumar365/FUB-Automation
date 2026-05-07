@@ -350,6 +350,97 @@ class FubFollowUpBossClientTest {
     }
 
     @Test
+    void shouldCreateNoteWithMentionsAndIsHtml() {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        server.createContext("/v1/notes", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] payload = """
+                    {"id":21240,"personId":18399,"subject":"S","body":"<p><span data-user-id=\\"14\\">K</span> hi</p>","isHtml":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(201, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        com.fuba.automation_engine.service.model.CreatedNote created = client.createNote(
+                new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                        18399L,
+                        "<p><span data-user-id=\"14\">Karanjot Makkar</span> hi</p>",
+                        java.util.List.of(14L),
+                        "Smoke test"));
+
+        assertEquals(21240L, created.id());
+        assertEquals(18399L, created.personId());
+        assertNotNull(requestBody.get());
+        // Phase 2 contract: isHtml: true MUST be sent, mentions.user array MUST
+        // be present (undocumented but required for the chip to render).
+        assertTrue(requestBody.get().contains("\"isHtml\":true"),
+                "Request body should contain isHtml:true; got: " + requestBody.get());
+        assertTrue(requestBody.get().contains("\"mentions\":{\"user\":[14]}"),
+                "Request body should contain mentions.user[14]; got: " + requestBody.get());
+        assertTrue(requestBody.get().contains("\"subject\":\"Smoke test\""),
+                "Request body should contain the subject; got: " + requestBody.get());
+    }
+
+    @Test
+    void shouldOmitMentionsObjectWhenMentionsListEmpty() {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        server.createContext("/v1/notes", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] payload = """
+                    {"id":1,"personId":18399,"body":"<p>plain</p>","isHtml":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(201, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        client.createNote(new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                18399L, "<p>plain</p>", java.util.List.of(), null));
+
+        assertNotNull(requestBody.get());
+        // No mentions[] => omit the field entirely. Subject is null => also omitted.
+        assertFalse(requestBody.get().contains("\"mentions\""),
+                "mentions should be omitted when no mentions; got: " + requestBody.get());
+        assertFalse(requestBody.get().contains("\"subject\""),
+                "subject should be omitted when null; got: " + requestBody.get());
+    }
+
+    @Test
+    void shouldMap400AsPermanentExceptionForCreateNote() {
+        server.createContext("/v1/notes", exchange -> {
+            exchange.sendResponseHeaders(400, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubPermanentException ex = assertThrows(FubPermanentException.class,
+                () -> client.createNote(new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                        1L, "<p>x</p>", java.util.List.of(), null)));
+        assertEquals(400, ex.getStatusCode());
+    }
+
+    @Test
+    void shouldMap503AsTransientExceptionForCreateNote() {
+        server.createContext("/v1/notes", exchange -> {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubTransientException ex = assertThrows(FubTransientException.class,
+                () -> client.createNote(new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                        1L, "<p>x</p>", java.util.List.of(), null)));
+        assertEquals(503, ex.getStatusCode());
+    }
+
+    @Test
     void shouldReturnStubbedRegisterWebhookWithoutHttpCall() {
         AtomicInteger hitCounter = new AtomicInteger();
         server.createContext("/v1/webhooks", exchange -> {

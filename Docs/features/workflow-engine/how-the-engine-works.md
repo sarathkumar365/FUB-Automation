@@ -403,6 +403,66 @@ The **scope** is the context — the map where the answers live. It has four key
 
 Both modes evaluate against an `ExpressionScope` — a map with `event`, `sourceLeadId`, `lead.<field>`, and `steps.<nodeId>.outputs.<key>`.
 
+### End-to-end trace: how a value lands on a step's input
+
+Concrete example — a workflow step writes `{{ lead.assignedTo }}` in its config. Where does the agent display name actually come from?
+
+```
+FUB                    Our system                       The step
+───                    ──────────                       ────────
+
+peopleUpdated  ───►   FubWebhookParser
+webhook                       │
+                              ▼
+                       processLeadDomainEvent
+                              │
+                              ▼
+                       getPersonRawById(18399)  ◄── one FUB API call
+                              │     ↓
+                              │   { ... assignedUserId: 30,
+                              │       assignedTo: "ISA AuraKeyRealty",
+                              │       stage: "Lead", ... }
+                              ▼
+                       leads.lead_details JSONB        (← stored locally)
+                              │
+                              ▼
+                       WorkflowTriggerRouter starts a run
+                              │
+                              ▼ (per step)
+                       buildRunContext(run)
+                              │
+                              ▼
+                       LeadSnapshotResolver
+                       .resolve("18399")
+                              │   ↓
+                              │   { assignedUserId: 30, assignedTo: "ISA AuraKeyRealty", ... }
+                              ▼
+                       runContext.lead = <map>
+                              │
+                              ▼
+                       ExpressionScope.from(runContext)
+                              │
+                              ▼
+                       resolveConfigTemplates(rawConfig, scope)
+                              │
+                              ▼
+                       Template `{{ lead.assignedTo }}`
+                       walks lead → assignedTo
+                       returns "ISA AuraKeyRealty"
+                              │
+                              ▼                ┌─────────────────────────┐
+                       resolvedConfig:         │   the step (any kind)   │
+                       {                       │                         │
+                         mentionUserIds:[30],  │ Sees pre-resolved values│
+                         mentionUserNames:     │ Knows nothing about     │
+                           ["ISA AuraKeyRealty"], │ "agents" or "leads"  │
+                         ...                   │                         │
+                       }       ───────────────►│ Just runs its action    │
+                                               └─────────────────────────┘
+```
+
+**Key takeaway:** the step never queries the DB or calls FUB to look anything up. It receives strings and numbers. All the "where does this come from" complexity lives in `ExpressionScope` (what's available) and the workflow JSON (what to bind). Adding a new namespace = put a new key in scope. Adding a new step that reads existing data = no extra plumbing, just a `{{ ... }}` in the workflow JSON.
+
 **The decision tree inside `resolveTemplate`:**
 
 ```mermaid

@@ -5,7 +5,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fuba.automation_engine.client.fub.dto.FubAssignedPondUpdateRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubAssignedUserUpdateRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubCallResponseDto;
+import com.fuba.automation_engine.client.fub.dto.FubCreateNoteRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubCreateTaskRequestDto;
+import com.fuba.automation_engine.client.fub.dto.FubNoteResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubTagsUpdateRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubTaskResponseDto;
 import com.fuba.automation_engine.config.FubClientProperties;
@@ -14,7 +16,9 @@ import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
@@ -256,6 +260,50 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
         } catch (ResourceAccessException ex) {
             log.warn("FUB createTask network error");
             throw new FubTransientException("FUB network failure on POST /tasks", null, ex);
+        }
+    }
+
+    @Override
+    public CreatedNote createNote(CreateNoteCommand command) {
+        int mentionCount = command.mentionUserIds() == null ? 0 : command.mentionUserIds().size();
+        log.info("Calling FUB createNote personId={} mentionUserIdCount={}",
+                command.personId(), mentionCount);
+
+        FubCreateNoteRequestDto.Mentions mentions = mentionCount > 0
+                ? new FubCreateNoteRequestDto.Mentions(List.copyOf(command.mentionUserIds()))
+                : null;
+        FubCreateNoteRequestDto request = new FubCreateNoteRequestDto(
+                command.personId(),
+                command.subject(),
+                command.body(),
+                Boolean.TRUE,
+                mentions);
+
+        try {
+            FubNoteResponseDto response = restClient.post()
+                    .uri("/notes")
+                    .headers(this::applyDefaultHeaders)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(FubNoteResponseDto.class);
+
+            if (response == null) {
+                throw new FubPermanentException("FUB returned empty body for createNote", null);
+            }
+
+            log.info("FUB createNote succeeded noteId={} personId={}", response.id(), response.personId());
+            return new CreatedNote(
+                    response.id(),
+                    response.personId(),
+                    response.subject(),
+                    response.body());
+        } catch (RestClientResponseException ex) {
+            log.warn("FUB createNote returned HTTP error status={}", ex.getStatusCode().value());
+            throw mapResponseException("POST /notes", ex);
+        } catch (ResourceAccessException ex) {
+            log.warn("FUB createNote network error");
+            throw new FubTransientException("FUB network failure on POST /notes", null, ex);
         }
     }
 

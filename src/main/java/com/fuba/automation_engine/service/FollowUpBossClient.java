@@ -3,7 +3,9 @@ package com.fuba.automation_engine.service;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
@@ -29,4 +31,6 @@ public interface FollowUpBossClient {
     ActionExecutionResult addTag(long personId, String tagName);
 
     CreatedTask createTask(CreateTaskCommand command);
+
+    CreatedNote createNote(CreateNoteCommand command);
 }

@@ -7,6 +7,8 @@ import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
@@ -144,6 +146,11 @@ class WebhookProcessingDevGuardMissingConfigFlowTest {
                 @Override
                 public CreatedTask createTask(CreateTaskCommand command) {
                     return new CreatedTask(0L, command.personId(), command.assignedUserId(), command.name(), command.dueDate(), null);
+                }
+
+                @Override
+                public CreatedNote createNote(CreateNoteCommand command) {
+                    throw new UnsupportedOperationException("createNote not used in this test stub");
                 }
 
                 @Override

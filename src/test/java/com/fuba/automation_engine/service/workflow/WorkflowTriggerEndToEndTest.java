@@ -16,6 +16,8 @@ import com.fuba.automation_engine.persistence.repository.WorkflowRunStepReposito
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
@@ -440,6 +442,11 @@ class WorkflowTriggerEndToEndTest {
         @Override
         public CreatedTask createTask(CreateTaskCommand command) {
             throw new UnsupportedOperationException("Not used in workflow trigger E2E tests");
+        }
+
+        @Override
+        public CreatedNote createNote(CreateNoteCommand command) {
+            throw new UnsupportedOperationException("createNote not used in this test stub");
         }
     }
 }

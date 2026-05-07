@@ -24,6 +24,7 @@ This document tracks currently known issues identified in the codebase.
 | 16 | `JAVA_TOOL_OPTIONS` IPv6 flags on Railway break outbound HTTPS to FUB | High | Resolved (2026-05-05) |
 | 17 | Trigger-filter scope does not include `lead.*` namespace | Low | Open |
 | 18 | `RunContext` hardcodes `"FUB"` as the source system | Low | Open |
+| 19 | No `getUser(id)` client method or `users` ingestion path — workflows cannot mention arbitrary users by ID | Low | Open |
 
 ---
 
@@ -186,3 +187,13 @@ This document tracks currently known issues identified in the codebase.
 - **Issue:** `RunContext` carries only `sourceLeadId`, no `sourceSystem`. Lookups against `leads` (which has a composite key `(source_system, source_lead_id)`) hardcode `"FUB"` everywhere. Today this is correct because FUB is the only adapter, but it will silently misroute lookups when a second CRM lands.
 - **Impact:** None today. Becomes a real bug when HubSpot / Salesforce / Pipedrive adapters are added (see `Docs/product-discovery/ideas.md` "CRM-agnostic event vocabulary").
 - **Suggested fix:** Add `sourceSystem` to `RunContext` (default `"FUB"` until multi-CRM lands), thread it through from `WorkflowRunEntity`, replace hardcoded `"FUB"` strings in resolver call sites.
+
+## 19) No `getUser(id)` client method or `users` ingestion path
+
+- **Status:** Open
+- **Priority:** Low
+- **Location:** `client/fub/FubFollowUpBossClient.java` (no `getUser`), no `users` table or entity in the persistence layer
+- **Issue:** The system stores leads (and minimal call records) but does not store FUB users (agents, ISAs, brokers). FUB also doesn't emit user webhooks, so there's no natural ingestion trigger. Workflows can mention the **lead's currently assigned agent** because `assignedUserId` + `assignedTo` come together inside the lead snapshot. Mentioning **any other user** by ID — e.g. a fixed ISA whose name isn't on the lead — has no clean local source for the display name.
+- **Impact:** Today, workflows that need to mention a non-assigned user must hand-type the display name as a string literal in workflow JSON (drift risk: rename a user in FUB, the literal goes stale). The agent-followup-enforcement workflow does not hit this — it only mentions the assigned agent.
+- **Why it's deferred (not done now):** a `getUser(id)` lazy lookup is one extra FUB API call per execution; a `users` ingestion path would need a polling / sync mechanism since there's no webhook. Neither is justified for current use cases. Documented in `Docs/features/agent-followup-enforcement/research.md` "Why no `getUser` lookup."
+- **Suggested fix when picked up:** add `FubFollowUpBossClient.getUser(userId) → FubUserResponseDto` with the standard retry policy. If multiple workflows start needing this, add a short-TTL `FubUserDirectoryService` cache. A full `users` table sync is overkill until users-per-workflow becomes a hot path.
