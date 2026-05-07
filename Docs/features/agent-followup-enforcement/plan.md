@@ -1,8 +1,8 @@
-# Workflow: "Lead Assigned but Not Called" Escalation
+# Agent Follow-up Enforcement
 
 ## Context
 
-When a lead is assigned to an agent (auto-assigned or self-claimed in FUB), the agent is expected to call quickly. There's no automated nudge today. We want:
+If an agent is given a lead and doesn't follow up, the platform should escalate automatically. There's no automated nudge today. We want:
 
 1. **At 3 min** — if no call yet, post a FUB note that @-mentions the assigned agent.
 2. **At 30 min** — if still no call:
@@ -10,27 +10,95 @@ When a lead is assigned to an agent (auto-assigned or self-claimed in FUB), the 
    - **Off-hours** → move back to the **unorganic POND**
 3. If the agent calls before either checkpoint, the workflow stops.
 
-The Wave 2 engine supports most of this. We need three additions: a `fub_create_note` step, a per-workflow config surface for ISA/POND IDs, and a global "business hours" setting on the admin Settings page that the workflow's `branch_on_field` step can read via JSONata.
+The escalation workflow is the driving use case, but half the work is reusable engine primitives that future workflows will share — see [phases.md](phases.md). Specifically: a CRM-agnostic event vocabulary, two new step types (`fub_create_note`, `fub_fetch_person`), business-hours in the JSONata scope, and a per-workflow `config.*` namespace.
 
 ## What already exists
 
-- Trigger on `ASSIGNMENT.ASSIGNED` (covers auto + self-claim) — [FubWebhookTriggerType.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)
+- Webhook trigger pipeline (parser → ingress → workflow trigger evaluation) — [FubWebhookTriggerType.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)
 - `wait_and_check_communication` returns `COMM_NOT_FOUND` / `CONVERSATIONAL` / `CONNECTED_NON_CONVERSATIONAL` against `ProcessedCallEntity` — supports per-step `delayMinutes` + `lookbackMinutes`
 - `fub_reassign` and `fub_move_to_pond` — both accept template-resolved IDs
 - `branch_on_field` evaluates a **JSONata expression** against the run context and maps the stringified result to a result code via `resultMapping` — [BranchOnFieldWorkflowStep.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/steps/BranchOnFieldWorkflowStep.java) lines 46–111
-- Per-workflow JSON config + JSONata templating (`{{ }}`) already wired through `WorkflowExecutionManager`
+- JSONata templating (`{{ }}`) wired through `ExpressionScope` with `event` / `sourceLeadId` / `steps` keys — [ExpressionScope.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java)
+- `automation_workflows` table + `AutomationWorkflowEntity` + `AdminWorkflowController` POST/PUT for create/update
 - Settings page is planned in [ui/Docs/ui-product-design-proposal.md](../../../ui/Docs/ui-product-design-proposal.md) lines 202–233 with a Configuration tab — no settings entity yet, just `@ConfigurationProperties` beans
+
+## What does NOT exist (gaps surfaced during research)
+
+These are addressed by the phased plan in [phases.md](phases.md):
+
+- **Webhook normalization names are misleading** — `peopleCreated/peopleUpdated` map to `NormalizedDomain.ASSIGNMENT`. Phase 0 renames to `LEAD` (CRM-agnostic; future-proofs for HubSpot/Salesforce/Pipedrive).
+- **`NormalizedAction.ASSIGNED` is a phantom value** — declared but no parser produces it. Phase 0 drops it; Phase 5 may reintroduce backed by a real source event.
+- **Webhook payload doesn't carry `assignedUserId`** — only `resourceIds` (lead IDs). Phase 2 adds an explicit `fub_fetch_person` enrichment step.
+- **No `config` namespace in JSONata scope** — `ExpressionScope` only exposes `event` / `sourceLeadId` / `steps`. Phase 4 adds it (with a new `config` JSONB column on `automation_workflows`).
+- **No `now` / time-aware fields in scope** — Phase 3 injects `now.isDaytime` / `now.hourLocal` via `BusinessHoursService`.
+- **No workflow seeding mechanism** — workflows are created via admin POST today. Phase 6 ships a Flyway data migration to seed this workflow.
 
 ## Gaps to close
 
 ### Gap 1 — `fub_create_note` step type (new)
-FUB has `POST /v1/notes` with `@mention` support. No client method or step exists.
+FUB has `POST /v1/notes` with @mention support. No client method or step exists. Contract verified empirically — see [research.md](research.md).
 
-- New DTO: `src/main/java/com/fuba/automation_engine/client/fub/dto/FubCreateNoteRequestDto.java`
-- Extend [FubFollowUpBossClient.java](../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java) with `createNote(personId, body, mentionedUserIds)` using `RetryPolicy.DEFAULT_FUB`
-- New step: `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubCreateNoteWorkflowStep.java`
-  - Config: `{ "body": "<template>", "mentionUserIds": ["{{ event.payload.assignedUserId }}"] }`
-  - Register in the workflow step registry alongside the others
+**Verified working payload shape:**
+```json
+{
+  "personId": 18399,
+  "body": "<p><span data-user-id=\"14\">Karanjot Makkar</span> message text</p>",
+  "isHtml": true,
+  "mentions": { "user": [14] },
+  "subject": "optional"
+}
+```
+
+Three things must travel together for the mention to render as a chip and trigger notification:
+- `body` HTML containing `<span data-user-id="N">Display Name</span>` for each mentioned user
+- `isHtml: true`
+- `mentions.user: [N, ...]` (undocumented but accepted by the public API; the FUB SPA sends both this AND the spans)
+
+Putting `@Name` plain text in body alone does **not** render as a chip and does **not** trigger notification — confirmed by smoke tests A/B vs C.
+
+**New code:**
+- `FubCreateNoteRequestDto` (record) — `personId`, `body`, `isHtml`, `mentions` (nested `Mentions(List<Long> user)`), optional `subject`
+- `FubNoteResponseDto` — `id`, `personId`, `body`, `isHtml`, etc.
+- `FubUserResponseDto` — minimal shape (`id`, `name`, `firstName`, `lastName`, `role`, `status`)
+- Extend [FubFollowUpBossClient.java](../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java) with:
+  - `createNote(CreateNoteCommand)` using `RetryPolicy.DEFAULT_FUB` (429 + 5xx transient, 4xx permanent)
+  - `getUser(userId)` — `GET /v1/users/{id}`, same retry policy
+- `FubCreateNoteWorkflowStep` registered in the workflow step registry — resolves names inline by calling `getUser` per mention (no service, no shared cache for v1; add later if profiling demands it)
+
+**Step config (workflow JSON):**
+```json
+{
+  "id": "note_agent",
+  "type": "fub_create_note",
+  "config": {
+    "mentionUserIds": ["{{ event.payload.assignedUserId }}"],
+    "message": "this lead hasn't been called yet — please reach out.",
+    "subject": "Lead not called"
+  }
+}
+```
+
+**Step inputs:**
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `mentionUserIds` | array of int (template-resolvable) | yes (or empty for plain note) | Step looks up names, builds spans, assembles `mentions.user` |
+| `message` | string (template-resolvable) | yes | Plain text appended after the mention chips |
+| `subject` | string (template-resolvable) | optional | FUB note subject |
+
+`personId` is implicit from `runContext.sourceLeadId`, not in step config.
+
+**Step outputs:**
+- Result code: `SUCCESS` / `FAILED` (permanent) / retry on transient
+- `steps.<id>.outputs.noteId` — for downstream steps
+
+**Internal flow:**
+1. Resolve templates in `mentionUserIds`, `message`, `subject`
+2. For each id → `FollowUpBossClient.getUser(id)` → take `name`. 4xx fails the step; transient errors retry per `RetryPolicy.DEFAULT_FUB`
+3. Build body: `<p><span data-user-id="N">Name</span> ... {message}</p>`
+4. POST `/v1/notes` with `personId=runContext.sourceLeadId`, `body`, `isHtml=true`, `mentions.user=[ids]`, optional `subject`
+5. Map response → `outputs.noteId`
+
+**Important attribution caveat:** API-created notes are attributed to the **API key owner** (`createdBy`), not the assigned agent or any configurable user. Cannot impersonate. In our smoke test all three notes showed `createdBy: "Mandeep Dhesi"` (the key owner), regardless of who was mentioned.
 
 ### Gap 2 — Business hours as a platform setting (new)
 Lives on the **Settings → Configuration** tab per the UI proposal. Single source of truth, edited by admin, read by workflows.
@@ -65,8 +133,9 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
 
     { "id": "note_agent", "type": "fub_create_note",
       "config": {
-        "body": "@{{ event.payload.assignedUserName }} — this lead hasn't been called yet, please reach out.",
-        "mentionUserIds": ["{{ event.payload.assignedUserId }}"]
+        "mentionUserIds": ["{{ event.payload.assignedUserId }}"],
+        "message": "this lead hasn't been called yet — please reach out.",
+        "subject": "Lead not called (3 min)"
       },
       "next": { "*": "wait_27m" } },
 
@@ -96,14 +165,16 @@ The user wants to enter ISA user ID and unorganic POND ID **when creating the wo
 ## Critical files
 
 **New:**
-- `src/main/java/com/fuba/automation_engine/client/fub/dto/FubCreateNoteRequestDto.java`
+- `src/main/java/com/fuba/automation_engine/client/fub/dto/FubCreateNoteRequestDto.java` (incl. nested `Mentions` record)
+- `src/main/java/com/fuba/automation_engine/client/fub/dto/FubNoteResponseDto.java`
+- `src/main/java/com/fuba/automation_engine/client/fub/dto/FubUserResponseDto.java`
 - `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubCreateNoteWorkflowStep.java`
 - `src/main/java/com/fuba/automation_engine/config/BusinessHoursProperties.java`
 - `src/main/java/com/fuba/automation_engine/service/BusinessHoursService.java`
 - Workflow JSON seed/migration
 
 **Modified:**
-- `src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java` — add `createNote(...)`
+- `src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java` — add `createNote(...)` and `getUser(userId)`
 - Workflow step registry — register `fub_create_note`
 - `WorkflowExecutionManager` (or expression scope builder) — inject `now.isDaytime` / `now.hourLocal` and confirm `config.*` is in scope
 - `src/main/resources/application.properties` (and `-prod`) — `automation.business-hours.timezone`, `.startHour`, `.endHour`, `.weekdaysOnly`

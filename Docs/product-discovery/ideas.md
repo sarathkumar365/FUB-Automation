@@ -4,6 +4,62 @@ A freeform scratchpad for product ideas, future directions, and "would be nice" 
 
 ---
 
+## Idea: CRM-agnostic event vocabulary (multi-CRM support)
+
+**Date:** 2026-05-07
+
+**The problem:**
+Today the automation engine is FUB-only. The internal event model (`NormalizedDomain`, `NormalizedAction`) and clients (`FubFollowUpBossClient`) assume FUB. As we plan to integrate other real-estate CRMs (HubSpot, Salesforce, Pipedrive, GoHighLevel, etc.), the FUB-flavored vocabulary will start leaking into places it doesn't belong — workflow JSON, the admin UI, internal docs.
+
+**The opportunity:**
+Establish a **CRM-agnostic event vocabulary** at the boundary, so each CRM is just an adapter that translates its own terminology into our normalized model. Workflow authors write workflows once; they fire regardless of which CRM provides the source events.
+
+**Different CRMs, same concept:**
+
+| CRM | "Lead/Contact" path | "Team member" path | "Call" path |
+|---|---|---|---|
+| Follow Up Boss | `/v1/people` ("person") | `/v1/users` | `/v1/calls` |
+| HubSpot | `/contacts` ("contact") | `/users` (or `/owners`) | `/engagements` |
+| Salesforce | `/Lead` + `/Contact` | `/User` | `/Task` (call subtype) |
+| Pipedrive | `/persons` | `/users` | `/activities` |
+| GoHighLevel | `/contacts` | `/users` | `/conversations` |
+
+If our enum is `PERSON` (FUB's term), every other adapter mentally translates. If it's `LEAD` (our business-domain term), the translation is natural everywhere.
+
+**Proposed canonical taxonomy:**
+
+| Domain | Meaning | Common actions |
+|---|---|---|
+| `LEAD` | The prospect/contact a workflow operates on | `CREATED`, `UPDATED` |
+| `CALL` | Phone call activity | `CREATED` |
+| `NOTE` | Notes attached to a lead | `CREATED`, `UPDATED` |
+| `TASK` | Tasks attached to a lead | `CREATED`, `UPDATED`, `COMPLETED` |
+| `DEAL` | Sales opportunity (CRMs that distinguish from lead stage) | `CREATED`, `UPDATED`, `WON`, `LOST` |
+| `APPOINTMENT` | Calendar event | `CREATED`, `UPDATED`, `CANCELLED` |
+| `USER` | Team member events (may not have webhooks in most CRMs) | TBD |
+| `UNKNOWN` | Fallback | — |
+
+**Architecture sketch (for when this is picked up):**
+
+- Per-CRM webhook parser implementations behind a `CrmEventNormalizer` interface; current `FubWebhookParser` becomes one of many
+- Per-CRM clients live under `integration/<crm>/` (already started: `client/fub/`)
+- `NormalizedDomain` / `NormalizedAction` enums and `ExpressionScope` stay CRM-neutral
+- A registry of installed CRM adapters + per-tenant CRM selection (multi-tenancy implication)
+- Workflow JSON references domains/actions only — never CRM-specific event types
+- Step types that touch a CRM (e.g. `fub_create_note`, `fub_reassign`) split into:
+  - Generic step: `crm_create_note`, `crm_reassign` — dispatched to the active CRM adapter
+  - Or keep CRM-prefixed steps and have the workflow author choose by CRM (more explicit, less magic)
+
+**First concrete step:**
+The `agent-followup-enforcement` feature (in progress) lays groundwork by renaming `NormalizedDomain.ASSIGNMENT` → `LEAD` in its Phase 0. After that ships, this idea can be picked up: introduce the parser interface, add a second CRM adapter, and decide the generic-vs-prefixed step convention.
+
+**Why now-ish (not way later):**
+- `NormalizedDomain` enum values are stored in DB rows (`webhook_events.normalized_domain`) and will be referenced in workflow JSON. Rename cost grows the longer we wait.
+- Selling automation to a team that's on HubSpot is a non-starter as long as we're FUB-only.
+- The architecture is still simple enough to refactor (single CRM, modest code volume) — the multi-CRM seam is much easier to introduce now than after a second concrete CRM has bolted on alongside FUB.
+
+---
+
 ## Idea: Analytics Platform for Real Estate CRMs
 
 **Date:** 2026-04-08

@@ -1,0 +1,216 @@
+# Agent Follow-up Enforcement — Phases
+
+Each phase is independently shippable and verifiable. Complete in order.
+
+---
+
+## Phase 0 — Webhook normalization rename
+Status: `NOT_STARTED`
+
+**Goal:** Fix the misleading `NormalizedDomain.ASSIGNMENT` naming with **CRM-agnostic, business-domain** terminology before any workflow JSON references it. `peopleCreated` / `peopleUpdated` are events about a lead/contact, not "assignments" (assignment is just one possible reason a lead gets updated). Using `LEAD` instead of FUB-specific jargon also future-proofs the engine for HubSpot/Salesforce/Pipedrive/etc. — see [Docs/product-discovery/ideas.md](../../../Docs/product-discovery/ideas.md) "CRM-agnostic event vocabulary" entry. Renaming now is cheap (zero seeded workflows reference the old names); renaming later means breaking workflow definitions in production DBs.
+
+### Deliverables
+- Rename `NormalizedDomain.ASSIGNMENT` → `NormalizedDomain.LEAD` (CRM-agnostic; matches our business-domain term, not any single CRM's API jargon)
+- Drop `NormalizedAction.ASSIGNED` (phantom value — no parser produces it; assignment is detected as a `LEAD.UPDATED` with field-diff inside the workflow)
+- Update [FubWebhookParser.java:133-149](../../../src/main/java/com/fuba/automation_engine/service/webhook/parse/FubWebhookParser.java) — `peopleCreated/peopleUpdated → LEAD.CREATED/UPDATED`
+- Flyway migration: `UPDATE webhook_events SET normalized_domain='LEAD' WHERE normalized_domain='ASSIGNMENT'`
+- Update all Java references (≈10 files): `WebhookEventEntity`, `WebhookFeedItemResponse`, `WebhookEventDetailResponse`, `JdbcWebhookFeedReadRepository`, `WebhookIngressService`, `AdminWebhookService`, `WebhookEventProcessorService`, `ProcessedCallAdminService`, parser, repository
+- Update tests (parser test, feed tests, contract tests)
+- Update [FubWebhookTriggerType.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java) docs/validation if it references the enum names
+
+### Verification
+- All existing tests still pass after rename
+- Migration applied cleanly to a copy of the dev DB; webhook feed UI still loads existing events with the renamed domain
+- Grep confirms no `ASSIGNMENT` / `NormalizedAction.ASSIGNED` references remain
+
+### Exit criteria
+- Domain naming is `LEAD` / `CALL` / `UNKNOWN` (CRM-agnostic); actions are `CREATED` / `UPDATED` / `UNKNOWN`
+- No workflow JSON references the old names anywhere in the repo
+- Migration applied + test suite green on a clean checkout
+
+### Why this is Phase 0 (not later)
+- No seeded workflow JSON references the old enum strings yet — purely an internal rename right now
+- Phase 4 (trigger wiring) and Phase 5 (workflow JSON seed) both reference the domain. Doing those before the rename means churning the workflow JSON twice.
+- Cost grows once any production workflow references `eventDomain: "ASSIGNMENT"`
+
+---
+
+## Phase 1 — `fub_create_note` step type
+Status: `NOT_STARTED` (contract verified — see [research.md](research.md))
+
+**Goal:** new workflow step that posts a FUB note with @mention support that renders as a clickable chip and triggers the standard mention notification. Ships independently — usable by any future workflow.
+
+### Deliverables
+- `FubCreateNoteRequestDto` (incl. nested `Mentions(List<Long> user)` record), `FubNoteResponseDto`, and `FubUserResponseDto` in `src/main/java/com/fuba/automation_engine/client/fub/dto/`
+- `FubFollowUpBossClient.createNote(CreateNoteCommand)` using `RetryPolicy.DEFAULT_FUB` — sends `body` (HTML), `isHtml=true`, `mentions.user[]`, optional `subject`
+- `FubFollowUpBossClient.getUser(userId)` — `GET /v1/users/{id}`, same retry policy. Used inline by the step to resolve names; no separate service or cache for v1
+- `FubCreateNoteWorkflowStep` registered in the workflow step registry, taking config `{ mentionUserIds, message, subject? }`
+  - For each id → `getUser` → grab `name`
+  - Builds body: `<p><span data-user-id="N">Name</span> ... {message}</p>`
+  - 4xx on `getUser` → fail step (`FAILED`); transient errors retry per the policy
+- Unit tests for body+mentions assembly (single user, multiple users, message templating, subject templating, missing-user → fail), client retry behavior, and `getUser` → 404 surfaces as `FAILED`
+
+### Verification
+- Unit tests green
+- Manual: define a one-step workflow that creates a note on an inbound webhook, fire it against a staging lead, confirm:
+  - Mention renders as a highlighted chip in FUB UI (not plain text)
+  - Mentioned non-broker user receives email notification
+  - Mentioned user is auto-added as collaborator on the lead
+
+### Exit criteria
+- Step type listed in registry, callable from workflow JSON, retries on transient FUB errors, fails permanently on 4xx
+- @mention rendering + notification + auto-collaborator-add all confirmed in staging
+
+---
+
+## Phase 2 — `fub_fetch_person` enrichment step
+Status: `NOT_STARTED`
+
+**Goal:** new workflow step that fetches a person from FUB and exposes selected fields under `steps.<id>.outputs.*` for downstream steps. Needed because the webhook normalized payload only carries `resourceIds` (lead IDs) — fields like `assignedUserId` aren't in the event payload and must be hydrated from `GET /v1/people/{id}`.
+
+### Why this is its own step (not auto-enrichment in the normalizer)
+- Keeps the webhook normalizer fast and free of FUB API calls (which can be slow / rate-limited)
+- Aligns with Wave 2's step-plugin model — workflows opt in to enrichment when they need it
+- Generic — any future workflow that needs person fields gets it for free
+
+### Deliverables
+- `FubFollowUpBossClient.getPerson(personId)` if not already present — returns full person DTO. (Likely already exists; verify and reuse.)
+- `FubPersonResponseDto` covering at minimum: `id`, `assignedUserId`, `assignedTo`, `assignedPondId`, `stage`, `tags`, `name`, `firstName`, `lastName`. Add fields lazily as future workflows demand them.
+- `FubFetchPersonWorkflowStep` registered in the workflow step registry
+  - Config: `{ "personId": "{{ sourceLeadId }}" }` (template-resolvable; defaults to `sourceLeadId` if absent)
+  - Outputs the full person DTO under `steps.<id>.outputs.*` so downstream steps can use `{{ steps.fetch.outputs.assignedUserId }}`
+  - 4xx → `FAILED`; transient errors retry per `RetryPolicy.DEFAULT_FUB`
+- Unit tests for output mapping, missing-person → FAILED, retry behavior
+
+### Verification
+- Unit tests green
+- Manual: define a two-step workflow (`fub_fetch_person` → `slack_notify` with `{{ steps.fetch.outputs.assignedUserId }}` in the message); fire and confirm the user ID appears in the Slack message
+
+### Exit criteria
+- Step type registered, callable, exposes fields under `steps.<id>.outputs.*`
+- Documented in `Docs/features/workflow-engine/` as a generic enrichment primitive
+
+---
+
+## Phase 3 — Business-hours infrastructure
+Status: `NOT_STARTED`
+
+**Goal:** `now.isDaytime` / `now.hourLocal` available in the JSONata expression scope so any workflow's `branch_on_field` can branch on time-of-day. No new step type required.
+
+**Why injection (not JSONata `$now()`):** JSONata's built-in `$now()` returns a UTC ISO string. Doing timezone-aware "are we in business hours" math in JSONata alone is fragile. Injecting a precomputed boolean keeps workflow expressions trivial and centralizes business-hours logic in one Java service that's reusable elsewhere (Settings page, future workflows).
+
+### Deliverables
+- `BusinessHoursProperties` (`automation.business-hours.timezone`, `.startHour`, `.endHour`, `.weekdaysOnly`) bound from `application.properties`
+- `BusinessHoursService.isDaytime(Instant)` and `.hourLocal(Instant)`
+- Extend `ExpressionScope` ([src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java:10-31](../../../src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java)) to inject a `now` map: `{ isDaytime: bool, hourLocal: int }` on every step evaluation, computed via the injected `Clock`
+- Default values in `application.properties` and `application-prod.properties`
+- Unit tests covering DST boundaries, weekend behavior, midnight wraparound, hour-edge cases (exactly `startHour` / `endHour`)
+
+### Verification
+- Unit tests green across timezones
+- Manual: create a throwaway workflow with `branch_on_field` on `now.isDaytime`, fire it at different times, confirm correct branch taken
+
+### Exit criteria
+- Any workflow can branch on business-hours without new step types
+- Defaults sane for production timezone
+
+---
+
+## Phase 4 — Workflow `config.*` namespace + DB column
+Status: `NOT_STARTED` (confirmed required — `config` is NOT in scope today, no column exists)
+
+**Goal:** workflow-level `config` block (e.g. `isaUserId`, `unorganicPondId`) is persisted, surfaced in `RunContext`, and accessible as `{{ config.* }}` in step configs. Operators set these per-workflow at creation time rather than via app properties.
+
+### Deliverables
+- Flyway migration: add `config JSONB` column to `automation_workflows` (nullable, default `'{}'`)
+- Add `config` field to `AutomationWorkflowEntity` ([src/main/java/com/fuba/automation_engine/persistence/entity/AutomationWorkflowEntity.java](../../../src/main/java/com/fuba/automation_engine/persistence/entity/AutomationWorkflowEntity.java))
+- Plumb config through:
+  - Admin DTO + `AdminWorkflowController` create/update endpoints accept `config`
+  - `AutomationWorkflowService` stores it
+  - `RunContext` carries it
+  - `ExpressionScope` exposes it as top-level `config` key
+- Unit + integration tests:
+  - Step config `{{ config.foo }}` resolves at runtime
+  - Round-trip via the admin API (POST workflow with config → GET → values match)
+- Brief docs note in `Docs/features/workflow-engine/` describing the `config` namespace
+
+### Verification
+- Tests green
+- Manual: POST a workflow with `config: { foo: 42 }` via `/admin/workflows`, fire trigger, confirm a step using `{{ config.foo }}` resolves to `42`
+
+### Exit criteria
+- Operators can set ISA / POND IDs (and any other per-workflow tunables) in workflow JSON without touching code, properties, or migrations
+
+---
+
+## Phase 5 — Trigger wiring: detect "agent assigned"
+Status: `NOT_STARTED`
+
+**Goal:** the workflow needs to fire when an agent is assigned to a lead. Today's parser doesn't surface this distinction — `peopleUpdated` covers ALL person changes (name, tags, stage, assignment, etc.). We need either a finer-grained event mapping or a workflow-side filter.
+
+### Spike first (≈30 min)
+- Reproduce a real "agent claims lead" action in the FUB UI; capture the actual webhook FUB sends. Is it `peopleUpdated`, or is there a more specific event type (`peopleStageUpdated`, `peopleAssigned`, etc.)?
+- Decide between two paths based on what we observe:
+
+### Path A (preferred if FUB sends a distinct event type)
+- Add a new mapping in [FubWebhookParser.java](../../../src/main/java/com/fuba/automation_engine/service/webhook/parse/FubWebhookParser.java): the specific FUB event type → `PERSON.ASSIGNED` (re-introduce the action; this time backed by a real producer)
+- Workflow trigger uses `eventDomain: "PERSON", eventAction: "ASSIGNED"`
+
+### Path B (fallback if FUB only sends `peopleUpdated`)
+- Trigger on `PERSON.UPDATED`
+- Add a `filter` JSONata expression on the trigger config (already supported per Wave 2 design) that gates on something like `steps.fetch.outputs.assignedUserId != steps.fetch.outputs.previousAssignedUserId` — requires the enrichment step from Phase 2 plus a way to know the previous value, which may need extra payload work
+- More complex; only choose if Path A isn't available
+
+### Deliverables (whichever path applies)
+- Parser change + tests
+- Documented trigger config for "agent assigned" scenarios in `Docs/features/workflow-engine/`
+
+### Verification
+- Fire a real assignment in FUB sandbox; confirm exactly one `PERSON.ASSIGNED` event lands and matches a registered workflow trigger
+
+### Exit criteria
+- Trigger reliably fires once per assignment, doesn't fire on unrelated person updates
+
+---
+
+## Phase 6 — Compose the escalation workflow
+Status: `NOT_STARTED`
+
+**Goal:** ship the actual "lead assigned but not called" workflow using primitives from Phases 1–5.
+
+### Deliverables
+- Workflow JSON definition (see [plan.md](plan.md) for the full shape, updated with Phase 2's `fub_fetch_person` step in front of the note)
+- Flyway data migration `V<next>__seed_lead_not_called_workflow.sql` that inserts the workflow row with `status='ACTIVE'`. Idempotent (`ON CONFLICT (key) DO UPDATE`)
+- Integration test with `FollowUpBossClient` mocked + clock advanced, asserting all four paths:
+  1. Call within 3 min → END after `wait_3m`, no note, no reassignment
+  2. No call by 3 min, call by 20 min → note created, END after `wait_27m`
+  3. No call by 30 min + daytime → `fub_reassign` with `config.isaUserId`
+  4. No call by 30 min + off-hours → `fub_move_to_pond` with `config.unorganicPondId`
+- Kill-switch verification: confirm the workflow respects the existing workflow-enable flag (`status` field; toggling to `INACTIVE` halts new runs)
+
+### Verification
+- Integration tests green
+- Staging end-to-end:
+  - Real FUB assignment webhook against a test lead, do not call → @mention note at 3 min, reassign/pond move at 30 min
+  - Parallel run where the agent calls within 3 min → no note, no reassignment
+- Verify `lookbackMinutes: 30` on the second check correctly cancels reassignment if a call happened anywhere in the 30-min window
+
+### Exit criteria
+- Workflow runs end-to-end in staging across all four branches
+- Disable-via-flag confirmed
+- Migration applies cleanly to a fresh DB and is idempotent on re-run
+
+---
+
+## Phase 7 — Surface business-hours on Settings page (follow-up)
+Status: `OUT_OF_SCOPE` *(tracked here for visibility; ship separately)*
+
+**Goal:** business-hours values visible (and eventually editable) on the admin Settings → Configuration tab per [ui/Docs/ui-product-design-proposal.md](../../../ui/Docs/ui-product-design-proposal.md) lines 202–233.
+
+### Deliverables (when picked up)
+- Extend the planned `GET /admin/settings/config` endpoint to include `businessHours`
+- UI rendering on the Configuration tab (read-only first pass)
+- Editable second pass: persistence layer + write API (separate ticket)
+
+### Why split out
+Phases 0–6 deliver the working escalation workflow with business-hours read from properties. The Settings UI surfacing is purely operator UX and depends on the broader Settings tab work.
