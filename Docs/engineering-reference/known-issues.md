@@ -25,6 +25,7 @@ This document tracks currently known issues identified in the codebase.
 | 17 | Trigger-filter scope does not include `lead.*` namespace | Low | Open |
 | 18 | `RunContext` hardcodes `"FUB"` as the source system | Low | Open |
 | 19 | No `getUser(id)` client method or `users` ingestion path — workflows cannot mention arbitrary users by ID | Low | Open |
+| 20 | No change-detection mechanism — triggers cannot fire on field transitions (e.g. "assignedUserId changed") | High | Open |
 
 ---
 
@@ -197,3 +198,13 @@ This document tracks currently known issues identified in the codebase.
 - **Impact:** Today, workflows that need to mention a non-assigned user must hand-type the display name as a string literal in workflow JSON (drift risk: rename a user in FUB, the literal goes stale). The agent-followup-enforcement workflow does not hit this — it only mentions the assigned agent.
 - **Why it's deferred (not done now):** a `getUser(id)` lazy lookup is one extra FUB API call per execution; a `users` ingestion path would need a polling / sync mechanism since there's no webhook. Neither is justified for current use cases. Documented in `Docs/features/agent-followup-enforcement/research.md` "Why no `getUser` lookup."
 - **Suggested fix when picked up:** add `FubFollowUpBossClient.getUser(userId) → FubUserResponseDto` with the standard retry policy. If multiple workflows start needing this, add a short-TTL `FubUserDirectoryService` cache. A full `users` table sync is overkill until users-per-workflow becomes a hot path.
+
+## 20) No change-detection mechanism — triggers cannot fire on field transitions
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/trigger/FubWebhookTriggerType.java`, `service/webhook/parse/FubWebhookParser.java`, `service/lead/LeadUpsertService.java`
+- **Issue:** FUB collapses every kind of person-record change (assignment, stage, tags, lender, custom fields, name edits, …) into the same generic `peopleUpdated` webhook. The current trigger-filter scope sees only the post-update state — it has no view of what was different. Workflows therefore cannot express predicates like "fire only when `assignedUserId` changed" or "fire only when stage moved into Hot." They must over-fire on every `peopleUpdated` and rely on downstream steps to no-op, or hard-code a per-purpose trigger class for every transition of interest.
+- **Impact:** The agent-followup-enforcement workflow currently over-fires on all `peopleUpdated` events for assigned leads (false-positive escalation runs on tag/stage edits). Acceptable in dev; a real correctness/cost problem once high-volume workflows depend on transition semantics. Any future workflow that needs "fire on stage transition," "fire when lender attached," etc. is blocked.
+- **Why it's deferred (not done now):** the only concrete need today is the agent-followup-enforcement workflow, and we're explicitly shipping it with the over-firing trigger to gather usage signal before committing to an architectural fix. Phase 5 was skipped in [Docs/features/agent-followup-enforcement/phases.md](../features/agent-followup-enforcement/phases.md) for this reason.
+- **Suggested fix when picked up:** see [Docs/product-discovery/ideas.md](../product-discovery/ideas.md) "Change-detection in trigger filters (`lead.previous.*`)" for the full design comparison (5 alternatives weighed). Preferred direction: capture pre-upsert lead snapshot in `LeadUpsertService`, expose it as `lead.previous.*` in the trigger-filter and step-execution scope. Resolves #17 in the same change.

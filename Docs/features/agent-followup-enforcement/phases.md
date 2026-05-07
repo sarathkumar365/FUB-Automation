@@ -172,32 +172,31 @@ The idea is preserved as a future feature in [Docs/product-discovery/ideas.md](.
 ---
 
 ## Phase 5 — Trigger wiring: detect "agent assigned"
-Status: `NOT_STARTED`
+Status: `SKIPPED` (2026-05-07)
 
-**Goal:** the workflow needs to fire when an agent is assigned to a lead. Today's parser doesn't surface this distinction — `peopleUpdated` covers ALL person changes (name, tags, stage, assignment, etc.). We need either a finer-grained event mapping or a workflow-side filter.
+**Reason for skip:** Research confirmed FUB has **no distinct `peopleAssigned` event** — assignment piggybacks on the generic `peopleUpdated` event alongside ~11 other field categories (stage, tags, lender, custom fields, name edits, …), with no `changedFields` array in the payload. Detecting "assignment specifically changed" therefore requires a real change-detection mechanism in the engine.
 
-### Spike first (≈30 min)
-- Reproduce a real "agent claims lead" action in the FUB UI; capture the actual webhook FUB sends. Is it `peopleUpdated`, or is there a more specific event type (`peopleStageUpdated`, `peopleAssigned`, etc.)?
-- Decide between two paths based on what we observe:
+Five alternatives were weighed (targeted trigger class, scope-based diff, faceted/synthetic events, in-workflow gate, filter-only) — full comparison captured in [Docs/product-discovery/ideas.md](../../product-discovery/ideas.md) "Change-detection in trigger filters (`lead.previous.*`)" (marked IMPORTANT). Tracked in [known-issues #20](../../engineering-reference/known-issues.md).
 
-### Path A (preferred if FUB sends a distinct event type)
-- Add a new mapping in [FubWebhookParser.java](../../../src/main/java/com/fuba/automation_engine/service/webhook/parse/FubWebhookParser.java): the specific FUB event type → `PERSON.ASSIGNED` (re-introduce the action; this time backed by a real producer)
-- Workflow trigger uses `eventDomain: "PERSON", eventAction: "ASSIGNED"`
+We are still in **dev phase**, validating workflow-engine *capabilities* end-to-end. Building a proper change-detection mechanism (3–4 days, with concurrency + null-semantics + filter-testability tradeoffs) is engineering overhead we don't need to absorb before the workflow has even been observed running once. Better path: ship the workflow with an over-firing trigger, gather signal from real usage, decide later whether change-detection is a recurring category worth the architecture or a one-off worth a targeted trigger class.
 
-### Path B (fallback if FUB only sends `peopleUpdated`)
-- Trigger on `PERSON.UPDATED`
-- Add a `filter` JSONata expression on the trigger config (already supported per Wave 2 design) that gates on a condition like "this peopleUpdated event included an assignedUserId change." Reading current `lead.assignedUserId` is easy via Phase 1's `lead.*` namespace; knowing the *previous* value is harder and may need a "previous snapshot" stash on the entity or a `changedFields` array on the webhook payload
-- More complex; only choose if Path A isn't available
+**Substitute for Phase 6:** the workflow's trigger filter will fire on every `peopleUpdated` for an already-assigned lead:
 
-### Deliverables (whichever path applies)
-- Parser change + tests
-- Documented trigger config for "agent assigned" scenarios in `Docs/features/workflow-engine/`
+```json
+"trigger": {
+  "type": "fub_webhook",
+  "filter": "event.eventType = 'peopleUpdated' and lead.assignedUserId"
+}
+```
 
-### Verification
-- Fire a real assignment in FUB sandbox; confirm exactly one `PERSON.ASSIGNED` event lands and matches a registered workflow trigger
+False positives (escalation runs triggered by tag/stage edits on assigned leads) are **acceptable in dev** — they exercise the engine plumbing and produce more learning signal, not less. They become a real cost only when this workflow runs at production volume.
 
-### Exit criteria
-- Trigger reliably fires once per assignment, doesn't fire on unrelated person updates
+**When to revisit:**
+- A second concrete workflow needs change detection (stage transition, lender attached, etc.) → adopt scope-based `lead.previous.*` (Approach B)
+- Production volume makes false-positive runs a real cost → adopt either a targeted trigger class (Approach A) or scope-based diff, depending on how many transition types are in flight
+- Either way: see the IMPORTANT-marked idea entry for the design
+
+**Original goal (kept for context):** the workflow needs to fire when an agent is assigned to a lead. Today's parser doesn't surface this distinction — `peopleUpdated` covers ALL person changes.
 
 ---
 

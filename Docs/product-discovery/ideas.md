@@ -4,6 +4,69 @@ A freeform scratchpad for product ideas, future directions, and "would be nice" 
 
 ---
 
+## ⭐ IMPORTANT — Idea: Change-detection in trigger filters (`lead.previous.*`)
+
+**Date:** 2026-05-07
+
+**Priority:** Important — first concrete need surfaced from the agent-followup-enforcement workflow (Phase 5 was skipped because of this gap; tracked as known-issues #20). Will block any workflow that needs to fire on a *transition* rather than on every webhook of a given type.
+
+**The problem:**
+FUB sends a single generic `peopleUpdated` event for every field change on a lead — assignment, stage, tags, lender, custom fields, etc. There's no way today to write a trigger that fires only when **the assignment specifically changed** (or "stage moved to Hot," "tag X was added," etc.). Workflows must either fire on every `peopleUpdated` (false positives, wasted runs) or rely on per-purpose trigger classes (one per "interesting" change × one per CRM — combinatorial explosion).
+
+**The proposal:**
+Expose the lead's pre-webhook state in the JSONata scope alongside the post-webhook state, so workflow authors can write change-detection predicates as one-line filter expressions:
+
+```json
+"trigger": {
+  "type": "fub_webhook",
+  "filter": "lead.assignedUserId != lead.previous.assignedUserId"
+}
+```
+
+Other examples it unlocks:
+- `"lead.stage = 'Hot Lead' and lead.previous.stage != 'Hot Lead'"` — moved into Hot
+- `"lead.assignedLenderId and not lead.previous.assignedLenderId"` — lender just attached
+- `"lead.assignedUserId and not lead.previous.assignedUserId"` — newly assigned (was unassigned)
+
+**Why this shape (not per-purpose trigger classes):**
+- One uniform mechanism scales to N change-types without N new trigger classes
+- CRM-agnostic — every CRM upserts with old/new state available, so adapters honor the same scope contract
+- Resolves [known-issues #17](../engineering-reference/known-issues.md) (lead.* in trigger filters) in the same change
+
+**Sketch when picked up:**
+- `LeadUpsertService` captures the existing `LeadEntity` snapshot before applying the upsert; stashes it transiently on `NormalizedWebhookEvent`
+- `RunContext` gains a `previousLead` field
+- `ExpressionScope` exposes `lead.previous.*` (or top-level `previousLead`)
+- Trigger evaluator's filter scope is unified with step-execution scope (single source of truth)
+- Optional convenience: `lead.changedFields` as a Set<String> of top-level keys whose values differ — defer until a real driver
+
+**Honest open questions:**
+- **Concurrency:** racing webhooks for the same lead can corrupt "previous" without row-level locking on upsert. Real bug the day this ships.
+- **New-lead semantics:** is `lead.previous` `null`, `{}`, or an all-null skeleton? Each choice breaks a different filter. Pick one, document it.
+- **JSONata fails open** — a typo (`lead.previousAssignedUserId`) silently evaluates to "always different" and over-fires. No compile-time check.
+- **Filter testability** — JSONata predicates inside workflow JSON have no test harness today.
+
+**Effort estimate:**
+~3–4 days of focused work (RunContext + ExpressionScope + LeadUpsertService + NormalizedWebhookEvent + trigger eval unification + concurrency story + tests). Compares to ~1 day for a one-off targeted trigger class per use case.
+
+**Triggers worth picking this up:**
+- A second concrete workflow needs change detection (stage transition, tag addition, lender attached, etc.)
+- We're about to start building any workflow that needs "fire only on a transition"
+- We integrate a second CRM and don't want to duplicate per-purpose trigger classes per CRM
+
+**Compared alternatives** (tracked in conversation history; full table available on request):
+| Approach | Verdict |
+|---|---|
+| **A.** Targeted trigger class per change | Boring/safe; wins if change-detection is a one-off |
+| **B.** Scope-based diff (`lead.previous.*`) — *this idea* | Elegant; scales; wins if change-detection is recurring |
+| **C.** Faceted/synthetic events at ingest | Avoid — pushes workflow concerns into ingestion |
+| **D.** Gate inside workflow on every update | Cheap to build, expensive to run |
+| **E.** Filter-only without diff | Cannot solve the problem |
+
+The decision between A and B hinges on whether change-detection is a recurring category. Today: not enough signal — agent-followup-enforcement is the only concrete need, and we're shipping it in dev with an over-firing trigger to gather signal first.
+
+---
+
 ## Idea: Per-workflow `config.*` namespace + JSONB column
 
 **Date:** 2026-05-07
