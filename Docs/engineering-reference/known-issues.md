@@ -20,6 +20,8 @@ This document tracks currently known issues identified in the codebase.
 | 12 | Workflow steps are not consistently local-first and still rely on direct FUB calls | High | Open |
 | 13 | Workflow run can deadlock on OR-style fan-in because engine enforces AND-only join activation | High | Open |
 | 14 | Workflow expressions cannot resolve lead phone from webhook payload for ai_call `to` | High | Open |
+| 15 | SSE async-dispatch logs `AuthorizationDeniedException: Access Denied` on subscriber disconnect | Low | Open |
+| 16 | `JAVA_TOOL_OPTIONS` IPv6 flags on Railway break outbound HTTPS to FUB | High | Resolved (2026-05-05) |
 
 ---
 
@@ -144,3 +146,23 @@ This document tracks currently known issues identified in the codebase.
 - **Issue:** FUB webhook payload normalization exposes only minimal event metadata (`eventType`, `resourceIds`, `uri`, headers, `rawBody`) to workflow trigger payload. Lead phone is not materialized into trigger payload or expression scope, so `ai_call.config.to` cannot reliably bind to a phone path from `event.payload`.
 - **Impact:** AI call workflows must hardcode `to` or depend on local dev safe override. Production-safe dynamic dialing from lead data is blocked in graph config.
 - **Suggested fix:** Enrich workflow planning scope with resolved lead contact fields (for example from local `leads` snapshot) or add explicit step-level lead lookup for `ai_call` when resolving `to`.
+
+## 15) SSE async-dispatch logs `AuthorizationDeniedException: Access Denied` on subscriber disconnect
+
+- **Status:** Open
+- **Priority:** Low
+- **Location:** `config/SecurityConfig.java`, `controller/AdminWebhookController.java` (`GET /admin/webhooks/stream`)
+- **Issue:** Spring Security 6 filters every `DispatcherType` by default. When an `SseEmitter` completes, Tomcat re-dispatches with `DispatcherType.ASYNC`; the dispatch thread has no `SecurityContextHolder` populated (the JWT filter runs only on the original REQUEST), so `AuthorizationFilter` denies. The original REQUEST is correctly authenticated — this is purely the inner re-dispatch.
+- **Impact:** Log noise. Each SSE subscriber disconnect produces an `AuthorizationDeniedException: Access Denied` stack plus a follow-on "Unable to handle the Spring Security Exception because the response is already committed." in deployed-host logs. SSE delivery still works (`deliveredSubscribers=1` continues to log); the JWT contract on the initial request is intact.
+- **Suggested fix:** In `SecurityConfig.java`, add `.dispatcherTypeMatchers(DispatcherType.ASYNC, DispatcherType.ERROR).permitAll()` as the first matcher in `authorizeHttpRequests`. The initial REQUEST dispatch still runs through the JWT filter and `requestMatchers("/admin/**").authenticated()`.
+
+## 16) `JAVA_TOOL_OPTIONS` IPv6 flags on Railway break outbound HTTPS to FUB
+
+- **Status:** Resolved (2026-05-05)
+- **Priority:** High
+- **Location:** Railway service env vars; cross-references `Docs/hosting-decision/dev/deploy-runbook.md` (Failure 3 / env-var contract still recommends the flag)
+- **Issue (historical):** The deploy runbook recommended `JAVA_TOOL_OPTIONS=-Djava.net.preferIPv6Stack=true -Djava.net.preferIPv6Addresses=true` so the JVM could reach the IPv6-only internal Postgres add-on on Railway. `preferIPv6Stack=true` disables the IPv4 socket stack JVM-wide. Alpine/musl `getent hosts api.followupboss.com` returns only the AAAA address, and Railway's egress for public destinations is IPv4-only — so every outbound connect attempt to FUB failed before TLS.
+- **Impact (historical):** Every `Calling FUB getCallById/getPersonRawById` was followed within 1–70 ms by `FUB ... network error` and `Transient FUB ... status=N/A`. Lead upserts were silently skipped (→ `leads` table stayed empty); calls fell into `TRANSIENT_FETCH_FAILURE:N/A`. No HTTP status ever reached the JVM (failure was at connect time).
+- **Resolution:** `JAVA_TOOL_OPTIONS` removed from the Railway service. Postgres still connects without the flag because `postgres.railway.internal` resolves AAAA-only — the JVM uses IPv6 by necessity, no hint required. FUB calls now resolve and connect over IPv4.
+- **Verification marker:** logs show `FUB getPersonRawById succeeded`, `FUB getCallById succeeded`, and `Lead upserted (insert) sourceSystem=FUB ...` after the env-var change.
+- **Follow-up:** the deploy runbook still recommends the flag in its env-var contract block and Failure 3 fix; correct when convenient so the next operator hitting a Postgres reach issue does not reintroduce it.
