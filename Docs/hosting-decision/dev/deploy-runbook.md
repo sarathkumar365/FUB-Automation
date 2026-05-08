@@ -8,6 +8,23 @@ the actual gotchas we hit during the first deploy so the next operator
 > **Scope:** dev/showcase host, single admin operator. For multi-tenant or
 > production-grade work, this runbook is a starting point, not a target.
 
+## Branching model
+
+- **`main`** — what Railway deploys. Stable. Only receives merges from `dev`
+  after local testing passes. No direct work on `main`.
+- **`dev`** — integration branch. All feature/fix branches are cut from `dev`
+  and merged back to `dev`.
+- **Feature branches** (`feat/*`, `fix/*`, `docs/*`) — short-lived, branched
+  from `dev`, merged back to `dev`.
+
+Ship flow: feature branch → `dev` (integrate + local test) → `main` (Railway
+auto-deploys on push). The Railway env is an internal test host, not
+real-user prod — but it still runs `SPRING_PROFILES_ACTIVE=prod` for
+prod-flavoured testing.
+
+GitHub PRs should target `dev`, not `main`, so `main` stays a strict subset
+of what's been integrated and tested on `dev`.
+
 ## Why Railway
 
 Picked over Render and Fly because:
@@ -39,12 +56,19 @@ Costs ~$5–8/month. Detailed comparison lives in
    ./mvnw clean test
    cd ui && npm run lint && npm run build && npm test
    ```
-2. **`dev` is at the latest commit** and pushed:
+2. **`dev` is integrated, tested, and merged into `main`**, and `main` is
+   pushed:
    ```bash
+   # On dev: confirm clean and tests have been run locally
    git checkout dev
    git status
    git log --oneline -3
-   git push origin dev
+
+   # Promote dev → main (this is what Railway will deploy)
+   git checkout main
+   git pull
+   git merge dev
+   git push origin main
    ```
 3. **You have the prod FUB credentials.** They should be a different
    X-System than local dev — register a new system in the FUB dashboard
@@ -67,7 +91,9 @@ Costs ~$5–8/month. Detailed comparison lives in
 
 ### 1. Create the service from GitHub
 - Project → **+ New** → **GitHub Repo** → pick this repo.
-- Branch: **`dev`** (don't tie a dev host to `main`).
+- Branch: **`main`**. `main` is our stable, deploy-only branch — see
+  **Branching model** above. Day-to-day work happens on `dev`; `main` is
+  only updated by merging `dev` → `main` once you've tested locally.
 - Railway detects the `Dockerfile` at repo root automatically. No build
   command override needed.
 
@@ -146,10 +172,10 @@ below.
 ### 7. Update `PUBLIC_BASE_URL` in `.env.prod`
 Replace the placeholder with the real Railway URL.
 
-## Per-deploy steps (after every push to `dev` that should ship)
+## Per-deploy steps (after every merge to `main` that should ship)
 
-Railway redeploys automatically on push. You don't need to click anything.
-Each deploy:
+Railway redeploys automatically on every push to `main`. You don't need to
+click anything. Each deploy:
 
 1. **Watch the build log** — same three stages. Failures usually surface
    in stage 2 (Maven build) or stage 3 (Spring boot).
