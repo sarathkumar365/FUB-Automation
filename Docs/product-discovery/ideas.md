@@ -4,6 +4,38 @@ A freeform scratchpad for product ideas, future directions, and "would be nice" 
 
 ---
 
+## Idea: Stale-assignment guard for follow-up workflows
+
+**Date:** 2026-05-08
+
+**The problem:**
+Workflows like `agent_followup_enforcement` fire on every `peopleUpdated` webhook for an assigned lead. That means a `peopleUpdated` triggered by an unrelated edit hours or days *after* the original assignment (custom field tweak, tag added, lender attached, etc.) spawns a fresh follow-up run on a stale assignment. The 3-min check fails (no recent call), the workflow posts a nudge note, and 30 minutes later it reassigns or sends to POND — even though the lead was assigned long ago and the agent has every right to not be calling them right now.
+
+**This is a different bug from over-firing in general:** even a single legitimately-redundant trigger on a stale assignment causes a false-positive escalation. The fix-#21 lookback anchor doesn't help because there's no recent call to find — the assignment is the stale fact.
+
+**What this would add:**
+A first-class concept of "assignment freshness." Two ways it could manifest:
+
+- **Trigger-level guard:** filter expression that compares `lead.assignedAt` against `now`, only fires when assignment happened recently
+- **Workflow-level gate:** an early `branch_on_field` step that reads `lead.assignedAt` (or a derived `lead.minutesSinceAssigned`) and short-circuits to terminal if the assignment is older than a threshold
+
+**Why this is deferred:**
+- Requires `lead.assignedAt` exposed via the lead snapshot (need to verify whether FUB's person record includes a stable assignment timestamp — `created` is wrong, `updated` drifts on every edit)
+- Could be subsumed by the broader change-detection idea (`lead.previous.*`) — if we know `lead.previous.assignedUserId` was already set to the same value, the assignment isn't fresh
+- `agent_followup_enforcement` is the only workflow affected today; in dev the noise is tolerable; in production this becomes urgent
+
+**Triggers worth picking this up:**
+- The first time an operator sees a nudge note posted on a lead that was assigned days/weeks ago because an unrelated field edit fired the workflow
+- When change-detection (`lead.previous.*`) lands — this becomes a one-line filter expression
+- When `agent_followup_enforcement` graduates from dev to production
+
+**Sketch when picked up:**
+- Confirm FUB exposes a stable per-assignment timestamp in the person record (or fall back to comparing `lead.previous.assignedUserId` once change-detection is in)
+- Add `lead.assignedAt` (and/or `lead.minutesSinceAssigned`) to the `LeadSnapshotResolver` output
+- Document a recommended pattern for follow-up workflows: gate node like `$millis() - $toMillis(lead.assignedAt) < 5 * 60 * 1000` to skip stale assignments
+
+---
+
 ## Idea: Per-step `since` anchor for `wait_and_check_communication`
 
 **Date:** 2026-05-08
