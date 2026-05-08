@@ -1,10 +1,20 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
-import { describe, expect, it } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from '../app/App'
 import { uiText } from '../shared/constants/uiText'
+import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('Landing page', () => {
+  beforeEach(() => {
+    seedMockAdminToken()
+  })
+
+  afterEach(() => {
+    clearMockAdminToken()
+  })
+
+
   it('renders five milestones and key labels', async () => {
     window.history.pushState({}, '', '/')
 
@@ -16,7 +26,7 @@ describe('Landing page', () => {
     expect(screen.getByRole('heading', { name: uiText.landing.milestones.fiveTitle })).toBeInTheDocument()
   })
 
-  it('navigates to webhooks from primary CTA', async () => {
+  it('navigates to dashboard from primary CTA', async () => {
     const user = userEvent.setup()
     window.history.pushState({}, '', '/')
 
@@ -24,10 +34,10 @@ describe('Landing page', () => {
 
     await user.click(await screen.findByRole('button', { name: uiText.landing.primaryAction }))
 
-    expect(await screen.findByRole('heading', { name: uiText.webhooks.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: uiText.dashboard.title })).toBeInTheDocument()
   })
 
-  it('navigates to processed calls from secondary CTA', async () => {
+  it('navigates to webhooks from secondary CTA', async () => {
     const user = userEvent.setup()
     window.history.pushState({}, '', '/')
 
@@ -35,7 +45,7 @@ describe('Landing page', () => {
 
     await user.click(await screen.findByRole('button', { name: uiText.landing.secondaryAction }))
 
-    expect(await screen.findByRole('heading', { name: uiText.processedCalls.title })).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: uiText.webhooks.title })).toBeInTheDocument()
   })
 
   it('applies explicit typography classes for finalized visual weight', async () => {

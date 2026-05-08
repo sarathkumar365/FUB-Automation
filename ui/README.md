@@ -1,73 +1,69 @@
-# React + TypeScript + Vite
+# Automation Engine — Admin UI
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React + TypeScript + Vite frontend for the Automation Engine admin dashboard.
 
-Currently, two official plugins are available:
+## What this is
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+This is the internal admin UI for the automation engine. It provides:
+- **Live webhook feed** — SSE-streamed view of incoming webhook events in real time
+- **Processed calls** — list of call outcomes with status, rule applied, and replay capability
+- **Policy control plane** — create, update, and activate automation policies
+- **Policy execution monitor** — view SLA enforcement runs and step-by-step outcomes
 
-## React Compiler
+This is a standalone Vite app. In dev it proxies API calls to the Spring backend. In prod the built assets are served by Spring under `/admin-ui/*`.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Running locally
 
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend updating the configuration to enable type-aware lint rules:
-
-```js
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-
-      // Remove tseslint.configs.recommended and replace with this
-      tseslint.configs.recommendedTypeChecked,
-      // Alternatively, use this for stricter rules
-      tseslint.configs.strictTypeChecked,
-      // Optionally, add this for stylistic rules
-      tseslint.configs.stylisticTypeChecked,
-
-      // Other configs...
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Start the full dev stack (backend + frontend + Cloudflare tunnel + webhook sync):
+```bash
+./scripts/run-app.sh dev
 ```
 
-You can also install [eslint-plugin-react-x](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-x) and [eslint-plugin-react-dom](https://github.com/Rel1cx/eslint-react/tree/main/packages/plugins/eslint-plugin-react-dom) for React-specific lint rules:
-
-```js
-// eslint.config.js
-import reactX from 'eslint-plugin-react-x'
-import reactDom from 'eslint-plugin-react-dom'
-
-export default defineConfig([
-  globalIgnores(['dist']),
-  {
-    files: ['**/*.{ts,tsx}'],
-    extends: [
-      // Other configs...
-      // Enable lint rules for React
-      reactX.configs['recommended-typescript'],
-      // Enable lint rules for React DOM
-      reactDom.configs.recommended,
-    ],
-    languageOptions: {
-      parserOptions: {
-        project: ['./tsconfig.node.json', './tsconfig.app.json'],
-        tsconfigRootDir: import.meta.dirname,
-      },
-      // other options...
-    },
-  },
-])
+Or run the frontend alone (requires backend already running on `:8080`):
+```bash
+cd ui
+npm install
+npm run dev
 ```
+
+Vite dev server runs on `http://localhost:5173`. API calls are proxied to `http://localhost:8080`.
+
+## Module boundaries
+
+```
+ui/src/
+├── app/           ← router, providers, layout shell
+├── platform/      ← API client, query setup, error mapping, SSE hooks
+├── modules/
+│   ├── webhooks/          ← webhook list, live feed, detail
+│   ├── processed-calls/   ← processed calls list, replay
+│   ├── policies/          ← policy CRUD and activation
+│   └── policy-executions/ ← execution run list and detail
+└── shared/        ← reusable types, utilities, primitives
+```
+
+## Tech stack
+
+- React 19 + TypeScript + Vite
+- Tailwind CSS + shadcn/ui
+- React Router
+- TanStack Query (server state)
+- Zod (API boundary validation)
+- Native `EventSource` for SSE
+- Vitest + Testing Library (unit/component tests)
+- Playwright (smoke/e2e tests)
+
+## Building for production
+
+```bash
+npm run build
+```
+
+Built assets go to `ui/dist/`. The Spring Boot build picks these up and serves them under `/admin-ui/*`.
+
+## Further reading
+
+- Architecture and delivery rules: `ui/AGENTS.md`
+- Implementation plan and phase status: `ui/Docs/ui-0.1-plan.md`
+- Style guide: `Docs/archive/ui-style-guide-v1.md`
+- Backend API reference: `Docs/deep-dive/10-flow-admin-apis.md`

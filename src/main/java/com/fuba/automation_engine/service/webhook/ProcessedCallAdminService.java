@@ -8,6 +8,8 @@ import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.service.webhook.dispatch.WebhookDispatcher;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
@@ -69,6 +71,12 @@ public class ProcessedCallAdminService {
         webhookDispatcher.dispatch(new NormalizedWebhookEvent(
                 WebhookSource.FUB,
                 "replay-" + callId + "-" + System.currentTimeMillis(),
+                "callsCreated",
+                null,
+                null,
+                NormalizedDomain.CALL,
+                NormalizedAction.CREATED,
+                null,
                 WebhookEventStatus.RECEIVED,
                 buildReplayPayload(entity),
                 OffsetDateTime.now(),

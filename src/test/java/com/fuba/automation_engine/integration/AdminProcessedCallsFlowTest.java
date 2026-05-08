@@ -1,13 +1,17 @@
 package com.fuba.automation_engine.integration;
 
+import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
+import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.time.Duration;
@@ -22,6 +26,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Primary;
 import org.springframework.http.MediaType;
@@ -36,6 +41,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(username = "admin-test", roles = "ADMIN")
 class AdminProcessedCallsFlowTest {
 
     @Autowired
@@ -167,6 +173,36 @@ class AdminProcessedCallsFlowTest {
         @Override
         public CallDetails getCallById(long callId) {
             return new CallDetails(callId, 50L, 0, 20L, "No Answer");
+        }
+
+        @Override
+        public PersonDetails getPersonById(long personId) {
+            return new PersonDetails(personId, null, null, null);
+        }
+
+        @Override
+        public JsonNode getPersonRawById(long personId) {
+            throw new UnsupportedOperationException("Not used in admin processed calls flow tests");
+        }
+
+        @Override
+        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+            return new PersonCommunicationCheckResult(personId, false);
+        }
+
+        @Override
+        public ActionExecutionResult reassignPerson(long personId, long targetUserId) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
+        public ActionExecutionResult movePersonToPond(long personId, long targetPondId) {
+            return ActionExecutionResult.ok();
+        }
+
+        @Override
+        public ActionExecutionResult addTag(long personId, String tagName) {
+            return ActionExecutionResult.ok();
         }
 
         @Override

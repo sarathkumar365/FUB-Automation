@@ -1,0 +1,5 @@
+ALTER TABLE webhook_events
+    ADD COLUMN catalog_state VARCHAR(32) NOT NULL DEFAULT 'IGNORED',
+    ADD COLUMN normalized_domain VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN',
+    ADD COLUMN normalized_action VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN',
+    ADD COLUMN source_lead_id VARCHAR(128);

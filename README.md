@@ -96,11 +96,23 @@ This starts:
 - Frontend (Vite) on `http://localhost:5173/admin-ui/webhooks`
 - Cloudflare quick tunnel for backend URL (`*.trycloudflare.com`)
 
-### Option C: Prod profile backend launch helper
+### Option C: Prod profile backend launch helper (local prod-flavoured testing)
 
 ```bash
-./scripts/run-app.sh prod --profile prod
+./scripts/run-app.sh prod
 ```
+
+Sets `SPRING_PROFILES_ACTIVE=prod` so [`application-prod.properties`](src/main/resources/application-prod.properties) loads (10 MB body cap, `show-sql=false`, **task-creation kill switch on**). Useful for confirming the deployed config boots cleanly on your machine before pushing to Railway. Pair with `cd ui && npm run dev` in another terminal if you want the SPA reachable on `:5173`.
+
+### Manual webhook reactivation (dev recovery)
+
+If Follow Up Boss auto-disables managed dev webhooks after repeated delivery failures, run:
+
+```bash
+./scripts/fub-webhook-reactivate.sh
+```
+
+This command only re-enables disabled webhooks for managed events in `config/fub-webhook-events.txt`. It does not create webhooks or update webhook URLs.
 
 ## Frontend Commands
 
@@ -139,6 +151,71 @@ cd ui && npm run test:e2e
 - Admin UI is intended for internal visibility.
 - Cloudflare quick tunnel URLs are temporary and change when restarted.
 - For external demo viewers, keep your local app process running while sharing tunnel URLs.
+
+## Hosted dev environment
+
+The dev host runs on **Railway** as a single service that bundles the React SPA into the Spring Boot jar via a multi-stage `Dockerfile` at the repo root. One URL serves both API (`/admin/**`, `/webhooks/**`, `/health`) and SPA (`/`, `/admin-ui/**`). No CORS, no separate frontend deploy.
+
+> **Step-by-step deploy procedure, including the gotchas we hit:** see [`Docs/hosting-decision/dev/deploy-runbook.md`](Docs/hosting-decision/dev/deploy-runbook.md). What follows below is the env-var contract; the runbook is the operational walkthrough.
+
+### Env vars on the deployed service
+
+| Env var | Required | Notes |
+|---|---|---|
+| `SPRING_PROFILES_ACTIVE` | yes | Set to `prod` so [`application-prod.properties`](src/main/resources/application-prod.properties) loads — body-size cap, `show-sql=false`, **task-creation kill switch on** ([why](Docs/features/disable-hardcoded-task-creation/plan.md)). |
+| `SERVER_PORT` | yes | On Railway: `${{PORT}}`. Spring binds to the dynamic port the platform assigns. |
+| `JAVA_TOOL_OPTIONS` | yes (Railway) | `-Djava.net.preferIPv6Stack=true -Djava.net.preferIPv6Addresses=true`. Railway's internal network is IPv6-only; without these flags the JVM cannot reach the Postgres add-on. |
+| `JWT_SECRET` | yes (non-`local`) | HS256 signing key; ≥ 32 chars. Generate with `openssl rand -base64 48`. Blank fails startup outside `local`. |
+| `JWT_ISSUER` | optional | Default `automation-engine`. |
+| `JWT_EXPIRY` | optional | Default `8h`. ISO-8601 duration. |
+| `ADMIN_AUTH_USERNAME` | yes (first boot) | Used once to seed the initial ADMIN row in `app_user`. Subsequent rotations go through SQL or a future user-management UI. |
+| `ADMIN_AUTH_PASSWORD` | yes (first boot) | BCrypt-hashed before insert. The seeder is one-shot — it never modifies an existing user. |
+| `DB_URL` | yes | On Railway: `jdbc:postgresql://${{Postgres.PGHOST}}:${{Postgres.PGPORT}}/${{Postgres.PGDATABASE}}`. **Do NOT use `${{Postgres.DATABASE_URL}}`** — that has `user:pass@` embedded which the JDBC driver rejects. |
+| `DB_USER` | yes | On Railway: `${{Postgres.PGUSER}}`. |
+| `DB_PASS` | yes | On Railway: `${{Postgres.PGPASSWORD}}`. |
+| `FUB_BASE_URL` | yes | `https://api.followupboss.com/v1`. |
+| `FUB_API_KEY` | yes | Prod FUB API key (typically a different X-System than your local dev). |
+| `FUB_X_SYSTEM` | yes | Prod X-System name. **Must match the X-System the FUB webhooks are registered under** (see "After deploy" below). |
+| `FUB_X_SYSTEM_KEY` | yes | Prod X-System key. **Must match the same X-System** — used to verify inbound webhook HMAC signatures. |
+
+### Pre-deploy verification
+
+```bash
+# Confirm devtools is excluded from the packaged jar
+./mvnw clean package -DskipTests
+jar tf target/automation-engine-*.jar | grep -i devtools   # expect empty
+
+# Generate a long-lived JWT secret
+openssl rand -base64 48
+```
+
+### After deploy: re-point FUB webhooks at the new URL
+
+Railway gives you a public URL (e.g. `https://your-app-production.up.railway.app`). FUB webhooks must be re-registered to point there. Use [`scripts/fub-webhook-sync.sh`](scripts/fub-webhook-sync.sh):
+
+```bash
+# One-time: create .env.prod (gitignored) with prod FUB credentials.
+# The sync script reads it on top of .env so the prod X-System wins.
+cat > .env.prod <<'EOF'
+PUBLIC_BASE_URL=https://your-app-production.up.railway.app
+FUB_API_KEY=<prod api key>
+FUB_X_SYSTEM=<prod X-System name>
+FUB_X_SYSTEM_KEY=<prod X-System key>
+EOF
+
+./scripts/fub-webhook-sync.sh --dry-run    # preview
+./scripts/fub-webhook-sync.sh              # apply
+```
+
+The script upserts FUB webhooks for every event in [`config/fub-webhook-events.txt`](config/fub-webhook-events.txt) (`callsCreated`, `peopleCreated`, `peopleUpdated`).
+
+### What the deployed instance does on real traffic
+
+- Inbound `/webhooks/fub` → call data is saved to `processed_calls`.
+- The legacy "create FUB task" automation is **off** in prod (kill switch). Calls land in `SKIPPED:TASK_CREATION_DISABLED`. The workflow-engine replacement is the next feature.
+- Admin SPA at `/admin-ui/login` — JWT bearer auth per [`RD-004`](Docs/repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md).
+
+Security posture and known issues for the dev host: [`Docs/hosting-decision/dev/dev-hosting-security-checklist.md`](Docs/hosting-decision/dev/dev-hosting-security-checklist.md).
 
 ## Roadmap
 

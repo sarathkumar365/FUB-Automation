@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fuba.automation_engine.persistence.repository.WebhookFeedReadRepository.WebhookFeedReadQuery;
 import com.fuba.automation_engine.persistence.repository.WebhookFeedReadRepository.WebhookFeedRow;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.sql.ResultSet;
@@ -38,7 +41,7 @@ public class JdbcWebhookFeedReadRepository implements WebhookFeedReadRepository 
         }
 
         StringBuilder sql = new StringBuilder("""
-                SELECT id, event_id, source, event_type, status, received_at
+                SELECT id, event_id, source, event_type, catalog_state, normalized_domain, normalized_action, status, received_at
                 """);
         if (query.includePayload()) {
             sql.append(", payload");
@@ -90,6 +93,9 @@ public class JdbcWebhookFeedReadRepository implements WebhookFeedReadRepository 
                 rs.getString("event_id"),
                 WebhookSource.valueOf(rs.getString("source")),
                 rs.getString("event_type"),
+                EventSupportState.valueOf(rs.getString("catalog_state")),
+                NormalizedDomain.valueOf(rs.getString("normalized_domain")),
+                NormalizedAction.valueOf(rs.getString("normalized_action")),
                 WebhookEventStatus.valueOf(rs.getString("status")),
                 getOffsetDateTime(rs),
                 includePayload ? readPayload(rs) : null);

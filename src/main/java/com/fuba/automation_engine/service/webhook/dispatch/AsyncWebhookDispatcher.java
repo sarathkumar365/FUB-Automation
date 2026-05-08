@@ -21,11 +21,11 @@ public class AsyncWebhookDispatcher implements WebhookDispatcher {
     @Override
     @Async("webhookTaskExecutor")
     public void dispatch(NormalizedWebhookEvent event) {
-        log.info("Async webhook dispatch started eventId={} source={}", event.eventId(), event.source());
+        log.info("Async webhook dispatch started eventId={} source={}", event.eventId(), event.sourceSystem());
         try {
             processorService.process(event);
         } catch (RuntimeException ex) {
-            log.error("Failed to process webhook eventId={} source={}", event.eventId(), event.source(), ex);
+            log.error("Failed to process webhook eventId={} source={}", event.eventId(), event.sourceSystem(), ex);
         }
     }
 }

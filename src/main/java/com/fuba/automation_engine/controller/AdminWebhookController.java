@@ -10,8 +10,10 @@ import com.fuba.automation_engine.service.webhook.live.WebhookSseHub.WebhookStre
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
+import java.util.List;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -23,6 +25,7 @@ import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
 @RestController
 @RequestMapping("/admin/webhooks")
+@PreAuthorize("hasAnyRole('ADMIN','OPERATOR','VIEWER')")
 public class AdminWebhookController {
 
     private final AdminWebhookService adminWebhookService;
@@ -53,6 +56,11 @@ public class AdminWebhookController {
                 cursor,
                 includePayload));
         return ResponseEntity.ok(response);
+    }
+
+    @GetMapping("/event-types")
+    public ResponseEntity<List<String>> listEventTypes() {
+        return ResponseEntity.ok(adminWebhookService.listDistinctEventTypes());
     }
 
     @GetMapping("/{id}")

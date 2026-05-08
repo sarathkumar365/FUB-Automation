@@ -4,6 +4,9 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
@@ -12,6 +15,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -20,6 +24,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@WithMockUser(username = "admin-test", roles = "ADMIN")
 class AdminWebhookControllerTest {
 
     @Autowired
@@ -43,6 +48,9 @@ class AdminWebhookControllerTest {
         mockMvc.perform(get("/admin/webhooks"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.items[0].eventId").value("evt-ctrl-1"))
+                .andExpect(jsonPath("$.items[0].catalogState").value("SUPPORTED"))
+                .andExpect(jsonPath("$.items[0].normalizedDomain").value("CALL"))
+                .andExpect(jsonPath("$.items[0].normalizedAction").value("CREATED"))
                 .andExpect(jsonPath("$.items[0].payload").doesNotExist())
                 .andExpect(jsonPath("$.serverTime").exists());
     }
@@ -95,6 +103,26 @@ class AdminWebhookControllerTest {
     }
 
     @Test
+    void shouldReturnDistinctEventTypesSorted() throws Exception {
+        webhookEventRepository.saveAndFlush(buildEntity("evt-et-1", "callsUpdated", OffsetDateTime.parse("2026-03-17T10:00:00Z")));
+        webhookEventRepository.saveAndFlush(buildEntity("evt-et-2", "callsCreated", OffsetDateTime.parse("2026-03-17T11:00:00Z")));
+        webhookEventRepository.saveAndFlush(buildEntity("evt-et-3", "callsCreated", OffsetDateTime.parse("2026-03-17T12:00:00Z")));
+
+        mockMvc.perform(get("/admin/webhooks/event-types"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0]").value("callsCreated"))
+                .andExpect(jsonPath("$[1]").value("callsUpdated"));
+    }
+
+    @Test
+    void shouldReturnEmptyEventTypesWhenNoEvents() throws Exception {
+        mockMvc.perform(get("/admin/webhooks/event-types"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(0));
+    }
+
+    @Test
     void shouldReturnDetailWhenFound() throws Exception {
         WebhookEventEntity saved = webhookEventRepository.saveAndFlush(
                 buildEntity("evt-ctrl-3", "callsCreated", OffsetDateTime.parse("2026-03-17T13:00:00Z")));
@@ -102,6 +130,9 @@ class AdminWebhookControllerTest {
         mockMvc.perform(get("/admin/webhooks/" + saved.getId()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.id").value(saved.getId()))
+                .andExpect(jsonPath("$.catalogState").value("SUPPORTED"))
+                .andExpect(jsonPath("$.normalizedDomain").value("CALL"))
+                .andExpect(jsonPath("$.normalizedAction").value("CREATED"))
                 .andExpect(jsonPath("$.payloadHash").value(saved.getPayloadHash()))
                 .andExpect(jsonPath("$.payload.nodeType").value("OBJECT"))
                 .andExpect(jsonPath("$.payload.object").value(true));
@@ -127,6 +158,9 @@ class AdminWebhookControllerTest {
         entity.setSource(WebhookSource.FUB);
         entity.setEventId(eventId);
         entity.setEventType(eventType);
+        entity.setCatalogState(EventSupportState.SUPPORTED);
+        entity.setNormalizedDomain(NormalizedDomain.CALL);
+        entity.setNormalizedAction(NormalizedAction.CREATED);
         entity.setStatus(WebhookEventStatus.RECEIVED);
         entity.setPayload(payload);
         entity.setPayloadHash("hash-" + eventId);

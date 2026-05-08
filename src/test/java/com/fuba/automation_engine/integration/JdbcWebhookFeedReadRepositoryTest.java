@@ -7,6 +7,9 @@ import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.persistence.repository.WebhookFeedReadRepository;
 import com.fuba.automation_engine.persistence.repository.WebhookFeedReadRepository.WebhookFeedReadQuery;
 import com.fuba.automation_engine.persistence.repository.WebhookFeedReadRepository.WebhookFeedRow;
+import com.fuba.automation_engine.service.webhook.model.EventSupportState;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
@@ -60,6 +63,9 @@ class JdbcWebhookFeedReadRepositoryTest {
         assertEquals(2, rows.size());
         assertEquals(newer.getId(), rows.get(0).id());
         assertEquals(older.getId(), rows.get(1).id());
+        assertEquals(EventSupportState.SUPPORTED, rows.get(0).catalogState());
+        assertEquals(NormalizedDomain.CALL, rows.get(0).normalizedDomain());
+        assertEquals(NormalizedAction.CREATED, rows.get(0).normalizedAction());
         assertNull(rows.get(0).payload());
     }
 
@@ -241,6 +247,9 @@ class JdbcWebhookFeedReadRepositoryTest {
         entity.setSource(WebhookSource.FUB);
         entity.setEventId(eventId);
         entity.setEventType(eventType);
+        entity.setCatalogState(EventSupportState.SUPPORTED);
+        entity.setNormalizedDomain(NormalizedDomain.CALL);
+        entity.setNormalizedAction(NormalizedAction.CREATED);
         entity.setStatus(WebhookEventStatus.RECEIVED);
         entity.setPayload(payload);
         entity.setPayloadHash(payloadHash);

@@ -2,7 +2,7 @@ import type { AdminWebhookPort } from '../../ports/adminWebhookPort'
 import type { WebhookEventDetail, WebhookFeedPage, WebhookListFilters, WebhookStreamFilters } from '../../../shared/types/webhook'
 import { HttpJsonClient } from './httpJsonClient'
 import { toQueryString } from './queryParams'
-import { webhookDetailSchema, webhookFeedPageSchema } from './webhookSchemas'
+import { webhookDetailSchema, webhookEventTypesSchema, webhookFeedPageSchema } from './webhookSchemas'
 
 export class HttpAdminWebhookAdapter implements AdminWebhookPort {
   private readonly httpClient: HttpJsonClient
@@ -28,6 +28,10 @@ export class HttpAdminWebhookAdapter implements AdminWebhookPort {
 
   getWebhookDetail(id: number): Promise<WebhookEventDetail> {
     return this.httpClient.get(`/admin/webhooks/${id}`, webhookDetailSchema)
+  }
+
+  listEventTypes(): Promise<string[]> {
+    return this.httpClient.get('/admin/webhooks/event-types', webhookEventTypesSchema)
   }
 
   buildWebhookStreamRequest(filters: WebhookStreamFilters): string {

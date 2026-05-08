@@ -5,6 +5,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.exception.webhook.MalformedWebhookPayloadException;
+import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
+import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
@@ -52,18 +54,31 @@ public class FubWebhookParser implements WebhookParser {
         if (eventNode == null || eventNode.asText().isBlank()) {
             throw new MalformedWebhookPayloadException("Webhook payload missing 'event'");
         }
-        if (resourceIdsNode == null || !resourceIdsNode.isArray()) {
+        String sourceEventType = eventNode.asText().trim();
+        boolean callCreatedEvent = "callsCreated".equals(sourceEventType);
+        if (callCreatedEvent && (resourceIdsNode == null || !resourceIdsNode.isArray())) {
             throw new MalformedWebhookPayloadException("Webhook payload missing 'resourceIds' array");
         }
 
         String eventId = json.hasNonNull(EVENT_ID) ? json.get(EVENT_ID).asText() : null;
         String payloadHash = calculatePayloadHash(rawBody == null ? "" : rawBody);
+        // Step 3 note: runtime routing/persistence semantic ownership is resolver-driven.
+        // Parser semantic mapping remains as compatibility metadata for downstream consumers.
+        // Track eventual parser semantic deprecation in issue: LMP-STEP3-RESOLVER-SEMANTIC-OWNERSHIP.
+        NormalizedDomain normalizedDomain = resolveDomain(sourceEventType);
+        NormalizedAction normalizedAction = resolveAction(sourceEventType);
+        String sourceLeadId = resolveSourceLeadId(sourceEventType, resourceIdsNode);
 
         ObjectNode payloadNode = objectMapper.createObjectNode();
-        payloadNode.put("eventType", eventNode.asText());
+        // Keep normalized payload intentionally minimal for routing/idempotency.
+        // Note: this does NOT include expanded lead/contact fields (for example phone),
+        // so workflow expression paths under event.payload cannot resolve lead phone today.
+        payloadNode.put("eventType", sourceEventType);
 
         ArrayNode resourceIds = payloadNode.putArray("resourceIds");
-        resourceIdsNode.forEach(resourceIds::add);
+        if (resourceIdsNode != null && resourceIdsNode.isArray()) {
+            resourceIdsNode.forEach(resourceIds::add);
+        }
 
         if (json.has(URI) && !json.get(URI).isNull()) {
             payloadNode.put("uri", json.get(URI).asText());
@@ -78,13 +93,59 @@ public class FubWebhookParser implements WebhookParser {
 
         payloadNode.put("rawBody", rawBody);
 
+        ObjectNode providerMetaNode = objectMapper.createObjectNode();
+        if (resourceIdsNode != null && resourceIdsNode.isArray()) {
+            ArrayNode providerMetaResourceIds = providerMetaNode.putArray("resourceIds");
+            resourceIdsNode.forEach(providerMetaResourceIds::add);
+        }
+        if (json.has(URI) && !json.get(URI).isNull()) {
+            providerMetaNode.put("uri", json.get(URI).asText());
+        } else {
+            providerMetaNode.putNull("uri");
+        }
+        ObjectNode providerMetaHeaders = providerMetaNode.putObject("headers");
+        addHeader(providerMetaHeaders, headers, "FUB-Signature");
+        addHeader(providerMetaHeaders, headers, "User-Agent");
+        addHeader(providerMetaHeaders, headers, "Content-Type");
+
         return new NormalizedWebhookEvent(
                 WebhookSource.FUB,
                 eventId,
+                sourceEventType,
+                null,
+                sourceLeadId,
+                normalizedDomain,
+                normalizedAction,
+                providerMetaNode,
                 WebhookEventStatus.RECEIVED,
                 payloadNode,
                 OffsetDateTime.now(),
                 payloadHash);
+    }
+
+    private String resolveSourceLeadId(String sourceEventType, JsonNode resourceIdsNode) {
+        if (!"peopleCreated".equals(sourceEventType) && !"peopleUpdated".equals(sourceEventType)) {
+            return null;
+        }
+        return WebhookPayloadExtractors.firstResourceIdAsString(resourceIdsNode);
+    }
+
+    private NormalizedDomain resolveDomain(String sourceEventType) {
+        // TODO(step3-followup): deprecate parser-owned domain compatibility mapping once consumers migrate.
+        return switch (sourceEventType) {
+            case "callsCreated" -> NormalizedDomain.CALL;
+            case "peopleCreated", "peopleUpdated" -> NormalizedDomain.ASSIGNMENT;
+            default -> NormalizedDomain.UNKNOWN;
+        };
+    }
+
+    private NormalizedAction resolveAction(String sourceEventType) {
+        // TODO(step3-followup): deprecate parser-owned action compatibility mapping once consumers migrate.
+        return switch (sourceEventType) {
+            case "callsCreated", "peopleCreated" -> NormalizedAction.CREATED;
+            case "peopleUpdated" -> NormalizedAction.UPDATED;
+            default -> NormalizedAction.UNKNOWN;
+        };
     }
 
     private void addHeader(ObjectNode selectedHeaders, Map<String, String> headers, String name) {

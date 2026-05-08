@@ -70,6 +70,10 @@ public class AdminWebhookService {
         return webhookEventRepository.findById(id).map(this::toDetailResponse);
     }
 
+    public List<String> listDistinctEventTypes() {
+        return webhookEventRepository.findDistinctEventTypes();
+    }
+
     private WebhookFeedPageResponse buildPage(List<WebhookFeedItemResponse> rows, int limit) {
         boolean hasNext = rows.size() > limit;
         List<WebhookFeedItemResponse> pageItems = hasNext ? rows.subList(0, limit) : rows;
@@ -91,6 +95,9 @@ public class AdminWebhookService {
                 row.eventId(),
                 row.source(),
                 row.eventType(),
+                row.catalogState(),
+                row.normalizedDomain(),
+                row.normalizedAction(),
                 row.status(),
                 row.receivedAt(),
                 normalizePayload(row.payload()));
@@ -102,6 +109,9 @@ public class AdminWebhookService {
                 entity.getEventId(),
                 entity.getSource(),
                 entity.getEventType(),
+                entity.getCatalogState(),
+                entity.getNormalizedDomain(),
+                entity.getNormalizedAction(),
                 entity.getStatus(),
                 entity.getPayloadHash(),
                 normalizePayload(entity.getPayload()),

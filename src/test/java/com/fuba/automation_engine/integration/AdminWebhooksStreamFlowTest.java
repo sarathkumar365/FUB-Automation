@@ -1,7 +1,10 @@
 package com.fuba.automation_engine.integration;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fuba.automation_engine.persistence.entity.AppUserEntity;
+import com.fuba.automation_engine.persistence.entity.AppUserRole;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
+import com.fuba.automation_engine.service.auth.JwtService;
 import com.fuba.automation_engine.service.webhook.live.WebhookSseHub;
 import java.io.BufferedReader;
 import java.io.InputStream;
@@ -49,11 +52,19 @@ class AdminWebhooksStreamFlowTest {
     @Autowired
     private ObjectMapper objectMapper;
 
+    @Autowired
+    private JwtService jwtService;
+
     private StreamReader streamReader;
+    private String bearerToken;
 
     @BeforeEach
     void setUp() {
         webhookEventRepository.deleteAll();
+        AppUserEntity adminPrincipal = new AppUserEntity();
+        adminPrincipal.setUsername("admin-test");
+        adminPrincipal.setRole(AppUserRole.ADMIN);
+        bearerToken = jwtService.issue(adminPrincipal).token();
     }
 
     @AfterEach
@@ -65,7 +76,7 @@ class AdminWebhooksStreamFlowTest {
 
     @Test
     void shouldReceiveWebhookEventAndHeartbeatOverStream() throws Exception {
-        streamReader = StreamReader.open("http://localhost:" + port + "/admin/webhooks/stream?source=FUB");
+        streamReader = StreamReader.open("http://localhost:" + port + "/admin/webhooks/stream?source=FUB", bearerToken);
         waitUntil(() -> webhookSseHub.subscriberCount() == 1, Duration.ofSeconds(2));
 
         String body = """
@@ -93,7 +104,7 @@ class AdminWebhooksStreamFlowTest {
 
     @Test
     void shouldCleanupSubscriberAfterClientDisconnect() throws Exception {
-        streamReader = StreamReader.open("http://localhost:" + port + "/admin/webhooks/stream");
+        streamReader = StreamReader.open("http://localhost:" + port + "/admin/webhooks/stream", bearerToken);
         waitUntil(() -> webhookSseHub.subscriberCount() == 1, Duration.ofSeconds(2));
 
         streamReader.close();
@@ -165,17 +176,19 @@ class AdminWebhooksStreamFlowTest {
             this.readerThread.start();
         }
 
-        private static StreamReader open(String url) throws Exception {
+        private static StreamReader open(String url, String bearerToken) throws Exception {
             HttpClient client = HttpClient.newBuilder()
                     .connectTimeout(Duration.ofSeconds(5))
                     .build();
 
-            HttpRequest request = HttpRequest.newBuilder()
+            HttpRequest.Builder builder = HttpRequest.newBuilder()
                     .uri(URI.create(url))
                     .timeout(Duration.ofSeconds(20))
-                    .header("Accept", "text/event-stream")
-                    .GET()
-                    .build();
+                    .header("Accept", "text/event-stream");
+            if (bearerToken != null && !bearerToken.isBlank()) {
+                builder.header("Authorization", "Bearer " + bearerToken);
+            }
+            HttpRequest request = builder.GET().build();
 
             HttpResponse<InputStream> response = client.send(request, HttpResponse.BodyHandlers.ofInputStream());
             if (response.statusCode() != 200) {

@@ -59,6 +59,31 @@ describe('HttpAdminWebhookAdapter', () => {
     ).toBe('/admin/webhooks/stream?source=FUB&status=RECEIVED&eventType=callsCreated')
   })
 
+  it('fetches distinct event types as a string array', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify(['callsCreated', 'callsUpdated']), { status: 200 }),
+    )
+
+    const adapter = new HttpAdminWebhookAdapter(new HttpJsonClient())
+    const result = await adapter.listEventTypes()
+
+    expect(mockFetch).toHaveBeenCalledWith(
+      '/admin/webhooks/event-types',
+      expect.objectContaining({ method: 'GET' }),
+    )
+    expect(result).toEqual(['callsCreated', 'callsUpdated'])
+  })
+
+  it('rejects non-array event type payloads via zod', async () => {
+    mockFetch.mockResolvedValue(
+      new Response(JSON.stringify({ items: [] }), { status: 200 }),
+    )
+
+    const adapter = new HttpAdminWebhookAdapter(new HttpJsonClient())
+
+    await expect(adapter.listEventTypes()).rejects.toThrow()
+  })
+
   it('rejects malformed payloads via zod', async () => {
     mockFetch.mockResolvedValue(
       new Response(

@@ -17,8 +17,9 @@ This agent acts as a pair programmer for this repository and supports:
 ## Rules reference
 - Implementation and structure rules source of truth: `developer-rules.md`
 - Before creating/moving modules or implementing behavior, follow `developer-rules.md`
-- UI implementation plan source of truth: `docs/ui-0.1-plan.md`
-- UI style source of truth: `docs/ui-style-guide-v1.md` + `docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
+- **System-wide implementation deep-dive:** `Docs/deep-dive/` — 12 documents covering every backend flow, configuration value, database schema, and design decision. Start with `Docs/deep-dive/README.md` for the index and reading order. Read these before making changes to understand how the system works end-to-end.
+- UI implementation plan source of truth: `ui/Docs/ui-0.1-plan.md`
+- UI style source of truth: `Docs/ui-style-guide-v1.md` + `Docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
 
 ## Delivery style and workflow
 - Make only small, reviewable, incremental changes.
@@ -28,12 +29,17 @@ This agent acts as a pair programmer for this repository and supports:
 
 ## Branch strategy (must follow)
 - Treat `main` as production-only; do not use `main` as the base branch for feature or bug-fix work.
-- Use `dev` as the default base branch for all implementation work.
-- For any new feature/bug-fix/code-change task:
-  - create a new branch from `dev`
-  - implement and validate on that new branch
-  - merge back into `dev` through normal review flow
-- Keep work branches short-lived and purpose-specific.
+- Use `dev` as the base only for creating a feature parent branch.
+- Required branch hierarchy for all new feature work:
+  - create one feature parent branch from `dev`
+  - feature parent branch names must be feature-only (no phase identifiers), for example:
+    - `feature/lead-management-platform`
+    - not `feature/lead-management-platform-phase-3`
+  - create phase planning and phase implementation branches from that feature parent branch
+  - do not create phase branches directly from `dev`
+  - merge phase branches back into the feature parent branch first
+  - merge the completed feature parent branch into `dev` through normal review flow
+- Keep feature and phase branches short-lived and purpose-specific.
 
 ## Feature documentation workflow (must follow)
 - For every new feature, create a dedicated folder under `Docs/features/<feature-slug>/`.
@@ -55,6 +61,18 @@ This agent acts as a pair programmer for this repository and supports:
   2. all `Accepted` repo decisions relevant to touched modules
   3. feature docs under `Docs/features/<feature-slug>/`
 - If a feature RFC introduces a repo-wide decision, promote it to `Docs/repo-decisions/` in the same phase.
+- **Repo-decisions impact check (mandatory).** Every `phase-<n>-implementation.md` must include a short "Repo decisions impact" section that explicitly answers one of:
+  - `No` — local feature concern only, with one sentence saying why.
+  - `Yes` — names the new/updated `RD-<id>-<slug>.md` file and the change made.
+  Do not omit the section. Forgetting to consider repo-wide impact is the failure mode this rule prevents.
+- **Implementation log style.** Phase implementation logs are *decision narratives*, not change-detail dumps. Capture: the goal, the meaningful decisions taken, the trade-offs accepted, surprises hit during implementation, and validation evidence. Do not exhaustively list every file path or copy code — git history and the working tree are the source of truth for the "what". The doc answers "why was it built this way?" for a future reader.
+- **Diagrams.** Where a flow or component layout is non-trivial, include a Mermaid diagram in `plan.md` (and optionally in the relevant `phase-<n>-implementation.md`). GitHub renders Mermaid natively. Skip diagrams when the change is purely textual / configuration.
+- **Mandatory end-to-end lifecycle diagram.** Every feature's `plan.md` must include a vertical Mermaid diagram showing the feature's runtime lifecycle from a user-facing trigger down through the actual files / classes / methods invoked, ending at the response or terminal state. The goal is that a future developer can read this single diagram and understand which code paths matter for the feature without re-reading the implementation. Rules:
+  - Top-down (`flowchart TB` or sequence) so it scans naturally.
+  - Each node names the **file path** *and* the method/handler invoked, e.g. `LoginPage.handleSubmit()<br/>ui/src/modules/auth/ui/LoginPage.tsx`.
+  - Cover the realistic main path; secondary error paths (e.g. 401 → redirect) belong in the same diagram if they're load-bearing for understanding the feature.
+  - Update the diagram when phases land that change the lifecycle. Stale lifecycle diagrams are worse than missing ones — they mislead.
+  - For configuration-only or doc-only features (no runtime behavior change), state explicitly that no lifecycle diagram is needed and why.
 - If a user request does not mention this documentation workflow, the agent must still follow it and briefly remind the user that the repo uses:
   - repo-wide decisions in `Docs/repo-decisions/`
   - feature workflow docs in `Docs/features/<feature-slug>/`
@@ -102,6 +120,7 @@ This project uses a pragmatic combination of:
 
 ## Reuse-first policy
 - Reuse existing modules, files, conventions, and patterns before adding new ones.
+- Before writing custom utility/parsing/infrastructure code, look for existing safe, credible, and well-maintained packages that solve the same problem.
 - Extend existing components safely instead of duplicating behavior.
 - Introduce new abstractions only when they reduce complexity or improve testability.
 
@@ -109,6 +128,17 @@ This project uses a pragmatic combination of:
 - If requirements are ambiguous or only partially known, stop and confirm with the user before implementing.
 - Do not ship speculative behavior for external API contracts.
 - When uncertain, document assumptions clearly and ask for approval.
+
+## Spec adherence and scope discipline (must follow)
+This section exists because of a real incident (2026-04-21, `ai_call` Phase 3 work) where an agent shipped code that quietly deviated from an explicit spec line (`default retry policy: NO_RETRY`). The deviation was framed as "hardening" and was caught only by an independent review. These rules are designed to prevent a repeat.
+
+- **Re-read the relevant spec before editing, every time.** Do not rely on memory of what a feature doc, repo decision, or phased plan says. If you are about to change the behavior of a step, step type, adapter, or contract, open the corresponding `Docs/features/<slug>/phase-<n>-implementation.md`, `plan.md`, and any `Docs/repo-decisions/` entry, and reread the lines that constrain the change. The cost is seconds; the cost of skipping it is silent spec drift.
+- **Treat the spec as the source of truth and your judgment as a hypothesis.** When your instinct disagrees with a written spec line, the spec wins by default. Your instinct may be right — but it earns a code change only by first earning a spec amendment in a separate, explicit conversation.
+- **Do not widen scope from "fix X" to "also improve Y".** A fix addresses the reported defect and nothing else. If you notice an adjacent issue while fixing the reported one, record it as a follow-up in `phases.md` (or the feature's tracking doc) — do not bundle it into the same change. "Root-cause fix" means fixing the root cause of the reported defect, not rewriting the surrounding design.
+- **Surface any spec deviation loudly, in-conversation, before shipping it.** If a task cannot be completed without deviating from a written spec line, stop and say so explicitly: quote the spec line, state the proposed deviation, and ask for approval. Do not bury deviations under words like "hardening", "resilience", or "cleanup" in commit messages or docs.
+- **Tests encode the spec, not the implementation.** Before writing an assertion, ask: "does this assertion match what the spec says should happen, or what my code happens to do?" If the two disagree, the test must be written against the spec and the code must be fixed to match. A passing test that locks in a spec deviation is worse than no test.
+- **Self-review before declaring done.** After implementing a change, re-read the spec lines you identified at the start and walk the diff against each one. If any spec line is no longer satisfied by the code, either revert the offending change or raise the deviation before declaring the task complete.
+- **When a second opinion lands, verify against the source first.** If a reviewer (human or agent) flags a deviation, the first response is to re-read the spec and compare, not to defend the existing code. Only after the spec has been reread may you argue for or against the reviewer's reading.
 
 ## Tech stack used in this project
 ### Language and runtime
