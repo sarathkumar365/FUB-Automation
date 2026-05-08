@@ -12,7 +12,7 @@ import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -188,8 +188,8 @@ class AdminProcessedCallsFlowTest {
         }
 
         @Override
-        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
-            return new PersonCommunicationCheckResult(personId, false);
+        public List<CallEvidence> listPersonCalls(long personId) {
+            return List.of();
         }
 
         @Override

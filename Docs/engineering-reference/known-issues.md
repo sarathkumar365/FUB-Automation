@@ -26,6 +26,8 @@ This document tracks currently known issues identified in the codebase.
 | 18 | `RunContext` hardcodes `"FUB"` as the source system | Low | Open |
 | 19 | No `getUser(id)` client method or `users` ingestion path — workflows cannot mention arbitrary users by ID | Low | Open |
 | 20 | No change-detection mechanism — triggers cannot fire on field transitions (e.g. "assignedUserId changed") | High | Open |
+| 21 | `wait_and_check_communication` lookback is anchored to check time, not workflow start | High | Resolved (2026-05-08) |
+| 22 | `FollowUpBossClient.checkPersonCommunication` reads `person.contacted` which doesn't reflect outbound agent calls | High | Resolved (2026-05-08) |
 
 ---
 
@@ -208,3 +210,35 @@ This document tracks currently known issues identified in the codebase.
 - **Impact:** The agent-followup-enforcement workflow currently over-fires on all `peopleUpdated` events for assigned leads (false-positive escalation runs on tag/stage edits). Acceptable in dev; a real correctness/cost problem once high-volume workflows depend on transition semantics. Any future workflow that needs "fire on stage transition," "fire when lender attached," etc. is blocked.
 - **Why it's deferred (not done now):** the only concrete need today is the agent-followup-enforcement workflow, and we're explicitly shipping it with the over-firing trigger to gather usage signal before committing to an architectural fix. Phase 5 was skipped in [Docs/features/agent-followup-enforcement/phases.md](../features/agent-followup-enforcement/phases.md) for this reason.
 - **Suggested fix when picked up:** see [Docs/product-discovery/ideas.md](../product-discovery/ideas.md) "Change-detection in trigger filters (`lead.previous.*`)" for the full design comparison (5 alternatives weighed). Preferred direction: capture pre-upsert lead snapshot in `LeadUpsertService`, expose it as `lead.previous.*` in the trigger-filter and step-execution scope. Resolves #17 in the same change.
+
+## 21) `wait_and_check_communication` lookback is anchored to check time, not workflow start
+
+- **Status:** Resolved (2026-05-08)
+- **Resolution:** `RunContext.RunMetadata` now carries `runStartedAt` (sourced from `workflow_runs.created_at`). `WaitAndCheckCommunicationWorkflowStep.computeLookbackSince` anchors the lookback window to that fixed timestamp, so the window doesn't drift as a step waits. Effective lookback is `max(lookbackMinutes, DEFAULT_BUFFER_MINUTES=5)` — a 5-minute floor covers webhook-delivery races and "agent called before claiming" patterns. Backwards-compatible: collapses to today's behavior for any workflow with `delayMinutes ≈ 0`. Also fixed an ancillary issue where `WorkflowRunEntity.@PrePersist` used `OffsetDateTime.now()` (system clock) instead of the injected `Clock` — `WorkflowExecutionManager` now sets `createdAt` explicitly so test `Clock`s are honored.
+- **Priority:** High
+- **Location:** `service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.resolveFromLocalEvidence` (line ~153)
+- **Issue:** The step computes the local-evidence lookback window as `since = OffsetDateTime.now(clock).minusMinutes(lookbackMinutes)` — i.e., relative to **when the check runs**, not relative to **when the workflow run started**. Result: any call that happened *before* the workflow's trigger webhook arrived is invisible to the check, regardless of how generous `lookbackMinutes` is set. The lookback can only see the window between the wait completing and "now."
+- **Impact:** Concretely observed in `agent_followup_enforcement` run 150 on 2026-05-08:
+  - Lead 20123 was called at 10:45:34 (42-second conversation, logged in `processed_calls`)
+  - A `peopleUpdated` webhook arrived at 10:46:03 (30s after the call) → spawned run 150
+  - 3-min check at 10:49:06 used lookback `[10:46:06 → 10:49:06]` — missed the call by 32 seconds
+  - 30-min check at 11:16:07 used lookback `[10:46:07 → 11:16:07]` — missed the call by 33 seconds
+  - Run 150 posted a "please call your lead" nudge note AND reassigned the lead to ISA, both wrong because the agent was already in active conversation
+  - Run 149 (the legitimate trigger at 10:44:25, before the call) had a 3-min lookback `[10:44:27 → 10:47:27]` that did include the call → correctly returned `CONVERSATIONAL`
+- **Why this is a real bug, not a workflow-author error:** widening `lookbackMinutes` does not fix it. The window's *anchor* is wrong, not its *width*. Any run whose trigger fires after the call started is systematically blind to that call.
+- **Suggested fix:** anchor the lookback to workflow-run start time (or to the trigger event's `received_at`). Concretely: thread the run's `created_at` (or webhook `received_at`) through `RunContext` / `StepExecutionContext`, then compute `since = max(runStartedAt - bufferMinutes, now - lookbackMinutes)`. Buffer covers calls that happened just before the trigger fired (sub-minute race). Add a config flag `lookbackAnchor: "runStart" | "now"` if backwards-compat for existing workflows matters; default to `runStart` since the current `now`-anchored behavior is rarely what authors want.
+- **Related:** masked by but distinct from #20 — even a perfectly-aimed change-detection trigger would still hit this bug whenever the call slightly precedes the assignment-changed signal.
+
+## 22) `FollowUpBossClient.checkPersonCommunication` reads `person.contacted` which doesn't reflect outbound agent calls
+
+- **Status:** Resolved (2026-05-08)
+- **Resolution:** Hard-deleted `checkPersonCommunication` and the `PersonCommunicationCheckResult` record. Replaced with `FollowUpBossClient.listPersonCalls(personId, since)` that hits FUB's `/v1/calls?personId=X&sort=-created&limit=10` and returns `List<CallEvidence>`. Empirical smoke testing confirmed FUB silently ignores `since=` / `createdSince=` / `startedAfter=` query params on `/v1/calls`, so the `since` filter is applied client-side. New unified `CallEvidence` record (sourceLeadId, callStartedAt, durationSeconds, outcome, isIncoming) is shared by the local-evidence path and the FUB-fallback path; the step's classifier runs on either uniformly. 8 simple test stubs migrated; 4 complex test cases rewritten to exercise the new shape.
+- **Priority:** High
+- **Location:** `client/fub/FubFollowUpBossClient.java:152-161`
+- **Issue:** The FUB-fallback communication check decides "found" based on `person.contacted > 0`. Empirically (lead 20123, 2026-05-08): a 42-second outbound agent → lead call was correctly logged in our local `processed_calls` table, but the FUB person record still reported `contacted: 0` even minutes after the call. `person.contacted` appears to track inbound (lead-initiated) communications only, or some other counter — not "did anyone in our org call this lead?"
+- **Impact:** When local evidence is empty (e.g. the call hasn't yet been ingested locally, or the lookback window misses it per #21), the FUB fallback returns false negatives. The step then returns `COMM_NOT_FOUND` and downstream nodes (notes, reassignment, pond moves) execute when they shouldn't. This is the second of two compounding bugs that caused the wrong nudge note + wrong reassignment in `agent_followup_enforcement` run 150.
+- **Why it didn't matter before:** the existing `lead_ai_call_followup` workflow uses this step in a context where `person.contacted` aligns with intent ("has the lead replied yet?"). Agent-followup-enforcement is the first workflow that asks the inverse question ("has the agent contacted the lead yet?"), which `person.contacted` is the wrong signal for.
+- **Suggested fix:** replace the `contacted`-counter check with an actual call lookup. Two reasonable shapes:
+  - (a) `GET /v1/calls?personId=X&limit=10` and inspect call records in the relevant time window (best — gives duration, direction, outcome — same shape as our local `processed_calls`)
+  - (b) `GET /v1/people/X/calls` (if FUB exposes a per-person sub-resource — verify in API docs)
+  Either way, return a richer result that distinguishes inbound vs outbound and includes timestamps, so the step can apply the same `classifyCall` logic it already uses for local evidence. As a quick interim mitigation, the step can stop falling back to FUB entirely and rely on local evidence only — acceptable while #21 is open, since the fallback's signal is unreliable anyway.

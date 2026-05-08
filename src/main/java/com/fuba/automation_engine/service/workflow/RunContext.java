@@ -1,5 +1,6 @@
 package com.fuba.automation_engine.service.workflow;
 
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 /**
@@ -36,5 +37,9 @@ public record RunContext(
         Map<String, Object> now,
         Map<String, Map<String, Object>> stepOutputs) {
 
-    public record RunMetadata(long runId, String workflowKey, long workflowVersion) {}
+    public record RunMetadata(
+            long runId,
+            String workflowKey,
+            long workflowVersion,
+            OffsetDateTime runStartedAt) {}
 }

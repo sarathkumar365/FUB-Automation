@@ -27,7 +27,7 @@ import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -445,7 +445,6 @@ class WorkflowParityTest {
 
     static class StubFollowUpBossClient implements FollowUpBossClient {
         private final Map<Long, PersonDetails> personDetailsMap = new HashMap<>();
-        private final Map<Long, PersonCommunicationCheckResult> commCheckMap = new HashMap<>();
         private volatile ActionExecutionResult reassignResult = ActionExecutionResult.ok();
         private volatile ActionExecutionResult moveToPondResult = ActionExecutionResult.ok();
         final CopyOnWriteArrayList<long[]> reassignCalls = new CopyOnWriteArrayList<>();
@@ -462,7 +461,6 @@ class WorkflowParityTest {
 
         void reset() {
             personDetailsMap.clear();
-            commCheckMap.clear();
             reassignResult = ActionExecutionResult.ok();
             moveToPondResult = ActionExecutionResult.ok();
             reassignCalls.clear();
@@ -474,10 +472,6 @@ class WorkflowParityTest {
 
         void setPersonDetails(Long personId, PersonDetails details) {
             personDetailsMap.put(personId, details);
-        }
-
-        void setCommunicationCheckResult(Long personId, PersonCommunicationCheckResult result) {
-            commCheckMap.put(personId, result);
         }
 
         void setReassignResult(ActionExecutionResult result) {
@@ -513,9 +507,9 @@ class WorkflowParityTest {
         }
 
         @Override
-        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+        public List<CallEvidence> listPersonCalls(long personId) {
             commCheckCalls.add(personId);
-            return commCheckMap.get(personId);
+            return List.of();
         }
 
         @Override

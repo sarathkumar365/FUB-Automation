@@ -218,8 +218,10 @@ public class WorkflowStepExecutionService {
         }
 
         RunContext.RunMetadata metadata = new RunContext.RunMetadata(
-                run.getId(), run.getWorkflowKey(),
-                resolveWorkflowVersionNumber(run));
+                run.getId(),
+                run.getWorkflowKey(),
+                resolveWorkflowVersionNumber(run),
+                run.getCreatedAt());
 
         // PER-STEP EAGER: resolve lead snapshot once per step. The snapshot is
         // auto-refreshed by webhook ingestion, so re-reading per step picks up

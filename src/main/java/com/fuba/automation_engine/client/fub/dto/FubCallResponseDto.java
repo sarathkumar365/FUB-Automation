@@ -11,5 +11,6 @@ public record FubCallResponseDto(
         Long userId,
         String outcome,
         Boolean isIncoming,
-        OffsetDateTime created) {
+        OffsetDateTime created,
+        OffsetDateTime startedAt) {
 }

@@ -4,6 +4,35 @@ A freeform scratchpad for product ideas, future directions, and "would be nice" 
 
 ---
 
+## Idea: Per-step `since` anchor for `wait_and_check_communication`
+
+**Date:** 2026-05-08
+
+**The problem (when it becomes real):**
+Today the step anchors its detection window to `runStartedAt`, so every check in a run looks at the same time range from run start onwards. This is correct for "did anything happen since this workflow began?" — every existing workflow uses it that way. It can't express "did anything happen *since the previous check ran*?" — i.e. multi-stage nurture workflows that check in hourly/daily and want each check to only see new activity.
+
+**What this would add:**
+- New optional config field on `wait_and_check_communication`: `since` — a JSONata expression evaluated against `ExpressionScope` to produce the window's lower bound
+- Default behavior unchanged: when `since` is omitted, anchor to `runStartedAt` minus the buffer (today's behavior)
+- Authors who need per-step anchoring write `"since": "{{ steps.previous_check.completedAt }}"` or any JSONata expression that resolves to an `OffsetDateTime`
+
+**Sketch when picked up:**
+- Resolve `since` via the existing `ExpressionEvaluator` against the step's `ExpressionScope`
+- If `since` resolves, use it directly as the window's lower bound (skip the `max(lookbackMinutes, BUFFER)` math)
+- If `since` is absent or evaluates to null, today's runStart-anchored logic applies
+- For the JSONata side: needs `steps.<id>.completedAt` exposed in scope (today only `steps.<id>.<output>` is — would need a small `ExpressionScope` extension)
+
+**Why deferred (no current workflow needs it):**
+- All existing workflows (`lead_ai_call_followup`, `agent_followup_enforcement`) want runStart-anchored detection — no per-step anchoring needed
+- No roadmap workflow has been concretely scoped that requires "since previous check" semantics
+- Adding the config flag now means designing for a hypothetical use case and risking the wrong shape; better to wait for a real driver
+
+**Triggers worth picking this up:**
+- A multi-stage nurture workflow lands that wants hourly/daily check-ins where each check should only see *new* activity since the prior check
+- An SLA-tracking workflow needs to detect activity in non-overlapping windows
+
+---
+
 ## ⭐ IMPORTANT — Idea: Change-detection in trigger filters (`lead.previous.*`)
 
 **Date:** 2026-05-07

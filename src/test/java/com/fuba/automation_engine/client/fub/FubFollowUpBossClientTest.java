@@ -3,11 +3,11 @@ package com.fuba.automation_engine.client.fub;
 import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
-import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
+import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -164,12 +165,20 @@ class FubFollowUpBossClientTest {
     }
 
     @Test
-    void shouldReturnCommunicationFoundWhenContactedIsGreaterThanZero() {
-        AtomicInteger hitCounter = new AtomicInteger();
-        server.createContext("/v1/people/798", exchange -> {
-            hitCounter.incrementAndGet();
+    void shouldListPersonCallsReturningAllRowsFromFub() {
+        AtomicReference<String> capturedQuery = new AtomicReference<>();
+        server.createContext("/v1/calls", exchange -> {
+            capturedQuery.set(exchange.getRequestURI().getQuery());
+            // First call has startedAt (actual call start) AND created (record insert) — they differ by 50s.
+            // Second call has only created — falls back to that.
             byte[] payload = """
-                    {"id":798,"claimed":true,"assignedUserId":1,"contacted":1}
+                    {
+                      "_metadata": {"total": 2},
+                      "calls": [
+                        {"id":121197,"personId":798,"userId":28,"created":"2026-05-08T14:45:34Z","startedAt":"2026-05-08T14:44:44Z","duration":42,"outcome":null,"isIncoming":false,"note":null},
+                        {"id":121100,"personId":798,"userId":28,"created":"2026-05-08T13:00:00Z","duration":5,"outcome":"Voicemail","isIncoming":false,"note":null}
+                      ]
+                    }
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
@@ -179,19 +188,24 @@ class FubFollowUpBossClientTest {
         });
 
         FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
-        PersonCommunicationCheckResult result = client.checkPersonCommunication(798L);
+        List<CallEvidence> result = client.listPersonCalls(798L);
 
-        assertEquals(1, hitCounter.get());
-        assertEquals(798L, result.personId());
-        assertTrue(result.communicationFound());
+        assertEquals(2, result.size(), "client returns all rows; window filtering belongs to callers");
+        assertEquals(42, result.get(0).durationSeconds());
+        assertEquals("798", result.get(0).sourceLeadId());
+        assertEquals(OffsetDateTime.parse("2026-05-08T14:44:44Z"), result.get(0).callStartedAt(),
+                "uses startedAt when present");
+        assertEquals(OffsetDateTime.parse("2026-05-08T13:00:00Z"), result.get(1).callStartedAt(),
+                "falls back to created when startedAt is absent");
+        assertTrue(capturedQuery.get().contains("personId=798"));
+        assertTrue(capturedQuery.get().contains("sort=-created"));
+        assertTrue(capturedQuery.get().contains("limit=10"));
     }
 
     @Test
-    void shouldReturnCommunicationNotFoundWhenContactedIsNull() {
-        server.createContext("/v1/people/799", exchange -> {
-            byte[] payload = """
-                    {"id":799,"claimed":true,"assignedUserId":1}
-                    """.getBytes(StandardCharsets.UTF_8);
+    void shouldReturnEmptyListWhenFubReturnsNoCalls() {
+        server.createContext("/v1/calls", exchange -> {
+            byte[] payload = "{\"_metadata\":{\"total\":0},\"calls\":[]}".getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
             try (OutputStream outputStream = exchange.getResponseBody()) {
@@ -200,10 +214,9 @@ class FubFollowUpBossClientTest {
         });
 
         FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
-        PersonCommunicationCheckResult result = client.checkPersonCommunication(799L);
+        List<CallEvidence> result = client.listPersonCalls(799L);
 
-        assertEquals(799L, result.personId());
-        assertFalse(result.communicationFound());
+        assertTrue(result.isEmpty());
     }
 
     @Test
