@@ -29,6 +29,8 @@ A first-class concept of "assignment freshness." Two ways it could manifest:
 - When change-detection (`lead.previous.*`) lands — this becomes a one-line filter expression
 - When `agent_followup_enforcement` graduates from dev to production
 
+**First in-production datapoint (2026-05-11):** `agent_followup_enforcement` run 163 reassigned lead 19255 to ISA because the assigned agent (Mandeep Dhesi) "failed to call." In fact Mandeep had a 155-second incoming call with the lead 33 minutes before the run started — well outside the 5-min lookback buffer. The workflow's rule was satisfied; the product behavior was wrong. Recorded in [field-observations.md](../features/agent-followup-enforcement/field-observations.md) §Learning 15.
+
 **Sketch when picked up:**
 - Confirm FUB exposes a stable per-assignment timestamp in the person record (or fall back to comparing `lead.previous.assignedUserId` once change-detection is in)
 - Add `lead.assignedAt` (and/or `lead.minutesSinceAssigned`) to the `LeadSnapshotResolver` output
@@ -68,6 +70,8 @@ Today the step anchors its detection window to `runStartedAt`, so every check in
 ## ⭐ IMPORTANT — Idea: Change-detection in trigger filters (`lead.previous.*`)
 
 **Date:** 2026-05-07
+
+> **Status (2026-05-12):** superseded by [`Docs/features/state-change-events/design.md`](../features/state-change-events/design.md), which evolves this sketch into a full layered design (diff at upsert + engine-write attribution + run-level dedup + scope extension) informed by two days of production-shape evidence in [field-observations.md](../features/agent-followup-enforcement/field-observations.md).
 
 **Priority:** Important — first concrete need surfaced from the agent-followup-enforcement workflow (Phase 5 was skipped because of this gap; tracked as known-issues #20). Will block any workflow that needs to fire on a *transition* rather than on every webhook of a given type.
 

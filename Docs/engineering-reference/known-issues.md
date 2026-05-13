@@ -2,7 +2,11 @@
 
 This document tracks currently known issues identified in the codebase.
 
-**Last reviewed:** 2026-04-21
+**Last reviewed:** 2026-05-11
+
+For cross-cutting learnings spanning #20–#25 (over-fire mechanisms, lookback-buffer overload, defense-in-depth gaps), see [`Docs/features/agent-followup-enforcement/field-observations.md`](../features/agent-followup-enforcement/field-observations.md).
+
+The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is in [`Docs/features/state-change-events/design.md`](../features/state-change-events/design.md).
 
 | # | Issue | Priority | Status |
 |---|-------|----------|--------|
@@ -26,8 +30,11 @@ This document tracks currently known issues identified in the codebase.
 | 18 | `RunContext` hardcodes `"FUB"` as the source system | Low | Open |
 | 19 | No `getUser(id)` client method or `users` ingestion path — workflows cannot mention arbitrary users by ID | Low | Open |
 | 20 | No change-detection mechanism — triggers cannot fire on field transitions (e.g. "assignedUserId changed") | High | Open |
-| 21 | `wait_and_check_communication` lookback is anchored to check time, not workflow start | High | Resolved (2026-05-08) |
-| 22 | `FollowUpBossClient.checkPersonCommunication` reads `person.contacted` which doesn't reflect outbound agent calls | High | Resolved (2026-05-08) |
+| 21 | `wait_and_check_communication` lookback is anchored to check time, not workflow start | High | Resolved (2026-05-08, validated in production 2026-05-11) |
+| 22 | `FollowUpBossClient.checkPersonCommunication` reads `person.contacted` which doesn't reflect outbound agent calls | High | Resolved (2026-05-08, validated in production 2026-05-11) |
+| 23 | Self-induced over-fire — engine writes to FUB trigger fresh `peopleUpdated` webhooks → fresh workflow runs | High | Open |
+| 24 | No suppression of duplicate workflow runs for the same `(workflow_key, source_lead_id)` | High | Open |
+| 25 | `workflow_runs.webhook_event_id` FK is never populated | Medium | Open |
 
 ---
 
@@ -208,12 +215,15 @@ This document tracks currently known issues identified in the codebase.
 - **Location:** `service/workflow/trigger/FubWebhookTriggerType.java`, `service/webhook/parse/FubWebhookParser.java`, `service/lead/LeadUpsertService.java`
 - **Issue:** FUB collapses every kind of person-record change (assignment, stage, tags, lender, custom fields, name edits, …) into the same generic `peopleUpdated` webhook. The current trigger-filter scope sees only the post-update state — it has no view of what was different. Workflows therefore cannot express predicates like "fire only when `assignedUserId` changed" or "fire only when stage moved into Hot." They must over-fire on every `peopleUpdated` and rely on downstream steps to no-op, or hard-code a per-purpose trigger class for every transition of interest.
 - **Impact:** The agent-followup-enforcement workflow currently over-fires on all `peopleUpdated` events for assigned leads (false-positive escalation runs on tag/stage edits). Acceptable in dev; a real correctness/cost problem once high-volume workflows depend on transition semantics. Any future workflow that needs "fire on stage transition," "fire when lender attached," etc. is blocked.
+- **Measured over-fire rate (2026-05-11, 14 runs):** at least 9 of 14 runs (64%) should not have started by product intent — 5 caused by the agent's own call being recorded in FUB, 2 caused by the engine's own reassignment (see #23), 1 by an unrelated peopleUpdated, plus 1 reassignment that was workflow-correct but product-wrong (lead had a substantive prior conversation outside the buffer window). The "real assignment" trigger rate is only ~43%. See [field-observations.md](../features/agent-followup-enforcement/field-observations.md) §Aggregate numbers.
 - **Why it's deferred (not done now):** the only concrete need today is the agent-followup-enforcement workflow, and we're explicitly shipping it with the over-firing trigger to gather usage signal before committing to an architectural fix. Phase 5 was skipped in [Docs/features/agent-followup-enforcement/phases.md](../features/agent-followup-enforcement/phases.md) for this reason.
-- **Suggested fix when picked up:** see [Docs/product-discovery/ideas.md](../product-discovery/ideas.md) "Change-detection in trigger filters (`lead.previous.*`)" for the full design comparison (5 alternatives weighed). Preferred direction: capture pre-upsert lead snapshot in `LeadUpsertService`, expose it as `lead.previous.*` in the trigger-filter and step-execution scope. Resolves #17 in the same change.
+- **Suggested fix when picked up:** see [`Docs/features/state-change-events/design.md`](../features/state-change-events/design.md), which supersedes the earlier sketch in [Docs/product-discovery/ideas.md](../product-discovery/ideas.md) ("Change-detection in trigger filters (`lead.previous.*`)"). The design proposes diff-at-upsert + `change.*` namespace in trigger filter scope + engine-write attribution, in one cohesive change. Resolves #17 in the same release (Layer 2 exposes `lead.*` in filter scope).
 
 ## 21) `wait_and_check_communication` lookback is anchored to check time, not workflow start
 
-- **Status:** Resolved (2026-05-08)
+- **Status:** Resolved (2026-05-08, validated in production 2026-05-11)
+- **Production validation (2026-05-11):** `agent_followup_enforcement` run 160 for lead 20197 fired off a `peopleUpdated` webhook at 11:44:39.959 EDT (triggered by the agent's call ending). The agent's call had started at **11:39:41 EDT — 4 minutes 59 seconds before the run was created**, with a duration of 288 s. With the old "anchor to now" logic, the 3-min check at 11:47:42 would have opened the lookback at ~11:44:42 and completely missed a call started at 11:39:41. With the fix, the lookback was anchored to `runStartedAt (11:44:40) - 5 min buffer = ~11:39:40`, putting the call inside the window by ~1 second. Engine correctly returned `CONVERSATIONAL` and terminated the workflow without posting a nudge — preventing the run-150 false-positive pattern.
+- **Follow-up: 5-min buffer is at its margin.** Run 172 on 2026-05-11 (lead 20125) classified a call as `CONVERSATIONAL` even though the call started at 15:34:09 — **14 seconds before** the buffer window opens (15:34:23 = runStartedAt 15:39:23 minus 5 min). It worked because the local `processed_calls` row records a timestamp inside the window (likely the call's `created` rather than `startedAt`), but a slightly slower webhook on a slightly earlier call would fall outside. Suggested follow-up: bump default buffer to 10 min, or derive it dynamically from observed `max(webhook.received_at − call.startedAt)` with a safety factor.
 - **Resolution:** `RunContext.RunMetadata` now carries `runStartedAt` (sourced from `workflow_runs.created_at`). `WaitAndCheckCommunicationWorkflowStep.computeLookbackSince` anchors the lookback window to that fixed timestamp, so the window doesn't drift as a step waits. Effective lookback is `max(lookbackMinutes, DEFAULT_BUFFER_MINUTES=5)` — a 5-minute floor covers webhook-delivery races and "agent called before claiming" patterns. Backwards-compatible: collapses to today's behavior for any workflow with `delayMinutes ≈ 0`. Also fixed an ancillary issue where `WorkflowRunEntity.@PrePersist` used `OffsetDateTime.now()` (system clock) instead of the injected `Clock` — `WorkflowExecutionManager` now sets `createdAt` explicitly so test `Clock`s are honored.
 - **Priority:** High
 - **Location:** `service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.resolveFromLocalEvidence` (line ~153)
@@ -231,7 +241,8 @@ This document tracks currently known issues identified in the codebase.
 
 ## 22) `FollowUpBossClient.checkPersonCommunication` reads `person.contacted` which doesn't reflect outbound agent calls
 
-- **Status:** Resolved (2026-05-08)
+- **Status:** Resolved (2026-05-08, validated in production 2026-05-11)
+- **Production validation (2026-05-11):** `agent_followup_enforcement` run 162 for lead 20188. 3-min check at 11:58:18 returned `COMM_NOT_FOUND` (FUB confirmed: no call existed yet); 27-min check at 12:25:20 correctly returned `CONNECTED_NON_CONVERSATIONAL` after the agent placed a 2-sec outbound call at 12:02:37. The 27-min check found the call via `listPersonCalls` — the old `person.contacted` path would have continued to return false (a 2-sec outbound call doesn't bump `contacted`). Workflow terminated correctly, no incorrect reassignment.
 - **Resolution:** Hard-deleted `checkPersonCommunication` and the `PersonCommunicationCheckResult` record. Replaced with `FollowUpBossClient.listPersonCalls(personId, since)` that hits FUB's `/v1/calls?personId=X&sort=-created&limit=10` and returns `List<CallEvidence>`. Empirical smoke testing confirmed FUB silently ignores `since=` / `createdSince=` / `startedAfter=` query params on `/v1/calls`, so the `since` filter is applied client-side. New unified `CallEvidence` record (sourceLeadId, callStartedAt, durationSeconds, outcome, isIncoming) is shared by the local-evidence path and the FUB-fallback path; the step's classifier runs on either uniformly. 8 simple test stubs migrated; 4 complex test cases rewritten to exercise the new shape.
 - **Priority:** High
 - **Location:** `client/fub/FubFollowUpBossClient.java:152-161`
@@ -242,3 +253,50 @@ This document tracks currently known issues identified in the codebase.
   - (a) `GET /v1/calls?personId=X&limit=10` and inspect call records in the relevant time window (best — gives duration, direction, outcome — same shape as our local `processed_calls`)
   - (b) `GET /v1/people/X/calls` (if FUB exposes a per-person sub-resource — verify in API docs)
   Either way, return a richer result that distinguishes inbound vs outbound and includes timestamps, so the step can apply the same `classifyCall` logic it already uses for local evidence. As a quick interim mitigation, the step can stop falling back to FUB entirely and rely on local evidence only — acceptable while #21 is open, since the fallback's signal is unreliable anyway.
+
+## 23) Self-induced over-fire — engine writes to FUB trigger fresh `peopleUpdated` webhooks → fresh workflow runs
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/steps/FubReassignWorkflowStep`, `service/workflow/steps/FubMoveToPondWorkflowStep`, `service/workflow/trigger/FubWebhookTriggerType.java`
+- **Issue:** FUB fires `peopleUpdated` whenever a person record mutates, including mutations the engine itself just made. When a workflow both (a) is triggered by `peopleUpdated` and (b) writes to FUB (reassign, move-to-pond, tag updates, etc.), each mutating step risks producing an echo webhook that re-triggers the same workflow on the same lead. The engine has no awareness that it caused the upstream event.
+- **Confirmed reproductions:**
+  | Date | Lead | Runs | Trigger write | Echo webhook | Gap |
+  |------|------|------|---------------|--------------|-----|
+  | 2026-05-08 | 20123 | 150 → 153 | `reassign_isa` at 11:16:07.617 | 4099 at 11:16:08.193 | 576 ms |
+  | 2026-05-11 | 19255 | 163 → 167 | `reassign_isa` at 14:29:29.387 | 4266 at 14:29:29.865 | 478 ms |
+  | 2026-05-11 | 20207 | 165 → 168 | `reassign_isa` at 14:56:08.174 | 4271 at 14:56:08.472 | 298 ms |
+- **Why this is independent of #20:** even a perfectly-aimed change-detection trigger that only fires on "assignedUserId changed" would still fire on the engine's own reassign. The webhook *is* a legitimate change-detection signal; the engine just doesn't know it caused it.
+- **Frequency:** observed 3 echoes vs 1 non-echo (run 161 on 2026-05-11) across all four reassignments to date. The echo is the **common outcome of `fub_reassign`, not the edge case.** Earlier framing as "non-deterministic" undersold how often this fires. Treat as a high-frequency bug.
+- **Cascade can exceed 2 runs:** lead 20207 on 2026-05-11 saw 3 runs in 51 minutes (165 → echo 168 → unrelated peopleUpdated 169) producing 3 nudge notes plus 1 reassignment, including notes posted on a lead in the middle of an 11m44s real conversation with its agent. With no run-level dedup (#24), the cascade is unbounded.
+- **Proposed fix:** [`Docs/features/state-change-events/design.md`](../features/state-change-events/design.md) Layer 1 — `EngineWriteTracker` records every engine-originated FUB write in a 10-second in-memory cache, and Layer 0's diff annotates matching field changes with `source: "ENGINE"`. Trigger filters (Layer 2) exclude them with `change.source != 'ENGINE'`. Chosen over the FUB-side marker approach because FUB has no standardized "system-originated" attribution on echoed `peopleUpdated`.
+- **Related:** #20 (over-fire on every `peopleUpdated` due to no change detection), #24 (no run-level suppression).
+
+## 24) No suppression of duplicate workflow runs for the same `(workflow_key, source_lead_id)`
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/WorkflowExecutionManager.planWorkflowRun`, trigger-evaluation pipeline
+- **Issue:** Every webhook that matches a workflow's trigger filter starts a fresh workflow run. There is no check for an active (non-terminal) run on the same `(workflow_key, source_lead_id)`, nor a recency check against recently-completed runs. Two webhooks for the same lead within minutes will produce two independent runs that proceed in parallel, unaware of each other.
+- **Concretely observed (2026-05-08, lead 20123, `agent_followup_enforcement`):**
+  - Webhook 4089 (`peopleUpdated`) at 10:44:25 → run 149
+  - Webhook 4092 (`peopleUpdated`, functionally identical) at 10:46:03 — **1m 38s later** → run 150
+  - Run 149 had already completed `gate_assigned` and was in `wait_3m_check` when run 150 started
+  - Run 150 had no awareness of run 149; it proceeded to post a nudge note and reassign — both wrong, since run 149 ended at 10:47:27 correctly returning `CONVERSATIONAL`
+- **Why this is distinct from per-step idempotency:** the existing webhook-event uniqueness (`uk_webhook_events_source_event_id`) and step-level idempotency keys protect against literal duplicate webhooks and step retries, but not against semantically-equivalent webhooks that the engine should logically treat as one event.
+- **Proposed fix:** [`Docs/features/state-change-events/design.md`](../features/state-change-events/design.md) Layer 3 — at `WorkflowExecutionManager.plan`, check for active runs on `(workflow_key, source_lead_id)` (hard suppression) and for recent terminal runs within `dedupWindowMinutes` (soft suppression). Default window derived from `max(delayMinutes)` in the graph. Suppressed runs persist as a `SUPPRESSED` row referencing the prior run id for audit.
+- **More reproductions (2026-05-11 afternoon batch):**
+  - Lead 19255: runs 163 and 167, 30m apart (167 is a #23 echo of 163's reassign — second run does the same nudge + reassign work). Two runs on one lead in 60 min.
+  - Lead 20206: runs 164 and 166, 8m apart (166 triggered by call ending). Both correctly terminated, but two runs spawned for one lead.
+  - **Lead 20207: runs 165, 168, 169 — three runs in 51 minutes.** 168 is a #23 echo; 169 is an unrelated peopleUpdated. Three nudge notes and one reassignment posted on a single lead, including notes on a lead in the middle of a real 11m44s conversation. Cascade extends beyond 2 runs.
+- **Related:** #23 (the engine itself produces some of these duplicates), #20 (the underlying trigger has no transition semantics).
+
+## 25) `workflow_runs.webhook_event_id` FK is never populated
+
+- **Status:** Open
+- **Priority:** Medium
+- **Location:** `service/workflow/WorkflowExecutionManager.planWorkflowRun`, `domain/workflow/WorkflowRunEntity`
+- **Issue:** The `workflow_runs.webhook_event_id` column exists, has a FK constraint to `webhook_events.id` with `ON DELETE SET NULL`, but is null on every workflow run created to date. Verified empirically across runs 149, 150, 153 (2026-05-08) and 159, 160, 161, 162 (2026-05-11). The engine knows the triggering webhook's id when it creates the run (the planner reads from `webhook_events`), but doesn't write it to the run row.
+- **Impact:** Operators investigating a run must correlate by `(source_lead_id, created_at)` and time-window matching against `webhook_events`, which is brittle when multiple webhooks for the same lead land close together. Also blocks any clean implementation of #24's dedup logic, which would naturally key off "last run for this lead, plus its trigger webhook id."
+- **Proposed fix:** bundled in [`Docs/features/state-change-events/design.md`](../features/state-change-events/design.md) Layer 5 cleanups. The line in `WorkflowExecutionManager.plan` (~line 117) already calls `run.setWebhookEventId(request.webhookEventId())` — the request just isn't populated upstream. Trace and fix the caller.
+- **Related:** #24 (dedup design needs this column populated for clean auditing).
