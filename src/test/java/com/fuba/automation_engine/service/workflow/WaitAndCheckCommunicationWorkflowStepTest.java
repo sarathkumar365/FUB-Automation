@@ -7,7 +7,7 @@ import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.fub.FubCallHelper;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.workflow.steps.WaitAndCheckCommunicationWorkflowStep;
 import java.time.Clock;
 import java.time.Instant;
@@ -202,12 +202,13 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     }
 
     @Test
-    void shouldUseFallbackWhenLocalEvidenceInsufficientAndMapTrueToConnectedNonConversational() {
+    void shouldUseFallbackWhenLocalEvidenceInsufficientAndClassifyConnectedNonConversational() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
         when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(4L, null, "Connected")));
-        when(fubCallHelper.executeWithRetry(any())).thenReturn(new PersonCommunicationCheckResult(7890L, true));
+        when(fubCallHelper.executeWithRetry(any())).thenReturn(List.of(
+                new CallEvidence("7890", OffsetDateTime.parse("2026-04-20T11:55:00Z"), 12, "Connected", false)));
 
         StepExecutionResult result = step.execute(context("7890", Map.of(), Map.of()));
 
@@ -217,26 +218,26 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     }
 
     @Test
-    void shouldMapFallbackFalseAndNullToCommNotFound() {
+    void shouldReturnCommNotFoundWhenFallbackEmptyOrNull() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
         when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of());
         when(fubCallHelper.executeWithRetry(any()))
-                .thenReturn(new PersonCommunicationCheckResult(7890L, false))
+                .thenReturn(List.of())
                 .thenReturn(null);
 
-        StepExecutionResult fallbackFalse = step.execute(context("7890", Map.of(), Map.of()));
+        StepExecutionResult fallbackEmpty = step.execute(context("7890", Map.of(), Map.of()));
         StepExecutionResult fallbackNull = step.execute(context("7890", Map.of(), Map.of()));
 
-        assertTrue(fallbackFalse.success());
-        assertEquals("COMM_NOT_FOUND", fallbackFalse.resultCode());
+        assertTrue(fallbackEmpty.success());
+        assertEquals("COMM_NOT_FOUND", fallbackEmpty.resultCode());
         assertTrue(fallbackNull.success());
         assertEquals("COMM_NOT_FOUND", fallbackNull.resultCode());
     }
 
     @Test
-    void shouldDefaultLookbackToThirtyMinutes() {
+    void shouldDefaultLookbackToBufferWhenNotConfigured() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
         when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
@@ -249,11 +250,11 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         verify(processedCallRepository)
                 .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         eq("7890"), sinceCaptor.capture());
-        assertEquals(OffsetDateTime.parse("2026-04-20T11:30:00Z"), sinceCaptor.getValue());
+        assertEquals(OffsetDateTime.parse("2026-04-20T11:55:00Z"), sinceCaptor.getValue());
     }
 
     @Test
-    void shouldClampLookbackToMinimumOneMinute() {
+    void shouldFloorLookbackToDefaultBufferOfFiveMinutes() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
         when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
@@ -266,7 +267,64 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         verify(processedCallRepository)
                 .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         eq("7890"), sinceCaptor.capture());
-        assertEquals(OffsetDateTime.parse("2026-04-20T11:59:00Z"), sinceCaptor.getValue());
+        assertEquals(OffsetDateTime.parse("2026-04-20T11:55:00Z"), sinceCaptor.getValue());
+    }
+
+    @Test
+    void shouldAnchorLookbackToRunStartedAtWhenContextProvided() {
+        OffsetDateTime runStartedAt = OffsetDateTime.parse("2026-04-20T11:57:00Z");
+
+        when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
+        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                eq("7890"), any(OffsetDateTime.class)))
+                .thenReturn(List.of(callAt(7L, 61, "Connected", "2026-04-20T11:56:30Z")));
+
+        StepExecutionResult result = step.execute(
+                contextWithRunStart("7890", Map.of("lookbackMinutes", 0), Map.of(), runStartedAt));
+
+        assertTrue(result.success());
+        assertEquals("CONVERSATIONAL", result.resultCode());
+        ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(processedCallRepository)
+                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                        eq("7890"), sinceCaptor.capture());
+        assertEquals(OffsetDateTime.parse("2026-04-20T11:52:00Z"), sinceCaptor.getValue());
+    }
+
+    @Test
+    void shouldExtendLookbackBeforeRunStartWhenLookbackMinutesProvided() {
+        OffsetDateTime runStartedAt = OffsetDateTime.parse("2026-04-20T12:00:00Z");
+
+        when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
+        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                eq("7890"), any(OffsetDateTime.class)))
+                .thenReturn(List.of());
+        when(fubCallHelper.executeWithRetry(any())).thenReturn(null);
+
+        step.execute(contextWithRunStart("7890", Map.of("lookbackMinutes", 30), Map.of(), runStartedAt));
+
+        ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(processedCallRepository)
+                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                        eq("7890"), sinceCaptor.capture());
+        assertEquals(OffsetDateTime.parse("2026-04-20T11:30:00Z"), sinceCaptor.getValue());
+    }
+
+    @Test
+    void shouldFallBackToNowAnchorWhenRunStartedAtIsNull() {
+        when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
+        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                eq("7890"), any(OffsetDateTime.class)))
+                .thenReturn(List.of(call(8L, 61, "Connected")));
+
+        StepExecutionResult result = step.execute(context("7890", Map.of("lookbackMinutes", 10), Map.of()));
+
+        assertTrue(result.success());
+        ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
+        verify(processedCallRepository)
+                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                        eq("7890"), sinceCaptor.capture());
+        assertEquals(OffsetDateTime.parse("2026-04-20T11:50:00Z"), sinceCaptor.getValue());
     }
 
     @Test
@@ -325,6 +383,21 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         return new StepExecutionContext(1L, 2L, "wait_comm", sourceLeadId, rawConfig, resolvedConfig, null);
     }
 
+    private StepExecutionContext contextWithRunStart(
+            String sourceLeadId,
+            Map<String, Object> resolvedConfig,
+            Map<String, Object> rawConfig,
+            OffsetDateTime runStartedAt) {
+        RunContext runContext = new RunContext(
+                new RunContext.RunMetadata(1L, "test_workflow", 1L, runStartedAt),
+                Map.of(),
+                sourceLeadId,
+                Map.of(),
+                Map.of(),
+                Map.of());
+        return new StepExecutionContext(1L, 2L, "wait_comm", sourceLeadId, rawConfig, resolvedConfig, runContext);
+    }
+
     private ProcessedCallEntity call(Long id, Integer durationSeconds, String outcome) {
         return call(id, durationSeconds, outcome, false);
     }
@@ -337,6 +410,12 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         entity.setDurationSeconds(durationSeconds);
         entity.setOutcome(outcome);
         entity.setCallStartedAt(OffsetDateTime.parse("2026-04-20T11:50:00Z"));
+        return entity;
+    }
+
+    private ProcessedCallEntity callAt(Long id, Integer durationSeconds, String outcome, String startedAt) {
+        ProcessedCallEntity entity = call(id, durationSeconds, outcome, false);
+        entity.setCallStartedAt(OffsetDateTime.parse(startedAt));
         return entity;
     }
 }

@@ -48,11 +48,15 @@ Each entry: what it is, one example. Skim this list first; you'll recognize ever
 
 **Template** — A string with `{{ ... }}` markers inside a step's config. The engine resolves the markers before calling `execute()`. *Example:* `"Follow up with {{ event.payload.firstName }}"` → `"Follow up with Sarath"`.
 
-**Expression Scope** — The `Map<String, Object>` every JSONata expression evaluates against. Has exactly three keys: `event` (wraps the webhook payload under `event.payload`), `sourceLeadId`, and `steps` (prior step outputs). There is **no `trigger` key** — the payload is always reached via `event.payload.<key>`. *Example:* `{ "event": { "payload": { "firstName": "Sarath", "priority": "high" } }, "sourceLeadId": "42", "steps": { "check_claim": { "outputs": { "assignedUserId": 77 } } } }`.
+**Expression Scope** — The `Map<String, Object>` every JSONata expression evaluates against. Has four keys: `event` (wraps the webhook payload under `event.payload`), `sourceLeadId`, `lead` (the locally-snapshotted lead details — see below), and `steps` (prior step outputs). There is **no `trigger` key** — the payload is always reached via `event.payload.<key>`. *Example:* `{ "event": { "payload": { "firstName": "Sarath", "priority": "high" } }, "sourceLeadId": "42", "lead": { "assignedUserId": 30, "assignedTo": "ISA AuraKeyRealty", "stage": "Lead" }, "steps": { "check_claim": { "outputs": { "assignedUserId": 77 } } } }`.
+
+**`lead.*` namespace** — Resolved at the start of every step from the `leads.lead_details` JSONB column via `LeadSnapshotResolver`. Auto-fresh: any `peopleUpdated` webhook re-snapshots the lead via the standard ingestion path, so a step running 30 minutes after its workflow started sees the latest field values without an extra FUB API call. Always present in scope; an empty map (`{}`) when the lead hasn't been ingested yet, so `{{ lead.foo }}` returns null gracefully via JSONata path navigation. Source system is currently hardcoded to `"FUB"` — see [known-issues.md](../../engineering-reference/known-issues.md) #18. Trigger-filter scope does NOT yet include `lead.*` — see [known-issues.md](../../engineering-reference/known-issues.md) #17 and `Docs/product-discovery/ideas.md`.
+
+**`now.*` namespace** — Time-of-day flags resolved at the start of every step via `BusinessHoursService`. Two fields: `now.isDaytime` (boolean — true when within configured business hours in the configured timezone) and `now.hourLocal` (int 0–23, hour-of-day in local timezone). Driven by `BusinessHoursProperties` (`automation.business-hours.*`): timezone, startHour, endHour, weekdaysOnly. Per-step resolution means long-running workflows that cross the daytime/off-hours boundary see the correct value at each subsequent step. Workflows branch via `branch_on_field` with `expression: "now.isDaytime"`.
 
 **Expression Evaluator** — There is exactly **one evaluator**: `JsonataExpressionEvaluator`. It is not multiple evaluators — the same class does everything expression-related in the engine. It has two modes (methods): `resolveTemplate(str, scope)` for fill-in-the-blanks strings with `{{ ... }}` markers, and `evaluatePredicate(expr, scope)` for raw boolean/scalar expressions with no markers. Same class, same scope, two different ways to call it.
 
-**RunContext** — A rebuilt-each-time record carrying metadata (runId, workflowKey), the frozen trigger payload, the sourceLeadId, and a map of every completed step's outputs. Used to build the Expression Scope.
+**RunContext** — A rebuilt-each-time record carrying metadata (runId, workflowKey), the frozen trigger payload, the sourceLeadId, the resolved lead snapshot, and a map of every completed step's outputs. Used to build the Expression Scope.
 
 **Resolved Config** — The step's config after all `{{ ... }}` templates are evaluated. Persisted to `workflow_run_steps.resolved_config` for debugging. *Example:* authored `{"name": "Call {{ event.payload.firstName }}"}` becomes resolved `{"name": "Call Sarath"}`.
 
@@ -397,9 +401,69 @@ It has **two modes**:
 - **`resolveTemplate(String template, ExpressionScope scope)`** — the "fill in the blanks" mode. You hand it a string like `"Hello {{ event.payload.firstName }}"` and it finds the `{{ ... }}` parts, evaluates each one against the scope, and returns the filled-in result.
 - **`evaluatePredicate(String expression, ExpressionScope scope)`** — the "is this true?" mode. You hand it a raw expression with no `{{ }}` markers, like `event.payload.score > 5`, and it evaluates it and returns the result (a boolean, a string, a number — whatever JSONata computes).
 
-The **scope** is the context — the map where the answers live. It has exactly three keys: `event.payload` (the webhook payload), `steps.<nodeId>.outputs.<key>` (previous steps' outputs), and `sourceLeadId`. There is no `trigger` key — all webhook data is reached via `event.payload.<key>`. JSONata walks this map to find the value your expression points at.
+The **scope** is the context — the map where the answers live. It has five keys: `event.payload` (the webhook payload), `sourceLeadId`, `lead.<field>` (the locally-snapshotted lead details, auto-refreshed by webhook ingestion), `now.<field>` (time-of-day flags from `BusinessHoursService`), and `steps.<nodeId>.outputs.<key>` (previous steps' outputs). There is no `trigger` key — all webhook data is reached via `event.payload.<key>`. JSONata walks this map to find the value your expression points at.
 
-Both modes evaluate against an `ExpressionScope` — a map with `event`, `sourceLeadId`, and `steps.<nodeId>.outputs.<key>`.
+Both modes evaluate against an `ExpressionScope` — a map with `event`, `sourceLeadId`, `lead.<field>`, `now.<field>`, and `steps.<nodeId>.outputs.<key>`.
+
+### End-to-end trace: how a value lands on a step's input
+
+Concrete example — a workflow step writes `{{ lead.assignedTo }}` in its config. Where does the agent display name actually come from?
+
+```
+FUB                    Our system                       The step
+───                    ──────────                       ────────
+
+peopleUpdated  ───►   FubWebhookParser
+webhook                       │
+                              ▼
+                       processLeadDomainEvent
+                              │
+                              ▼
+                       getPersonRawById(18399)  ◄── one FUB API call
+                              │     ↓
+                              │   { ... assignedUserId: 30,
+                              │       assignedTo: "ISA AuraKeyRealty",
+                              │       stage: "Lead", ... }
+                              ▼
+                       leads.lead_details JSONB        (← stored locally)
+                              │
+                              ▼
+                       WorkflowTriggerRouter starts a run
+                              │
+                              ▼ (per step)
+                       buildRunContext(run)
+                              │
+                              ▼
+                       LeadSnapshotResolver
+                       .resolve("18399")
+                              │   ↓
+                              │   { assignedUserId: 30, assignedTo: "ISA AuraKeyRealty", ... }
+                              ▼
+                       runContext.lead = <map>
+                              │
+                              ▼
+                       ExpressionScope.from(runContext)
+                              │
+                              ▼
+                       resolveConfigTemplates(rawConfig, scope)
+                              │
+                              ▼
+                       Template `{{ lead.assignedTo }}`
+                       walks lead → assignedTo
+                       returns "ISA AuraKeyRealty"
+                              │
+                              ▼                ┌─────────────────────────┐
+                       resolvedConfig:         │   the step (any kind)   │
+                       {                       │                         │
+                         mentionUserIds:[30],  │ Sees pre-resolved values│
+                         mentionUserNames:     │ Knows nothing about     │
+                           ["ISA AuraKeyRealty"], │ "agents" or "leads"  │
+                         ...                   │                         │
+                       }       ───────────────►│ Just runs its action    │
+                                               └─────────────────────────┘
+```
+
+**Key takeaway:** the step never queries the DB or calls FUB to look anything up. It receives strings and numbers. All the "where does this come from" complexity lives in `ExpressionScope` (what's available) and the workflow JSON (what to bind). Adding a new namespace = put a new key in scope. Adding a new step that reads existing data = no extra plumbing, just a `{{ ... }}` in the workflow JSON.
 
 **The decision tree inside `resolveTemplate`:**
 

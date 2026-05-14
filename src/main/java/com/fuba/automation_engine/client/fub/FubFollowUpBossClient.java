@@ -4,8 +4,11 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fuba.automation_engine.client.fub.dto.FubAssignedPondUpdateRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubAssignedUserUpdateRequestDto;
+import com.fuba.automation_engine.client.fub.dto.FubCallListResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubCallResponseDto;
+import com.fuba.automation_engine.client.fub.dto.FubCreateNoteRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubCreateTaskRequestDto;
+import com.fuba.automation_engine.client.fub.dto.FubNoteResponseDto;
 import com.fuba.automation_engine.client.fub.dto.FubTagsUpdateRequestDto;
 import com.fuba.automation_engine.client.fub.dto.FubTaskResponseDto;
 import com.fuba.automation_engine.config.FubClientProperties;
@@ -14,13 +17,16 @@ import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CallEvidence;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
 import java.nio.charset.StandardCharsets;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.Base64;
 import java.util.List;
@@ -145,15 +151,44 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
     }
 
     @Override
-    public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
-        PersonDetails person = getPersonById(personId);
-        boolean communicationFound = person.contacted() != null && person.contacted() > 0;
-        log.info(
-                "FUB communication check personId={} contacted={} result={}",
-                personId,
-                person.contacted(),
-                communicationFound ? "FOUND" : "NOT_FOUND");
-        return new PersonCommunicationCheckResult(personId, communicationFound);
+    public List<CallEvidence> listPersonCalls(long personId) {
+        log.info("Calling FUB listPersonCalls personId={}", personId);
+        try {
+            FubCallListResponseDto response = restClient.get()
+                    .uri(uriBuilder -> uriBuilder.path("/calls")
+                            .queryParam("personId", personId)
+                            .queryParam("sort", "-created")
+                            .queryParam("limit", 10)
+                            .build())
+                    .headers(this::applyDefaultHeaders)
+                    .retrieve()
+                    .body(FubCallListResponseDto.class);
+
+            if (response == null || response.calls() == null) {
+                return List.of();
+            }
+
+            List<CallEvidence> calls = new ArrayList<>(response.calls().size());
+            for (FubCallResponseDto call : response.calls()) {
+                if (call == null) continue;
+                // Prefer startedAt (actual call start) over created (record-insert time); they can differ by 30-60s.
+                OffsetDateTime callStartedAt = call.startedAt() != null ? call.startedAt() : call.created();
+                calls.add(new CallEvidence(
+                        call.personId() == null ? null : String.valueOf(call.personId()),
+                        callStartedAt,
+                        call.duration(),
+                        call.outcome(),
+                        Boolean.TRUE.equals(call.isIncoming())));
+            }
+            log.info("FUB listPersonCalls returned personId={} count={}", personId, calls.size());
+            return calls;
+        } catch (RestClientResponseException ex) {
+            log.warn("FUB listPersonCalls returned HTTP error personId={} status={}", personId, ex.getStatusCode().value());
+            throw mapResponseException("GET /calls", ex);
+        } catch (ResourceAccessException ex) {
+            log.warn("FUB listPersonCalls network error personId={}", personId);
+            throw new FubTransientException("FUB network failure on GET /calls", null, ex);
+        }
     }
 
     @Override
@@ -256,6 +291,50 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
         } catch (ResourceAccessException ex) {
             log.warn("FUB createTask network error");
             throw new FubTransientException("FUB network failure on POST /tasks", null, ex);
+        }
+    }
+
+    @Override
+    public CreatedNote createNote(CreateNoteCommand command) {
+        int mentionCount = command.mentionUserIds() == null ? 0 : command.mentionUserIds().size();
+        log.info("Calling FUB createNote personId={} mentionUserIdCount={}",
+                command.personId(), mentionCount);
+
+        FubCreateNoteRequestDto.Mentions mentions = mentionCount > 0
+                ? new FubCreateNoteRequestDto.Mentions(List.copyOf(command.mentionUserIds()))
+                : null;
+        FubCreateNoteRequestDto request = new FubCreateNoteRequestDto(
+                command.personId(),
+                command.subject(),
+                command.body(),
+                Boolean.TRUE,
+                mentions);
+
+        try {
+            FubNoteResponseDto response = restClient.post()
+                    .uri("/notes")
+                    .headers(this::applyDefaultHeaders)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(request)
+                    .retrieve()
+                    .body(FubNoteResponseDto.class);
+
+            if (response == null) {
+                throw new FubPermanentException("FUB returned empty body for createNote", null);
+            }
+
+            log.info("FUB createNote succeeded noteId={} personId={}", response.id(), response.personId());
+            return new CreatedNote(
+                    response.id(),
+                    response.personId(),
+                    response.subject(),
+                    response.body());
+        } catch (RestClientResponseException ex) {
+            log.warn("FUB createNote returned HTTP error status={}", ex.getStatusCode().value());
+            throw mapResponseException("POST /notes", ex);
+        } catch (ResourceAccessException ex) {
+            log.warn("FUB createNote network error");
+            throw new FubTransientException("FUB network failure on POST /notes", null, ex);
         }
     }
 

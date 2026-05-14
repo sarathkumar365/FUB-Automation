@@ -13,9 +13,11 @@ import com.fuba.automation_engine.persistence.repository.WorkflowRunStepReposito
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -174,7 +176,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED"
                     }
                   }
@@ -203,7 +205,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED"
                     }
                   }
@@ -224,7 +226,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }
@@ -373,7 +375,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "ASSIGNMENT",
+                      "eventDomain": "LEAD",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }
@@ -468,7 +470,7 @@ class WorkflowAdminApiIntegrationTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,
@@ -544,8 +546,8 @@ class WorkflowAdminApiIntegrationTest {
         }
 
         @Override
-        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
-            throw new UnsupportedOperationException("Not used in workflow admin integration test");
+        public List<CallEvidence> listPersonCalls(long personId) {
+            return List.of();
         }
 
         @Override
@@ -567,6 +569,11 @@ class WorkflowAdminApiIntegrationTest {
         @Override
         public CreatedTask createTask(CreateTaskCommand command) {
             throw new UnsupportedOperationException("Not used in workflow admin integration test");
+        }
+
+        @Override
+        public CreatedNote createNote(CreateNoteCommand command) {
+            throw new UnsupportedOperationException("createNote not used in this test stub");
         }
     }
 }

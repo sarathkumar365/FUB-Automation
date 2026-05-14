@@ -1,14 +1,17 @@
 package com.fuba.automation_engine.service;
 
 import com.fasterxml.jackson.databind.JsonNode;
-import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
+import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CallEvidence;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
+import java.util.List;
 
 public interface FollowUpBossClient {
 
@@ -20,7 +23,7 @@ public interface FollowUpBossClient {
 
     JsonNode getPersonRawById(long personId);
 
-    PersonCommunicationCheckResult checkPersonCommunication(long personId);
+    List<CallEvidence> listPersonCalls(long personId);
 
     ActionExecutionResult reassignPerson(long personId, long targetUserId);
 
@@ -29,4 +32,6 @@ public interface FollowUpBossClient {
     ActionExecutionResult addTag(long personId, String tagName);
 
     CreatedTask createTask(CreateTaskCommand command);
+
+    CreatedNote createNote(CreateNoteCommand command);
 }

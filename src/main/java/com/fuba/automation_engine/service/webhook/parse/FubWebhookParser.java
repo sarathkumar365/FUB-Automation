@@ -134,7 +134,7 @@ public class FubWebhookParser implements WebhookParser {
         // TODO(step3-followup): deprecate parser-owned domain compatibility mapping once consumers migrate.
         return switch (sourceEventType) {
             case "callsCreated" -> NormalizedDomain.CALL;
-            case "peopleCreated", "peopleUpdated" -> NormalizedDomain.ASSIGNMENT;
+            case "peopleCreated", "peopleUpdated" -> NormalizedDomain.LEAD;
             default -> NormalizedDomain.UNKNOWN;
         };
     }

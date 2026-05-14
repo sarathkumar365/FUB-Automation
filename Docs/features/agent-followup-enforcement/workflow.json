@@ -1,0 +1,110 @@
+{
+  "key": "agent_followup_enforcement",
+  "name": "Agent Follow-up Enforcement",
+  "description": "If an assigned agent doesn't call within 3 minutes, post an @mention note to nudge them. If still no call by 30 minutes, reassign to ISA during business hours, or move the lead to the unorganic POND off-hours.",
+  "status": "ACTIVE",
+  "trigger": {
+    "type": "webhook_fub",
+    "config": {
+      "eventDomain": "LEAD",
+      "eventAction": "UPDATED"
+    }
+  },
+  "graph": {
+    "schemaVersion": 1,
+    "entryNode": "gate_assigned",
+    "nodes": [
+      {
+        "id": "gate_assigned",
+        "type": "branch_on_field",
+        "config": {
+          "expression": "$boolean(lead.assignedUserId)",
+          "resultMapping": {
+            "true": "ASSIGNED",
+            "false": "UNASSIGNED"
+          }
+        },
+        "transitions": {
+          "ASSIGNED": ["wait_3m_check"],
+          "UNASSIGNED": { "terminal": "COMPLETED" }
+        }
+      },
+      {
+        "id": "wait_3m_check",
+        "type": "wait_and_check_communication",
+        "config": {
+          "delayMinutes": 3,
+          "lookbackMinutes": 3
+        },
+        "transitions": {
+          "CONVERSATIONAL": { "terminal": "COMPLETED" },
+          "CONNECTED_NON_CONVERSATIONAL": { "terminal": "COMPLETED" },
+          "COMM_NOT_FOUND": ["nudge_note"]
+        }
+      },
+      {
+        "id": "nudge_note",
+        "type": "fub_create_note",
+        "config": {
+          "mentionUserIds": ["{{ lead.assignedUserId }}"],
+          "mentionUserNames": ["{{ lead.assignedTo }}"],
+          "message": "Please call your lead — no contact attempt logged in the last 3 minutes."
+        },
+        "transitions": {
+          "SUCCESS": ["wait_27m_check"],
+          "FAILED": { "terminal": "FAILED" }
+        }
+      },
+      {
+        "id": "wait_27m_check",
+        "type": "wait_and_check_communication",
+        "config": {
+          "delayMinutes": 27,
+          "lookbackMinutes": 30
+        },
+        "transitions": {
+          "CONVERSATIONAL": { "terminal": "COMPLETED" },
+          "CONNECTED_NON_CONVERSATIONAL": { "terminal": "COMPLETED" },
+          "COMM_NOT_FOUND": ["branch_business_hours"]
+        }
+      },
+      {
+        "id": "branch_business_hours",
+        "type": "branch_on_field",
+        "config": {
+          "expression": "now.isDaytime",
+          "resultMapping": {
+            "true": "DAY",
+            "false": "NIGHT"
+          }
+        },
+        "transitions": {
+          "DAY": ["reassign_isa"],
+          "NIGHT": ["to_unorganic_pond"]
+        }
+      },
+      {
+        "id": "reassign_isa",
+        "type": "fub_reassign",
+        "config": {
+          "targetUserId": "__ISA_USER_ID__"
+        },
+        "transitions": {
+          "SUCCESS": { "terminal": "COMPLETED" },
+          "FAILED": { "terminal": "FAILED" }
+        }
+      },
+      {
+        "id": "to_unorganic_pond",
+        "type": "fub_move_to_pond",
+        "config": {
+          "targetPondId": "__UNORGANIC_POND_ID__"
+        },
+        "transitions": {
+          "SUCCESS": { "terminal": "COMPLETED" },
+          "FAILED": { "terminal": "FAILED" }
+        }
+      }
+    ]
+  }
+}

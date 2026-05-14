@@ -118,6 +118,8 @@ public class WorkflowExecutionManager {
         run.setSourceLeadId(request.sourceLeadId());
         run.setStatus(WorkflowRunStatus.PENDING);
         run.setIdempotencyKey(idempotencyKey);
+        // Set explicitly so test Clocks reach runStartedAt; entity @PrePersist uses system clock.
+        run.setCreatedAt(now);
 
         try {
             WorkflowRunEntity savedRun = runRepository.saveAndFlush(run);

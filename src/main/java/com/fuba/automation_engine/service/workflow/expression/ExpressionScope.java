@@ -5,6 +5,25 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
+/**
+ * The bag of variables that JSONata expressions evaluate against. Pure mapper:
+ * each top-level key is plucked from a pre-resolved field on {@link RunContext}.
+ * Data resolution (DB reads, FUB calls, time computation, etc.) belongs in
+ * {@code WorkflowStepExecutionService.buildRunContext}, not here.
+ *
+ * <p>Top-level keys exposed to workflow authors:
+ * <ul>
+ *   <li>{@code event.payload} — the webhook payload that started the run</li>
+ *   <li>{@code sourceLeadId} — string ID of the lead the run operates on</li>
+ *   <li>{@code lead} — locally-snapshotted lead details (Map of
+ *       {@code leads.lead_details}); empty map if no snapshot exists. Always
+ *       present in scope for consistency, even when empty.</li>
+ *   <li>{@code now} — time-of-day flags pre-resolved by
+ *       {@code BusinessHoursService}: {@code now.isDaytime} (bool) and
+ *       {@code now.hourLocal} (int 0-23). Always present.</li>
+ *   <li>{@code steps.<nodeId>.outputs.<key>} — outputs from prior steps</li>
+ * </ul>
+ */
 public record ExpressionScope(Map<String, Object> data) {
 
     public static ExpressionScope from(RunContext runContext) {
@@ -16,6 +35,10 @@ public record ExpressionScope(Map<String, Object> data) {
                 runContext.triggerPayload() != null ? runContext.triggerPayload() : Map.of()));
 
         scope.put("sourceLeadId", runContext.sourceLeadId() != null ? runContext.sourceLeadId() : "");
+
+        scope.put("lead", runContext.lead() != null ? runContext.lead() : Map.of());
+
+        scope.put("now", runContext.now() != null ? runContext.now() : Map.of());
 
         Map<String, Object> stepsMap = new LinkedHashMap<>();
         if (runContext.stepOutputs() != null) {

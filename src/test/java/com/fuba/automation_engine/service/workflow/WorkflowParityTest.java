@@ -23,9 +23,11 @@ import com.fuba.automation_engine.persistence.repository.WorkflowRunStepReposito
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -301,7 +303,7 @@ class WorkflowParityTest {
 
     private void seedParityWorkflow() {
         AutomationWorkflowEntity entity = new AutomationWorkflowEntity();
-        entity.setKey("ASSIGNMENT_FOLLOWUP_SLA");
+        entity.setKey("LEAD_FOLLOWUP_SLA");
         entity.setName("Assignment Follow-Up SLA (Parity Test)");
         entity.setGraph(parityGraph());
         entity.setStatus(WorkflowStatus.ACTIVE);
@@ -324,7 +326,7 @@ class WorkflowParityTest {
         triggerPayload.put("resourceIds", List.of(Integer.parseInt(sourceLeadId)));
 
         return executionManager.plan(new WorkflowPlanRequest(
-                "ASSIGNMENT_FOLLOWUP_SLA", "TEST", eventId, null, sourceLeadId, triggerPayload));
+                "LEAD_FOLLOWUP_SLA", "TEST", eventId, null, sourceLeadId, triggerPayload));
     }
 
     private WorkflowPlanningResult planTaskRun(String sourceLeadId, String eventId) {
@@ -340,7 +342,7 @@ class WorkflowParityTest {
 
     @SuppressWarnings("unchecked")
     private Map<String, Object> parityGraph() {
-        // Mirrors ASSIGNMENT_FOLLOWUP_SLA_V1:
+        // Mirrors LEAD_FOLLOWUP_SLA_V1:
         //   wait_claim → CLAIMED: terminal COMPLIANT_CLOSED
         //              → NOT_CLAIMED: [wait_comm]
         //   wait_comm  → CONVERSATIONAL: terminal COMPLIANT_CLOSED
@@ -443,7 +445,6 @@ class WorkflowParityTest {
 
     static class StubFollowUpBossClient implements FollowUpBossClient {
         private final Map<Long, PersonDetails> personDetailsMap = new HashMap<>();
-        private final Map<Long, PersonCommunicationCheckResult> commCheckMap = new HashMap<>();
         private volatile ActionExecutionResult reassignResult = ActionExecutionResult.ok();
         private volatile ActionExecutionResult moveToPondResult = ActionExecutionResult.ok();
         final CopyOnWriteArrayList<long[]> reassignCalls = new CopyOnWriteArrayList<>();
@@ -460,7 +461,6 @@ class WorkflowParityTest {
 
         void reset() {
             personDetailsMap.clear();
-            commCheckMap.clear();
             reassignResult = ActionExecutionResult.ok();
             moveToPondResult = ActionExecutionResult.ok();
             reassignCalls.clear();
@@ -472,10 +472,6 @@ class WorkflowParityTest {
 
         void setPersonDetails(Long personId, PersonDetails details) {
             personDetailsMap.put(personId, details);
-        }
-
-        void setCommunicationCheckResult(Long personId, PersonCommunicationCheckResult result) {
-            commCheckMap.put(personId, result);
         }
 
         void setReassignResult(ActionExecutionResult result) {
@@ -511,9 +507,9 @@ class WorkflowParityTest {
         }
 
         @Override
-        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
+        public List<CallEvidence> listPersonCalls(long personId) {
             commCheckCalls.add(personId);
-            return commCheckMap.get(personId);
+            return List.of();
         }
 
         @Override
@@ -537,6 +533,11 @@ class WorkflowParityTest {
         public CreatedTask createTask(CreateTaskCommand command) {
             createTaskCommands.add(command);
             return createdTaskResult;
+        }
+
+        @Override
+        public CreatedNote createNote(CreateNoteCommand command) {
+            throw new UnsupportedOperationException("createNote not used in this test stub");
         }
     }
 }

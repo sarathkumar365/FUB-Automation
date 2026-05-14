@@ -8,9 +8,11 @@ import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -186,8 +188,8 @@ class AdminProcessedCallsFlowTest {
         }
 
         @Override
-        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
-            return new PersonCommunicationCheckResult(personId, false);
+        public List<CallEvidence> listPersonCalls(long personId) {
+            return List.of();
         }
 
         @Override
@@ -209,6 +211,11 @@ class AdminProcessedCallsFlowTest {
         public CreatedTask createTask(CreateTaskCommand command) {
             createdTasks.add(command);
             return new CreatedTask(9000L, command.personId(), command.assignedUserId(), command.name(), command.dueDate(), null);
+        }
+
+        @Override
+        public CreatedNote createNote(CreateNoteCommand command) {
+            throw new UnsupportedOperationException("createNote not used in this test stub");
         }
     }
 }

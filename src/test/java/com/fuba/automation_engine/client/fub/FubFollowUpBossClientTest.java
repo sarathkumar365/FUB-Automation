@@ -3,11 +3,11 @@ package com.fuba.automation_engine.client.fub;
 import com.fuba.automation_engine.config.FubClientProperties;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
-import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
+import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -20,6 +20,7 @@ import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Base64;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
 import org.junit.jupiter.api.AfterEach;
@@ -164,12 +165,20 @@ class FubFollowUpBossClientTest {
     }
 
     @Test
-    void shouldReturnCommunicationFoundWhenContactedIsGreaterThanZero() {
-        AtomicInteger hitCounter = new AtomicInteger();
-        server.createContext("/v1/people/798", exchange -> {
-            hitCounter.incrementAndGet();
+    void shouldListPersonCallsReturningAllRowsFromFub() {
+        AtomicReference<String> capturedQuery = new AtomicReference<>();
+        server.createContext("/v1/calls", exchange -> {
+            capturedQuery.set(exchange.getRequestURI().getQuery());
+            // First call has startedAt (actual call start) AND created (record insert) — they differ by 50s.
+            // Second call has only created — falls back to that.
             byte[] payload = """
-                    {"id":798,"claimed":true,"assignedUserId":1,"contacted":1}
+                    {
+                      "_metadata": {"total": 2},
+                      "calls": [
+                        {"id":121197,"personId":798,"userId":28,"created":"2026-05-08T14:45:34Z","startedAt":"2026-05-08T14:44:44Z","duration":42,"outcome":null,"isIncoming":false,"note":null},
+                        {"id":121100,"personId":798,"userId":28,"created":"2026-05-08T13:00:00Z","duration":5,"outcome":"Voicemail","isIncoming":false,"note":null}
+                      ]
+                    }
                     """.getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
@@ -179,19 +188,24 @@ class FubFollowUpBossClientTest {
         });
 
         FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
-        PersonCommunicationCheckResult result = client.checkPersonCommunication(798L);
+        List<CallEvidence> result = client.listPersonCalls(798L);
 
-        assertEquals(1, hitCounter.get());
-        assertEquals(798L, result.personId());
-        assertTrue(result.communicationFound());
+        assertEquals(2, result.size(), "client returns all rows; window filtering belongs to callers");
+        assertEquals(42, result.get(0).durationSeconds());
+        assertEquals("798", result.get(0).sourceLeadId());
+        assertEquals(OffsetDateTime.parse("2026-05-08T14:44:44Z"), result.get(0).callStartedAt(),
+                "uses startedAt when present");
+        assertEquals(OffsetDateTime.parse("2026-05-08T13:00:00Z"), result.get(1).callStartedAt(),
+                "falls back to created when startedAt is absent");
+        assertTrue(capturedQuery.get().contains("personId=798"));
+        assertTrue(capturedQuery.get().contains("sort=-created"));
+        assertTrue(capturedQuery.get().contains("limit=10"));
     }
 
     @Test
-    void shouldReturnCommunicationNotFoundWhenContactedIsNull() {
-        server.createContext("/v1/people/799", exchange -> {
-            byte[] payload = """
-                    {"id":799,"claimed":true,"assignedUserId":1}
-                    """.getBytes(StandardCharsets.UTF_8);
+    void shouldReturnEmptyListWhenFubReturnsNoCalls() {
+        server.createContext("/v1/calls", exchange -> {
+            byte[] payload = "{\"_metadata\":{\"total\":0},\"calls\":[]}".getBytes(StandardCharsets.UTF_8);
             exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
             exchange.sendResponseHeaders(200, payload.length);
             try (OutputStream outputStream = exchange.getResponseBody()) {
@@ -200,10 +214,9 @@ class FubFollowUpBossClientTest {
         });
 
         FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
-        PersonCommunicationCheckResult result = client.checkPersonCommunication(799L);
+        List<CallEvidence> result = client.listPersonCalls(799L);
 
-        assertEquals(799L, result.personId());
-        assertFalse(result.communicationFound());
+        assertTrue(result.isEmpty());
     }
 
     @Test
@@ -347,6 +360,97 @@ class FubFollowUpBossClientTest {
         assertEquals(400, exception.getStatusCode());
         assertFalse(exception.getMessage().contains("secret-api-key"));
         assertFalse(exception.getMessage().contains("secret-system-key"));
+    }
+
+    @Test
+    void shouldCreateNoteWithMentionsAndIsHtml() {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        server.createContext("/v1/notes", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] payload = """
+                    {"id":21240,"personId":18399,"subject":"S","body":"<p><span data-user-id=\\"14\\">K</span> hi</p>","isHtml":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(201, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        com.fuba.automation_engine.service.model.CreatedNote created = client.createNote(
+                new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                        18399L,
+                        "<p><span data-user-id=\"14\">Karanjot Makkar</span> hi</p>",
+                        java.util.List.of(14L),
+                        "Smoke test"));
+
+        assertEquals(21240L, created.id());
+        assertEquals(18399L, created.personId());
+        assertNotNull(requestBody.get());
+        // Phase 2 contract: isHtml: true MUST be sent, mentions.user array MUST
+        // be present (undocumented but required for the chip to render).
+        assertTrue(requestBody.get().contains("\"isHtml\":true"),
+                "Request body should contain isHtml:true; got: " + requestBody.get());
+        assertTrue(requestBody.get().contains("\"mentions\":{\"user\":[14]}"),
+                "Request body should contain mentions.user[14]; got: " + requestBody.get());
+        assertTrue(requestBody.get().contains("\"subject\":\"Smoke test\""),
+                "Request body should contain the subject; got: " + requestBody.get());
+    }
+
+    @Test
+    void shouldOmitMentionsObjectWhenMentionsListEmpty() {
+        AtomicReference<String> requestBody = new AtomicReference<>();
+        server.createContext("/v1/notes", exchange -> {
+            requestBody.set(new String(exchange.getRequestBody().readAllBytes(), StandardCharsets.UTF_8));
+            byte[] payload = """
+                    {"id":1,"personId":18399,"body":"<p>plain</p>","isHtml":true}
+                    """.getBytes(StandardCharsets.UTF_8);
+            exchange.getResponseHeaders().set(HttpHeaders.CONTENT_TYPE, "application/json");
+            exchange.sendResponseHeaders(201, payload.length);
+            try (OutputStream outputStream = exchange.getResponseBody()) {
+                outputStream.write(payload);
+            }
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        client.createNote(new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                18399L, "<p>plain</p>", java.util.List.of(), null));
+
+        assertNotNull(requestBody.get());
+        // No mentions[] => omit the field entirely. Subject is null => also omitted.
+        assertFalse(requestBody.get().contains("\"mentions\""),
+                "mentions should be omitted when no mentions; got: " + requestBody.get());
+        assertFalse(requestBody.get().contains("\"subject\""),
+                "subject should be omitted when null; got: " + requestBody.get());
+    }
+
+    @Test
+    void shouldMap400AsPermanentExceptionForCreateNote() {
+        server.createContext("/v1/notes", exchange -> {
+            exchange.sendResponseHeaders(400, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubPermanentException ex = assertThrows(FubPermanentException.class,
+                () -> client.createNote(new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                        1L, "<p>x</p>", java.util.List.of(), null)));
+        assertEquals(400, ex.getStatusCode());
+    }
+
+    @Test
+    void shouldMap503AsTransientExceptionForCreateNote() {
+        server.createContext("/v1/notes", exchange -> {
+            exchange.sendResponseHeaders(503, -1);
+            exchange.close();
+        });
+
+        FubFollowUpBossClient client = newClient("api-key", "sys", "sys-key");
+        FubTransientException ex = assertThrows(FubTransientException.class,
+                () -> client.createNote(new com.fuba.automation_engine.service.model.CreateNoteCommand(
+                        1L, "<p>x</p>", java.util.List.of(), null)));
+        assertEquals(503, ex.getStatusCode());
     }
 
     @Test

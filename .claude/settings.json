@@ -1,0 +1,40 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "if": "Bash(git push *)",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -qE 'git[[:space:]]+push.*(main|master)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"main/master is production-only per AGENTS.md branch strategy. Push to dev or a feature branch instead.\"}}'; fi"
+          },
+          {
+            "type": "command",
+            "if": "Bash(git *)",
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -qE 'git (reset --hard|push (--force|-f)|clean -fd|branch -D)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Destructive git command blocked (reset --hard, push --force, clean -fd, branch -D). Confirm explicitly with the user and run from the terminal if intended.\"}}'; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fp=$(jq -r '.tool_input.file_path // \"\"'); if echo \"$fp\" | grep -qE '(\\.env($|\\.)|credentials\\.json)' && ! echo \"$fp\" | grep -qE '\\.(example|sample|template)$'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\".env and credentials.json files are blocked from agent access. Secrets must not enter agent context. .env.example/.sample/.template are allowed.\"}}'; fi"
+          }
+        ]
+      },
+      {
+        "matcher": "Edit|Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "fp=$(jq -r '.tool_input.file_path // \"\"'); if echo \"$fp\" | grep -qE '(AGENTS\\.md|developer-rules\\.md)$'; then printf '{\"systemMessage\":\"Agent is modifying its own constraints file (%s). Review the diff carefully before approving.\"}' \"$fp\"; fi"
+          }
+        ]
+      }
+    ]
+  }
+}

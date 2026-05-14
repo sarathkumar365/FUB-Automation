@@ -40,6 +40,12 @@ class WorkflowStepExecutionServiceTest {
     @Mock
     private ExpressionEvaluator expressionEvaluator;
 
+    @Mock
+    private com.fuba.automation_engine.service.lead.LeadSnapshotResolver leadSnapshotResolver;
+
+    @Mock
+    private com.fuba.automation_engine.service.BusinessHoursService businessHoursService;
+
     private WorkflowStepExecutionService service;
 
     @BeforeEach
@@ -49,6 +55,8 @@ class WorkflowStepExecutionServiceTest {
                 stepRepository,
                 stepRegistry,
                 expressionEvaluator,
+                leadSnapshotResolver,
+                businessHoursService,
                 Clock.fixed(Instant.parse("2026-04-15T12:00:00Z"), ZoneOffset.UTC));
     }
 

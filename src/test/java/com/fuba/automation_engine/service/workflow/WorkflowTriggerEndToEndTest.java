@@ -16,9 +16,11 @@ import com.fuba.automation_engine.persistence.repository.WorkflowRunStepReposito
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.model.CallDetails;
+import com.fuba.automation_engine.service.model.CreateNoteCommand;
+import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.model.PersonCommunicationCheckResult;
+import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
@@ -161,7 +163,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void matchingWebhook_createsRun_executesTerminally() {
-        seedActiveWorkflow("WF_WAVE3_E2E_MATCH", triggerConfig("ASSIGNMENT", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_MATCH", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, false));
         slackResponsePlan.set(List.of(200));
 
@@ -189,7 +191,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void nonMatchingWebhook_createsNoWorkflowRun() {
-        seedActiveWorkflow("WF_WAVE3_E2E_NON_MATCH", triggerConfig("ASSIGNMENT", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_NON_MATCH", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, false));
 
         webhookEventProcessorService.process(webhook("evt-w3-e2e-2", "manual", 888L));
@@ -200,7 +202,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void notificationTransientFailure_thenRetrySuccess_completesRun() {
-        seedActiveWorkflow("WF_WAVE3_E2E_RETRY", triggerConfig("ASSIGNMENT", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_RETRY", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, true));
         slackResponsePlan.set(List.of(503, 200));
 
@@ -322,7 +324,7 @@ class WorkflowTriggerEndToEndTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.ASSIGNMENT,
+                NormalizedDomain.LEAD,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,
@@ -417,8 +419,8 @@ class WorkflowTriggerEndToEndTest {
         }
 
         @Override
-        public PersonCommunicationCheckResult checkPersonCommunication(long personId) {
-            throw new UnsupportedOperationException("Not used in workflow trigger E2E tests");
+        public List<CallEvidence> listPersonCalls(long personId) {
+            return List.of();
         }
 
         @Override
@@ -440,6 +442,11 @@ class WorkflowTriggerEndToEndTest {
         @Override
         public CreatedTask createTask(CreateTaskCommand command) {
             throw new UnsupportedOperationException("Not used in workflow trigger E2E tests");
+        }
+
+        @Override
+        public CreatedNote createNote(CreateNoteCommand command) {
+            throw new UnsupportedOperationException("createNote not used in this test stub");
         }
     }
 }
