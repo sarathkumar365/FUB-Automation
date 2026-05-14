@@ -7,7 +7,7 @@ The "app is in dev phase" framing applies — drain protocols, in-flight migrati
 ---
 
 ## Phase 0 — Replay harness
-Status: `NOT STARTED`
+Status: `DONE` — framework + one synthesized fixture + four real DB-extracted fixtures (lead 20123, 20207, 20231, 20235) all passing in 132s. See [phase-0-implementation.md](./phase-0-implementation.md) for details.
 
 **Goal:** A tool that takes a recorded sequence of webhook events (live or synthesized) and plays it through a test instance of the engine, asserting on the resulting workflow runs, domain events emitted, and FUB writes attempted.
 

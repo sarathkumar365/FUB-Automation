@@ -1,0 +1,80 @@
+{
+    "name": "lead-20235-fub-burst-2026-05-12",
+    "events": [
+        {
+            "event": "peopleCreated",
+            "deltaMs": 0,
+            "eventId": "89f2a5d2-7faa-4463-8fb9-245005193105",
+            "resourceIds": [
+                20235
+            ]
+        },
+        {
+            "event": "peopleUpdated",
+            "deltaMs": 11281,
+            "eventId": "6dec5be1-058a-4aff-801c-a899db6f4503",
+            "resourceIds": [
+                20235
+            ]
+        },
+        {
+            "event": "peopleUpdated",
+            "deltaMs": 16962,
+            "eventId": "341870dc-dc69-47d2-945c-7d396b1f4112",
+            "resourceIds": [
+                20235
+            ]
+        },
+        {
+            "event": "peopleUpdated",
+            "deltaMs": 19847,
+            "eventId": "06800f8b-4165-492e-9cdf-6cd2e5227c39",
+            "resourceIds": [
+                20235
+            ]
+        }
+    ],
+    "expected": {
+        "notes": "Recorded from dev DB. minWorkflowRunsForLead documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1.",
+        "minWebhookEvents": 4,
+        "minWorkflowRunsForLead": {
+            "20235": 3
+        }
+    },
+    "description": "FUB-burst pattern (2026-05-12): 3 peopleUpdated webhooks within 8s on lead 20235 (preceded by peopleCreated). All engine-uncaused. Reproduces the documented worst-case parallel-runs incident from field-observations.md. Truncated to the burst window; the 30-min echo at 12:09:21 is intentionally excluded so the test stays under 30s.",
+    "drainTimeoutMs": 30000,
+    "personSnapshots": {
+        "20235": {
+            "name": "Soheil Agent",
+            "tags": [
+                "Real Estate Agent",
+                "Realtor"
+            ],
+            "type": "Buyer",
+            "stage": "Lead",
+            "emails": [
+            ],
+            "phones": [
+                {
+                    "type": "mobile",
+                    "value": "(416) 890-0251",
+                    "status": "Valid",
+                    "isPrimary": 1,
+                    "isLandline": false,
+                    "normalized": "4168900251",
+                    "isOnboardingNumber": false
+                }
+            ],
+            "source": "Listing",
+            "claimed": true,
+            "stageId": 2,
+            "lastName": "",
+            "contacted": 0,
+            "firstName": "Soheil Agent",
+            "assignedTo": "ISA AuraKeyRealty",
+            "assignedPondId": null,
+            "assignedUserId": 30,
+            "assignedLenderId": null
+        }
+    }
+}
