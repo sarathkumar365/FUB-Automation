@@ -115,10 +115,11 @@ The harness uses real `Thread.sleep` between events (`deltaMs` is honored as wal
 
 ## Adding fixtures
 
-See [`src/test/resources/replay-fixtures/README.md`](../../../../../resources/replay-fixtures/README.md) for the JSON format and naming conventions. Two-line summary:
+See [`src/test/resources/replay-fixtures/README.md`](../../../../../resources/replay-fixtures/README.md) for the JSON format and naming conventions. Three-line summary:
 
 - Drop a new JSON file → it becomes a new dynamic test on the next run. No Java changes.
 - Fixture names should match the file basename (the loader sets `fixture.name` from the JSON `name` field, conventionally identical to the filename without `.json`).
+- For real-incident fixtures, use the [`scripts/build-replay-fixture.sh`](../../../../../../../scripts/build-replay-fixture.sh) generator — it reads the local dev DB and emits a properly-shaped fixture JSON for a given `source_lead_id`.
 
 ---
 

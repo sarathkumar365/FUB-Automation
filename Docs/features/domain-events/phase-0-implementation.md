@@ -1,6 +1,6 @@
 # Phase 0 — Replay harness — implementation log
 
-Status: `IN PROGRESS` — harness framework + one synthesized fixture landed; four real fixtures (lead 20123, 20207, 20231, 20235) pending DB extraction.
+Status: `DONE` — harness framework + one synthesized fixture + four real DB-extracted fixtures (lead 20123, 20207, 20231, 20235) all passing in 132s wall clock.
 
 ## Goal
 
@@ -8,16 +8,22 @@ Build a test harness that drives recorded sequences of FUB webhooks through the 
 
 The harness must reproduce the documented bad behavior of the 05-08/05-11/05-12 incidents deterministically. The same fixtures will later validate that each phase's win actually lands (e.g. after Phase 2, the FUB-burst fixture should produce one workflow run instead of three).
 
-## What landed in this commit
+## What landed
 
 - `src/test/java/com/fuba/automation_engine/replay/`
   - `ReplayFixture.java` — record types for fixture shape
   - `ReplayFixtureLoader.java` — classpath JSON loader
   - `ReplayHarnessFollowUpBossClient.java` — test FUB client (scriptable reads, recorded writes)
   - `ReplayHarnessTest.java` — `@SpringBootTest` driving fixtures via `@TestFactory` dynamic tests
+  - `README.md` — comprehensive harness documentation (what/why/how/extension/limits)
 - `src/test/resources/replay-fixtures/`
   - `README.md` — fixture format spec + naming conventions
-  - `synthesized-fub-burst-3-webhooks.json` — first fixture, harness fidelity validation
+  - `synthesized-fub-burst-3-webhooks.json` — harness fidelity validation
+  - `lead-20235-fub-burst-2026-05-12.json` — real DB extract; 3 peopleUpdated webhooks in 8s
+  - `lead-20231-fub-burst-2026-05-12.json` — real DB extract; 4 peopleUpdated webhooks in 16s
+  - `lead-20207-triple-run-2026-05-11.json` — real DB extract; three workflow runs over 51 min (truncated to 60s for replay)
+  - `lead-20123-echo-cascade-2026-05-08.json` — real DB extract; echo cascade incident (truncated to 120s)
+- `scripts/build-replay-fixture.sh` — psql-based generator that turns `(source_lead_id, fixture_name, description, [max_delta_ms])` into a fixture JSON file, sourced from local dev DB
 
 ## Verification
 
@@ -68,10 +74,24 @@ Once Phase 2 lands (state diff + event emission, with the FUB-burst webhooks pro
 - **Testcontainers Postgres variant of the harness** — needed once Phase 5's partial unique index lands and H2 stops being adequate.
 - **Recording mode** (capture a live webhook sequence into a fixture file) — would close the loop on harness usage but not needed for the current set of historical incidents.
 
-## Next steps before Phase 0 is `DONE`
+## Verification (real fixtures)
 
-1. Extract real webhook payloads from dev DB for the four incidents listed above. Export shape: each webhook row's `event_id`, `event_type`, `body` (raw JSON), and `received_at` (used to compute `deltaMs`).
-2. Snapshot the matching lead state from `leads.lead_details` at the start of each window for the `personSnapshots` field.
-3. Convert each export into a `lead-<id>-<short-name>-<yyyy-mm-dd>.json` fixture under `replay-fixtures/`.
-4. Run the harness — each fixture should reproduce the documented bad behavior.
-5. Update `phases.md` status to `DONE`.
+```bash
+$ ./mvnw test -Dtest=ReplayHarnessTest
+[INFO] Tests run: 5, Failures: 0, Errors: 0, Skipped: 0, Time elapsed: 132.1 s
+[INFO] BUILD SUCCESS
+```
+
+All five fixtures reproduce the documented bad behavior. Time breakdown is dominated by wall-clock replay of the events: 20123 has events spanning 120s; 20207 spans 60s; the bursts (20231, 20235, synthesized) fit in <30s each.
+
+Each fixture's `expected.minWorkflowRunsForLead` documents the BAD count (one workflow run per `peopleUpdated` webhook) — the same fixtures will be used to validate Phase 2's win (collapse to 1 run) and Phase 5's win (hard-cap at 1 even for distinct genuine transitions).
+
+## Adding new fixtures going forward
+
+The `scripts/build-replay-fixture.sh` script reads from the local dev DB and emits fixture JSON. Use it whenever a new incident worth reproducing surfaces:
+
+```bash
+./scripts/build-replay-fixture.sh <source_lead_id> <fixture-name> "<description>" [max_delta_ms]
+```
+
+Default `max_delta_ms=30000` (30s). Override for longer scenarios — but remember the harness uses real `Thread.sleep`, so a 600000ms cap means a 10-min test.
