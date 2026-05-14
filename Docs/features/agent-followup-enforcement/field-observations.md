@@ -2,7 +2,7 @@
 
 Live-run observations and learnings from the first three operational days of this workflow (2026-05-08, 05-11, 05-12). The bug-by-bug detail lives in [`Docs/engineering-reference/known-issues.md`](../../engineering-reference/known-issues.md) (#20–#25). This document captures the cross-cutting findings — the patterns that touch multiple bugs and inform how we design the next workflow.
 
-> **The architectural response to the patterns in this document is proposed in [`Docs/features/state-change-events/design.md`](../state-change-events/design.md).** That doc reframes #20/#23/#24/#25 as one bug — "the engine treats webhooks as events instead of as observations of state" — and proposes a layered fix.
+> **The architectural response to the patterns in this document is proposed in [`Docs/features/domain-events/plan.md`](../domain-events/plan.md).** That doc reframes #20/#23/#24/#25 as one bug — "the engine treats webhooks as events instead of as observations of state" — and proposes a layered fix.
 
 ---
 
@@ -268,7 +268,7 @@ Previously the doc characterised the trigger over-fire as having two sources: ag
 
 Neither was preceded by an engine write. The cause is upstream — either rapid human edits to the same lead, or a FUB-internal quirk where one operation produces multiple webhooks. We cannot distinguish them from our side.
 
-This pattern **cannot be fixed by Layer 0/1/2** in the design doc (each burst webhook may carry a real diff). Only **Layer 3 (run dedup)** stops it. This raised Layer 3's priority — see [state-change-events/design.md](../state-change-events/design.md) §8 sequencing change.
+This pattern **cannot be fixed by Layer 0/1/2** in the design doc (each burst webhook may carry a real diff). Only **Layer 3 (run dedup)** stops it. This raised Layer 3's priority — see [domain-events/plan.md](../domain-events/plan.md) §8 sequencing change.
 
 ### 17. #23 echo rate revised — it's the rule, not the exception
 
@@ -293,14 +293,14 @@ This is the strongest single argument for shipping Layer 3 first: it's a "one in
 - **#21/#22 fixes are validated in prod** but the 5-min buffer (learning #11) is at its margin — run 172 was 14s outside spec and got lucky.
 - **#25 (NULL `webhook_event_id`) is cheap and high-leverage** for every future incident.
 - **Product issue surfaced** — the 30-min reassign threshold reassigned an agent who then had an 11m44s substantive call with the lead. Threshold may be mis-tuned for this team's cadence.
-- **Layer 3 (run dedup) is now the highest-priority single fix.** It alone caps the worst observed behaviour (lead 20235 triple-reassign). See [state-change-events/design.md](../state-change-events/design.md) §8.
+- **Layer 3 (run dedup) is now the highest-priority single fix.** It alone caps the worst observed behaviour (lead 20235 triple-reassign). See [domain-events/plan.md](../domain-events/plan.md) §8.
 - **The workflow is currently safe through engineering safety nets, not correct design.** Not production-credible until #20 + #23 + #24 are addressed.
 
 ---
 
 ## Cross-references
 
-- **Proposed fix:** [`Docs/features/state-change-events/design.md`](../state-change-events/design.md) — the layered architectural response to everything in this document
+- **Proposed fix:** [`Docs/features/domain-events/plan.md`](../domain-events/plan.md) — the layered architectural response to everything in this document
 - [`Docs/engineering-reference/known-issues.md`](../../engineering-reference/known-issues.md) #20–#25 — per-bug detail
-- [`Docs/product-discovery/ideas.md`](../../product-discovery/ideas.md) — "Stale-assignment guard," "Per-step `since` anchor," "Change-detection in trigger filters" (superseded by the state-change-events design)
+- [`Docs/product-discovery/ideas.md`](../../product-discovery/ideas.md) — "Stale-assignment guard," "Per-step `since` anchor," "Change-detection in trigger filters" (superseded by the domain-events plan)
 - [`phases.md`](./phases.md) — Phase 5 skipped reason links here

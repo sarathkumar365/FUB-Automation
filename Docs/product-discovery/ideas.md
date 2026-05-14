@@ -71,7 +71,7 @@ Today the step anchors its detection window to `runStartedAt`, so every check in
 
 **Date:** 2026-05-07
 
-> **Status (2026-05-12):** superseded by [`Docs/features/state-change-events/design.md`](../features/state-change-events/design.md), which evolves this sketch into a full layered design (diff at upsert + engine-write attribution + run-level dedup + scope extension) informed by two days of production-shape evidence in [field-observations.md](../features/agent-followup-enforcement/field-observations.md).
+> **Status (2026-05-14):** superseded by [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md), which reframes this sketch as a state-observation model over a generic `events` table (covering both state-change and append events), with engine-write attribution and run-level dedup, informed by three days of production-shape evidence in [field-observations.md](../features/agent-followup-enforcement/field-observations.md).
 
 **Priority:** Important — first concrete need surfaced from the agent-followup-enforcement workflow (Phase 5 was skipped because of this gap; tracked as known-issues #20). Will block any workflow that needs to fire on a *transition* rather than on every webhook of a given type.
 
