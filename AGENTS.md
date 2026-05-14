@@ -6,6 +6,28 @@ This agent acts as a pair programmer for this repository and supports:
 - Refactoring and test improvements
 - Documentation and architecture guidance
 
+## Index
+
+Jump to the section that governs the work in front of you. If a task touches multiple sections, the more specific section wins.
+
+- **Project context** — what this app is, primary goals, priorities
+- **Rules reference** — pointers to source-of-truth files (`developer-rules.md`, `Docs/README.md`, `Docs/deep-dive/`)
+- **Delivery style and workflow** — increment size, vertical-slice preference
+- **Branch strategy** — required branch hierarchy; consult before creating any branch
+- **Feature documentation workflow** — feature folder layout, phase docs, repo-decisions impact check, lifecycle diagrams; consult before creating any folder under `Docs/`
+- **Engineering and architecture standards** — code-level expectations (DI style, Lombok, secrets)
+- **Architecture pattern used in this repo** — layered + ports/adapters + strategy + repository + inbox
+- **Module boundary usage rule** — which layer a piece of work belongs in
+- **Reuse-first policy** — before adding new modules/libs
+- **Unknowns, assumptions, and confirmation** — when to stop and ask
+- **Spec adherence and scope discipline** — incident-driven rules; **read before any spec-touching change**
+- **Tech stack** — Java, Spring, persistence, UI stack versions
+- **UI architecture and delivery model** — frontend boundaries, hybrid dev/prod
+- **UI engineering rules** — state management, SSE, accessibility, styling
+- **UI test policy additions** — frontend test requirements per UI change
+- **Code quality expectations** — naming, edge cases, doc updates
+- **Mandatory testing policy** — 85% threshold, test-with-change rule
+
 ## Project context
 - Project name: `automation-engine`
 - Domain: Follow Up Boss call automation
@@ -17,6 +39,7 @@ This agent acts as a pair programmer for this repository and supports:
 ## Rules reference
 - Implementation and structure rules source of truth: `developer-rules.md`
 - Before creating/moving modules or implementing behavior, follow `developer-rules.md`
+- **Documentation layout source of truth:** `Docs/README.md` — index of every folder under `Docs/` with a one-line purpose, plus a "where does this go?" routing guide. Consult this **before creating any new folder or file under `Docs/`**.
 - **System-wide implementation deep-dive:** `Docs/deep-dive/` — 12 documents covering every backend flow, configuration value, database schema, and design decision. Start with `Docs/deep-dive/README.md` for the index and reading order. Read these before making changes to understand how the system works end-to-end.
 - UI implementation plan source of truth: `ui/Docs/ui-0.1-plan.md`
 - UI style source of truth: `Docs/ui-style-guide-v1.md` + `Docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
@@ -42,6 +65,12 @@ This agent acts as a pair programmer for this repository and supports:
 - Keep feature and phase branches short-lived and purpose-specific.
 
 ## Feature documentation workflow (must follow)
+- **First, decide whether this is actually a feature.** Apply the test in `Docs/README.md`:
+  - Adds a capability the system didn't have before → feature (this section applies)
+  - Fixes a defect → **do not** create a feature folder. Open a GitHub Issue and add a row to `Docs/bugs.md`. If it needs a long investigation, write it in `Docs/deep-dive/`.
+  - Deploy steps / on-call playbook / manual script how-to → `Docs/runbooks/<slug>/`
+  - Hardening, legacy removal, migration, tech-debt sweep → `Docs/initiatives/<slug>/`
+  - Repo-wide decision → `Docs/repo-decisions/`
 - For every new feature, create a dedicated folder under `Docs/features/<feature-slug>/`.
 - Each feature folder must include:
   - `research.md` for discovery, analysis, and references
@@ -76,6 +105,10 @@ This agent acts as a pair programmer for this repository and supports:
 - If a user request does not mention this documentation workflow, the agent must still follow it and briefly remind the user that the repo uses:
   - repo-wide decisions in `Docs/repo-decisions/`
   - feature workflow docs in `Docs/features/<feature-slug>/`
+  - a single bug ledger at `Docs/bugs.md` (one row per GitHub issue — never a per-bug folder)
+  - operational how-tos in `Docs/runbooks/<slug>/`
+  - cross-cutting cleanup/hardening in `Docs/initiatives/<slug>/`
+  - the full doc index at `Docs/README.md`
 
 ## Engineering and architecture standards
 - Follow clean code and SOLID principles.

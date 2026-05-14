@@ -48,3 +48,6 @@ logs/
 .github/appmod/assessment/reports/
 ui/test-results/
 ui/playwright-report/
+
+### Claude Code personal/local config ###
+.claude/settings.local.json
