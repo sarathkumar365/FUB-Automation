@@ -306,7 +306,8 @@ class WebhookEventProcessorServiceTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(),
-                "hash-" + eventId);
+                "hash-" + eventId,
+                null);
     }
 
     private ObjectNode payload(String eventType, long resourceId) {

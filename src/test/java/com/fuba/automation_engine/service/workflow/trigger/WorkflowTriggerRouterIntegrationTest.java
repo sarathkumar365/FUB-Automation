@@ -183,7 +183,8 @@ class WorkflowTriggerRouterIntegrationTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(),
-                "hash-router-integration");
+                "hash-router-integration",
+                null);
     }
 
     private ObjectNode payload(String eventType, String channel, long... resourceIds) {

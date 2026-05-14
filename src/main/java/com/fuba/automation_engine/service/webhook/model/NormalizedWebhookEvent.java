@@ -15,5 +15,28 @@ public record NormalizedWebhookEvent(
         WebhookEventStatus status,
         JsonNode payload,
         OffsetDateTime receivedAt,
-        String payloadHash) {
+        String payloadHash,
+        Long webhookEventId) {
+
+    /**
+     * Returns a copy of this event with the supplied persisted {@code webhook_events.id}.
+     * Used by {@code WebhookIngressService} to attach the freshly-saved entity's PK
+     * before dispatching the event downstream.
+     */
+    public NormalizedWebhookEvent withWebhookEventId(Long id) {
+        return new NormalizedWebhookEvent(
+                sourceSystem,
+                eventId,
+                sourceEventType,
+                occurredAt,
+                sourceLeadId,
+                normalizedDomain,
+                normalizedAction,
+                providerMeta,
+                status,
+                payload,
+                receivedAt,
+                payloadHash,
+                id);
+    }
 }

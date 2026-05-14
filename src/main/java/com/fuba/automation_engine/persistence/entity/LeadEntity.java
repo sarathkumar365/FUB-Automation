@@ -56,6 +56,10 @@ public class LeadEntity {
     @Column(name = "lead_details", nullable = false)
     private JsonNode leadDetails;
 
+    @JdbcTypeCode(SqlTypes.JSON)
+    @Column(name = "previous_state")
+    private JsonNode previousState;
+
     @Column(name = "created_at", nullable = false)
     private OffsetDateTime createdAt;
 

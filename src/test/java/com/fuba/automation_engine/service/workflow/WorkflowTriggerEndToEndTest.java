@@ -330,7 +330,8 @@ class WorkflowTriggerEndToEndTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(testClock),
-                "hash-" + eventId);
+                "hash-" + eventId,
+                null);
     }
 
     private void startSlackServer() throws IOException {

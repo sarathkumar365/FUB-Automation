@@ -76,7 +76,8 @@ class WebhookIngressServiceTest {
                 WebhookEventStatus.RECEIVED,
                 OBJECT_MAPPER.createObjectNode(),
                 OffsetDateTime.now(),
-                "payload-hash-1");
+                "payload-hash-1",
+                null);
 
         WebhookIngressResult result = webhookIngressService.ingest("fub", "{\"event\":\"callsCreated\"}", Map.of("FUB-Signature", "sig"));
 
@@ -118,7 +119,8 @@ class WebhookIngressServiceTest {
                 WebhookEventStatus.RECEIVED,
                 OBJECT_MAPPER.createObjectNode(),
                 OffsetDateTime.now(),
-                "payload-hash-staged-1");
+                "payload-hash-staged-1",
+                null);
 
         WebhookIngressResult result = webhookIngressService.ingest("fub", "{\"event\":\"peopleCreated\"}", Map.of("FUB-Signature", "sig"));
 
@@ -208,7 +210,8 @@ class WebhookIngressServiceTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(),
-                payloadHash);
+                payloadHash,
+                null);
     }
 
     private static class AlwaysValidSignatureVerifier implements WebhookSignatureVerifier {

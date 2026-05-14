@@ -126,6 +126,25 @@ class ReplayHarnessTest {
             Thread.sleep(50);
         }
         assertExpectations(fixture, expected);
+        assertPhase1Invariants(fixture);
+    }
+
+    /**
+     * Phase 1 (domain-events) invariants that must hold for every fixture once
+     * the foundation work has landed. Independent of the fixture's own
+     * {@code expected} block.
+     */
+    private void assertPhase1Invariants(ReplayFixture fixture) {
+        // I5 / known-issue #25: every workflow_run created from a webhook must
+        // carry the proximate webhook_events.id so investigations can correlate
+        // cleanly without time-window matching.
+        workflowRunRepository.findAll().forEach(run -> assertTrue(
+                run.getWebhookEventId() != null,
+                "fixture=" + fixture.name()
+                        + " expected workflow_runs.webhook_event_id non-null for runId="
+                        + run.getId()
+                        + " sourceLeadId=" + run.getSourceLeadId()
+                        + " — Phase 1 foundation must populate this from the trigger router."));
     }
 
     private boolean expectationsMet(ReplayFixture.Expected expected) {

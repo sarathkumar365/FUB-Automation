@@ -144,7 +144,7 @@ public class WebhookIngressService {
 
         if (resolution.supportState() == EventSupportState.SUPPORTED) {
             log.info("Dispatching webhook event asynchronously source={} eventId={}", event.sourceSystem(), event.eventId());
-            webhookDispatcher.dispatch(event);
+            webhookDispatcher.dispatch(event.withWebhookEventId(savedEntity.getId()));
         } else {
             log.info(
                     "Skipping dispatch for non-supported event source={} eventId={} eventType={} supportState={}",

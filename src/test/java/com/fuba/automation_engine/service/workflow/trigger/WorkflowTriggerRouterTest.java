@@ -141,7 +141,8 @@ class WorkflowTriggerRouterTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(),
-                "hash-router-unit");
+                "hash-router-unit",
+                null);
     }
 
     private ObjectNode payloadWithIds(long... ids) {

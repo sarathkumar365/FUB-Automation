@@ -37,7 +37,8 @@ class NormalizedWebhookEventContractTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 receivedAt,
-                "hash-1");
+                "hash-1",
+                null);
 
         assertEquals(WebhookSource.FUB, event.sourceSystem());
         assertEquals("evt-1", event.eventId());
@@ -71,6 +72,7 @@ class NormalizedWebhookEventContractTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 receivedAt,
+                null,
                 null);
 
         assertNull(event.eventId());

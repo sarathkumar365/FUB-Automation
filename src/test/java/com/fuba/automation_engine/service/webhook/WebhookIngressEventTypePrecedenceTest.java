@@ -89,7 +89,8 @@ class WebhookIngressEventTypePrecedenceTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(),
-                "hash");
+                "hash",
+                null);
     }
 
     private WebhookEventRepository createRepositoryProxy(TestWebhookRepositoryState state) {

@@ -389,7 +389,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
             Map<String, Object> rawConfig,
             OffsetDateTime runStartedAt) {
         RunContext runContext = new RunContext(
-                new RunContext.RunMetadata(1L, "test_workflow", 1L, runStartedAt),
+                new RunContext.RunMetadata(1L, "test_workflow", 1L, runStartedAt, null),
                 Map.of(),
                 sourceLeadId,
                 Map.of(),

@@ -120,7 +120,8 @@ public class FubWebhookParser implements WebhookParser {
                 WebhookEventStatus.RECEIVED,
                 payloadNode,
                 OffsetDateTime.now(),
-                payloadHash);
+                payloadHash,
+                null);
     }
 
     private String resolveSourceLeadId(String sourceEventType, JsonNode resourceIdsNode) {

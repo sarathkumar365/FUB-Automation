@@ -476,7 +476,8 @@ class WorkflowAdminApiIntegrationTest {
                 WebhookEventStatus.RECEIVED,
                 payload,
                 OffsetDateTime.now(testClock),
-                "hash-" + eventId);
+                "hash-" + eventId,
+                null);
     }
 
     static final class MutableTestClock extends Clock {

@@ -40,7 +40,7 @@ Without this, Phases 2–5 are nearly impossible to validate. The field-observat
 ---
 
 ## Phase 1 — Foundation
-Status: `NOT STARTED`
+Status: `DONE` — webhook_event_id populated end-to-end (known-issue #25 resolved), `leads.previous_state` column added, validator refuses unknown `lead.*` references at save time. 528 tests pass; replay harness's Phase 1 invariant assertion holds across all 5 fixtures. See [phase-1-implementation.md](./phase-1-implementation.md) for details.
 
 **Goal:** Cheap groundwork that has no behaviour change but unblocks everything downstream.
 

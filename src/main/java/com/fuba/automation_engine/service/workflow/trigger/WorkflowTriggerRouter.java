@@ -153,7 +153,7 @@ public class WorkflowTriggerRouter {
                     target.workflow().getKey(),
                     event.sourceSystem() != null ? event.sourceSystem().name() : "UNKNOWN",
                     event.eventId(),
-                    null,
+                    event.webhookEventId(),
                     target.entity().entityId(),
                     payloadMap);
             try {

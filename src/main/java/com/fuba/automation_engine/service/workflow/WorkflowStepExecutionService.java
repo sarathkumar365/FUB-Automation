@@ -221,7 +221,8 @@ public class WorkflowStepExecutionService {
                 run.getId(),
                 run.getWorkflowKey(),
                 resolveWorkflowVersionNumber(run),
-                run.getCreatedAt());
+                run.getCreatedAt(),
+                run.getWebhookEventId());
 
         // PER-STEP EAGER: resolve lead snapshot once per step. The snapshot is
         // auto-refreshed by webhook ingestion, so re-reading per step picks up

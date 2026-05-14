@@ -1,18 +1,39 @@
 package com.fuba.automation_engine.service.workflow;
 
+import com.fuba.automation_engine.service.lead.LeadUpsertService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Queue;
 import java.util.Set;
+import java.util.TreeSet;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 @Component
 public class WorkflowGraphValidator {
+
+    /**
+     * Captures references like {@code lead.assignedUserId} inside any JSONata
+     * expression string. The {@code \b} ensures we don't match {@code mislead.}
+     * substrings. Only the first segment after {@code lead.} is captured because
+     * {@code SNAPSHOT_FIELDS} is top-level today; nested references such as
+     * {@code lead.customFields.foo} validate against the top-level head.
+     */
+    private static final Pattern LEAD_EXPRESSION_PATTERN =
+            Pattern.compile("\\blead\\.([a-zA-Z][a-zA-Z0-9_]*)");
+
+    /**
+     * Captures references inside templates like {@code {{ lead.firstName }}}.
+     */
+    private static final Pattern LEAD_TEMPLATE_PATTERN =
+            Pattern.compile("\\{\\{\\s*lead\\.([a-zA-Z][a-zA-Z0-9_]*)");
 
     private final WorkflowStepRegistry stepRegistry;
 
@@ -93,6 +114,7 @@ public class WorkflowGraphValidator {
             WorkflowStepType stepType = stepTypeOpt.get();
             validateTransitions(node, id, stepType, nodeIds, errors);
             validateConfig(node, id, stepType, errors);
+            validateLeadFieldReferences(node, id, errors);
         }
 
         if (!errors.isEmpty()) {
@@ -263,5 +285,81 @@ public class WorkflowGraphValidator {
             // terminal transitions have no targets
         }
         return targets;
+    }
+
+    /**
+     * Walks every string value reachable from this node's {@code config} map and
+     * flags references to {@code lead.<field>} where {@code <field>} is not
+     * captured by {@link LeadUpsertService#capturedFieldNames()}.
+     *
+     * <p>Two patterns are matched: bare JSONata expressions
+     * ({@code $boolean(lead.assignedUserId)}) and template strings
+     * ({@code "Hi, {{ lead.firstName }}"}). Both forms appear in real
+     * workflow JSON — see {@code Docs/features/agent-followup-enforcement/workflow.json}.
+     *
+     * <p>Rationale: without this check, a workflow author can ship a workflow
+     * that silently never fires because its trigger filter or expression
+     * references a field we don't snapshot — the diff and the runtime resolution
+     * both see null, and the failure is invisible until production. Phase 1 of
+     * the domain-events feature catches the mistake at save time.
+     */
+    private void validateLeadFieldReferences(
+            Map<String, Object> node, String nodeId, List<String> errors) {
+        Object configObj = node.get("config");
+        if (!(configObj instanceof Map<?, ?> config)) {
+            return;
+        }
+        Set<String> referenced = new LinkedHashSet<>();
+        collectLeadReferences(config, referenced);
+        if (referenced.isEmpty()) {
+            return;
+        }
+        Set<String> captured = LeadUpsertService.capturedFieldNames();
+        Set<String> unknown = new TreeSet<>();
+        for (String field : referenced) {
+            if (!captured.contains(field)) {
+                unknown.add(field);
+            }
+        }
+        for (String field : unknown) {
+            errors.add(
+                    "Node '"
+                            + nodeId
+                            + "' references unknown lead field 'lead."
+                            + field
+                            + "' — not in LeadUpsertService.SNAPSHOT_FIELDS. "
+                            + "If this is a new field, add it to SNAPSHOT_FIELDS and update the validator tests.");
+        }
+    }
+
+    /**
+     * Recursively descends into the supplied value, scanning every string for
+     * {@code lead.<field>} references in both JSONata and template form and
+     * accumulating the captured field names into {@code referenced}.
+     */
+    private void collectLeadReferences(Object value, Set<String> referenced) {
+        if (value instanceof String s) {
+            scanString(s, referenced);
+        } else if (value instanceof Map<?, ?> map) {
+            for (Object child : map.values()) {
+                collectLeadReferences(child, referenced);
+            }
+        } else if (value instanceof List<?> list) {
+            for (Object child : list) {
+                collectLeadReferences(child, referenced);
+            }
+        }
+        // Numbers, booleans, null: no references possible.
+    }
+
+    private void scanString(String s, Set<String> referenced) {
+        Matcher exprMatcher = LEAD_EXPRESSION_PATTERN.matcher(s);
+        while (exprMatcher.find()) {
+            referenced.add(exprMatcher.group(1));
+        }
+        Matcher templateMatcher = LEAD_TEMPLATE_PATTERN.matcher(s);
+        while (templateMatcher.find()) {
+            referenced.add(templateMatcher.group(1));
+        }
     }
 }

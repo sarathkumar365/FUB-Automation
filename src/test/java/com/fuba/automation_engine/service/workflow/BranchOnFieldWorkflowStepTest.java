@@ -796,7 +796,7 @@ class BranchOnFieldWorkflowStepTest {
             Map<String, Map<String, Object>> stepOutputs,
             Map<String, Object> nowMap) {
         return new RunContext(
-                new RunContext.RunMetadata(1L, "wf", 1L, OffsetDateTime.now()),
+                new RunContext.RunMetadata(1L, "wf", 1L, OffsetDateTime.now(), null),
                 triggerPayload,
                 "18399",
                 leadMap,

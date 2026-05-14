@@ -41,5 +41,6 @@ public record RunContext(
             long runId,
             String workflowKey,
             long workflowVersion,
-            OffsetDateTime runStartedAt) {}
+            OffsetDateTime runStartedAt,
+            Long webhookEventId) {}
 }

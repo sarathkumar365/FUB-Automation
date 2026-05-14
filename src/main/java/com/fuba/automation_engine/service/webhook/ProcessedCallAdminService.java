@@ -80,6 +80,7 @@ public class ProcessedCallAdminService {
                 WebhookEventStatus.RECEIVED,
                 buildReplayPayload(entity),
                 OffsetDateTime.now(),
+                null,
                 null));
         return ReplayOutcome.ACCEPTED;
     }

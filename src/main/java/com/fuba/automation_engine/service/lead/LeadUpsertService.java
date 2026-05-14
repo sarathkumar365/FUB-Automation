@@ -9,6 +9,7 @@ import com.fuba.automation_engine.persistence.repository.LeadRepository;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
@@ -23,6 +24,19 @@ public class LeadUpsertService {
 
     private static final Logger log = LoggerFactory.getLogger(LeadUpsertService.class);
 
+    /**
+     * Top-level FUB person fields captured into {@code leads.lead_details} on every
+     * upsert. Single source of truth for what workflow expressions can address via
+     * {@code lead.<field>}. The workflow validator
+     * ({@link com.fuba.automation_engine.service.workflow.WorkflowGraphValidator})
+     * reads this set at workflow save time to refuse workflows that reference a
+     * field we don't capture.
+     *
+     * <p>When extending this list (typically when a new workflow needs a new field),
+     * also update the validator tests so the new field is recognised. No migration
+     * needed — leads are upserted on every webhook so new fields populate on the
+     * next inbound event for each lead.
+     */
     private static final List<String> SNAPSHOT_FIELDS = List.of(
             "name",
             "firstName",
@@ -40,6 +54,24 @@ public class LeadUpsertService {
             "tags",
             "phones",
             "emails");
+
+    /**
+     * Frozen {@code Set} view of {@link #SNAPSHOT_FIELDS} for O(1) membership
+     * lookup. The {@code List} above remains the canonical ordering used when
+     * building the snapshot so {@code leads.lead_details} key order is stable
+     * across upserts (callers and tests rely on deterministic JSON shape).
+     */
+    private static final Set<String> SNAPSHOT_FIELDS_SET = Set.copyOf(SNAPSHOT_FIELDS);
+
+    /**
+     * Returns the set of top-level FUB person fields captured into
+     * {@code leads.lead_details}. Exposed for the workflow-graph validator to
+     * cross-check JSONata/template references like {@code lead.assignedUserId}
+     * at save time. Set semantics: O(1) membership lookup.
+     */
+    public static Set<String> capturedFieldNames() {
+        return SNAPSHOT_FIELDS_SET;
+    }
 
     private final LeadRepository leadRepository;
     private final ObjectMapper objectMapper;
