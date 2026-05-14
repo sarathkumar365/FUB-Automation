@@ -8,7 +8,7 @@
           {
             "type": "command",
             "if": "Bash(git push *)",
-            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -qE 'git[[:space:]]+push.*(main|master)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"main/master is production-only per AGENTS.md branch strategy. Push to dev or a feature branch instead.\"}}'; fi"
+            "command": "cmd=$(jq -r '.tool_input.command // \"\"'); if echo \"$cmd\" | grep -qE 'git[[:space:]]+push.*[[:space:]/:](main|master)([[:space:]:]|$)'; then echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"main/master is production-only per AGENTS.md branch strategy. Push to dev or a feature branch instead.\"}}'; fi"
           },
           {
             "type": "command",
