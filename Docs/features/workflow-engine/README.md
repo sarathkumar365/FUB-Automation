@@ -34,6 +34,7 @@ The workflow engine is being rebuilt in tracked **waves**. Each wave has its own
 | [workflow-engine-technical-implementation.md](workflow-engine-technical-implementation.md) | Detailed technical design and schema-level notes. |
 | [policy-engine-rebuild-analysis-and-plan.md](policy-engine-rebuild-analysis-and-plan.md) | Legacy analysis document that informed the workflow rebuild direction. |
 | [scenarios/lead-intake-call-attempt-workflow/](scenarios/lead-intake-call-attempt-workflow/) | Scenario pack for complex lead-intake/call-attempt workflow and capability-gap planning. |
+| [steps/](steps/) | Per-step reference docs (one file per `WorkflowStepType.id()`). Start at [steps/README.md](steps/README.md) for the convention. |
 
 ## Waves
 

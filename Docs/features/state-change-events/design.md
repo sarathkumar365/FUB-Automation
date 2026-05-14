@@ -5,7 +5,7 @@
 | **Status** | Proposal |
 | **Author** | (engineering) |
 | **Date** | 2026-05-12 |
-| **Driven by** | [`Docs/features/agent-followup-enforcement/field-observations.md`](../agent-followup-enforcement/field-observations.md) — two days of live-run evidence |
+| **Driven by** | [`Docs/features/agent-followup-enforcement/field-observations.md`](../agent-followup-enforcement/field-observations.md) — three days of live-run evidence (2026-05-08, 05-11, 05-12) |
 | **Fixes** | [`Docs/engineering-reference/known-issues.md`](../../engineering-reference/known-issues.md) #20, #23, #24, #25; partially mitigates the stale-assignment concern from [ideas.md](../../product-discovery/ideas.md) |
 | **Scope** | Workflow trigger pipeline, lead upsert, mutating workflow steps, run planner |
 | **MVP estimate** | ~1 week of focused work |
@@ -18,19 +18,22 @@
 
 **Fix:** at lead upsert, compute a diff against the prior snapshot. Attach the diff to the trigger context as `change.*`. Track engine-originated writes in a 10-second in-memory cache and annotate the diff with `change.source = "ENGINE"`. Workflow filters can now express "fire only on real, externally-caused transitions." Add run-level dedup at plan time as defense in depth.
 
-**Result on the 2026-05-11 data:** 9 of 14 bad runs do not occur. The workflow becomes correct by design instead of safe by engineering luck.
+**Result on the 2026-05-11 data:** 9 of 14 bad runs do not occur. **Result on the 2026-05-12 data:** ~12 of 26 bad runs do not occur, and the worst observed behaviour (3 back-to-back reassignments of the same lead within 10 seconds) is suppressed by Layer 3 alone. The workflow becomes correct by design instead of safe by engineering luck.
 
 ---
 
 ## 1. Why this exists
 
-[Field observations](../agent-followup-enforcement/field-observations.md) summarises two days of production-shape runs of `agent_followup_enforcement`. The headline numbers:
+[Field observations](../agent-followup-enforcement/field-observations.md) summarises three days of production-shape runs of `agent_followup_enforcement`. The headline numbers:
 
 - **14 runs on 2026-05-11. 9 of them (64%) should not have run** by product intent.
-- **#23 (self-induced echoes) reproduced three times** across the two days, ratio ~3:1 echo:no-echo on `fub_reassign`.
-- **One lead (20207) saw three runs in 51 minutes**, three nudge notes, one wrongful reassignment, while the agent was about to have an 11-minute substantive conversation with the lead.
+- **26 runs on 2026-05-12. ~12 of them (46%) should not have run.** Absolute damage worse than 05-11: 7 reassignments executed, 3 of them on the same lead within 10 seconds.
+- **#23 (self-induced echoes)**: revised from "~3:1 echo:no-echo" to **~100% on `fub_reassign`** based on 7/7 reassignments producing echoes on 05-12. The echo is the rule, not the exception.
+- **NEW on 2026-05-12 — FUB-side burst pattern.** FUB itself sometimes fires 3–4 `peopleUpdated` webhooks within 10–20 seconds for what is plausibly one logical edit (or rapid human edits we cannot distinguish). Lead 20231 received 4 webhooks in 16s; lead 20235 received 3 in 8s. Each spawned an independent parallel workflow run.
+- **One lead (20235) on 05-12 saw 3 parallel runs all reassign it to the same user back-to-back** (12:09:21, 12:09:26, 12:09:30) — three separate FUB writes within 10 seconds, plus a 4th run currently in flight as an echo.
+- **One lead (20207) on 05-11 saw three runs in 51 minutes**, three nudge notes, one wrongful reassignment, while the agent was about to have an 11-minute substantive conversation with the lead.
 
-The field-observations document treats #20 / #23 / #24 / #25 as four bugs. Reading the codebase end-to-end, they are one bug viewed from four angles. Patching them individually keeps producing fresh variants of the same family as new workflows arrive. This doc proposes the architectural seam that resolves the family.
+The field-observations document treats #20 / #23 / #24 / #25 as four bugs. Reading the codebase end-to-end, they are one bug viewed from four angles, with FUB-side bursts adding a fifth flavour. Patching them individually keeps producing fresh variants of the same family as new workflows arrive. This doc proposes the architectural seam that resolves the family.
 
 ---
 
@@ -52,9 +55,10 @@ Every bug in the family is a consequence of the first model:
 
 | Bug | Why it happens under the current model |
 |-----|---------------------------------------|
-| #20 over-fire (64% of runs) | Many webhook observations carry no actionable change. Without diffing, every observation looks like an event. |
-| #23 self-induced echo | The engine's own write to FUB produces a `peopleUpdated`. Without attribution, we can't distinguish our own actions from external ones. |
+| #20 over-fire (46–64% of runs) | Many webhook observations carry no actionable change. Without diffing, every observation looks like an event. |
+| #23 self-induced echo (~100% on `fub_reassign`) | The engine's own write to FUB produces a `peopleUpdated`. Without attribution, we can't distinguish our own actions from external ones. |
 | #24 no run dedup | Multiple webhooks for the same logical transition (call recorded → peopleUpdated → engine reaction → echo) get treated as N events instead of 1. |
+| FUB-side burst (lead 20231: 4 webhooks in 16s; lead 20235: 3 in 8s) | FUB sometimes fires multiple webhooks for one logical edit. Without dedup, each becomes an independent parallel run. |
 | Stale-assignment (run 163) | A webhook reports current state, not history. The workflow can't tell that the assignment is 33 minutes old. |
 
 The webhook is just our notification channel. The actual thing workflows care about — the *transition* — is something we have to compute.
@@ -195,9 +199,11 @@ i.e. "fire on real assignment change, not engine-originated, and only if the lea
 
 **Cost:** ~½ day. Trivial scope extension; the work is upstream wiring (Layer 0).
 
-### Layer 3 — Run-level dedup (defense in depth)
+### Layer 3 — Run-level dedup — **promoted to ship FIRST**
 
 **Where:** `WorkflowExecutionManager.plan`, before creating the `WorkflowRunEntity` (around line 108–117).
+
+**Why ship first (revised 2026-05-12):** the 05-12 data — lead 20235's 3 parallel runs causing 3 back-to-back reassignments within 10 seconds — forces a re-ordering of this proposal. Layer 3 alone fixes the worst observed failure mode. It is also the simplest layer to implement: no new context plumbing, no new beans, no diff computation. Just a repository query and a status code. It caps worst-case behaviour even before Layers 0/1/2 land. It is the **only** layer that defends against FUB-side bursts (Layers 0/1/2 cannot help when the bursts carry real diffs).
 
 **Idea:** even with perfect transition detection, races happen. Suppress on `(workflow_key, source_lead_id)`:
 
@@ -289,16 +295,20 @@ Cross-referenced to [field-observations.md](../agent-followup-enforcement/field-
 
 | Bug / concern | Status with this design | Mechanism |
 |---|---|---|
-| **#20** over-fire (64% of runs on 05-11) | Fixed | Layer 2 filter requires a `change.*` predicate |
-| **#23** self-induced echo (3 confirmed reproductions) | Fixed | Layer 1 marks change source `"ENGINE"`; Layer 2 filter excludes |
-| **#24** no run dedup (lead 20207 hit 3 runs in 51 min) | Fixed | Layer 3 active+recency check at plan time |
+| **#20** over-fire (46–64% of runs across 05-11 and 05-12) | Fixed | Layer 2 filter requires a `change.*` predicate |
+| **#23** self-induced echo (~100% rate on `fub_reassign`, 10 reproductions) | Fixed | Layer 1 marks change source `"ENGINE"`; Layer 2 filter excludes |
+| **#24** no run dedup (lead 20207: 3 runs in 51 min; lead 20235: 3 parallel runs reassigning back-to-back) | Fixed | Layer 3 active+recency check at plan time |
+| **FUB-side burst** (lead 20231: 4 webhooks in 16s; lead 20235: 3 in 8s) | Fixed | **Layer 3 alone** — once first run is in-flight, subsequent burst webhooks suppressed |
 | **#25** NULL `webhook_event_id` | Fixed | Layer 5 cleanup |
 | **#21** buffer at its margin (14s outside spec on run 172) | Resolved as moot | Layer 2 removes the upstream over-fire the buffer was secretly absorbing; buffer can shrink or disappear |
 | Stale-assignment over-firing (run 163, 33-min-old assignment) | Resolved at workflow-author layer | Layer 2 lets author compose `change.*` and `lead.*` for the freshness guard |
 | Run 165's wrong reassign (agent was slow but eventually engaged) | **Not fixed** — this is product-tuning of the 30-min threshold | Layer 4 could mitigate; ultimately a product decision |
 | Three runs on lead 20207 | Fixed | Layer 2 stops the echo (run 168); Layer 3 stops the third unrelated run (run 169) |
+| Three reassignments on lead 20235 within 10s | Fixed by Layer 3 alone | Once run 195 is in-flight, runs 196/197 suppressed |
 
-**Of 14 runs on 2026-05-11, 9 do not occur with this design.** The remaining 5 are real triggers that the workflow already handled correctly.
+**Of 14 runs on 2026-05-11, 9 do not occur with this design.** The remaining 5 are real triggers correctly handled.
+
+**Of 26 runs on 2026-05-12, ~12 do not occur.** Of the 7 reassignments executed today, 4 are redundant and would be suppressed by Layer 3.
 
 ---
 
@@ -317,17 +327,18 @@ Cross-referenced to [field-observations.md](../agent-followup-enforcement/field-
 
 ## 8. Sequencing — what to build in what order
 
-Each PR independently mergeable.
+Each PR independently mergeable. **Re-sequenced 2026-05-12** based on field evidence — Layer 3 promoted to first architectural change because it alone caps the worst-observed failure (triple-reassign on lead 20235).
 
 | # | Scope | Effort | Notes |
 |---|-------|--------|-------|
 | 1 | #25 fix + buffer bump | ½ day | Free wins. No architecture commitment. Speeds up future investigations. |
-| 2 | **Layer 0 + Layer 1 + Layer 2** as one feature branch | ~3 days | Tightly coupled — diff is useless without filter scope; filter scope is useless without engine-write attribution. Ship as one cohesive change. `agent_followup_enforcement` workflow JSON updated to opt-in. |
-| 3 | **Layer 3** dedup | ~2 days | Decouple-able from layers 0–2. Worth its own review for the status-code / suppression-row contract. |
-| 4 | Layer 4 precondition checks | (deferred) | Wait for second workflow with this need. Premature generalisation otherwise. |
-| 5 | `lead_domain_events` audit table | (deferred) | When first incident makes us wish we had it. In the meantime `workflow_runs.trigger_payload` is enough. |
+| 2 | **Layer 3** dedup | ~2 days | **Promoted to first.** Caps worst-case behaviour observed on 05-12 (lead 20235 triple-reassign). Standalone — no dependencies on later layers. Schema migration for `workflow_runs.status` + new repository method + audit-row plumbing. |
+| 3 | **Layer 0 + Layer 1 + Layer 2** as one feature branch | ~3 days | Tightly coupled — diff is useless without filter scope; filter scope is useless without engine-write attribution. Ship as one cohesive change. `agent_followup_enforcement` workflow JSON updated to opt-in. |
+| 4 | Workflow `agent_followup_enforcement` v4 — opt into filter | ~½ day | New version with `change.*` filter expression and `dedupWindowMinutes: 30`. v3 deactivated. |
+| 5 | Layer 4 precondition checks | (deferred) | Wait for second workflow with this need. Premature generalisation otherwise. |
+| 6 | `lead_domain_events` audit table | (deferred) | When first incident makes us wish we had it. In the meantime `workflow_runs.trigger_payload` is enough. |
 
-**Total MVP for production credibility: ~1 week of focused work** (1 + 2 + 3).
+**Total MVP for production credibility: ~1 week of focused work** (1 + 2 + 3 + 4).
 
 ---
 

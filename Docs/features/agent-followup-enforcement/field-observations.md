@@ -1,6 +1,6 @@
 # Field observations — `agent_followup_enforcement`
 
-Live-run observations and learnings from the first two operational days of this workflow. The bug-by-bug detail lives in [`Docs/engineering-reference/known-issues.md`](../../engineering-reference/known-issues.md) (#20–#25). This document captures the cross-cutting findings — the patterns that touch multiple bugs and inform how we design the next workflow.
+Live-run observations and learnings from the first three operational days of this workflow (2026-05-08, 05-11, 05-12). The bug-by-bug detail lives in [`Docs/engineering-reference/known-issues.md`](../../engineering-reference/known-issues.md) (#20–#25). This document captures the cross-cutting findings — the patterns that touch multiple bugs and inform how we design the next workflow.
 
 > **The architectural response to the patterns in this document is proposed in [`Docs/features/state-change-events/design.md`](../state-change-events/design.md).** That doc reframes #20/#23/#24/#25 as one bug — "the engine treats webhooks as events instead of as observations of state" — and proposes a layered fix.
 
@@ -82,6 +82,76 @@ Three runs on the same lead within 51 minutes:
 | 169 | 15:16:56 | unknown peopleUpdated | third nudge |
 
 The agent (Arjun) eventually called the lead at 15:21 (4s outbound) and the lead called back at 15:22 for **11 min 44 seconds of conversation**. By then the lead had been reassigned away from Arjun and had received 3 nudge notes. In production with real agents reading these notes, this would be obviously broken behavior.
+
+---
+
+## Observation batch: 2026-05-12, runs 176–201 (26 runs, volume nearly doubled)
+
+26 runs today — nearly 2× yesterday. Two new failure patterns surface, and the engine-induced echo rate revises sharply upward.
+
+### Pattern A (NEW): FUB-side webhook bursts
+
+Same lead receiving **3–4 `peopleUpdated` webhooks within ~10 seconds**, completely independent of any engine write. These are not echoes — they happen externally.
+
+| Lead | Webhooks received (gap) | Runs spawned | Outcome |
+|------|------------------------|--------------|---------|
+| 20231 | 4 in 16s (10:40:13, 18, 23, 29) | 181, 182, 183, 184 — **4 parallel runs** | All terminated correctly (CONVERSATIONAL × 3 + CONNECTED_NON_CONV × 1). No echoes because no mutations executed. |
+| 20235 | 3 in 8s (11:39:15, 20, 23) | 195, 196, 197 — **3 parallel runs** | **All three reassigned the same lead to user 30 at 12:09:21 / 12:09:26 / 12:09:30** — three back-to-back FUB writes within 10 seconds. |
+
+The lead-20235 case is the **worst engine behaviour observed to date**. A FUB-side burst of 3 webhooks → 3 parallel 30-min workflow runs → 3 sequential reassignments to the same user. In production with different reassign targets per run, the lead would have bounced between agents.
+
+Likely cause: human edits in rapid succession (claim → tag → stage), or FUB internally firing multiple webhooks for one logical edit. We cannot tell from our logs alone.
+
+### Pattern B: Engine-induced echoes (#23) reproduced at 100% on `fub_reassign`
+
+| Trigger run | Echo run | Lead | Gap |
+|-------------|----------|------|-----|
+| 178 reassign | 180 | 20228 | 788 ms |
+| 179 reassign | 189 | 20229 | 661 ms |
+| 185 reassign | 190 | 20230 | 656 ms |
+| 192 reassign | 198 | 20232 | 615 ms |
+| 193 reassign | 199 (PENDING) | 20234 | 500 ms |
+| 194 reassign | 200 (PENDING) | 20233 | 651 ms |
+| 195 reassign | 201 (PENDING) | 20235 | 339 ms |
+
+**7/7 reassignments executed today produced an echo webhook.** Earlier characterisation of "~3:1 echo:no-echo" was based on N=4; today's N=7 with 100% echo rate corrects that. The 05-11 non-echo (run 161) is now the outlier.
+
+Notable observation: lead 20235's three back-to-back reassignments only produced **one** echo webhook (4412 at 12:09:21). The 2nd and 3rd reassignments wrote `assignedUserId = 30` while it was already `30` — FUB suppresses `peopleUpdated` when the post-update value matches the pre-update value. **FUB does diff its own writes server-side.** Useful for reasoning about engine-side dedup design.
+
+### Aggregate numbers (26 runs)
+
+| Category | Count |
+|---|---|
+| Confirmed engine-induced echoes (#23) | 7 (4 completed + 3 PENDING follow-ups) |
+| FUB-burst redundant runs | ~5 (3 from lead 20231's burst + 2 from lead 20235's burst) |
+| Real distinct triggers | ~14 |
+| Total reassignments executed | **7+** (including 3 on lead 20235 to the same user) |
+| Currently PENDING (echo follow-ups) | 3 |
+| **Runs that should not have happened by product intent** | **~12 of 26 (46%)** |
+
+The percentage is similar to 05-11's 64%, but **absolute damage is much worse** — 7 reassignments today vs 2 yesterday. Lead 20235 got 3 reassignments to the same user. In production with a real reassign target that wasn't the same user every time, that lead would be bouncing between agents inside a 10-second window.
+
+### Lead 20235 — the day's worst case
+
+Full timeline:
+
+| Time | Event |
+|------|-------|
+| 11:39:03 | FUB peopleCreated for 20235 |
+| 11:39:15 | FUB peopleUpdated → run 195 spawned |
+| 11:39:20 | FUB peopleUpdated (no engine cause) → run 196 spawned |
+| 11:39:23 | FUB peopleUpdated (no engine cause) → run 197 spawned |
+| 11:42:19 | Run 195 nudge_note SUCCESS |
+| 11:42:24 | Run 196 nudge_note SUCCESS |
+| 11:42:30 | Run 197 nudge_note SUCCESS |
+| 12:09:21 | Run 195 `reassign_isa` SUCCESS (user 30) |
+| 12:09:21 | FUB peopleUpdated (echo of 195's reassign) → run 201 spawned |
+| 12:09:26 | Run 196 `reassign_isa` SUCCESS (user 30 — no-op in FUB) |
+| 12:09:30 | Run 197 `reassign_isa` SUCCESS (user 30 — no-op in FUB) |
+| 12:12:24 | Run 201 nudge_note SUCCESS (4th nudge on lead 20235) |
+| (in flight) | Run 201's 27-min check still pending |
+
+Lead 20235 has received **4 nudge notes**, been **reassigned 3 times** (to the same user, so net effect is one move), and has another reassign possibly coming when run 201 completes its 27-min check around 12:39.
 
 ---
 
@@ -187,16 +257,43 @@ Lead 19255 had a 155-second incoming call from agent Mandeep Dhesi at 13:25:47, 
 
 This is the "stale-assignment guard" idea already in `ideas.md`. The data here is the first concrete in-production trigger for it: an agent who had a real prior conversation gets reassigned because an unrelated edit (probably a tag/stage change) refired the workflow.
 
+### 16. FUB-side webhook bursts are a real, distinct failure mode (05-12 finding)
+
+Previously the doc characterised the trigger over-fire as having two sources: agent-induced (call ends → peopleUpdated) and engine-induced (#23 echo). The 05-12 data adds a third: **FUB itself sometimes fires multiple webhooks within seconds for one logical edit**.
+
+| Lead | Webhooks | Spread | Runs spawned |
+|------|----------|--------|--------------|
+| 20231 | 4 | 16s | 4 parallel |
+| 20235 | 3 | 8s | 3 parallel |
+
+Neither was preceded by an engine write. The cause is upstream — either rapid human edits to the same lead, or a FUB-internal quirk where one operation produces multiple webhooks. We cannot distinguish them from our side.
+
+This pattern **cannot be fixed by Layer 0/1/2** in the design doc (each burst webhook may carry a real diff). Only **Layer 3 (run dedup)** stops it. This raised Layer 3's priority — see [state-change-events/design.md](../state-change-events/design.md) §8 sequencing change.
+
+### 17. #23 echo rate revised — it's the rule, not the exception
+
+The 05-08 + 05-11 data suggested ~3:1 echo:no-echo. The 05-12 data shows **7 out of 7 reassignments produced echo webhooks** — 100% rate. The 3:1 ratio was an N=4 fluke; the corrected rate is "every `fub_reassign` produces an echo within ~500–800 ms."
+
+A useful sub-observation: FUB suppresses `peopleUpdated` when the post-update field value equals the pre-update value. Lead 20235's three back-to-back reassigns to user 30 produced only one echo webhook (the first one). This is consistent with FUB diffing server-side on the field being written. Implication: engine-induced echoes occur for every *meaningful* engine write, not every engine API call.
+
+### 18. The same lead can be reassigned multiple times in seconds
+
+Lead 20235's three reassignments at 12:09:21, 12:09:26, 12:09:30 — all to user 30 — are the first observation of multi-write cascade on a single lead inside seconds. In this case they were no-ops (same target), but in a multi-ISA environment (e.g. round-robin reassignment targets) these would be observable as the lead "ping-ponging" between agents.
+
+This is the strongest single argument for shipping Layer 3 first: it's a "one in-flight run per `(workflow_key, source_lead_id)` at a time" guarantee that the platform currently lacks.
+
 ---
 
 ## Short version
 
-- **#20 (change-detection) is the elephant.** 64% of today's runs (9 of 14) shouldn't have started by product intent.
-- **#23 (self-induced echo) is the common case, not the edge case.** Confirmed 3 reproductions across 2 days, ~3:1 echo:no-echo on `fub_reassign`. Active high-priority bug.
-- **#24 (no run dedup) is the amplifier.** Lead 20207 hit 3 runs in 51 min today; lead 20123 hit 3 runs in 32 min on 05-08. Cascade is unbounded.
-- **#21/#22 fixes are validated in prod** but the 5-min buffer (#11 above) is at its margin — run 172 was 14s outside spec and got lucky. Bump or derive dynamically.
-- **#25 (NULL webhook_event_id) is cheap and high-leverage** for every future incident.
+- **#20 (change-detection) is the elephant.** 46–64% bad-run rate across two observation days (9 of 14 on 05-11, ~12 of 26 on 05-12).
+- **#23 (self-induced echo) is universal on `fub_reassign`, not occasional.** 7/7 reassignments on 05-12 produced echo webhooks. 10 confirmed reproductions across three days.
+- **NEW: FUB-side webhook bursts.** Lead 20231 received 4 webhooks in 16s, lead 20235 received 3 in 8s — both spawning parallel runs the engine has no way to coalesce.
+- **#24 (no run dedup) is the worst-case amplifier.** Lead 20235 was reassigned to the same user three times within 10 seconds on 05-12. Lead 20207 hit 3 runs in 51 min on 05-11.
+- **#21/#22 fixes are validated in prod** but the 5-min buffer (learning #11) is at its margin — run 172 was 14s outside spec and got lucky.
+- **#25 (NULL `webhook_event_id`) is cheap and high-leverage** for every future incident.
 - **Product issue surfaced** — the 30-min reassign threshold reassigned an agent who then had an 11m44s substantive call with the lead. Threshold may be mis-tuned for this team's cadence.
+- **Layer 3 (run dedup) is now the highest-priority single fix.** It alone caps the worst observed behaviour (lead 20235 triple-reassign). See [state-change-events/design.md](../state-change-events/design.md) §8.
 - **The workflow is currently safe through engineering safety nets, not correct design.** Not production-credible until #20 + #23 + #24 are addressed.
 
 ---
