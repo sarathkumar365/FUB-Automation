@@ -1,7 +1,7 @@
 # Workflow Engine Rebuild — Wave 4a (Admin REST API) Implementation Plan
 
 ## Status
-Planned (not yet started). Target branch: phase branch off `feature/workflow-engine-wave1`.
+Planned (not yet started). Work commits directly to the feature parent `feature/workflow-engine-wave1` per current `AGENTS.md` branch strategy (no phase sub-branches).
 
 ## Context
 

@@ -93,7 +93,7 @@ None of `RD-001` (normalized lead-event contract), `RD-002` (event-catalog state
 
 ## Branch / workflow note
 
-Per `AGENTS.md`, this feature should be implemented on a new `feature/dev-hosting-security-hardening` branch cut from `dev`, with phase branches off it. Today the operator is on `feature/lead-management-platform` with unrelated uncommitted changes; switching branches and creating the proper hierarchy is a pre-implementation step, not part of any phase.
+Per `AGENTS.md`, this feature should be implemented on a new `feature/dev-hosting-security-hardening` branch cut from `dev`. All phase work commits directly to that feature branch (no phase sub-branches). Today the operator is on `feature/lead-management-platform` with unrelated uncommitted changes; switching branches is a pre-implementation step, not part of any phase.
 
 ## Repo decisions consulted (mandatory read order)
 1. `Docs/repo-decisions/README.md` — reviewed.

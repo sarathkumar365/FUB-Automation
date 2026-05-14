@@ -53,16 +53,14 @@ Jump to the section that governs the work in front of you. If a task touches mul
 ## Branch strategy (must follow)
 - Treat `main` as production-only; do not use `main` as the base branch for feature or bug-fix work.
 - Use `dev` as the base only for creating a feature parent branch.
-- Required branch hierarchy for all new feature work:
+- Required branch strategy for all new feature work:
   - create one feature parent branch from `dev`
   - feature parent branch names must be feature-only (no phase identifiers), for example:
     - `feature/lead-management-platform`
     - not `feature/lead-management-platform-phase-3`
-  - create phase planning and phase implementation branches from that feature parent branch
-  - do not create phase branches directly from `dev`
-  - merge phase branches back into the feature parent branch first
+  - all phase work commits directly to the feature branch — no phase sub-branches
   - merge the completed feature parent branch into `dev` through normal review flow
-- Keep feature and phase branches short-lived and purpose-specific.
+- Keep feature branches short-lived and purpose-specific.
 
 ## Feature documentation workflow (must follow)
 - **First, decide whether this is actually a feature.** Apply the test in `Docs/README.md`:

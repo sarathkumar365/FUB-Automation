@@ -38,12 +38,7 @@ Use phase-by-phase tracked delivery with explicit gates:
 
 Recommended branch tracking (to align repo workflow):
 - Feature parent: existing `feature/workflow-engine-wave1` (Wave 3 work continues from here unless user asks otherwise)
-- Optional phase implementation branches off feature parent:
-  - `phase/workflow-engine-wave3-phase-1-retry`
-  - `phase/workflow-engine-wave3-phase-2-trigger-router`
-  - `phase/workflow-engine-wave3-phase-3-step-library`
-  - `phase/workflow-engine-wave3-phase-4-e2e`
-- Merge each phase branch back into feature parent before next phase.
+- All phase work commits directly to the feature parent branch — no phase sub-branches (per current `AGENTS.md` branch strategy).
 
 ---
 

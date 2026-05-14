@@ -9,7 +9,8 @@ A2 and A4 are deferred and tracked as accepted known issues — see [research.md
 **Baseline:** 2026-05-01.
 
 **Branch:** per `AGENTS.md`, this work belongs on a new
-`feature/dev-hosting-security-hardening` cut from `dev`, with phase branches off it.
+`feature/dev-hosting-security-hardening` cut from `dev`. All phase work commits
+directly to that feature branch (no phase sub-branches).
 The current working branch (`feature/lead-management-platform`) is the wrong parent and
 carries unrelated uncommitted changes; switching branches is a pre-implementation step
 captured as Phase 0 below.
