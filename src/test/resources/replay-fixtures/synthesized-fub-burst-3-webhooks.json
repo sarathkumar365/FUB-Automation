@@ -1,0 +1,45 @@
+{
+  "name": "synthesized-fub-burst-3-webhooks",
+  "description": "Synthesized version of the 2026-05-12 lead-20235 incident pattern: three peopleUpdated webhooks for the same lead within ~8 seconds with no engine cause. Today's engine plans one workflow run per webhook, producing three parallel runs on the same lead. This fixture is for harness fidelity validation. Real DB-extracted fixtures (lead 20235, 20231, 20207, 20123) will replace and supplement this once payloads are exported.",
+  "personSnapshots": {
+    "22222": {
+      "id": 22222,
+      "name": "Synthesized Test Lead",
+      "assignedUserId": 10,
+      "assignedTo": "Test Agent",
+      "claimed": true,
+      "tags": [],
+      "phones": [],
+      "emails": [],
+      "stage": "Hot Lead"
+    }
+  },
+  "events": [
+    {
+      "deltaMs": 0,
+      "eventId": "evt-synth-burst-1",
+      "event": "peopleUpdated",
+      "resourceIds": [22222]
+    },
+    {
+      "deltaMs": 4000,
+      "eventId": "evt-synth-burst-2",
+      "event": "peopleUpdated",
+      "resourceIds": [22222]
+    },
+    {
+      "deltaMs": 8000,
+      "eventId": "evt-synth-burst-3",
+      "event": "peopleUpdated",
+      "resourceIds": [22222]
+    }
+  ],
+  "drainTimeoutMs": 15000,
+  "expected": {
+    "minWebhookEvents": 3,
+    "minWorkflowRunsForLead": {
+      "22222": 3
+    },
+    "notes": "Documents BAD behavior under current engine: three parallel runs for one logical edit pattern. After Phase 2 (diff collapse) this should drop to one run; after Phase 5 (run dedup) it is hard-capped at one. Update expectations as those phases land."
+  }
+}
