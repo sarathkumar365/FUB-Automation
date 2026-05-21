@@ -48,14 +48,7 @@ finalDelay = clamp(jitteredDelay, 0, maxDelayMs)
 | `rules.call-outcome.task-due-in-days` | `1` | Days from today for task due date |
 | `rules.call-outcome.dev-test-user-id` | `0` | Dev guard: only process calls for this userId in `local` profile. `0` = disabled. |
 
-### Policy worker (`policy.worker.*`)
-
-| Property | Default | Description |
-|----------|---------|-------------|
-| `policy.worker.enabled` | `true` | Enable/disable due worker polling |
-| `policy.worker.poll-interval-ms` | `2000` | Fixed delay between polls (ms) |
-| `policy.worker.claim-batch-size` | `50` | Steps claimed per DB round-trip |
-| `policy.worker.max-steps-per-poll` | `200` | Total steps processed per poll cycle |
+> **Removed:** the `policy.worker.*` properties were dropped along with the policy subsystem (V12). The workflow engine uses its own `workflow.worker.*` properties — see `WorkflowWorkerProperties`.
 
 ### Async thread pool (`WebhookAsyncConfig`)
 
@@ -147,72 +140,4 @@ Use case:
 - `idx_leads_source_system_status_updated_at` — on `(source_system, status, updated_at DESC)`
 - `idx_leads_last_synced_at` — on `(last_synced_at DESC)`
 
-### `automation_policies` (V5 + V6)
-
-| Column | Type | Nullable | Default | Notes |
-|--------|------|----------|---------|-------|
-| `id` | `BIGSERIAL` | NO | auto | PK |
-| `domain` | `VARCHAR(64)` | NO | | e.g. `ASSIGNMENT` |
-| `policy_key` | `VARCHAR(128)` | NO | | e.g. `FOLLOW_UP_SLA` |
-| `enabled` | `BOOLEAN` | NO | `TRUE` | |
-| `blueprint` | `JSONB` | YES | | Policy definition (see [08-flow-assignment-policy.md](08-flow-assignment-policy.md#policy-blueprint-structure)) |
-| `status` | `VARCHAR(16)` | NO | | `ACTIVE` or `INACTIVE` |
-| `version` | `BIGINT` | NO | `0` | Optimistic lock version |
-
-**Constraints:**
-- `chk_automation_policies_status` — CHECK `status IN ('ACTIVE', 'INACTIVE')`
-- `uk_automation_policies_active_per_scope` — UNIQUE on `(domain, policy_key)` WHERE `status = 'ACTIVE'` (at most one active policy per scope)
-
-**Indexes:**
-- `idx_automation_policies_domain_policy_key_id_desc` — on `(domain, policy_key, id DESC)`
-
-### `policy_execution_runs` (V7 + V8)
-
-| Column | Type | Nullable | Default | Notes |
-|--------|------|----------|---------|-------|
-| `id` | `BIGSERIAL` | NO | auto | PK |
-| `source` | `VARCHAR(32)` | NO | | `FUB`, `INTERNAL` |
-| `event_id` | `VARCHAR(255)` | YES | | From webhook event |
-| `webhook_event_id` | `BIGINT` | YES | | FK → `webhook_events.id` ON DELETE SET NULL |
-| `source_lead_id` | `VARCHAR(255)` | YES | | Lead identifier |
-| `domain` | `VARCHAR(64)` | NO | | Policy domain |
-| `policy_key` | `VARCHAR(128)` | NO | | Policy key |
-| `policy_version` | `BIGINT` | NO | | Snapshotted policy version |
-| `policy_blueprint_snapshot` | `JSONB` | NO | | Frozen blueprint at plan time |
-| `status` | `VARCHAR(32)` | NO | | `PENDING`, `BLOCKED_POLICY`, `DUPLICATE_IGNORED`, `COMPLETED`, `FAILED` |
-| `reason_code` | `VARCHAR(64)` | YES | | Terminal outcome or failure reason |
-| `idempotency_key` | `VARCHAR(255)` | NO | | SHA-256 hash (see [08-flow-assignment-policy.md](08-flow-assignment-policy.md#idempotency-key-construction)) |
-| `created_at` | `TIMESTAMPTZ` | NO | `NOW()` | |
-| `updated_at` | `TIMESTAMPTZ` | NO | `NOW()` | |
-
-**Constraints:**
-- `uk_policy_execution_runs_idempotency_key` — UNIQUE on `idempotency_key`
-- FK → `webhook_events(id)` ON DELETE SET NULL
-
-**Indexes:**
-- `idx_policy_execution_runs_status_created_at` — on `(status, created_at)`
-
-### `policy_execution_steps` (V7)
-
-| Column | Type | Nullable | Default | Notes |
-|--------|------|----------|---------|-------|
-| `id` | `BIGSERIAL` | NO | auto | PK |
-| `run_id` | `BIGINT` | NO | | FK → `policy_execution_runs.id` ON DELETE CASCADE |
-| `step_order` | `INTEGER` | NO | | Position in pipeline (≥ 1) |
-| `step_type` | `VARCHAR(64)` | NO | | `WAIT_AND_CHECK_CLAIM`, `WAIT_AND_CHECK_COMMUNICATION`, `ON_FAILURE_EXECUTE_ACTION` |
-| `status` | `VARCHAR(32)` | NO | | `PENDING`, `WAITING_DEPENDENCY`, `PROCESSING`, `COMPLETED`, `FAILED`, `SKIPPED` |
-| `due_at` | `TIMESTAMPTZ` | YES | | When step becomes eligible for execution |
-| `depends_on_step_order` | `INTEGER` | YES | | Step that must complete first |
-| `result_code` | `VARCHAR(64)` | YES | | e.g. `CLAIMED`, `COMM_FOUND` |
-| `error_message` | `VARCHAR(512)` | YES | | Failure details |
-| `created_at` | `TIMESTAMPTZ` | NO | `NOW()` | |
-| `updated_at` | `TIMESTAMPTZ` | NO | `NOW()` | |
-
-**Constraints:**
-- `uk_policy_execution_steps_run_step_order` — UNIQUE on `(run_id, step_order)`
-- `chk_policy_execution_steps_step_order_positive` — CHECK `step_order >= 1`
-- FK → `policy_execution_runs(id)` ON DELETE CASCADE
-
-**Indexes:**
-- `idx_policy_execution_steps_status_due_at` — on `(status, due_at)` — used by due worker claim query
-- `idx_policy_execution_steps_run_id_step_order` — on `(run_id, step_order)`
+> **Removed:** the `automation_policies` / `policy_execution_runs` / `policy_execution_steps` tables (created in V5–V7) were dropped in V12. The policy subsystem they backed is no longer part of the codebase. Active automation lives in the workflow engine — see the `automation_workflows` / `workflow_runs` / `workflow_run_steps` tables.

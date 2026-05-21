@@ -16,11 +16,11 @@ The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is 
 | 2 | Duplicate handling is too broad on DB integrity errors | Medium | Open |
 | 3 | SSE publish path can throw on null event fields | Medium | Open |
 | 4 | Replay does not reset retry count | Low | Open |
-| 5 | Missing end-to-end scenario coverage for policy worker execution flow | High | Open |
-| 6 | No watchdog for stale `PROCESSING` policy steps after hard crashes | High | Resolved (2026-04-08) |
-| 7 | Action target validation truncates non-integer numeric values | Medium | Open |
-| 8 | Stale recovery can leave requeued steps in runs already failed | Medium | Open |
-| 9 | Active policy blueprint read validation is temporarily bypassed | High | Open (Temporary) |
+| 5 | ~~Missing end-to-end scenario coverage for policy worker execution flow~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 6 | ~~No watchdog for stale `PROCESSING` policy steps after hard crashes~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 7 | ~~Action target validation truncates non-integer numeric values~~ (`PolicyBlueprintValidator`) | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 8 | ~~Stale recovery can leave requeued steps in runs already failed~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 9 | ~~Active policy blueprint read validation is temporarily bypassed~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
 | 10 | JSONata evaluator swallows expression errors and returns null | High | Open |
 | 11 | Time-sensitive workflow steps can execute after business validity window under sustained backlog | High | Open |
 | 12 | Workflow steps are not consistently local-first and still rely on direct FUB calls | High | Open |
@@ -72,50 +72,17 @@ The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is 
 - **Impact:** Replay attempts carry stale retry history, making diagnostics and retry behavior misleading.
 - **Suggested fix:** Reset `retryCount` to `0` as part of replay reinitialization.
 
-## 5) Missing end-to-end scenario coverage for policy worker execution flow
+## 5–9) Policy subsystem issues (resolved by removal)
 
-- **Status:** Open
-- **Priority:** High
-- **Location:** `service/policy/` (worker + execution dispatcher + executors + FUB client integration path)
-- **Issue:** Current tests are mostly unit/component-level; no single scenario-driven test slice validates the complete flow from claimed DB step → executor dispatch → FUB people fetch → persisted step/run outcomes.
-- **Impact:** Cross-component regressions in orchestration flow can pass isolated tests but fail in real execution paths.
-- **Suggested fix:** Add scenario integration tests for policy worker flows starting with `WAIT_AND_CHECK_CLAIM` success/failure, including DB claim input, executor selection, external client behavior, and final persistence assertions.
+The policy subsystem (`service/policy/`, `automation_policies` / `policy_execution_runs` / `policy_execution_steps` tables) was dropped in migration V12. Entries 5–9 below all referred to code or tables that no longer exist:
 
-## 6) No watchdog for stale `PROCESSING` policy steps after hard crashes
+- **#5** Missing end-to-end scenario coverage for policy worker execution flow
+- **#6** No watchdog for stale `PROCESSING` policy steps after hard crashes
+- **#7** Action target validation truncates non-integer numeric values (`PolicyBlueprintValidator`)
+- **#8** Stale recovery can leave requeued steps in runs already failed
+- **#9** Active policy blueprint read validation is temporarily bypassed
 
-- **Status:** Resolved (2026-04-08)
-- **Priority:** High
-- **Location:** `service/policy/PolicyExecutionDueWorker.java`
-- **Issue (historical):** Worker compensation previously covered only exceptions observed by the running process. A hard crash (JVM kill/node restart) after atomic claim could strand rows in `PROCESSING`.
-- **Resolution:** Added stale-processing watchdog/reaper with bounded redrive semantics (requeue once, then fail deterministically).
-- **Implemented behavior:** stale rows are selected by lease age (`updated_at` threshold), recovered using `FOR UPDATE SKIP LOCKED`, and terminal run failure is marked with reason code `STALE_PROCESSING_TIMEOUT`.
-
-## 7) Action target validation truncates non-integer numeric values
-
-- **Status:** Open
-- **Priority:** Medium
-- **Location:** `service/policy/PolicyBlueprintValidator.java`
-- **Issue:** `extractPositiveLong` accepts generic `Number` values and coerces with `longValue()`, which truncates fractional inputs.
-- **Impact:** JSON payloads with values like `12.9` can pass validation and execute against an unintended target ID (`12`).
-- **Suggested fix:** Only accept integer numeric inputs for action targets (or parse string values strictly as whole numbers) and reject fractional numeric values.
-
-## 8) Stale recovery can leave requeued steps in runs already failed
-
-- **Status:** Open
-- **Priority:** Medium
-- **Location:** `persistence/repository/JdbcPolicyExecutionStepClaimRepository.java`, `service/policy/PolicyStepExecutionService.java`
-- **Issue:** A single stale-recovery pass can requeue some rows and fail others for the same run, after which run status is marked `FAILED` while requeued sibling rows remain claimable.
-- **Impact:** Workers can continue executing pending steps that belong to a run already transitioned to terminal failed state.
-- **Suggested fix:** Ensure stale recovery does not produce mixed outcomes per run (for example, fail all stale rows for runs where any row reaches stale-fail threshold, or suppress requeue for those runs).
-
-## 9) Active policy blueprint read validation is temporarily bypassed
-
-- **Status:** Open (Temporary)
-- **Priority:** High
-- **Location:** `service/policy/AutomationPolicyService.java` (`getActivePolicy`)
-- **Issue:** Active-policy lookup currently bypasses blueprint validation and returns `SUCCESS` even when the active blueprint is invalid.
-- **Impact:** Invalid policies are no longer blocked at planning time; runs can proceed and fail later during step execution (for example, action step `ACTION_TARGET_MISSING`), increasing runtime noise and delayed failure detection.
-- **Suggested fix:** Remove temporary bypass and restore strict active-policy validation once action config contracts are finalized; keep detailed failure logging for diagnostics.
+No further action is needed. Active automation lives in the workflow engine; equivalent concerns for the workflow engine are tracked as #11, #12, #13.
 
 ## 10) JSONata evaluator swallows expression errors and returns null
 

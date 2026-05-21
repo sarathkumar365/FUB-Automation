@@ -22,11 +22,13 @@ A call happens in FUB. FUB fires a `callsCreated` webhook to this app. The app f
 - **"No answer" outcome** → creates a "Call back" task.
 - **Connected call** (duration > 30 seconds) → no action needed, skip.
 
-**Scenario 2 — Assignment SLA Enforcement (live today):**
-A lead is created or updated in FUB. FUB fires a `peopleCreated` or `peopleUpdated` webhook. The app starts a policy-driven SLA timer:
-1. Wait 5 minutes → check if the lead is still claimed by the assigned agent.
-2. If claimed, wait 10 more minutes → check if the agent has made contact.
-3. If no contact → trigger an action (reassign or move to pond). Action targets are validated from policy (`targetUserId` / `targetPondId`), executed against FUB via the adapter (`PUT /people/{id}`), and the step completes with `ACTION_SUCCESS`.
+**Scenario 2 — Agent Follow-up Enforcement (live today, via workflow engine):**
+A lead is created or updated in FUB. FUB fires a `peopleCreated` or `peopleUpdated` webhook. The workflow engine plans an `agent_followup_enforcement` run that:
+1. Waits 3 minutes → checks if the assigned agent has called the lead.
+2. If no call → posts a nudge note that @-mentions the assigned agent.
+3. Waits another 27 minutes → re-checks; if still no call, reassigns to ISA (daytime) or moves to the unorganic pond (off-hours).
+
+See [`Docs/features/agent-followup-enforcement/`](../features/agent-followup-enforcement/) for the full spec and [`Docs/features/domain-events/`](../features/domain-events/) for the trigger / event architecture this rides on.
 
 ### 1.3 Who uses it
 
@@ -35,8 +37,8 @@ A lead is created or updated in FUB. FUB fires a `peopleCreated` or `peopleUpdat
   - Live webhook feed (SSE streaming) — see events arrive in real time.
   - Processed calls list — see what happened to each call and why.
   - Replay failed calls — retry a failed call with one click.
-  - Policy execution monitoring — see SLA enforcement runs and their step-by-step outcomes.
-  - Policy control plane — create, update, activate policies.
+  - Workflow run monitoring — see workflow executions and their step-by-step outcomes.
+  - Workflow admin — create, update, activate workflow definitions.
 
 ### 1.4 Scope of this document
 

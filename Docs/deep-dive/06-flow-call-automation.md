@@ -4,7 +4,7 @@
 
 After async dispatch, `WebhookEventProcessorService.process(event)` routes by `normalizedDomain`:
 - `CALL` → `processCallDomainEvent()`
-- `ASSIGNMENT` → `processAssignmentDomainEvent()` (see [08-flow-assignment-policy.md](08-flow-assignment-policy.md))
+- `LEAD` → `processLeadDomainEvent()` (drives lead upsert + workflow trigger routing)
 - `UNKNOWN` → `processUnknownDomainEvent()` (logs warning, no action)
 
 ## Call processing — full flow

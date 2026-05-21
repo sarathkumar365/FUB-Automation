@@ -25,19 +25,15 @@ com.fuba.automation_engine/
 │   ├── FubClientProperties                   ← FUB API connection config
 │   ├── WebhookProperties                     ← Webhook ingestion config
 │   ├── CallOutcomeRulesProperties            ← Call decision rules config
-│   ├── PolicyWorkerProperties                ← Due worker config
 │   ├── FubRetryProperties                    ← Retry policy config
 │   ├── HttpClientConfig                      ← RestClient.Builder bean
 │   ├── JacksonConfig                         ← ObjectMapper bean
 │   ├── TimeConfig                            ← Clock.systemUTC() bean
-│   ├── WebhookAsyncConfig                    ← Async thread pool for webhook dispatch
-│   └── PolicyWorkerSchedulingConfig          ← Enables @Scheduled
+│   └── WebhookAsyncConfig                    ← Async thread pool for webhook dispatch
 ├── controller/                                ← HTTP endpoints
 │   ├── WebhookIngressController              ← POST /webhooks/{source}
 │   ├── AdminWebhookController                ← GET /admin/webhooks, stream
 │   ├── ProcessedCallAdminController          ← GET/POST /admin/processed-calls
-│   ├── AdminPolicyController                 ← CRUD /admin/policies
-│   ├── AdminPolicyExecutionController        ← GET /admin/policy-executions
 │   ├── HealthController                      ← GET /health
 │   └── dto/                                  ← Request/response DTOs (13 classes)
 ├── service/
@@ -55,20 +51,6 @@ com.fuba.automation_engine/
 │   │   ├── dispatch/                         ← WebhookDispatcher + AsyncWebhookDispatcher
 │   │   ├── live/                             ← WebhookLiveFeedPublisher + WebhookSseHub
 │   │   └── model/                            ← NormalizedWebhookEvent, enums
-│   └── policy/
-│       ├── AutomationPolicyService           ← Policy CRUD + activation
-│       ├── PolicyExecutionManager            ← Planning orchestrator
-│       ├── PolicyStepExecutionService        ← Step execution + transitions
-│       ├── PolicyExecutionDueWorker          ← Scheduled worker
-│       ├── AdminPolicyExecutionService       ← Execution feed queries
-│       ├── PolicyBlueprintValidator          ← Blueprint JSON validation
-│       ├── PolicyExecutionMaterializationContract ← Step template definitions
-│       ├── PolicyStepTransitionContract      ← Transition map
-│       ├── PolicyExecutionCursorCodec        ← Cursor encoding
-│       ├── WaitAndCheckClaimStepExecutor     ← Claim check executor
-│       ├── WaitAndCheckCommunicationStepExecutor ← Communication check executor
-│       ├── OnCommunicationMissActionStepExecutor ← Action executor (target-validated, live FUB adapter execution)
-│       └── (context, result, request, outcome records)
 ├── client/fub/
 │   ├── FubFollowUpBossClient                 ← Adapter: FUB REST API client
 │   └── dto/                                  ← FUB API request/response DTOs
@@ -98,17 +80,23 @@ flowchart LR
     Processor"]
     PROC -->|"CALL domain"| CALL["Call
     Automation"]
-    PROC -->|"ASSIGNMENT domain"| ASSIGN["Policy
-    Planning"]
+    PROC -->|"LEAD domain"| LEADUP["Lead
+    Upsert"]
+    PROC -->|"trigger router"| WFR["Workflow
+    Trigger Router"]
     CALL -->|"GET /calls"| FUB_API["FUB REST API"]
     CALL -->|persist| DB
-    ASSIGN -->|"persist run + steps"| DB
-    WORKER["Due Worker
-    Scheduled"] -->|"claim + execute"| DB
-    WORKER -->|"GET /people"| FUB_API
+    LEADUP -->|"GET /people"| FUB_API
+    LEADUP -->|persist| DB
+    WFR -->|"plan run"| DB
+    WORKER["Workflow Due Worker
+    Scheduled"] -->|"claim + execute steps"| DB
+    WORKER -->|"FUB writes"| FUB_API
     ADMIN["Admin UI
     React"] -->|"REST APIs"| CTRL["Admin
     Controllers"]
     ADMIN -->|SSE| SSE
     CTRL -->|query| DB
 ```
+
+> The earlier policy-execution branch (PROC → ASSIGNMENT → Policy Planning → Due Worker) was the V5–V11 architecture. It was dropped in V12; active automation now goes through the workflow engine via the trigger router.

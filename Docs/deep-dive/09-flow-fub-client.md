@@ -53,4 +53,4 @@ for attempt = 1..∞:
         attempt++   // (no backoff delay — simple retry loop)
 ```
 
-**Note:** Unlike the call-processing retry (see [06-flow-call-automation.md](06-flow-call-automation.md#subflow-b3-retry-logic-executewithretry)) which has exponential backoff with jitter, the policy executor retry is a simple retry loop without delay. This is because the due worker can re-claim the step on the next poll if it fails.
+**Note:** Unlike the call-processing retry (see [06-flow-call-automation.md](06-flow-call-automation.md#subflow-b3-retry-logic-executewithretry)) which has exponential backoff with jitter, the workflow step executor retry is a simple retry loop without delay. The workflow due worker can re-claim the step on the next poll if it fails.
