@@ -80,29 +80,38 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
 
 `Lead` conflates the CRM-contact entity with the FUB `stage` value `"Lead"`. They are different concepts: the entity is a human in the CRM; `stage` (Lead / Customer / Past Client / Trash / custom) is one of many attributes. FUB's own API calls them `/v1/people`.
 
-- **`Person`** — matches FUB's API. No collision with any major CRM's named entity. Salesforce/HubSpot/Zoho/Dynamics adapters each translate their own term (`Lead`, `Contact`) into our `Person`. Workflows filter relationship type via `person.stage = 'Lead'`.
+- **`Person`** — matches FUB's API. No collision with any major CRM's named entity. Salesforce/HubSpot/Zoho/Dynamics adapters each translate their own term (`Lead`, `Contact`) into our `Person`. Workflows filter relationship type via `person.kind` (our normalized enum — see below) or `person.stage` (FUB's raw stage string).
 - **`Contact`** rejected: collides with Salesforce's specific `Contact` entity (which is distinct from SF's `Lead`). Would be actively misleading in a multi-CRM context.
 - **`Party`** rejected: most abstract, no CRM uses it natively, solves problems we don't have (organizations).
 - Staying with `Lead` rejected: bakes the conceptual mismatch deeper with every phase.
 
 ### Deliverables
 
-**Schema (V21 migration):**
-- Rename `leads` → `people`
-- Rename `source_lead_id` → `source_person_id` on `people`, `workflow_runs`, `webhook_events`, `processed_calls`
-- Rename `leads.lead_details` → `people.person_details`
+**Schema (V21 migration — single file, single transaction):**
+- Rename `leads` → `persons` (table name; plural form chosen for SQL clarity)
+- Rename `source_lead_id` → `source_person_id` on `persons`, `workflow_runs`, `webhook_events`, `processed_calls`
+- Rename `lead_details` → `person_details` (the JSONB column on `persons`)
 - `previous_state` keeps its name (already generic)
-- Update V19 `chk_webhook_events_normalized_domain` CHECK constraint: allow `PERSON` (renamed from `LEAD`) and `NOTE` (added for Phase 2's note handling)
+- Rename constraints: `uk_leads_source_system_source_lead_id` → `uk_persons_source_system_source_person_id`; `chk_leads_status` → `chk_persons_status`
+- Rename indexes: `idx_leads_*` → `idx_persons_*`; `idx_processed_calls_lead_started` → `idx_processed_calls_person_started`
+- Update V19 `chk_webhook_events_normalized_domain` CHECK constraint: allow `PERSON` (renamed from `LEAD`) and `NOTE` (added for Phase 2's note handling). Existing rows updated via `UPDATE webhook_events SET normalized_domain='PERSON' WHERE normalized_domain='LEAD'` before constraint re-add.
+- **Add `kind` column on `persons`** — `VARCHAR(32) NOT NULL DEFAULT 'UNKNOWN'` with CHECK constraint allowing `LEAD`/`AGENT`/`REALTOR`/`UNKNOWN`. Indexed (`idx_persons_kind`) for admin-query performance.
+- Backfill `persons.kind` from existing `person_details.stage` via a case-insensitive mapping (`lead`→LEAD, `agent`→AGENT, `realtor`→REALTOR, else UNKNOWN).
 
-**Java renames:**
-- `LeadEntity` → `PersonEntity`
-- `LeadRepository` → `PersonRepository`
+**Java renames + new types:**
+- `LeadEntity` → `PersonEntity` (also gains a `kind` field — `@Enumerated(EnumType.STRING) PersonKind kind`)
+- `LeadRepository` → `PersonRepository` (method `findBySourceSystemAndSourceLeadId` → `findBySourceSystemAndSourcePersonId`)
 - `LeadStatus` → `PersonStatus`
-- `LeadUpsertService` → `PersonUpsertService` (package `service/lead/` → `service/person/`); method `upsertFubPerson` → `upsertFromFub`
-- `LeadSnapshotResolver` → `PersonSnapshotResolver`
+- `LeadUpsertService` → `PersonUpsertService` (package `service/lead/` → `service/person/`)
+- `LeadSnapshotResolver` → `PersonSnapshotResolver` (also exposes `kind` in the JSONata scope map)
+- `LeadAdminQueryService` → `PersonAdminQueryService`
+- `LeadFeedCursorCodec` → `PersonFeedCursorCodec`
 - `WebhookEventProcessorService.processLeadDomainEvent` → `processPersonDomainEvent`
 - `upsertLeadFromAssignmentEvent` → `upsertPersonFromEvent` ("assignment" wording was always misleading)
 - `NormalizedDomain.LEAD` → `PERSON`
+- **New enum `PersonKind`** — `LEAD`, `AGENT`, `REALTOR`, `UNKNOWN`. Lives in `persistence/entity/`. Pattern matches existing `PersonStatus`.
+- **New `PersonUpsertService.mapStageToKind(String stage) → PersonKind`** — case-insensitive mapping helper. Called during upsert; logs WARN when an unmapped stage hits UNKNOWN so unrecognised stages surface fast.
+- **`PersonUpsertService.capturedFieldNames()`** updated — returns `SNAPSHOT_FIELDS + {"kind"}` so the workflow validator accepts `person.kind` as a known field.
 
 **Runtime vocabulary:**
 - `RunContext.lead` → `RunContext.person`
@@ -116,8 +125,8 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
   - `eventDomain: "LEAD"` → `eventDomain: "PERSON"`
   - `{{ lead.assignedUserId }}` → `{{ person.assignedUserId }}`
   - `{{ lead.assignedTo }}` → `{{ person.assignedTo }}`
-  - `$boolean(lead.assignedUserId)` → `$boolean(person.assignedUserId)`
-  - **Add** `person.stage = 'Lead'` predicate to the trigger filter (compensates for dropped ingest filter)
+  - `$boolean(lead.assignedUserId)` (in the `gate_assigned` node) → `$boolean(person.assignedUserId) and person.kind = "LEAD"`
+  - **The `person.kind = "LEAD"` predicate is mandatory.** It compensates for the dropped `isFubLeadPerson` ingest filter. Uses our normalized `kind` enum, not FUB's raw `stage` string — stable across FUB stage customizations.
 
 **Replay harness sweep:**
 - `personSnapshots` field already correctly named — no change
@@ -132,21 +141,24 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
 
 **Bundled behaviour change — drop `isFubLeadPerson` filter:**
 - Today's `LeadUpsertService` skips upsert if `personPayload.stage != "Lead"`.
-- Post-rename `PersonUpsertService` removes this check; every person FUB sends a webhook for gets persisted.
-- Trade-off: storage grows (agents, vendors, brokers all get rows); workflows must filter via `person.stage = 'Lead'` (or whatever stage they care about) in their trigger filter. The single existing workflow gets this predicate added at the same time.
-- Rationale: keeps the entity definition honest (`Person` is FUB's `/v1/people`, not a filtered subset) and unblocks future workflows that want to react to other stages.
+- Post-rename `PersonUpsertService` removes this check; every person FUB sends a webhook for gets persisted, with the `kind` column populated via `mapStageToKind`.
+- Trade-off: storage grows (agents, realtors, brokers all get rows); workflows must filter via `person.kind = "LEAD"` (or whatever kind they care about) in their trigger predicate. The single existing workflow gets this predicate added at the same time.
+- Rationale: keeps the entity definition honest (`Person` is FUB's `/v1/people`, not a filtered subset) and unblocks future workflows that want to react to other kinds of persons.
 
 ### Verification
-- All 528+ tests green after the rename + filter drop.
-- Replay harness's 5 fixtures still pass.
-- `agent_followup_enforcement` workflow still functional end-to-end (with the new `person.stage = 'Lead'` predicate in the trigger filter).
-- `grep -r "lead" src/main` only returns intentional usages: the word "lead" in non-entity contexts (e.g. "Lead Time"), or string literals like `"Lead"` for FUB stage values, or javadoc/comments referring to the historical "Lead" entity name.
+- All 525+ tests green after the rename + filter drop (525 baseline after Part A's 3 policy-test deletions).
+- Replay harness's 5 fixtures still pass (with the renamed files: `person-*.json`).
+- `agent_followup_enforcement` workflow still functional end-to-end (with the new `person.kind = "LEAD"` predicate in the `gate_assigned` node's expression).
+- Manual behaviour test: POST a `peopleUpdated` webhook for a stage=Agent person → row persists in `persons` with `kind = AGENT`; the workflow does NOT fire.
+- POST a stage=Lead person → row persists with `kind = LEAD`; workflow fires (current behaviour preserved).
+- `grep -rE 'Lead[A-Z]|\bleads\b|source_lead_id|lead_details|NormalizedDomain\.LEAD' src/main src/test` returns zero matches in production code; in tests only intentional historical-record comments.
 
 ### Exit criteria
 - V21 migration applies cleanly to dev DB.
-- No production code references `LeadEntity`, `LeadRepository`, `LeadUpsertService`, `LeadSnapshotResolver`, or `NormalizedDomain.LEAD`.
-- The `peopleUpdated` webhook arrives → `PersonUpsertService.upsertFromFub` runs regardless of `stage` value.
-- Workflow validator rejects `lead.<field>` references (cleanly migrated to `person.<field>`).
+- `persons` table exists with `kind` column populated for every row (backfilled from `person_details.stage`).
+- No production code references `LeadEntity`, `LeadRepository`, `LeadUpsertService`, `LeadSnapshotResolver`, `LeadAdminQueryService`, `LeadFeedCursorCodec`, or `NormalizedDomain.LEAD`.
+- The `peopleUpdated` webhook arrives → `PersonUpsertService` runs regardless of `stage` value; `kind` is set per the mapping.
+- Workflow validator rejects `lead.<field>` references (cleanly migrated to `person.<field>`); accepts `person.kind` as a known field.
 
 ### Out of scope (deliberately deferred)
 - FUB Users (`/v1/users`) ingestion as Persons — separate feature; closes #19 when done.
@@ -157,7 +169,7 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
 Probably `No`. The rename is feature-internal vocabulary; no cross-cutting decision is created.
 
 ### Size estimate
-~30 files touched, mostly mechanical. ~1 day with proper testing.
+~35 files touched (rename surface) + the new `PersonKind` enum + mapping helper + JSONata-scope wiring. Mostly mechanical; ~1.5 days with proper testing including the manual stage=Agent behaviour check.
 
 ---
 
