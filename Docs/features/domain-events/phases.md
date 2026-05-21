@@ -42,6 +42,8 @@ Without this, Phases 2–5 are nearly impossible to validate. The field-observat
 ## Phase 1 — Foundation
 Status: `DONE` — webhook_event_id populated end-to-end (known-issue #25 resolved), `leads.previous_state` column added, validator refuses unknown `lead.*` references at save time. 528 tests pass; replay harness's Phase 1 invariant assertion holds across all 5 fixtures. See [phase-1-implementation.md](./phase-1-implementation.md) for details.
 
+> **Note:** Phase 1 was implemented under the older `Lead` naming. The Pre-Phase-2 rename pass (next entry) sweeps everything to `Person`. Phase 1's implementation log preserves the original `Lead` wording as a historical record.
+
 **Goal:** Cheap groundwork that has no behaviour change but unblocks everything downstream.
 
 ### Deliverables
@@ -67,37 +69,172 @@ TBD at phase-1-implementation.md time. Likely `No` — local feature concern.
 
 ---
 
+## Pre-Phase-2 — Rename `Lead` → `Person` + drop ingest filter
+Status: `NOT STARTED`
+
+**Goal:** Clean substrate for Phase 2's vocabulary. Strictly mechanical rename, plus one bundled behaviour change (drop the `isFubLeadPerson` ingestion filter).
+
+Why this slot in the phase order: Phase 2 is about to introduce the `events` table, the `event_kind` enum (`person.state_changed`, etc.), the validator's `change.*` vocabulary, and emission code. Locking these around the existing `Lead` name would require a rename migration of the events table later. Doing the rename first means every downstream phase uses the right vocabulary from day one.
+
+### Why `Person` (not `Contact`, `Party`, or staying with `Lead`)
+
+`Lead` conflates the CRM-contact entity with the FUB `stage` value `"Lead"`. They are different concepts: the entity is a human in the CRM; `stage` (Lead / Customer / Past Client / Trash / custom) is one of many attributes. FUB's own API calls them `/v1/people`.
+
+- **`Person`** — matches FUB's API. No collision with any major CRM's named entity. Salesforce/HubSpot/Zoho/Dynamics adapters each translate their own term (`Lead`, `Contact`) into our `Person`. Workflows filter relationship type via `person.stage = 'Lead'`.
+- **`Contact`** rejected: collides with Salesforce's specific `Contact` entity (which is distinct from SF's `Lead`). Would be actively misleading in a multi-CRM context.
+- **`Party`** rejected: most abstract, no CRM uses it natively, solves problems we don't have (organizations).
+- Staying with `Lead` rejected: bakes the conceptual mismatch deeper with every phase.
+
+### Deliverables
+
+**Schema (V21 migration):**
+- Rename `leads` → `people`
+- Rename `source_lead_id` → `source_person_id` on `people`, `workflow_runs`, `webhook_events`, `processed_calls`
+- Rename `leads.lead_details` → `people.person_details`
+- `previous_state` keeps its name (already generic)
+- Update V19 `chk_webhook_events_normalized_domain` CHECK constraint: allow `PERSON` (renamed from `LEAD`) and `NOTE` (added for Phase 2's note handling)
+
+**Java renames:**
+- `LeadEntity` → `PersonEntity`
+- `LeadRepository` → `PersonRepository`
+- `LeadStatus` → `PersonStatus`
+- `LeadUpsertService` → `PersonUpsertService` (package `service/lead/` → `service/person/`); method `upsertFubPerson` → `upsertFromFub`
+- `LeadSnapshotResolver` → `PersonSnapshotResolver`
+- `WebhookEventProcessorService.processLeadDomainEvent` → `processPersonDomainEvent`
+- `upsertLeadFromAssignmentEvent` → `upsertPersonFromEvent` ("assignment" wording was always misleading)
+- `NormalizedDomain.LEAD` → `PERSON`
+
+**Runtime vocabulary:**
+- `RunContext.lead` → `RunContext.person`
+- `ExpressionScope` key `lead` → `person`
+- `WorkflowGraphValidator.LEAD_EXPRESSION_PATTERN` / `LEAD_TEMPLATE_PATTERN` → `PERSON_*`
+- `validateLeadFieldReferences` → `validatePersonFieldReferences` (error message updated)
+- `LeadUpsertService.SNAPSHOT_FIELDS` → `PersonUpsertService.SNAPSHOT_FIELDS` (membership unchanged)
+
+**Workflow JSON sweep** (the one production workflow):
+- `agent_followup_enforcement.workflow.json`:
+  - `eventDomain: "LEAD"` → `eventDomain: "PERSON"`
+  - `{{ lead.assignedUserId }}` → `{{ person.assignedUserId }}`
+  - `{{ lead.assignedTo }}` → `{{ person.assignedTo }}`
+  - `$boolean(lead.assignedUserId)` → `$boolean(person.assignedUserId)`
+  - **Add** `person.stage = 'Lead'` predicate to the trigger filter (compensates for dropped ingest filter)
+
+**Replay harness sweep:**
+- `personSnapshots` field already correctly named — no change
+- `ReplayFixture.Expected.minWorkflowRunsForLead` → `minWorkflowRunsForPerson`
+- All 5 fixture JSONs swept
+
+**Docs sweep:**
+- `plan.md` and `phases.md` (this file) — `lead.*` → `person.*` throughout (already done in plan.md as part of this Pre-Phase-2 prep)
+- `known-issues.md` — references to entity names updated; references to `lead.*` JSONata vocabulary updated
+- `phase-1-implementation.md` — keep as-is (historical record); top-line note added
+- `field-observations.md` — keep as-is (historical record; "lead" wording reflects what was observed)
+
+**Bundled behaviour change — drop `isFubLeadPerson` filter:**
+- Today's `LeadUpsertService` skips upsert if `personPayload.stage != "Lead"`.
+- Post-rename `PersonUpsertService` removes this check; every person FUB sends a webhook for gets persisted.
+- Trade-off: storage grows (agents, vendors, brokers all get rows); workflows must filter via `person.stage = 'Lead'` (or whatever stage they care about) in their trigger filter. The single existing workflow gets this predicate added at the same time.
+- Rationale: keeps the entity definition honest (`Person` is FUB's `/v1/people`, not a filtered subset) and unblocks future workflows that want to react to other stages.
+
+### Verification
+- All 528+ tests green after the rename + filter drop.
+- Replay harness's 5 fixtures still pass.
+- `agent_followup_enforcement` workflow still functional end-to-end (with the new `person.stage = 'Lead'` predicate in the trigger filter).
+- `grep -r "lead" src/main` only returns intentional usages: the word "lead" in non-entity contexts (e.g. "Lead Time"), or string literals like `"Lead"` for FUB stage values, or javadoc/comments referring to the historical "Lead" entity name.
+
+### Exit criteria
+- V21 migration applies cleanly to dev DB.
+- No production code references `LeadEntity`, `LeadRepository`, `LeadUpsertService`, `LeadSnapshotResolver`, or `NormalizedDomain.LEAD`.
+- The `peopleUpdated` webhook arrives → `PersonUpsertService.upsertFromFub` runs regardless of `stage` value.
+- Workflow validator rejects `lead.<field>` references (cleanly migrated to `person.<field>`).
+
+### Out of scope (deliberately deferred)
+- FUB Users (`/v1/users`) ingestion as Persons — separate feature; closes #19 when done.
+- Any actual diff / event-emission work — that's Phase 2.
+- Any new behaviour beyond dropping the ingest filter.
+
+### Repo decisions impact
+Probably `No`. The rename is feature-internal vocabulary; no cross-cutting decision is created.
+
+### Size estimate
+~30 files touched, mostly mechanical. ~1 day with proper testing.
+
+---
+
 ## Phase 2 — Domain events table + diff machinery
 Status: `NOT STARTED`
 
-**Goal:** Webhooks produce typed `events` rows. Diff computed for state-change events. In-process dispatcher available; nothing subscribes yet.
+**Goal:** Webhooks produce typed `events` rows. Diff computed for state-change events. In-process dispatcher available; nothing subscribes yet. Lands on the renamed `Person` substrate (see Pre-Phase-2).
 
 ### Deliverables
-- **`events` table** Flyway migration per the schema in `plan.md`
-- **`DomainEventEmitter`** service — `emit(eventKind, sourceSystem, sourceEventId, entityType, entityId, payload)` → inserts a row, optionally dispatches in-process
-- **Diff at upsert** in `LeadUpsertService`:
-  - Before upsert, read current `lead_details`
-  - After upsert, compute diff against `previous_state` (which is set to the prior `lead_details`)
-  - If diff non-empty: emit `lead.state_changed` event with `payload = { changed_fields, previous, current }`
-  - Update `previous_state` to the pre-upsert `lead_details` for the next round
-- **Append-event emission** in call/note ingestion paths:
-  - `ProcessedCallUpsertService` emits `call.created` (or `call.updated`) after upsert
-  - Note paths emit `note.created` (future-ready; only if a note ingestion path exists today)
-- **`DomainEventDispatcher`** — in-process publish to a list of subscribers (Spring `ApplicationEventPublisher` or a simple `List<Listener>`); no consumers yet but the seam is there
-- **Replay harness extended** to assert on emitted events
+
+**1. V22 migration — `events` table**
+Per the schema in [`plan.md`](./plan.md) §"The `events` table". `source_system` from day one. Indices on `(event_kind, created_at DESC)` and `(entity_type, entity_id, created_at DESC)`. FK to `webhook_events.id` (nullable, `ON DELETE SET NULL`).
+
+**2. `EventEntity` + `EventRepository`**
+JPA mapping with `@JdbcTypeCode(SqlTypes.JSON)` for payload per project convention.
+
+**3. `PersonDiffComputer`** — per-field strategy:
+- **Scalars** (`name`, `firstName`, `lastName`, `stage`, `stageId`, `type`, `source`, `assignedUserId`, `assignedTo`, `assignedPondId`, `assignedLenderId`, `claimed`, `contacted`) → `JsonNode.equals()`
+- **Arrays of strings** (`tags`) → sort both arrays, then `equals`
+- **Arrays of objects** (`phones`, `emails`) → `Set<JsonNode>` comparison (order-independent at element level)
+- Returns `DiffResult { changedFields, previous, current }` containing **only changed fields** in `previous`/`current`.
+
+**4. `DomainEventEmitter`** service
+`emit(eventKind, sourceSystem, sourceEventId, entityType, entityId, payload)` — INSERT row + call dispatcher inline within the caller's transaction.
+
+**5. `DomainEventDispatcher`** — interface + `InMemoryDomainEventDispatcher`
+Single method `dispatch(DomainEvent)`. Holds `List<DomainEventListener>`. No listeners registered in Phase 2. Modeled on the existing `WebhookDispatcher` pattern (no Spring `ApplicationEventPublisher` introduced).
+
+**6. Emission in `PersonUpsertService`** (two event_kinds, decision Q1=B):
+- Inside the existing `@Transactional`, between save and return:
+  - If `existingOptional.isEmpty()` (this is a brand-new row): emit `person.created` with payload `{ current: <full snapshot> }`. Set `previousState = null`.
+  - Else: compute diff via `PersonDiffComputer`. If `changedFields` non-empty: emit `person.state_changed` with payload `{ changed_fields, previous, current }` (only changed fields in `previous`/`current`). Set `previousState = oldDetails`.
+  - If diff empty (echo / no-op upsert): no event emitted. `previousState` left alone.
+
+**7. Inline `call.created` emission**
+In `WebhookEventProcessorService.processCall`, after `processedCallRepository.save(entity)`. TODO comment about future extraction into a `CallUpsertService` (out of scope for Phase 2).
+
+**8. Note webhook handling** (decision Q3=B):
+- `FubWebhookParser` learns `notesCreated`, `notesUpdated`, `notesDeleted` → maps to `NormalizedDomain.NOTE` + `NormalizedAction.CREATED/UPDATED/DELETED` (the CHECK constraint loosening lands in Pre-Phase-2's V21 migration).
+- `WebhookEventProcessorService.process()` gets a `case NOTE -> processNoteDomainEvent(event)` branch.
+- `processNoteDomainEvent` emits `note.created` / `note.updated` / `note.deleted` with the webhook payload as the event payload.
+- **No `notes` table** in Phase 2. Note body content is not fetched from `/v1/notes/{id}`. Workflows that need note content can add a fetch path later.
+
+**9. Replay harness extensions:**
+- New `ReplayFixture.Expected` fields:
+  - `minStateChangeEventsForPerson` (Map<String, Integer>) — `sourcePersonId → min event count`
+  - `minCreatedEventsForPerson` (Map<String, Integer>)
+  - `minAppendEvents` (Map<String, Integer>) — `event_kind → min count`, e.g. `{"call.created": 1, "note.created": 2}`
+- Update existing fixtures to assert collapse:
+  - `lead-20235-fub-burst` (will be `person-20235-fub-burst` after the rename pass): 3 `peopleUpdated` webhooks → assert `minStateChangeEventsForPerson: {"20235": 1}` (collapse from 3 to 1).
+  - `lead-20231-fub-burst`: 4 `peopleUpdated` → assert `minStateChangeEventsForPerson: {"20231": 1}`.
+  - `lead-20123-echo-cascade`: still produces phantom events under Phase 2 (Phase 3 closes); assert the expected pre-fix shape.
+- Add one synthesized fixture for note webhooks (no real-DB note webhook in our extracted set yet).
+
+**10. Phase 2 invariants for the harness:**
+- For every webhook arrival where local state ends up unchanged → 0 events emitted (collapse).
+- For every `peopleCreated` → exactly 1 `person.created` event.
+- For every `peopleUpdated` with meaningful diff → exactly 1 `person.state_changed`.
+- For every `callsCreated` → 1 `call.created`.
+- For every `notesCreated/Updated/Deleted` → 1 corresponding event.
+- Engine echoes **still produce phantom `person.state_changed` events** in Phase 2 alone (Phase 3 closes this — the cascade fixtures will assert this is true today and switch the assertion in Phase 3).
 
 ### Verification
-- Replay the 05-08 echo cascade through the harness: expected to still produce a phantom `lead.state_changed` event because Phase 3 hasn't shipped yet (engine writes still cause diffs against pre-write local state)
-- Replay the 05-12 FUB burst: expect **one** `lead.state_changed` event per logical change instead of N (the N-1 subsequent webhooks see no diff if FUB returns the same post-state, which the observations confirmed)
-- Diff correctness unit tests on representative `lead_details` JSON pairs (added field, removed field, value change, no-op edit, nested change in `customFields`)
+- All 528+ tests green.
+- All replay fixtures pass (5 existing + 1 new note fixture).
+- Person 20235 FUB-burst fixture: 3 webhooks → 1 `person.state_changed` event (collapse proven).
+- Person 20123 echo-cascade fixture: still produces a phantom `person.state_changed` event from the echo (Phase 3 will flip this assertion).
+- Diff-computer unit tests for each per-field strategy: scalar change, scalar no-op, tag reorder (no-op), tag add, phone reorder (no-op), phone add, phone removal.
 
 ### Exit criteria
-- `events` table populated for every webhook the engine processes
-- No subscribers consume events yet; triggers still use the old path
-- Replay harness fixtures show the FUB-burst collapse working
+- V22 migration applied.
+- `events` table populated for every webhook the engine processes (with the right `event_kind` per the rules above).
+- No subscribers consume events yet; the old `workflowTriggerRouter.route(event)` call at the end of `WebhookEventProcessorService.process()` still runs unchanged.
+- Replay-harness fixtures show the FUB-burst collapse working.
 
 ### Repo decisions impact
-TBD.
+TBD at `phase-2-implementation.md` time. Likely `No`.
 
 ---
 
@@ -113,15 +250,15 @@ This phase must land **before** Phase 4 — otherwise re-authored workflows trip
   - `ConcurrentHashMap<TrackerKey, EngineWriteRecord>`
   - Scheduled eviction (30s TTL by default; configurable)
 - **Wrap engine-write step types** (`fub_reassign`, `fub_move_to_pond`, `fub_create_note`, any other FUB-mutating step):
-  - Before FUB call: read current local lead state for affected fields; update local state to intended new value; record in tracker
+  - Before FUB call: read current local Person state for affected fields; update local state to intended new value; record in tracker
   - Call FUB
   - On FUB failure: revert local state; mark tracker entry failed; propagate error to step machinery (step fails as today)
   - On FUB success: leave local + tracker in place; echo webhook will diff to empty
-- **Diff annotation in Phase 2's emitter:** when `lead.state_changed` would be emitted, consult the tracker — if a recent record matches the diff's fields and entity, annotate `payload.source = "ENGINE"`; emit the event anyway (filtering is the workflow's job per the opt-in default)
+- **Diff annotation in Phase 2's emitter:** when `person.state_changed` would be emitted, consult the tracker — if a recent record matches the diff's fields and entity, annotate `payload.source = "ENGINE"`; emit the event anyway (filtering is the workflow's job per the opt-in default)
 
 ### Verification
 - Replay 05-08 echo cascade: engine reassign → local state updated → echo webhook → diff = empty → no event emitted (verified by harness assertions)
-- Replay 05-12 reassign-to-same-user case (lead 20235): three back-to-back reassigns produce one tracker record sequence; second and third see local already at target and emit no event
+- Replay 05-12 reassign-to-same-user case (person 20235): three back-to-back reassigns produce one tracker record sequence; second and third see local already at target and emit no event
 - Failure path: synthesize a FUB-PUT failure in the harness; verify local state reverts and step fails
 
 ### Exit criteria
@@ -152,20 +289,21 @@ This is the user-facing phase. Everything before it is plumbing.
 - **`workflow_runs.domain_event_id`** column (new) + `workflow_runs.suppressed_by_run_id` column (new, used in Phase 5)
 - **Expression scope refactor:**
   - `event.*` now refers to the domain event, not the webhook
-  - `change.*` sugar over `event.payload` for state-change events
+  - `change.*` sugar over `event.payload` for `person.state_changed` events
+  - `current.*` sugar over `event.payload.current` for both `person.created` and `person.state_changed`
   - `webhook.*` exposes the proximate raw webhook payload (for steps that need source-system fields)
-  - `lead.*` available in trigger filter scope too (closes #17)
+  - `person.*` available in trigger filter scope too (closes #17)
   - `WorkflowStepExecutionService.buildRunContext` updated accordingly
 - **Re-author `agent_followup_enforcement`** workflow JSON:
-  - Trigger becomes `{ "on": "lead.state_changed", "filter": "change.assignedUserId.changed AND change.source != 'ENGINE'" }`
+  - Trigger becomes `{ "on": "person.state_changed", "filter": "person.stage = 'Lead' AND change.assignedUserId.changed AND change.source != 'ENGINE'" }` (the `person.stage = 'Lead'` predicate was already added during the Pre-Phase-2 rename pass; Phase 4 keeps it and adds the change-based predicates)
   - Any step expressions using `event.payload.*` migrate to `webhook.payload.*` if needed
   - Verify in field-observations replay that bad-run rate drops
 
 ### Verification
 - Replay the three high-signal incidents end-to-end:
-  - **Lead 20123 (05-08 echo cascade)** — under new architecture: one event for the real assignment, engine reassign produces no echo event (Phase 3), workflow does not self-trigger. Bad runs = 0.
-  - **Lead 20235 (05-12 FUB burst)** — one event for the burst (Phase 2 collapse), one run created, one reassign. Bad runs = 0.
-  - **Lead 20207 (05-11 triple-run)** — first event creates run; echo run suppressed by no-event-emission (Phase 3); unknown peopleUpdated either filtered semantically or absorbed by Phase 5's run dedup.
+  - **Person 20123 (05-08 echo cascade)** — under new architecture: one event for the real assignment, engine reassign produces no echo event (Phase 3), workflow does not self-trigger. Bad runs = 0.
+  - **Person 20235 (05-12 FUB burst)** — one event for the burst (Phase 2 collapse), one run created, one reassign. Bad runs = 0.
+  - **Person 20207 (05-11 triple-run)** — first event creates run; echo run suppressed by no-event-emission (Phase 3); unknown peopleUpdated either filtered semantically or absorbed by Phase 5's run dedup.
 - Workflow JSON validation refuses old-shape triggers with a migration hint
 - All step expressions in the re-authored workflow resolve without error
 
@@ -182,13 +320,13 @@ Probably `Yes` — the trigger schema is part of the workflow JSON contract; doc
 ## Phase 5 — Run-level uniqueness
 Status: `NOT STARTED`
 
-**Goal:** Hard-suppress duplicate runs of the same workflow on the same lead while one is active. Catches residual cases not handled by Phase 2's event-collapse (e.g., genuine distinct state transitions in quick succession).
+**Goal:** Hard-suppress duplicate runs of the same workflow on the same person while one is active. Catches residual cases not handled by Phase 2's event-collapse (e.g., genuine distinct state transitions in quick succession).
 
 ### Deliverables
 - **Partial unique index** on `workflow_runs`:
   ```sql
-  CREATE UNIQUE INDEX uk_workflow_runs_active_per_lead
-    ON workflow_runs (workflow_key, source_lead_id)
+  CREATE UNIQUE INDEX uk_workflow_runs_active_per_person
+    ON workflow_runs (workflow_key, source_person_id)
     WHERE status IN ('PENDING','RUNNING','BLOCKED');
   ```
 - **`WorkflowExecutionManager.plan` updated:**
@@ -200,8 +338,8 @@ Status: `NOT STARTED`
 - **Suppression metrics** — count per workflow_key, surface in `/admin/workflows/{key}/runs` for ops visibility
 
 ### Verification
-- Synthesize two near-simultaneous `lead.state_changed` events for the same lead in the harness; assert one run runs, one row is `SUPPRESSED` with a back-reference
-- Cross-workflow case: two different workflows triggering on the same lead simultaneously both succeed (the partial unique is per `workflow_key`)
+- Synthesize two near-simultaneous `person.state_changed` events for the same person in the harness; assert one run runs, one row is `SUPPRESSED` with a back-reference
+- Cross-workflow case: two different workflows triggering on the same person simultaneously both succeed (the partial unique is per `workflow_key`)
 - Existing idempotency-key constraint still catches webhook replay
 
 ### Exit criteria
@@ -219,7 +357,8 @@ Probably `No` — run uniqueness semantics are feature-internal.
 | Order | Why |
 |---|---|
 | 0 → 1 | Harness before everything because every later phase needs it for honest verification |
-| 1 → 2 | Diff machinery needs `previous_state` column and webhook_event_id linkage to exist |
+| 1 → Pre-Phase-2 | Phase 1 had to land before the rename to avoid co-mingling foundation work with a refactor. Now that the foundation is in, the rename happens with a stable target. |
+| Pre-Phase-2 → 2 | Phase 2 hardens vocabulary (`events.event_kind = 'person.state_changed'`, validator `change.*`). Renaming after Phase 2 would require a data migration of the `events` table. |
 | 2 → 3 | Local-state-first writes need the diff layer in place to annotate `source = ENGINE` |
 | **3 → 4** | **Critical**: if 4 ships before 3, re-authored workflows trip on their own echoes during the deployment window |
 | 4 → 5 | Run uniqueness only matters once workflows actually subscribe to events |
