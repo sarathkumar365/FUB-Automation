@@ -109,7 +109,7 @@ Jump to the section that governs the work in front of you. If a task touches mul
   - the full doc index at `Docs/README.md`
 
 ## Engineering and architecture standards
-- Follow clean code and SOLID principles.
+- Follow clean code and SOLID, YAGNI principles.
 - Keep module boundaries clear (controller, service, client, repository, model).
 - Favor composition and interface-driven design where extension is expected.
 - Use explicit DTOs for external APIs and avoid leaking transport models internally.
