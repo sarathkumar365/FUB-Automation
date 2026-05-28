@@ -1,4 +1,4 @@
-export type AppNavKey = 'webhooks' | 'processedCalls' | 'leads' | 'workflows'
+export type AppNavKey = 'webhooks' | 'processedCalls' | 'persons' | 'workflows'
 
 export const routes = {
   root: '/',
@@ -7,8 +7,8 @@ export const routes = {
   login: '/admin-ui/login',
   webhooks: '/admin-ui/webhooks',
   processedCalls: '/admin-ui/processed-calls',
-  leads: '/admin-ui/leads',
-  leadDetail: (sourceLeadId: string) => `/admin-ui/leads/${encodeURIComponent(sourceLeadId)}`,
+  persons: '/admin-ui/persons',
+  personDetail: (sourcePersonId: string) => `/admin-ui/persons/${encodeURIComponent(sourcePersonId)}`,
   workflows: '/admin-ui/workflows',
   workflowDetail: (key: string) => `/admin-ui/workflows/${encodeURIComponent(key)}`,
   workflowBuilderNew: '/admin-ui/workflows/new',
@@ -48,12 +48,12 @@ export const appNavItems: readonly NavItem[] = [
     matchPaths: [routes.processedCalls],
   },
   {
-    key: 'leads',
-    to: routes.leads,
-    railLabel: 'LD',
-    // Active on both the list (/admin-ui/leads) and detail
-    // (/admin-ui/leads/:sourceLeadId) routes.
-    matchPaths: [routes.leads],
+    key: 'persons',
+    to: routes.persons,
+    railLabel: 'PS',
+    // Active on both the list (/admin-ui/persons) and detail
+    // (/admin-ui/persons/:sourcePersonId) routes.
+    matchPaths: [routes.persons],
   },
   {
     key: 'workflows',

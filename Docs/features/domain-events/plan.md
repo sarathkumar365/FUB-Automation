@@ -1,10 +1,12 @@
 # Domain Events
 
+> **Changelog (2026-05-28):** Architecture review before starting Phase 2. Added two correctness pieces to §"The `events` table" — per-person upsert serialization (the diff-collapse invariant is not safe under the existing 2–4 thread async webhook pool without a pessimistic row lock) and after-commit dispatch (emission stays decoupled from consumption). The complementary durable-outbox poller is explicitly deferred to a Phase 4 decision and added to the Out-of-scope table. The Pre-Phase-2 rename's missing admin read-feed surface is tracked in [`phases.md`](./phases.md).
+
 A platform-level reframe: webhooks become **state-sync signals**; workflows subscribe to **domain events** the engine emits when state actually transitions or when something happens (a call, a note). The engine — not the webhook stream — is the source of truth for "what changed."
 
 This replaces the earlier draft at [`Docs/features/state-change-events/design.md`](../state-change-events/design.md), which framed the same problem as a layered set of patches over the existing webhook-as-trigger model. After deliberation we concluded the deeper move is a model change, not a patch stack.
 
-> **Naming note (2026-05-XX):** the canonical CRM-contact entity is `Person` (table `people`), not `Lead`. `Lead` is just one possible value of `person.stage`. Phase 1 was implemented under the older `Lead` naming; the Pre-Phase-2 rename pass (see [`phases.md`](./phases.md)) sweeps the code and docs over. This document is written in the post-rename vocabulary. Where the historical record matters (Phase 1's implementation log, field-observations, known-issues) the original `Lead` wording is preserved.
+> **Naming note (2026-05-XX):** the canonical CRM-contact entity is `Person` (table `persons`), not `Lead`. `Lead` is just one possible value of `person.stage`. Phase 1 was implemented under the older `Lead` naming; the Pre-Phase-2 rename pass (see [`phases.md`](./phases.md)) sweeps the code and docs over. This document is written in the post-rename vocabulary. Where the historical record matters (Phase 1's implementation log, field-observations, known-issues) the original `Lead` wording is preserved.
 
 ## Why this feature exists
 
@@ -41,7 +43,7 @@ The unified abstraction is `events` (or `domain_events`) — a single table with
 
 | # | Invariant | Mechanism |
 |---|---|---|
-| **I1** | Local `people` state authoritatively mirrors FUB for fields any workflow references | Webhook-driven upsert (existing — without the historical `isFubLeadPerson` filter; **all persons** are captured, workflows filter by `person.stage` in their trigger); workflow-creation-time validation that every field referenced in trigger filter / step expressions is captured |
+| **I1** | Local `persons` state authoritatively mirrors FUB for fields any workflow references | Webhook-driven upsert (existing — without the historical `isFubLeadPerson` filter; **all persons** are captured, workflows filter lead-only behaviour by `person.kind = "LEAD"`); workflow-creation-time validation that every field referenced in trigger filter / step expressions is captured |
 | **I2** | A domain event is emitted iff something meaningful happened (state diff, or append) | Diff at upsert for state entities (`person.created` on first insert, `person.state_changed` on subsequent diff); pass-through for append entities (`call.created`, `note.created`, `note.updated`, `note.deleted`) |
 | **I3** | Engine-originated writes do not produce phantom events | Local-state-first writes (update local before FUB call); `EngineWriteTracker` cache as race-window guard |
 | **I4** | At most one active run per `(workflow_key, source_person_id)` | Partial unique index, hard suppression; supersede semantics deferred |
@@ -54,7 +56,7 @@ flowchart TD
     A[FUB webhook arrives] --> B[WebhookIngressService\npersists to webhook_events]
     B --> C[WebhookEventProcessorService\nclaims and dispatches by event type]
 
-    C -->|peopleCreated/Updated| D[PersonUpsertService\nfetch FUB, upsert people,\ncapture previous_state]
+    C -->|peopleCreated/Updated| D[PersonUpsertService\nfetch FUB, upsert persons,\ncapture previous_state]
     C -->|callsCreated/Updated| E[processCall inline\nupsert processed_calls]
     C -->|notesCreated/Updated/Deleted| EN[processNoteDomainEvent\nno persistence; emit from payload]
 
@@ -95,11 +97,11 @@ The diagram is load-bearing. Anyone reading this doc later should be able to tra
 
 ## Architectural pieces
 
-### 1. `people.previous_state` column
+### 1. `persons.previous_state` column
 
-A JSONB column on `people` storing the entity's state from before the most recent upsert. Used at upsert time to compute the diff. Retention: keep last-known-previous only (one column, not a history table) — adequate for trigger evaluation; a future change-log table can be added if audit needs grow.
+A JSONB column on `persons` storing the entity's state from before the most recent upsert. Used at upsert time to compute the diff. Retention: keep last-known-previous only (one column, not a history table) — adequate for trigger evaluation; a future change-log table can be added if audit needs grow.
 
-(Phase 1 added this column under the older `leads.previous_state` name; the Pre-Phase-2 rename pass moves it to `people.previous_state`.)
+(Phase 1 added this column under the older `leads.previous_state` name; the Pre-Phase-2 rename pass moves it to `persons.previous_state`.)
 
 ### 2. The `events` table (domain events)
 
@@ -149,6 +151,10 @@ CREATE INDEX idx_events_entity ON events (entity_type, entity_id, created_at DES
 The set/sort treatment for arrays is deliberate: FUB clients sometimes reorder tags or contact methods without semantic intent. Naive `JsonNode.equals()` on the whole array would emit phantom events on re-ordering. Per-field strategy avoids that without losing legitimate changes.
 
 `source_system` is on the row from day one even though only `FUB` feeds it today — future CRM adapters slot in cleanly (closes the spirit of known issue #18).
+
+**Per-person serialization of the upsert** (load-bearing for collapse). Webhooks process on a 2–4 thread async pool ([`WebhookAsyncConfig.java`](../../../src/main/java/com/fuba/automation_engine/config/WebhookAsyncConfig.java)), so a FUB burst of N webhooks for the same person can run truly in parallel. If `PersonUpsertService.upsertFubPerson` reads with a plain finder, every parallel worker reads the same pre-burst state, every worker sees a non-empty diff, every worker emits — and the collapse invariant silently fails. The fix is a pessimistic row lock on the `persons` row (`@Lock(PESSIMISTIC_WRITE)` on a `findBySourceSystemAndSourcePersonIdForUpdate` finder). Different persons still process fully in parallel; only same-person upserts serialize. Phase 2 deliverable 5a builds this; it is a correctness prerequisite for the headline "3 webhooks → 1 event" claim, not an optimization.
+
+**Emit in-transaction, dispatch after commit.** `DomainEventEmitter` inserts the events row inside the caller's write transaction (atomic with the state change and `previous_state` update that produced it), and registers an after-commit hook (`TransactionSynchronizationManager.registerSynchronization(...)`) that invokes `DomainEventDispatcher.dispatch(...)` only once the transaction commits. Dispatching inline inside the write transaction would extend the `persons` row-lock hold across listener work and, once Phase 4 wires `WorkflowTriggerRouter` as a listener, drag workflow planning and run-row INSERTs into the upsert transaction — the wrong default. After-commit dispatch keeps emission and consumption decoupled while preserving durability: the event row is committed before any listener runs, so a listener failure cannot lose the event (it has already been recorded). The complementary durable-poller piece (crash recovery for the commit-vs-dispatch window) is deferred to Phase 4 — see the Out-of-scope table.
 
 ### 3. Trigger schema (new)
 
@@ -270,7 +276,7 @@ This is a deliberate platform choice for flexibility. It carries a real risk: a 
 
 The workflow validator (called at `POST /admin/workflows` and `PUT`) gains field-reference validation:
 
-- Every `change.<field>` reference must resolve against a field captured in `people.previous_state` / `people.person_details` (added in Phase 4 when `change.*` enters the scope vocabulary)
+- Every `change.<field>` reference must resolve against a field captured in `persons.previous_state` / `persons.person_details` (added in Phase 4 when `change.*` enters the scope vocabulary)
 - Every `person.<field>` reference must resolve against a field captured in the Person snapshot (live since Phase 1; renamed from `lead.*` in the Pre-Phase-2 pass)
 - Every `event.*` reference must be valid for the declared `event_kind`
 
@@ -286,7 +292,7 @@ These are deliberately deferred, not forgotten. Each will land as its own change
 | **Action-step freshness gate** (re-read assignedUserId immediately before reassigning) | Only justified by the supersede case, which is deferred. We trust local state for the single-transition case. |
 | **5-min lookback buffer narrowing** | Once Phase 4 lands and over-fires stop reaching `wait_and_check_communication`, the buffer's "absorb agent over-fire" job disappears. Should be narrowed back to its true purpose (calls-before-claim race). Trivial to do; deferred to a follow-up that touches the step's config. |
 | **FUB-to-local reconciliation / catch-up** | If FUB stops sending webhooks the engine has no recovery path. Whole system already relies on FUB to keep sending; not regressing. Out of scope; address if/when observed. |
-| **Stale-assignment guard** (lead 19255 case — prior real conversation outside buffer window) | Product concern, not engine bug. Workflow author should add a `person.lastCallAt` predicate; engine should expose the data. |
+| **Stale-assignment guard** (person 19255 case — prior real conversation outside buffer window) | Product concern, not engine bug. Workflow author should add a `person.lastCallAt` predicate; engine should expose the data. |
 | **30-min reassign threshold tuning** | Product, not platform. |
 | **`change.source` exclusion default reconsidered** | If a second workflow exposes the opt-in pattern as error-prone, revisit. |
 | **In-flight run drain protocol** at Phase 4 deploy | App is in dev phase; not worth building a drain protocol yet. |
@@ -296,6 +302,7 @@ These are deliberately deferred, not forgotten. Each will land as its own change
 | **`notes` table persistence** + on-demand FUB note fetch (`/v1/notes/{id}`) | Phase 2 emits `note.created/updated/deleted` events from the webhook payload only. If a workflow needs note body content, add a `NoteRepository` + fetch path then. |
 | **Replay harness extension to all event kinds** | Phase 0 ships harness for person events; extend incrementally as new event kinds are added. |
 | **Redis-backed `EngineWriteTracker`** | Interface ready; swap when Redis lands. |
+| **Durable outbox poller for `events`** (a `dispatched` flag + scheduled job that picks up un-dispatched rows after a crash) | Phase 2 ships the decoupling seam (in-tx insert + after-commit dispatch) but not the durability piece. No event consumers exist until Phase 4, and the app is not deployed anywhere, so the crash-between-commit-and-dispatch window carries no operational risk today. Cleanly additive — no rewrites of emission code needed to add it later. **Revisit at Phase 4** once `WorkflowTriggerRouter` actually consumes events; decide then whether the in-memory dispatcher's loss-on-crash semantics are tolerable. |
 | **Time-sensitive step expiry (known issue #11)** | Backlog-driven; not observed under current volume. |
 
 ## Risks and mid-flight detection
@@ -303,7 +310,7 @@ These are deliberately deferred, not forgotten. Each will land as its own change
 | Risk | Detection signal during build |
 |---|---|
 | Field-coverage gap silently breaks a workflow | Validation at workflow creation should refuse to save; replay harness (Phase 0) catches missed events in test data |
-| Engine local-state-first compensation logic has a bug → local drifts from FUB | Periodic diff between `people.person_details` and a live FUB fetch on a small sample; surface drift as a metric |
+| Engine local-state-first compensation logic has a bug → local drifts from FUB | Periodic diff between `persons.person_details` and a live FUB fetch on a small sample; surface drift as a metric |
 | `EngineWriteTracker` TTL too short → echo arrives after eviction → phantom event | Tracker metrics: tracker hits vs misses on echo windows; tune TTL if miss rate rises |
 | Partial unique index race on planner | Smoke test under simulated FUB-burst load (Phase 0 harness) |
 | New trigger schema breaks existing workflow | Hard-cut migration of `agent_followup_enforcement` and explicit validation that no other workflow uses old shape |
@@ -332,7 +339,7 @@ Per phase (see [phases.md](phases.md)) but at the feature level:
 - Existing engine entry points referenced in the lifecycle diagram:
   - [WebhookIngressService.java](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java)
   - [WebhookEventProcessorService.java](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java)
-  - `PersonUpsertService.java` (post-rename; currently `LeadUpsertService.java` in `service/lead/`)
+  - [PersonUpsertService.java](../../../src/main/java/com/fuba/automation_engine/service/person/PersonUpsertService.java)
   - [FubWebhookTriggerType.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)
   - [WorkflowExecutionManager.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java)
   - [WorkflowExecutionDueWorker.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionDueWorker.java)

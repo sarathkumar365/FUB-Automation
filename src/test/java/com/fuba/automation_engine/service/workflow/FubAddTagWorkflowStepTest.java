@@ -30,7 +30,7 @@ class FubAddTagWorkflowStepTest {
     @Test
     void shouldExecuteAddTagSuccessfully() {
         FubAddTagWorkflowStep step = new FubAddTagWorkflowStep(followUpBossClient, fubCallHelper);
-        StepExecutionContext context = context(Map.of("tagName", "VIP Buyer"), Map.of("tagName", "Hot Lead"));
+        StepExecutionContext context = context(Map.of("tagName", "VIP Buyer"), Map.of("tagName", "Hot Person"));
         when(fubCallHelper.parsePersonId("123")).thenReturn(123L);
         when(followUpBossClient.addTag(123L, "VIP Buyer")).thenReturn(ActionExecutionResult.ok());
 

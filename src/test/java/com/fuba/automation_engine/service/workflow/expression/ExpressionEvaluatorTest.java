@@ -20,24 +20,24 @@ class ExpressionEvaluatorTest {
     }
 
     private ExpressionScope buildScope(Map<String, Object> triggerPayload,
-                                       String sourceLeadId,
+                                       String sourcePersonId,
                                        Map<String, Map<String, Object>> stepOutputs) {
-        return buildScope(triggerPayload, sourceLeadId, Map.of(), stepOutputs);
+        return buildScope(triggerPayload, sourcePersonId, Map.of(), stepOutputs);
     }
 
     private ExpressionScope buildScope(Map<String, Object> triggerPayload,
-                                       String sourceLeadId,
-                                       Map<String, Object> lead,
+                                       String sourcePersonId,
+                                       Map<String, Object> person,
                                        Map<String, Map<String, Object>> stepOutputs) {
-        return buildScope(triggerPayload, sourceLeadId, lead, Map.of(), stepOutputs);
+        return buildScope(triggerPayload, sourcePersonId, person, Map.of(), stepOutputs);
     }
 
     private ExpressionScope buildScope(Map<String, Object> triggerPayload,
-                                       String sourceLeadId,
-                                       Map<String, Object> lead,
+                                       String sourcePersonId,
+                                       Map<String, Object> person,
                                        Map<String, Object> now,
                                        Map<String, Map<String, Object>> stepOutputs) {
-        RunContext runContext = new RunContext(null, triggerPayload, sourceLeadId, lead, now, stepOutputs);
+        RunContext runContext = new RunContext(null, triggerPayload, sourcePersonId, person, now, stepOutputs);
         return ExpressionScope.from(runContext);
     }
 
@@ -82,10 +82,10 @@ class ExpressionEvaluatorTest {
     }
 
     @Test
-    void shouldResolveSourceLeadId() {
+    void shouldResolveSourcePersonId() {
         ExpressionScope scope = buildScope(Map.of(), "7890", Map.of());
 
-        Object result = evaluator.resolveTemplate("{{ sourceLeadId }}", scope);
+        Object result = evaluator.resolveTemplate("{{ sourcePersonId }}", scope);
         assertEquals("7890", result);
     }
 
@@ -144,67 +144,67 @@ class ExpressionEvaluatorTest {
     @Test
     void shouldEvaluateStringComparisonPredicate() {
         ExpressionScope scope = buildScope(
-                Map.of("lead", Map.of("source", "Zillow")), "123", Map.of());
+                Map.of("person", Map.of("source", "Zillow")), "123", Map.of());
 
-        Object result = evaluator.evaluatePredicate("event.payload.lead.source = 'Zillow'", scope);
+        Object result = evaluator.evaluatePredicate("event.payload.person.source = 'Zillow'", scope);
         assertTrue((Boolean) result);
     }
 
-    // ---- Phase 1 (agent-followup-enforcement): lead.* namespace ----
+    // ---- Phase 1 (agent-followup-enforcement): person.* namespace ----
 
     @Test
-    void shouldResolveLeadAssignedUserIdFromScope() {
-        Map<String, Object> lead = Map.of(
+    void shouldResolvePersonAssignedUserIdFromScope() {
+        Map<String, Object> person = Map.of(
                 "assignedUserId", 30,
                 "assignedTo", "ISA AuraKeyRealty");
-        ExpressionScope scope = buildScope(Map.of(), "18399", lead, Map.of());
+        ExpressionScope scope = buildScope(Map.of(), "18399", person, Map.of());
 
-        Object result = evaluator.resolveTemplate("{{ lead.assignedUserId }}", scope);
+        Object result = evaluator.resolveTemplate("{{ person.assignedUserId }}", scope);
         assertInstanceOf(Number.class, result);
         assertEquals(30, ((Number) result).intValue());
     }
 
     @Test
-    void shouldResolveLeadAssignedToDisplayName() {
-        Map<String, Object> lead = Map.of(
+    void shouldResolvePersonAssignedToDisplayName() {
+        Map<String, Object> person = Map.of(
                 "assignedUserId", 30,
                 "assignedTo", "ISA AuraKeyRealty");
-        ExpressionScope scope = buildScope(Map.of(), "18399", lead, Map.of());
+        ExpressionScope scope = buildScope(Map.of(), "18399", person, Map.of());
 
-        Object result = evaluator.resolveTemplate("{{ lead.assignedTo }}", scope);
+        Object result = evaluator.resolveTemplate("{{ person.assignedTo }}", scope);
         assertEquals("ISA AuraKeyRealty", result);
     }
 
     @Test
-    void shouldResolveNestedLeadFields() {
-        Map<String, Object> lead = Map.of(
+    void shouldResolveNestedPersonFields() {
+        Map<String, Object> person = Map.of(
                 "phones", java.util.List.of(Map.of("value", "9059225917", "type", "mobile")));
-        ExpressionScope scope = buildScope(Map.of(), "18399", lead, Map.of());
+        ExpressionScope scope = buildScope(Map.of(), "18399", person, Map.of());
 
-        Object result = evaluator.resolveTemplate("{{ lead.phones[0].value }}", scope);
+        Object result = evaluator.resolveTemplate("{{ person.phones[0].value }}", scope);
         assertEquals("9059225917", result);
     }
 
     @Test
-    void shouldReturnNullForMissingLeadFieldWithoutThrowing() {
+    void shouldReturnNullForMissingPersonFieldWithoutThrowing() {
         ExpressionScope scope = buildScope(Map.of(), "18399", Map.of(), Map.of());
 
-        Object result = evaluator.resolveTemplate("{{ lead.assignedUserId }}", scope);
+        Object result = evaluator.resolveTemplate("{{ person.assignedUserId }}", scope);
         assertNull(result);
     }
 
     @Test
-    void shouldGracefullyHandleAbsentLeadSnapshotInBranchPredicate() {
-        // Mirrors the branch_on_field use case: even when lead is empty, a
-        // predicate that references lead.* should evaluate to a null/false-y
+    void shouldGracefullyHandleAbsentPersonSnapshotInBranchPredicate() {
+        // Mirrors the branch_on_field use case: even when person is empty, a
+        // predicate that references person.* should evaluate to a null/false-y
         // value rather than throwing.
         ExpressionScope scope = buildScope(Map.of(), "18399", Map.of(), Map.of());
 
-        Object result = evaluator.evaluatePredicate("lead.assignedUserId > 0", scope);
+        Object result = evaluator.evaluatePredicate("person.assignedUserId > 0", scope);
         // dashjoin/jsonata returns null for missing-path comparisons; either null
         // or Boolean.FALSE is acceptable here — we only require no exception.
         assertTrue(result == null || Boolean.FALSE.equals(result),
-                "Missing lead field comparison should be null/false, got: " + result);
+                "Missing person field comparison should be null/false, got: " + result);
     }
 
     // ---- Phase 3 (agent-followup-enforcement): now.* namespace ----

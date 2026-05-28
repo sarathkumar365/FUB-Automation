@@ -41,10 +41,10 @@ class WorkflowTriggerRouterTest {
         when(triggerType.matches(any(TriggerMatchContext.class))).thenReturn(true);
         when(triggerType.extractEntities(any(TriggerMatchContext.class)))
                 .thenReturn(List.of(
-                        new EntityRef("lead", "1"),
-                        new EntityRef("lead", "2"),
-                        new EntityRef("lead", "3"),
-                        new EntityRef("lead", "4")));
+                        new EntityRef("person", "1"),
+                        new EntityRef("person", "2"),
+                        new EntityRef("person", "3"),
+                        new EntityRef("person", "4")));
         when(executionManager.plan(any(WorkflowPlanRequest.class)))
                 .thenReturn(new WorkflowPlanningResult(WorkflowPlanningResult.PlanningStatus.PLANNED, 1L, null));
 
@@ -76,11 +76,11 @@ class WorkflowTriggerRouterTest {
         List<WorkflowPlanRequest> requests = requestCaptor.getAllValues();
 
         assertEquals("WF_EARLY", requests.get(0).workflowKey());
-        assertEquals("1", requests.get(0).sourceLeadId());
+        assertEquals("1", requests.get(0).sourcePersonId());
         assertEquals("WF_EARLY", requests.get(1).workflowKey());
-        assertEquals("2", requests.get(1).sourceLeadId());
+        assertEquals("2", requests.get(1).sourcePersonId());
         assertEquals("WF_EARLY", requests.get(2).workflowKey());
-        assertEquals("3", requests.get(2).sourceLeadId());
+        assertEquals("3", requests.get(2).sourcePersonId());
     }
 
     @Test
@@ -135,7 +135,7 @@ class WorkflowTriggerRouterTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,

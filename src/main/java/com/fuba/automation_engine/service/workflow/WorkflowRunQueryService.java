@@ -118,7 +118,7 @@ public class WorkflowRunQueryService {
                 run.getCreatedAt(),
                 toRunCompletedAt(run),
                 run.getTriggerPayload(),
-                run.getSourceLeadId(),
+                run.getSourcePersonId(),
                 run.getEventId(),
                 steps);
         return new RunDetailResult(RunDetailStatus.SUCCESS, detail, null);

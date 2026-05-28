@@ -15,7 +15,7 @@ correctness fixes were made during the consolidation:
 
 1. **`AdminUiController` becomes a single `/admin-ui/**` catch-all** instead
    of an enumerated route list. The old list was missing `/admin-ui/login`,
-   `/admin-ui/leads`, and `/admin-ui/leads/:sourceLeadId` (added by later
+   `/admin-ui/persons`, and `/admin-ui/persons/:sourcePersonId` (added by later
    features), so deep-link reloads on those routes would have 404'd in
    production.
 2. **`application-hosted.properties` is dropped.** The newer
@@ -76,7 +76,7 @@ flowchart TB
     G -->|GET /assets/abc.js| I[Spring static handler<br/>serves the file from static/assets/]:::static
     G -->|GET /admin-ui<br/>or /admin-ui/anything| J[AdminUiController.forwardToIndex<br/>controller/AdminUiController.java<br/>returns forward:/index.html]:::rt
     G -->|POST /admin/auth/login| K[AdminAuthController.login<br/>controller/AdminAuthController.java]:::rt
-    G -->|GET /admin/leads etc.| L[Spring SecurityFilterChain<br/>JwtAuthenticationFilter then admin controllers]:::rt
+    G -->|GET /admin/persons etc.| L[Spring SecurityFilterChain<br/>JwtAuthenticationFilter then admin controllers]:::rt
     G -->|POST /webhooks/fub| M[WebhookIngressController.receiveWebhook<br/>controller/WebhookIngressController.java]:::rt
     G -->|GET /health| N[HealthController.health<br/>controller/HealthController.java]:::rt
 
@@ -88,7 +88,7 @@ The "magic" piece is `AdminUiController.forwardToIndex`: any path under
 `/admin-ui` that isn't a static file gets forwarded to `/index.html`, which
 the Spring static handler then serves. React Router reads
 `window.location.pathname` and renders the correct view. Without this,
-reloading `/admin-ui/leads/42` would hit Spring with no handler and return
+reloading `/admin-ui/persons/42` would hit Spring with no handler and return
 404.
 
 ## Critical files
@@ -134,8 +134,8 @@ docker run --rm -p 8080:8080 \
 # 4. Smoke checks on the running container
 curl -i http://localhost:8080/health                                # expect 200
 curl -i http://localhost:8080/admin-ui                              # expect 200, HTML body (forwarded)
-curl -i http://localhost:8080/admin-ui/leads/42                     # expect 200, HTML body (deep-link refresh works)
-curl -i http://localhost:8080/admin/leads                           # expect 401 (auth required, not forwarded)
+curl -i http://localhost:8080/admin-ui/persons/42                   # expect 200, HTML body (deep-link refresh works)
+curl -i http://localhost:8080/admin/persons                         # expect 401 (auth required, not forwarded)
 ```
 
 After Railway deploy, repeat the smoke checks against the deployed URL,

@@ -12,13 +12,13 @@ public interface ProcessedCallRepository
 
     Optional<ProcessedCallEntity> findByCallId(Long callId);
 
-    List<ProcessedCallEntity> findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
-            String sourceLeadId,
+    List<ProcessedCallEntity> findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+            String sourcePersonId,
             OffsetDateTime since);
 
     /**
-     * Top 10 most recent calls for a lead, no time bound. Used by the
-     * leads detail endpoint's timeline aggregation.
+     * Top 10 most recent calls for a person, no time bound. Used by the
+     * persons detail endpoint's timeline aggregation.
      */
-    List<ProcessedCallEntity> findTop10BySourceLeadIdOrderByCallStartedAtDescIdDesc(String sourceLeadId);
+    List<ProcessedCallEntity> findTop10BySourcePersonIdOrderByCallStartedAtDescIdDesc(String sourcePersonId);
 }

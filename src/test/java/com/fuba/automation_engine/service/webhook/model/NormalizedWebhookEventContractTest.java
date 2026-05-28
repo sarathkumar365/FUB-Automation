@@ -31,7 +31,7 @@ class NormalizedWebhookEventContractTest {
                 "peopleCreated",
                 occurredAt,
                 "123",
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 providerMeta,
                 WebhookEventStatus.RECEIVED,
@@ -44,8 +44,8 @@ class NormalizedWebhookEventContractTest {
         assertEquals("evt-1", event.eventId());
         assertEquals("peopleCreated", event.sourceEventType());
         assertEquals(occurredAt, event.occurredAt());
-        assertEquals("123", event.sourceLeadId());
-        assertEquals(NormalizedDomain.LEAD, event.normalizedDomain());
+        assertEquals("123", event.sourcePersonId());
+        assertEquals(NormalizedDomain.PERSON, event.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, event.normalizedAction());
         assertEquals("/v1/people/123", event.providerMeta().get("uri").asText());
         assertEquals(WebhookEventStatus.RECEIVED, event.status());
@@ -77,7 +77,7 @@ class NormalizedWebhookEventContractTest {
 
         assertNull(event.eventId());
         assertNull(event.occurredAt());
-        assertNull(event.sourceLeadId());
+        assertNull(event.sourcePersonId());
         assertNull(event.providerMeta());
         assertNull(event.payloadHash());
     }
@@ -90,11 +90,11 @@ class NormalizedWebhookEventContractTest {
      * assumed source value can never legally re-appear.
      */
     @Test
-    void normalizedDomainShouldHaveLeadAndNotAssignment() {
+    void normalizedDomainShouldHavePersonAndNotAssignment() {
         assertTrue(
                 Arrays.stream(NormalizedDomain.values())
-                        .anyMatch(d -> d == NormalizedDomain.LEAD),
-                "NormalizedDomain.LEAD must be present (CRM-agnostic name for lead/contact events)");
+                        .anyMatch(d -> d == NormalizedDomain.PERSON),
+                "NormalizedDomain.PERSON must be present (CRM-agnostic name for person/contact events)");
         assertFalse(
                 Arrays.stream(NormalizedDomain.values())
                         .anyMatch(d -> d.name().equals("ASSIGNMENT")),

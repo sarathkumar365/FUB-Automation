@@ -1,0 +1,71 @@
+{
+    "name": "person-20207-triple-run-2026-05-11",
+    "events": [
+        {
+            "event": "peopleCreated",
+            "deltaMs": 0,
+            "eventId": "e8d4d934-99a6-4e38-9c15-69bfa37acbed",
+            "resourceIds": [
+                20207
+            ]
+        },
+        {
+            "event": "peopleUpdated",
+            "deltaMs": 451,
+            "eventId": "150359ec-44af-4873-af7c-60db5d3d497e",
+            "resourceIds": [
+                20207
+            ]
+        }
+    ],
+    "expected": {
+        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1.",
+        "minWebhookEvents": 2,
+        "minWorkflowRunsForPerson": {
+            "20207": 1
+        }
+    },
+    "description": "Triple-run (2026-05-11): three workflow runs on lead 20207 within 51 minutes. Run 165 reassigned the lead to ISA; the echo at 14:56:08 spawned run 168; an unrelated peopleUpdated at 15:16:55 spawned run 169. Three nudges and one reassignment posted on a single lead in the middle of an 11m44s substantive agent call.",
+    "drainTimeoutMs": 30000,
+    "personSnapshots": {
+        "20207": {
+            "name": "Alex Rios",
+            "tags": [
+                "buyer",
+                "Dhesi.realestate Connected Page",
+                "Mississauga Detached (v2)"
+            ],
+            "type": "Buyer",
+            "stage": "Lead",
+            "emails": [
+                {
+                    "type": "home",
+                    "value": "riosalex2011@hotmail.com",
+                    "status": "Valid",
+                    "isPrimary": 1
+                }
+            ],
+            "phones": [
+                {
+                    "type": "mobile",
+                    "value": "2263391013",
+                    "status": "Valid",
+                    "isPrimary": 1,
+                    "isLandline": false,
+                    "normalized": "2263391013",
+                    "isOnboardingNumber": false
+                }
+            ],
+            "source": "facebook",
+            "claimed": true,
+            "stageId": 2,
+            "lastName": "Rios",
+            "contacted": 0,
+            "firstName": "Alex",
+            "assignedTo": "Arjun Singh Ahluwalia",
+            "assignedPondId": null,
+            "assignedUserId": 31,
+            "assignedLenderId": null
+        }
+    }
+}

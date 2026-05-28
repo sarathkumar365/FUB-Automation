@@ -12,8 +12,8 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Tests for {@link WorkflowGraphValidator}'s Phase 1 (domain-events) addition:
- * workflow-creation-time validation that every {@code lead.<field>} reference
- * in node config resolves against {@code LeadUpsertService.SNAPSHOT_FIELDS}.
+ * workflow-creation-time validation that every {@code person.<field>} reference
+ * in node config resolves against {@code PersonUpsertService.SNAPSHOT_FIELDS}.
  *
  * <p>The existing {@link WorkflowGraphValidatorTest} covers structural validation
  * (schema, nodes, transitions, cycles). This file is scoped specifically to the
@@ -40,49 +40,49 @@ class WorkflowGraphValidatorFieldReferenceTest {
     }
 
     @Test
-    void acceptsKnownLeadFieldInJsonataExpression() {
+    void acceptsKnownPersonFieldInJsonataExpression() {
         Map<String, Object> graph = graphWithConfig(Map.of(
-                "expression", "$boolean(lead.assignedUserId)"));
+                "expression", "$boolean(person.assignedUserId)"));
 
         GraphValidationResult result = validator.validate(graph);
         assertTrue(result.valid(), "Expected valid; errors: " + result.errors());
     }
 
     @Test
-    void acceptsKnownLeadFieldInTemplate() {
+    void acceptsKnownPersonFieldInTemplate() {
         Map<String, Object> graph = graphWithConfig(Map.of(
-                "message", "Hi {{ lead.firstName }}, please call your lead."));
+                "message", "Hi {{ person.firstName }}, please call your person."));
 
         GraphValidationResult result = validator.validate(graph);
         assertTrue(result.valid(), "Expected valid; errors: " + result.errors());
     }
 
     @Test
-    void rejectsUnknownLeadFieldInExpression() {
+    void rejectsUnknownPersonFieldInExpression() {
         Map<String, Object> graph = graphWithConfig(Map.of(
-                "expression", "$boolean(lead.fakeField)"));
+                "expression", "$boolean(person.fakeField)"));
 
         GraphValidationResult result = validator.validate(graph);
-        assertFalse(result.valid(), "Expected invalid for lead.fakeField");
+        assertFalse(result.valid(), "Expected invalid for person.fakeField");
         assertTrue(
-                result.errors().stream().anyMatch(e -> e.contains("'lead.fakeField'") && e.contains("node1")),
+                result.errors().stream().anyMatch(e -> e.contains("'person.fakeField'") && e.contains("node1")),
                 "Expected error message to cite nodeId and field; got: " + result.errors());
     }
 
     @Test
-    void rejectsUnknownLeadFieldInTemplate() {
+    void rejectsUnknownPersonFieldInTemplate() {
         Map<String, Object> graph = graphWithConfig(Map.of(
-                "message", "Owner: {{ lead.notARealField }}"));
+                "message", "Owner: {{ person.notARealField }}"));
 
         GraphValidationResult result = validator.validate(graph);
-        assertFalse(result.valid(), "Expected invalid for lead.notARealField");
+        assertFalse(result.valid(), "Expected invalid for person.notARealField");
         assertTrue(
-                result.errors().stream().anyMatch(e -> e.contains("'lead.notARealField'")),
+                result.errors().stream().anyMatch(e -> e.contains("'person.notARealField'")),
                 "Expected error to cite the unknown field; got: " + result.errors());
     }
 
     @Test
-    void acceptsWorkflowWithNoLeadReferences() {
+    void acceptsWorkflowWithNoPersonReferences() {
         Map<String, Object> graph = graphWithConfig(Map.of(
                 "expression", "true",
                 "resultMapping", Map.of("true", "DONE")));
@@ -93,20 +93,20 @@ class WorkflowGraphValidatorFieldReferenceTest {
 
     @Test
     void doesNotFalsePositiveOnSimilarSubstrings() {
-        // 'mislead' contains 'lead' but is not a `lead.X` reference.
-        // 'plead.something' contains 'lead.' but with a non-word-boundary prefix.
+        // 'personnel' contains 'person' but has no '.' after it.
+        // 'salesperson.something' contains 'person.' but with a non-word-boundary prefix.
         Map<String, Object> graph = graphWithConfig(Map.of(
-                "message", "Do not mislead the agent or plead.something"));
+                "message", "Do not overwhelm personnel or salesperson.something"));
 
         GraphValidationResult result = validator.validate(graph);
         assertTrue(result.valid(), "Expected valid; errors: " + result.errors());
     }
 
     @Test
-    void treatsNestedLeadReferenceAsTopLevelHead() {
-        // `lead.assignedUserId.foo` captures 'assignedUserId' (top-level, known) → passes.
+    void treatsNestedPersonReferenceAsTopLevelHead() {
+        // `person.assignedUserId.foo` captures 'assignedUserId' (top-level, known) → passes.
         Map<String, Object> graph = graphWithConfig(Map.of(
-                "expression", "lead.assignedUserId.foo"));
+                "expression", "person.assignedUserId.foo"));
 
         GraphValidationResult result = validator.validate(graph);
         assertTrue(result.valid(), "Expected valid; errors: " + result.errors());
@@ -115,8 +115,12 @@ class WorkflowGraphValidatorFieldReferenceTest {
     @Test
     void agentFollowupEnforcementWorkflowPassesValidation() {
         // Regression: the production workflow that drove this whole feature must pass.
-        // Same field references as Docs/features/agent-followup-enforcement/workflow.json
-        // (lead.assignedUserId, lead.assignedTo).
+        // The expression below mirrors the EXACT gate string in
+        // Docs/features/agent-followup-enforcement/workflow.json so that any future
+        // change which drops `person.kind` from PersonUpsertService.capturedFieldNames()
+        // (or otherwise breaks `person.kind` / `person.assignedUserId` / `person.assignedTo`
+        // recognition) fails this test. If you change the production workflow's expression,
+        // update this string in lockstep.
         Map<String, Object> graph = Map.of(
                 "schemaVersion", 1,
                 "entryNode", "gate_assigned",
@@ -125,16 +129,17 @@ class WorkflowGraphValidatorFieldReferenceTest {
                                 "id", "gate_assigned",
                                 "type", "any_config_step",
                                 "config", Map.of(
-                                        "expression", "$boolean(lead.assignedUserId)",
+                                        "expression",
+                                        "$boolean(person.assignedUserId) and person.kind = \"LEAD\"",
                                         "resultMapping", Map.of("true", "DONE")),
                                 "transitions", Map.of("DONE", List.of("nudge_note"))),
                         Map.of(
                                 "id", "nudge_note",
                                 "type", "any_config_step",
                                 "config", Map.of(
-                                        "mentionUserIds", List.of("{{ lead.assignedUserId }}"),
-                                        "mentionUserNames", List.of("{{ lead.assignedTo }}"),
-                                        "message", "Please call your lead."),
+                                        "mentionUserIds", List.of("{{ person.assignedUserId }}"),
+                                        "mentionUserNames", List.of("{{ person.assignedTo }}"),
+                                        "message", "Please call your person."),
                                 "transitions", Map.of("DONE", Map.of("terminal", "COMPLETED")))));
 
         GraphValidationResult result = validator.validate(graph);
@@ -144,12 +149,12 @@ class WorkflowGraphValidatorFieldReferenceTest {
     @Test
     void collectsMultipleUnknownFieldsAcrossOneNode() {
         Map<String, Object> graph = graphWithConfig(Map.of(
-                "expression", "lead.foo + lead.bar"));
+                "expression", "person.foo + person.bar"));
 
         GraphValidationResult result = validator.validate(graph);
         assertFalse(result.valid());
         long unknownErrorCount = result.errors().stream()
-                .filter(e -> e.contains("unknown lead field"))
+                .filter(e -> e.contains("unknown person field"))
                 .count();
         // 'foo' and 'bar' are both unknown — expect both reported.
         assertTrue(unknownErrorCount >= 2,

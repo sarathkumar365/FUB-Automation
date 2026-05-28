@@ -176,7 +176,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "LEAD",
+                      "eventDomain": "PERSON",
                       "eventAction": "UPDATED"
                     }
                   }
@@ -205,7 +205,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "LEAD",
+                      "eventDomain": "PERSON",
                       "eventAction": "UPDATED"
                     }
                   }
@@ -226,7 +226,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "LEAD",
+                      "eventDomain": "PERSON",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }
@@ -375,7 +375,7 @@ class WorkflowAdminApiIntegrationTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "LEAD",
+                      "eventDomain": "PERSON",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }
@@ -457,12 +457,12 @@ class WorkflowAdminApiIntegrationTest {
                 "filter", filter);
     }
 
-    private NormalizedWebhookEvent webhook(String eventId, String channel, long leadId) {
+    private NormalizedWebhookEvent webhook(String eventId, String channel, long personId) {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("eventType", "peopleUpdated");
         payload.put("channel", channel);
         payload.put("fallbackUserId", 77);
-        payload.putArray("resourceIds").add(leadId);
+        payload.putArray("resourceIds").add(personId);
 
         return new NormalizedWebhookEvent(
                 WebhookSource.FUB,
@@ -470,7 +470,7 @@ class WorkflowAdminApiIntegrationTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,

@@ -6,6 +6,8 @@ This agent acts as a pair programmer for this repository and supports:
 - Refactoring and test improvements
 - Documentation and architecture guidance
 
+Use this file together with `developer-rules.md`, `Docs/README.md`, and the `Docs/deep-dive/` files before making changes.
+
 ## Index
 
 Jump to the section that governs the work in front of you. If a task touches multiple sections, the more specific section wins.
@@ -43,6 +45,14 @@ Jump to the section that governs the work in front of you. If a task touches mul
 - **System-wide implementation deep-dive:** `Docs/deep-dive/` — 12 documents covering every backend flow, configuration value, database schema, and design decision. Start with `Docs/deep-dive/README.md` for the index and reading order. Read these before making changes to understand how the system works end-to-end.
 - UI implementation plan source of truth: `ui/Docs/ui-0.1-plan.md`
 - UI style source of truth: `Docs/ui-style-guide-v1.md` + `Docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
+
+## Workspace quick commands
+- Backend: `./mvnw spring-boot:run`
+- Backend tests: `./mvnw clean test`
+- Frontend dev: `cd ui && npm run dev`
+- Frontend tests: `cd ui && npm test`
+- Playwright smoke: `cd ui && npm run test:e2e`
+- Full local dev helper: `./scripts/run-app.sh dev`
 
 ## Delivery style and workflow
 - Make only small, reviewable, incremental changes.

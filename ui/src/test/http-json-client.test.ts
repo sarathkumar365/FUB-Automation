@@ -61,7 +61,7 @@ describe('HttpJsonClient', () => {
     })
     mockFetch.mockResolvedValue(new Response(JSON.stringify({ ok: true }), { status: 200 }))
 
-    await new HttpJsonClient().get('/admin/leads', z.object({ ok: z.boolean() }))
+    await new HttpJsonClient().get('/admin/persons', z.object({ ok: z.boolean() }))
 
     const init = mockFetch.mock.calls[0][1] as RequestInit
     const headers = init.headers as Record<string, string>
@@ -117,13 +117,13 @@ describe('HttpJsonClient', () => {
     window.addEventListener(ADMIN_UNAUTHORIZED_EVENT, listener)
 
     await expect(
-      new HttpJsonClient().get('/admin/leads', z.object({ ok: z.boolean() })),
+      new HttpJsonClient().get('/admin/persons', z.object({ ok: z.boolean() })),
     ).rejects.toBeInstanceOf(HttpRequestError)
 
     expect(getToken()).toBeNull()
     expect(listener).toHaveBeenCalledTimes(1)
     const event = listener.mock.calls[0][0] as CustomEvent<{ path: string }>
-    expect(event.detail.path).toBe('/admin/leads')
+    expect(event.detail.path).toBe('/admin/persons')
 
     window.removeEventListener(ADMIN_UNAUTHORIZED_EVENT, listener)
   })

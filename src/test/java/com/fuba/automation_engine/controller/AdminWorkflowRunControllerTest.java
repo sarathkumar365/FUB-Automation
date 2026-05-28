@@ -179,7 +179,7 @@ class AdminWorkflowRunControllerTest {
                 OffsetDateTime.parse("2026-04-15T12:00:00Z"),
                 OffsetDateTime.parse("2026-04-15T12:01:00Z"),
                 Map.of(),
-                "lead-1",
+                "person-1",
                 "evt-1",
                 List.of());
 

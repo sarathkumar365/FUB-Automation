@@ -275,7 +275,7 @@ describe('SceneInspectorPopover', () => {
         {
           id: 'n1',
           type: 'slack_notify',
-          config: { greeting: 'Hello {{ lead.name }}' },
+          config: { greeting: 'Hello {{ person.name }}' },
           transitions: {},
         },
       ],
@@ -290,7 +290,7 @@ describe('SceneInspectorPopover', () => {
         onClose={vi.fn()}
       />,
     )
-    const valueCell = screen.getByText('Hello {{ lead.name }}')
+    const valueCell = screen.getByText('Hello {{ person.name }}')
     expect(valueCell.className).toMatch(/font-mono/)
     // A copy button (distinct from the JsonViewer one, which isn't rendered here).
     expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()

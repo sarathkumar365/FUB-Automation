@@ -106,15 +106,15 @@ export function WorkflowRunDetailPage() {
           <MetadataRow label={uiText.workflowRuns.detailStartedAtLabel} value={formatNullableDate(workflowRun.startedAt)} />
           <MetadataRow label={uiText.workflowRuns.detailCompletedAtLabel} value={formatNullableDate(workflowRun.completedAt)} />
           <MetadataRow
-            label={uiText.workflowRuns.detailSourceLeadIdLabel}
+            label={uiText.workflowRuns.detailSourcePersonIdLabel}
             value={
-              workflowRun.sourceLeadId ? (
+              workflowRun.sourcePersonId ? (
                 <Link
                   className="font-mono underline"
-                  to={`${routes.leadDetail(workflowRun.sourceLeadId)}?backTo=${encodeURIComponent(routes.workflowRunDetail(workflowRun.id))}`}
-                  data-testid="workflow-run-source-lead-link"
+                  to={`${routes.personDetail(workflowRun.sourcePersonId)}?backTo=${encodeURIComponent(routes.workflowRunDetail(workflowRun.id))}`}
+                  data-testid="workflow-run-source-person-link"
                 >
-                  {workflowRun.sourceLeadId}
+                  {workflowRun.sourcePersonId}
                 </Link>
               ) : (
                 uiText.workflowRuns.missingValue

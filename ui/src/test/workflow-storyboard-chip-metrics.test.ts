@@ -26,7 +26,7 @@ describe('estimateChipWidth', () => {
   })
 
   it('never renders narrower than the raw text would require for long labels', () => {
-    const longLabel = 'communication_received → lead responded'
+    const longLabel = 'communication_received → person responded'
     const width = estimateChipWidth(longLabel, { minWidth: 60 })
     const naiveLowerBound = Math.ceil(longLabel.length * CHIP_CHAR_WIDTH + CHIP_PADDING_X)
     expect(width).toBeGreaterThanOrEqual(naiveLowerBound)

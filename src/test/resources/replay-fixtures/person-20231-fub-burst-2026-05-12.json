@@ -1,0 +1,56 @@
+{
+    "name": "person-20231-fub-burst-2026-05-12",
+    "events": [
+        {
+            "event": "peopleCreated",
+            "deltaMs": 0,
+            "eventId": "55b1403f-59c9-4d07-8c85-45967d1c4627",
+            "resourceIds": [
+                20231
+            ]
+        }
+    ],
+    "expected": {
+        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1.",
+        "minWebhookEvents": 1,
+        "minWorkflowRunsForPerson": {
+            "20231": 0
+        }
+    },
+    "description": "FUB-burst pattern (2026-05-12): 4 peopleUpdated webhooks within 16s on lead 20231. All terminated correctly per field-observations.md (no echoes because no mutations executed). Same shape as 20235 burst — distinct lead, different volume.",
+    "drainTimeoutMs": 30000,
+    "personSnapshots": {
+        "20231": {
+            "name": "Usman Agent",
+            "tags": [
+                "Real Estate Agent",
+                "Realtor"
+            ],
+            "type": "Buyer",
+            "stage": "Lead",
+            "emails": [
+            ],
+            "phones": [
+                {
+                    "type": "mobile",
+                    "value": "(647) 961-0875",
+                    "status": "Valid",
+                    "isPrimary": 1,
+                    "isLandline": false,
+                    "normalized": "6479610875",
+                    "isOnboardingNumber": false
+                }
+            ],
+            "source": "Listing",
+            "claimed": true,
+            "stageId": 2,
+            "lastName": "",
+            "contacted": 0,
+            "firstName": "Usman Agent",
+            "assignedTo": "Mandeep Dhesi",
+            "assignedPondId": null,
+            "assignedUserId": 1,
+            "assignedLenderId": null
+        }
+    }
+}

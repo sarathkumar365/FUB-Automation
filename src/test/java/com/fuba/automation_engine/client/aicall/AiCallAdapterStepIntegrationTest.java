@@ -89,7 +89,7 @@ class AiCallAdapterStepIntegrationTest {
 
         // Invocation #1 — place call.
         StepExecutionResult first = step.execute(new StepExecutionContext(
-                42L, 99L, "ai-node", "lead-1", config, config, null, Map.of()));
+                42L, 99L, "ai-node", "person-1", config, config, null, Map.of()));
 
         assertTrue(first.reschedule());
         assertEquals("CA1", first.statePatch().get("callSid"));
@@ -99,7 +99,7 @@ class AiCallAdapterStepIntegrationTest {
         // Invocation #2 — poll against the same state, expect terminal payload.
         Map<String, Object> stepState = new LinkedHashMap<>(first.statePatch());
         StepExecutionResult second = step.execute(new StepExecutionContext(
-                42L, 99L, "ai-node", "lead-1", config, config, null, stepState));
+                42L, 99L, "ai-node", "person-1", config, config, null, stepState));
 
         assertTrue(second.success());
         assertEquals("completed", second.resultCode());

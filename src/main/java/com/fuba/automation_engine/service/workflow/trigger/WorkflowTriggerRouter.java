@@ -148,7 +148,7 @@ public class WorkflowTriggerRouter {
         int failedCount = 0;
         for (PlannedTarget target : targets) {
             // Pass normalized webhook payload through as triggerPayload. This payload currently
-            // carries event metadata, not enriched lead/contact fields.
+            // carries event metadata, not enriched person/contact fields.
             WorkflowPlanRequest request = new WorkflowPlanRequest(
                     target.workflow().getKey(),
                     event.sourceSystem() != null ? event.sourceSystem().name() : "UNKNOWN",

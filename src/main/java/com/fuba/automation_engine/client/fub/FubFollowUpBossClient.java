@@ -105,7 +105,7 @@ public class FubFollowUpBossClient implements FollowUpBossClient {
     @Override
     public PersonDetails getPersonById(long personId) {
         // Single raw fetch path: derive the typed PersonDetails view from the same JsonNode
-        // body we already pull for lead snapshotting — avoids a duplicate /people/{id} call
+        // body we already pull for person snapshotting — avoids a duplicate /people/{id} call
         // and keeps the DTO shape drift-free with the raw payload.
         JsonNode response = getPersonRawById(personId);
         Long id = response.hasNonNull("id") ? response.get("id").asLong() : null;

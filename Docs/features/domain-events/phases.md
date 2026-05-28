@@ -1,5 +1,10 @@
 # Domain Events — Phases
 
+> **Changelog (2026-05-28):** Architecture review before starting Phase 2.
+> - Pre-Phase-2 rename was under-scoped: the admin read-feed surface (controller, DTOs, read-repo, exception package, HTTP/UI routes) was never enumerated and was still `Lead`-named. Added to deliverables below. The app is not deployed anywhere, so renaming the `/admin/leads` route + admin-ui paths is free.
+> - Phase 2 gains two correctness deliverables surfaced by the review: **per-person upsert serialization** (the diff-collapse invariant is not safe under the 2–4 thread async webhook pool without it) and **after-commit event dispatch** (emit row in-tx, fan out after commit — not inline in the write transaction).
+> - The durable outbox poller (a `dispatched` flag + crash-recovery job) is explicitly **deferred to a Phase 4 decision** — there are no event consumers until then, and the app isn't running anywhere, so the crash-between-commit-and-dispatch window carries no risk today.
+
 Each phase is independently shippable and reviewable. Complete in order. The phase order has been chosen so that **Phase 3 (local-state-first writes) lands before Phase 4 (trigger schema migration)** — otherwise the deployment window between the two would leave engine echoes producing phantom events under the new trigger shape, briefly making the system *worse* than today.
 
 The "app is in dev phase" framing applies — drain protocols, in-flight migration shims, and reconciliation are deferred (see plan.md "Out of scope"). Each phase is verifiable in isolation but the bad-run-rate win arrives at Phase 4.
@@ -70,7 +75,7 @@ TBD at phase-1-implementation.md time. Likely `No` — local feature concern.
 ---
 
 ## Pre-Phase-2 — Rename `Lead` → `Person` + drop ingest filter
-Status: `NOT STARTED`
+Status: `DONE` — Java/backend admin read-feed, SPA routes/API/types, replay fixtures, and workflow JSON are swept to `Person`; `/admin/persons` and `/admin-ui/persons` are canonical. See [phase-pre-2-implementation.md](./phase-pre-2-implementation.md) for details.
 
 **Goal:** Clean substrate for Phase 2's vocabulary. Strictly mechanical rename, plus one bundled behaviour change (drop the `isFubLeadPerson` ingestion filter).
 
@@ -120,13 +125,36 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
 - `validateLeadFieldReferences` → `validatePersonFieldReferences` (error message updated)
 - `LeadUpsertService.SNAPSHOT_FIELDS` → `PersonUpsertService.SNAPSHOT_FIELDS` (membership unchanged)
 
+**Admin read-feed surface rename** (missed in the original scoping — added 2026-05-28):
+
+The initial Pre-Phase-2 deliverable list covered the entity, repository, and core upsert layer, but missed the admin/read-feed surface entirely. `PersonAdminQueryService` was renamed but it still imported and returned `Lead*` types, leaving the substrate internally inconsistent. The app is not deployed anywhere, so renaming the HTTP route and SPA paths is free.
+
+- Controller: `AdminLeadController` → `AdminPersonController`; `@RequestMapping("/admin/leads")` → `/admin/persons`
+- DTOs (package `controller/dto/`):
+  - `LeadFeedItemResponse` → `PersonFeedItemResponse`
+  - `LeadFeedPageResponse` → `PersonFeedPageResponse`
+  - `LeadSummaryResponse` → `PersonSummaryResponse`
+  - `LeadActivityKind` → `PersonActivityKind`
+  - `LeadActivityEventResponse` → `PersonActivityEventResponse`
+  - `LeadLiveStatus` → `PersonLiveStatus`
+  - `LeadRecentCallResponse` → `PersonRecentCallResponse`
+  - `LeadRecentWorkflowRunResponse` → `PersonRecentWorkflowRunResponse`
+  - `LeadRecentWebhookEventResponse` → `PersonRecentWebhookEventResponse`
+- Read repository: `LeadFeedReadRepository` → `PersonFeedReadRepository`; `JdbcLeadFeedReadRepository` → `JdbcPersonFeedReadRepository`; inner types `LeadFeedReadQuery` → `PersonFeedReadQuery`, `LeadFeedRow` → `PersonFeedRow`
+- Service inner type: `PersonAdminQueryService.LeadFeedQuery` → `PersonFeedQuery`
+- Exception: package `exception/lead/` → `exception/person/`; `InvalidLeadFeedQueryException` → `InvalidPersonFeedQueryException`
+- Admin UI: deep-link route `/admin-ui/leads/{id}` → `/admin-ui/persons/{id}` in `AdminUiController` + the SPA's fetch URLs and router config; the existing comment in `AdminUiController` referencing the old path
+- Tests: `AdminLeadsFlowTest` → `AdminPersonsFlowTest` (+ all `/admin/leads` MockMvc paths); `JdbcLeadFeedReadRepositoryTest` → `JdbcPersonFeedReadRepositoryTest`; `LeadScopedTopNRepositoryTest` → `PersonScopedTopNRepositoryTest`
+- Cosmetic: stale `leads.person_details` comment in [`PersonUpsertService.java:63`](../../../src/main/java/com/fuba/automation_engine/service/person/PersonUpsertService.java)
+
 **Workflow JSON sweep** (the one production workflow):
 - `agent_followup_enforcement.workflow.json`:
   - `eventDomain: "LEAD"` → `eventDomain: "PERSON"`
   - `{{ lead.assignedUserId }}` → `{{ person.assignedUserId }}`
   - `{{ lead.assignedTo }}` → `{{ person.assignedTo }}`
   - `$boolean(lead.assignedUserId)` (in the `gate_assigned` node) → `$boolean(person.assignedUserId) and person.kind = "LEAD"`
-  - **The `person.kind = "LEAD"` predicate is mandatory.** It compensates for the dropped `isFubLeadPerson` ingest filter. Uses our normalized `kind` enum, not FUB's raw `stage` string — stable across FUB stage customizations.
+  - **The `person.kind = "LEAD"` predicate is mandatory.** It compensates for the dropped `isFubLeadPerson` ingest filter. Uses our normalized `kind` enum rather than FUB's raw `stage` string.
+  - **Known limitation (YAGNI — accepted 2026-05-28):** `mapStageToKind` does **exact** case-insensitive match on `lead` / `agent` / `realtor`. Custom FUB stage labels (`Hot Lead`, `Cold Lead`, `Buyer Lead`, etc.) map to `UNKNOWN` and will **not** fire this workflow. This preserves the pre-rename behaviour of the dropped `isFubLeadPerson` filter (which also matched exactly `"Lead"`). Broaden to token/substring matching only when a tenant actually adopts a custom stage label and needs the workflow to fire — at that point fix `PersonUpsertService.mapStageToKind` and the V21 backfill in lockstep.
 
 **Replay harness sweep:**
 - `personSnapshots` field already correctly named — no change
@@ -137,7 +165,7 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
 - `plan.md` and `phases.md` (this file) — `lead.*` → `person.*` throughout (already done in plan.md as part of this Pre-Phase-2 prep)
 - `known-issues.md` — references to entity names updated; references to `lead.*` JSONata vocabulary updated
 - `phase-1-implementation.md` — keep as-is (historical record); top-line note added
-- `field-observations.md` — keep as-is (historical record; "lead" wording reflects what was observed)
+- `field-observations.md` — keep as-is (historical record; "person" wording reflects what was observed)
 
 **Bundled behaviour change — drop `isFubLeadPerson` filter:**
 - Today's `LeadUpsertService` skips upsert if `personPayload.stage != "Lead"`.
@@ -151,14 +179,15 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
 - `agent_followup_enforcement` workflow still functional end-to-end (with the new `person.kind = "LEAD"` predicate in the `gate_assigned` node's expression).
 - Manual behaviour test: POST a `peopleUpdated` webhook for a stage=Agent person → row persists in `persons` with `kind = AGENT`; the workflow does NOT fire.
 - POST a stage=Lead person → row persists with `kind = LEAD`; workflow fires (current behaviour preserved).
-- `grep -rE 'Lead[A-Z]|\bleads\b|source_lead_id|lead_details|NormalizedDomain\.LEAD' src/main src/test` returns zero matches in production code; in tests only intentional historical-record comments.
+- `grep -rE 'Lead[A-Z]|\bleads\b|source_lead_id|lead_details|NormalizedDomain\.LEAD' src/main src/test` (excluding `src/main/resources/db/migration/` — historical migrations correctly keep their original names) returns zero matches in production code; in tests only intentional historical-record comments. The admin read-feed rename above is what closes this; without it, the grep currently reports ~128 matches in `src/main` alone.
+- `GET /admin/persons` (renamed from `/admin/leads`) returns the expected shape; admin-ui deep links `/admin-ui/persons/{id}` resolve.
 
 ### Exit criteria
 - V21 migration applies cleanly to dev DB.
 - `persons` table exists with `kind` column populated for every row (backfilled from `person_details.stage`).
 - No production code references `LeadEntity`, `LeadRepository`, `LeadUpsertService`, `LeadSnapshotResolver`, `LeadAdminQueryService`, `LeadFeedCursorCodec`, or `NormalizedDomain.LEAD`.
 - The `peopleUpdated` webhook arrives → `PersonUpsertService` runs regardless of `stage` value; `kind` is set per the mapping.
-- Workflow validator rejects `lead.<field>` references (cleanly migrated to `person.<field>`); accepts `person.kind` as a known field.
+- Workflow validator accepts `person.kind` as a known field. (We do **not** add an explicit `lead.<field>` rejection rule: a repo-wide grep confirms no production code, test, or live workflow JSON emits the old `lead.*` vocabulary, so there is nothing to reject. The validator stays single-purpose — recognise the current `person.*` namespace, silently ignore everything else. Decided 2026-05-28 during the post-rename audit.)
 
 ### Out of scope (deliberately deferred)
 - FUB Users (`/v1/users`) ingestion as Persons — separate feature; closes #19 when done.
@@ -166,10 +195,10 @@ Why this slot in the phase order: Phase 2 is about to introduce the `events` tab
 - Any new behaviour beyond dropping the ingest filter.
 
 ### Repo decisions impact
-Probably `No`. The rename is feature-internal vocabulary; no cross-cutting decision is created.
+`No` — local feature concern. The rename aligns this feature's substrate with FUB's `/v1/people` terminology but does not introduce a new repo-wide architectural rule.
 
 ### Size estimate
-~35 files touched (rename surface) + the new `PersonKind` enum + mapping helper + JSONata-scope wiring. Mostly mechanical; ~1.5 days with proper testing including the manual stage=Agent behaviour check.
+~35 files touched (entity/repo/core-service rename) + the new `PersonKind` enum + mapping helper + JSONata-scope wiring + ~15 additional files for the admin read-feed surface (controller, 9 DTOs, read-repo, exception package, admin-ui paths and SPA references, related tests). Mostly mechanical; ~2 days with proper testing including the manual stage=Agent behaviour check.
 
 ---
 
@@ -193,16 +222,22 @@ JPA mapping with `@JdbcTypeCode(SqlTypes.JSON)` for payload per project conventi
 - Returns `DiffResult { changedFields, previous, current }` containing **only changed fields** in `previous`/`current`.
 
 **4. `DomainEventEmitter`** service
-`emit(eventKind, sourceSystem, sourceEventId, entityType, entityId, payload)` — INSERT row + call dispatcher inline within the caller's transaction.
+`emit(eventKind, sourceSystem, sourceEventId, entityType, entityId, payload)` — INSERT the events row inside the caller's transaction (atomic with the state change that produced it), then register an after-commit hook (`TransactionSynchronizationManager.registerSynchronization(...)`) that invokes `DomainEventDispatcher.dispatch(...)` once the transaction commits. **Dispatch must not run inline inside the write transaction** — that would extend lock-hold over the `persons` row across listener work and, in Phase 4, drag workflow planning into the upsert tx. After-commit dispatch keeps emission and consumption decoupled while keeping the event row durable from the moment the state change commits.
 
 **5. `DomainEventDispatcher`** — interface + `InMemoryDomainEventDispatcher`
-Single method `dispatch(DomainEvent)`. Holds `List<DomainEventListener>`. No listeners registered in Phase 2. Modeled on the existing `WebhookDispatcher` pattern (no Spring `ApplicationEventPublisher` introduced).
+Single method `dispatch(DomainEvent)`. Holds `List<DomainEventListener>`. No listeners registered in Phase 2. Modeled on the existing `WebhookDispatcher` pattern (no Spring `ApplicationEventPublisher` introduced). Invoked only from the after-commit hook in (4) — never directly from inside a write transaction.
+
+**5a. Per-person serialization of upserts** (correctness prerequisite for the collapse invariant):
+- The current `PersonUpsertService.upsertFubPerson` does `findBy → save` with no row lock. Webhooks process on a 2–4 thread async pool ([`WebhookAsyncConfig.java:17`](../../../src/main/java/com/fuba/automation_engine/config/WebhookAsyncConfig.java)), so a FUB burst of 3–4 `peopleUpdated` for the same person can run truly in parallel — every worker reads the same pre-burst state, every worker sees a non-empty diff, every worker emits. The headline collapse claim ("3 webhooks → 1 event") silently fails without a lock.
+- Add a `findBySourceSystemAndSourcePersonIdForUpdate(...)` method on `PersonRepository` annotated with `@Lock(LockModeType.PESSIMISTIC_WRITE)`. Use it in `upsertFubPerson` instead of the plain finder. Different persons still process fully in parallel (row-level lock, not table-level).
+- For brand-new persons (no row to lock on yet) the existing `DataIntegrityViolationException` recovery path remains correct: the loser of the unique-constraint race re-reads under the lock and proceeds as an update.
 
 **6. Emission in `PersonUpsertService`** (two event_kinds, decision Q1=B):
-- Inside the existing `@Transactional`, between save and return:
-  - If `existingOptional.isEmpty()` (this is a brand-new row): emit `person.created` with payload `{ current: <full snapshot> }`. Set `previousState = null`.
-  - Else: compute diff via `PersonDiffComputer`. If `changedFields` non-empty: emit `person.state_changed` with payload `{ changed_fields, previous, current }` (only changed fields in `previous`/`current`). Set `previousState = oldDetails`.
+- Inside the existing `@Transactional`, holding the pessimistic lock from (5a), between save and return:
+  - If `existingOptional.isEmpty()` (brand-new row): emit `person.created` with payload `{ current: <full snapshot> }`. Set `previousState = null`.
+  - Else: compute diff via `PersonDiffComputer` against `existing.getPersonDetails()` (already in hand — no extra read). If `changedFields` non-empty: emit `person.state_changed` with payload `{ changed_fields, previous, current }` (only changed fields in `previous`/`current`). Set `previousState = oldDetails`.
   - If diff empty (echo / no-op upsert): no event emitted. `previousState` left alone.
+- The lock from (5a) is what makes this correct under burst concurrency: the second worker's `findBy...ForUpdate` blocks until the first worker commits, then reads the already-updated state and finds no diff.
 
 **7. Inline `call.created` emission**
 In `WebhookEventProcessorService.processCall`, after `processedCallRepository.save(entity)`. TODO comment about future extraction into a `CallUpsertService` (out of scope for Phase 2).
@@ -219,9 +254,9 @@ In `WebhookEventProcessorService.processCall`, after `processedCallRepository.sa
   - `minCreatedEventsForPerson` (Map<String, Integer>)
   - `minAppendEvents` (Map<String, Integer>) — `event_kind → min count`, e.g. `{"call.created": 1, "note.created": 2}`
 - Update existing fixtures to assert collapse:
-  - `lead-20235-fub-burst` (will be `person-20235-fub-burst` after the rename pass): 3 `peopleUpdated` webhooks → assert `minStateChangeEventsForPerson: {"20235": 1}` (collapse from 3 to 1).
-  - `lead-20231-fub-burst`: 4 `peopleUpdated` → assert `minStateChangeEventsForPerson: {"20231": 1}`.
-  - `lead-20123-echo-cascade`: still produces phantom events under Phase 2 (Phase 3 closes); assert the expected pre-fix shape.
+  - `person-20235-fub-burst` (will be `person-20235-fub-burst` after the rename pass): 3 `peopleUpdated` webhooks → assert `minStateChangeEventsForPerson: {"20235": 1}` (collapse from 3 to 1).
+  - `person-20231-fub-burst`: 4 `peopleUpdated` → assert `minStateChangeEventsForPerson: {"20231": 1}`.
+  - `person-20123-echo-cascade`: still produces phantom events under Phase 2 (Phase 3 closes); assert the expected pre-fix shape.
 - Add one synthesized fixture for note webhooks (no real-DB note webhook in our extracted set yet).
 
 **10. Phase 2 invariants for the harness:**
@@ -230,7 +265,13 @@ In `WebhookEventProcessorService.processCall`, after `processedCallRepository.sa
 - For every `peopleUpdated` with meaningful diff → exactly 1 `person.state_changed`.
 - For every `callsCreated` → 1 `call.created`.
 - For every `notesCreated/Updated/Deleted` → 1 corresponding event.
+- **Collapse holds under burst concurrency**: when N webhooks for the same person arrive within the same scheduling window of the 2–4 thread async pool, exactly 1 `person.state_changed` event is emitted (proven by the pessimistic lock in deliverable 5a, not by timing luck).
 - Engine echoes **still produce phantom `person.state_changed` events** in Phase 2 alone (Phase 3 closes this — the cascade fixtures will assert this is true today and switch the assertion in Phase 3).
+
+**11. Deferred from Phase 2 — durable outbox poller** (revisit at Phase 4):
+- A `dispatched` flag on `events` + a scheduled poller that picks up un-dispatched rows after a crash is NOT built in Phase 2.
+- Justification: there are no event consumers until Phase 4 (the dispatcher's listener list is empty); the app is not deployed anywhere, so the crash-between-commit-and-dispatch window carries no operational risk today; the poller is cleanly additive (no rewrites of emission code to add it later).
+- Decision point: at Phase 4, once `WorkflowTriggerRouter` actually subscribes to the dispatcher, evaluate whether the in-memory dispatcher's loss-on-crash semantics are tolerable for a real consumer. Build the poller then, or accept the gap.
 
 ### Verification
 - All 528+ tests green.
@@ -238,6 +279,8 @@ In `WebhookEventProcessorService.processCall`, after `processedCallRepository.sa
 - Person 20235 FUB-burst fixture: 3 webhooks → 1 `person.state_changed` event (collapse proven).
 - Person 20123 echo-cascade fixture: still produces a phantom `person.state_changed` event from the echo (Phase 3 will flip this assertion).
 - Diff-computer unit tests for each per-field strategy: scalar change, scalar no-op, tag reorder (no-op), tag add, phone reorder (no-op), phone add, phone removal.
+- **Concurrency stress test for the collapse invariant**: a deterministic test (separate from the timing-based replay harness) that fires N parallel `upsertFubPerson` calls for the same `sourcePersonId` against a real Postgres (Testcontainers) and asserts the events table contains exactly 1 `person.state_changed` row. Use `CountDownLatch` to release threads simultaneously so the pessimistic lock is genuinely exercised. Without this test, the collapse claim depends on scheduling luck in the replay harness.
+- **Dispatch-after-commit unit test**: assert that when `DomainEventEmitter.emit` is called inside a transaction that subsequently *rolls back*, `DomainEventDispatcher.dispatch` is never invoked. And when the transaction commits, dispatch fires exactly once, after the events row is visible to a fresh transaction.
 
 ### Exit criteria
 - V22 migration applied.
@@ -307,7 +350,7 @@ This is the user-facing phase. Everything before it is plumbing.
   - `person.*` available in trigger filter scope too (closes #17)
   - `WorkflowStepExecutionService.buildRunContext` updated accordingly
 - **Re-author `agent_followup_enforcement`** workflow JSON:
-  - Trigger becomes `{ "on": "person.state_changed", "filter": "person.stage = 'Lead' AND change.assignedUserId.changed AND change.source != 'ENGINE'" }` (the `person.stage = 'Lead'` predicate was already added during the Pre-Phase-2 rename pass; Phase 4 keeps it and adds the change-based predicates)
+  - Trigger becomes `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND change.source != 'ENGINE'" }` (the `person.kind = 'LEAD'` predicate was already added during the Pre-Phase-2 rename pass; Phase 4 keeps the lead filter and adds the change-based predicates)
   - Any step expressions using `event.payload.*` migrate to `webhook.payload.*` if needed
   - Verify in field-observations replay that bad-run rate drops
 

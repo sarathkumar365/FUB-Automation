@@ -54,7 +54,7 @@ The harness is therefore both a **regression suite for current bugs** AND the **
 │   WebhookIngressController                                 │
 │   → WebhookIngressService (persist webhook_events)         │
 │   → AsyncWebhookDispatcher (worker thread)                 │
-│   → WebhookEventProcessorService (upsert lead, dispatch)   │
+│   → WebhookEventProcessorService (upsert person, dispatch)   │
 │   → WorkflowTriggerRouter (match + plan)                   │
 │   → WorkflowExecutionManager.plan (workflow_runs row)      │
 └────────────────────────────────────────────────────────────┘
@@ -63,7 +63,7 @@ The harness is therefore both a **regression suite for current bugs** AND the **
 ┌────────────────────────────────────────────────────────────┐
 │ Assertion surface (what fixtures check):                   │
 │  - webhook_events row count                                │
-│  - workflow_runs per source_lead_id                        │
+│  - workflow_runs per source_person_id                        │
 │  - ReplayHarnessFollowUpBossClient.reassignCalls()         │
 │  - ReplayHarnessFollowUpBossClient.createNoteCalls()       │
 └────────────────────────────────────────────────────────────┘
@@ -87,7 +87,7 @@ The harness is therefore both a **regression suite for current bugs** AND the **
 
 ### Why min-thresholds, not exact counts
 
-`expected.minWorkflowRunsForLead`, `expected.minReassignCalls`, etc. are lower bounds. Async timing races between webhook dispatcher, workflow trigger router, and the polling loop make exact-count assertions brittle. The bugs we care about are characterized as "≥ N parallel runs" or "≥ N reassigns" — minimums capture the behavior accurately AND are stable.
+`expected.minWorkflowRunsForPerson`, `expected.minReassignCalls`, etc. are lower bounds. Async timing races between webhook dispatcher, workflow trigger router, and the polling loop make exact-count assertions brittle. The bugs we care about are characterized as "≥ N parallel runs" or "≥ N reassigns" — minimums capture the behavior accurately AND are stable.
 
 If a phase's win is "this number drops to exactly 1," express it as a *separate* upper-bound check (e.g. add a `maxWorkflowRunsForLead` field) rather than tightening `min` to equality.
 
@@ -119,7 +119,7 @@ See [`src/test/resources/replay-fixtures/README.md`](../../../../../resources/re
 
 - Drop a new JSON file → it becomes a new dynamic test on the next run. No Java changes.
 - Fixture names should match the file basename (the loader sets `fixture.name` from the JSON `name` field, conventionally identical to the filename without `.json`).
-- For real-incident fixtures, use the [`scripts/build-replay-fixture.sh`](../../../../../../../scripts/build-replay-fixture.sh) generator — it reads the local dev DB and emits a properly-shaped fixture JSON for a given `source_lead_id`.
+- For real-incident fixtures, use the [`scripts/build-replay-fixture.sh`](../../../../../../../scripts/build-replay-fixture.sh) generator — it reads the local dev DB and emits a properly-shaped fixture JSON for a given `source_person_id`.
 
 ---
 
@@ -175,7 +175,7 @@ For more complex assertions (e.g. "the diff payload contains `assignedUserId` in
 | **Polling-based drain** | The harness polls every 50ms up to `drainTimeoutMs`. Slow tests on a loaded CI box may flake. | Subscribe to a `DomainEventDispatcher` test listener (Phase 2 will introduce one) — push notification of completion instead of polling. |
 | **No recording mode** | Fixtures must be hand-authored from DB extracts (see the fixture README). | A `RecordingMode` that wraps `WebhookIngressService` and writes incoming webhooks to a JSON file as they arrive. Useful for capturing new incidents. |
 | **No partial assertions on workflow steps** | We assert on `workflow_runs` count, not on step outcomes. Sufficient for current scenarios. | Add `expected.minStepsByType` or similar when a phase requires step-level validation. |
-| **One global test workflow** | `seedTestWorkflow()` registers exactly one workflow at setup. | If a fixture needs multiple workflows on the same lead (cross-workflow uniqueness tests for I3/I4), add a `workflows` array to the fixture JSON and seed per-fixture. |
+| **One global test workflow** | `seedTestWorkflow()` registers exactly one workflow at setup. | If a fixture needs multiple workflows on the same person (cross-workflow uniqueness tests for I3/I4), add a `workflows` array to the fixture JSON and seed per-fixture. |
 
 ---
 

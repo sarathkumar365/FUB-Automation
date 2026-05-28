@@ -24,7 +24,7 @@ import org.hibernate.type.SqlTypes;
         indexes = {
                 @Index(name = "idx_processed_calls_status_updated_at", columnList = "status, updated_at"),
                 @Index(name = "idx_processed_calls_call_id", columnList = "call_id", unique = true),
-                @Index(name = "idx_processed_calls_lead_started", columnList = "source_lead_id, call_started_at")
+                @Index(name = "idx_processed_calls_person_started", columnList = "source_person_id, call_started_at")
         })
 public class ProcessedCallEntity {
 
@@ -45,8 +45,8 @@ public class ProcessedCallEntity {
     @Column(name = "task_id")
     private Long taskId;
 
-    @Column(name = "source_lead_id", length = 255)
-    private String sourceLeadId;
+    @Column(name = "source_person_id", length = 255)
+    private String sourcePersonId;
 
     @Column(name = "source_user_id")
     private Long sourceUserId;

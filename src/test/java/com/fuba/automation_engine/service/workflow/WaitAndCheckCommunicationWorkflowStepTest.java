@@ -62,7 +62,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnConversationalFromLocalEvidenceWithoutFallback() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(1L, 61, "Connected")));
 
@@ -76,7 +76,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnConnectedNonConversationalFromLocalEvidenceWithoutFallback() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(2L, 12, "Connected")));
 
@@ -88,9 +88,9 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     }
 
     @Test
-    void shouldUseNormalizedSourceLeadIdForLocalEvidenceLookup() {
+    void shouldUseNormalizedSourcePersonIdForLocalEvidenceLookup() {
         when(fubCallHelper.parsePersonId(" 007890 ")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(21L, 61, "Connected")));
 
@@ -104,7 +104,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnCommNotFoundFromLocalNoAnswerOutcomeWithoutFallback() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(3L, null, "No Answer")));
 
@@ -118,7 +118,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnConversationalFromIncomingLocalEvidenceWithoutFallback() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(31L, 46, "Connected", true)));
 
@@ -132,7 +132,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnConnectedNonConversationalFromIncomingLocalEvidenceWithoutFallback() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(32L, 15, "Connected", true)));
 
@@ -146,7 +146,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnCommNotFoundFromIncomingZeroDurationWithoutFallback() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(33L, 0, "Connected", true)));
 
@@ -160,7 +160,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldUseNextLocalCallWhenLatestCallEvidenceIsInsufficient() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(
                         call(34L, null, "Connected", true),
@@ -176,7 +176,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldUseOutcomeAsFallbackWhenDurationMissingForIncomingCall() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(36L, null, "No Answer", true)));
 
@@ -190,7 +190,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldUseThresholdForIncomingCallsLikeOutgoingCalls() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(37L, 30, "Connected", true)));
 
@@ -204,7 +204,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldUseFallbackWhenLocalEvidenceInsufficientAndClassifyConnectedNonConversational() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(4L, null, "Connected")));
         when(fubCallHelper.executeWithRetry(any())).thenReturn(List.of(
@@ -220,7 +220,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnCommNotFoundWhenFallbackEmptyOrNull() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of());
         when(fubCallHelper.executeWithRetry(any()))
@@ -239,7 +239,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldDefaultLookbackToBufferWhenNotConfigured() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(5L, 35, "Connected")));
 
@@ -248,7 +248,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         assertTrue(result.success());
         ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
         verify(processedCallRepository)
-                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                .findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         eq("7890"), sinceCaptor.capture());
         assertEquals(OffsetDateTime.parse("2026-04-20T11:55:00Z"), sinceCaptor.getValue());
     }
@@ -256,7 +256,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldFloorLookbackToDefaultBufferOfFiveMinutes() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(6L, 35, "Connected")));
 
@@ -265,7 +265,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         assertTrue(result.success());
         ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
         verify(processedCallRepository)
-                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                .findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         eq("7890"), sinceCaptor.capture());
         assertEquals(OffsetDateTime.parse("2026-04-20T11:55:00Z"), sinceCaptor.getValue());
     }
@@ -275,7 +275,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         OffsetDateTime runStartedAt = OffsetDateTime.parse("2026-04-20T11:57:00Z");
 
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(callAt(7L, 61, "Connected", "2026-04-20T11:56:30Z")));
 
@@ -286,7 +286,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         assertEquals("CONVERSATIONAL", result.resultCode());
         ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
         verify(processedCallRepository)
-                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                .findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         eq("7890"), sinceCaptor.capture());
         assertEquals(OffsetDateTime.parse("2026-04-20T11:52:00Z"), sinceCaptor.getValue());
     }
@@ -296,7 +296,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         OffsetDateTime runStartedAt = OffsetDateTime.parse("2026-04-20T12:00:00Z");
 
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of());
         when(fubCallHelper.executeWithRetry(any())).thenReturn(null);
@@ -305,7 +305,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
 
         ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
         verify(processedCallRepository)
-                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                .findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         eq("7890"), sinceCaptor.capture());
         assertEquals(OffsetDateTime.parse("2026-04-20T11:30:00Z"), sinceCaptor.getValue());
     }
@@ -313,7 +313,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldFallBackToNowAnchorWhenRunStartedAtIsNull() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of(call(8L, 61, "Connected")));
 
@@ -322,14 +322,14 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         assertTrue(result.success());
         ArgumentCaptor<OffsetDateTime> sinceCaptor = ArgumentCaptor.forClass(OffsetDateTime.class);
         verify(processedCallRepository)
-                .findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                .findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         eq("7890"), sinceCaptor.capture());
         assertEquals(OffsetDateTime.parse("2026-04-20T11:50:00Z"), sinceCaptor.getValue());
     }
 
     @Test
-    void shouldReturnMissingSourceLeadIdFailure() {
-        when(fubCallHelper.parsePersonId("")).thenThrow(new IllegalArgumentException("sourceLeadId is missing or blank"));
+    void shouldReturnMissingSourcePersonIdFailure() {
+        when(fubCallHelper.parsePersonId("")).thenThrow(new IllegalArgumentException("sourcePersonId is missing or blank"));
 
         StepExecutionResult result = step.execute(context("", Map.of(), Map.of()));
 
@@ -338,8 +338,8 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     }
 
     @Test
-    void shouldReturnInvalidSourceLeadIdFailure() {
-        when(fubCallHelper.parsePersonId("abc")).thenThrow(new IllegalArgumentException("sourceLeadId is not a valid number: abc"));
+    void shouldReturnInvalidSourcePersonIdFailure() {
+        when(fubCallHelper.parsePersonId("abc")).thenThrow(new IllegalArgumentException("sourcePersonId is not a valid number: abc"));
 
         StepExecutionResult result = step.execute(context("abc", Map.of(), Map.of()));
 
@@ -350,7 +350,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnTransientFailureWhenFallbackThrowsTransientException() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of());
         when(fubCallHelper.executeWithRetry(any()))
@@ -366,7 +366,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     @Test
     void shouldReturnPermanentFailureWhenFallbackThrowsPermanentException() {
         when(fubCallHelper.parsePersonId("7890")).thenReturn(7890L);
-        when(processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+        when(processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                 eq("7890"), any(OffsetDateTime.class)))
                 .thenReturn(List.of());
         when(fubCallHelper.executeWithRetry(any()))
@@ -379,23 +379,23 @@ class WaitAndCheckCommunicationWorkflowStepTest {
         assertEquals("FUB_COMM_CHECK_PERMANENT", result.resultCode());
     }
 
-    private StepExecutionContext context(String sourceLeadId, Map<String, Object> resolvedConfig, Map<String, Object> rawConfig) {
-        return new StepExecutionContext(1L, 2L, "wait_comm", sourceLeadId, rawConfig, resolvedConfig, null);
+    private StepExecutionContext context(String sourcePersonId, Map<String, Object> resolvedConfig, Map<String, Object> rawConfig) {
+        return new StepExecutionContext(1L, 2L, "wait_comm", sourcePersonId, rawConfig, resolvedConfig, null);
     }
 
     private StepExecutionContext contextWithRunStart(
-            String sourceLeadId,
+            String sourcePersonId,
             Map<String, Object> resolvedConfig,
             Map<String, Object> rawConfig,
             OffsetDateTime runStartedAt) {
         RunContext runContext = new RunContext(
                 new RunContext.RunMetadata(1L, "test_workflow", 1L, runStartedAt, null),
                 Map.of(),
-                sourceLeadId,
+                sourcePersonId,
                 Map.of(),
                 Map.of(),
                 Map.of());
-        return new StepExecutionContext(1L, 2L, "wait_comm", sourceLeadId, rawConfig, resolvedConfig, runContext);
+        return new StepExecutionContext(1L, 2L, "wait_comm", sourcePersonId, rawConfig, resolvedConfig, runContext);
     }
 
     private ProcessedCallEntity call(Long id, Integer durationSeconds, String outcome) {
@@ -405,7 +405,7 @@ class WaitAndCheckCommunicationWorkflowStepTest {
     private ProcessedCallEntity call(Long id, Integer durationSeconds, String outcome, boolean isIncoming) {
         ProcessedCallEntity entity = new ProcessedCallEntity();
         entity.setId(id);
-        entity.setSourceLeadId("7890");
+        entity.setSourcePersonId("7890");
         entity.setIsIncoming(isIncoming);
         entity.setDurationSeconds(durationSeconds);
         entity.setOutcome(outcome);

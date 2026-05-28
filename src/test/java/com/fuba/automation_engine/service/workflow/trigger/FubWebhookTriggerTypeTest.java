@@ -20,9 +20,9 @@ class FubWebhookTriggerTypeTest {
     @Test
     void shouldMatchExactDomainAndAction() {
         TriggerMatchContext context = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
-                Map.of("eventDomain", "LEAD", "eventAction", "CREATED"),
+                Map.of("eventDomain", "PERSON", "eventAction", "CREATED"),
                 Map.of("resourceIds", List.of(1, 2)));
 
         assertTrue(triggerType.matches(context));
@@ -31,7 +31,7 @@ class FubWebhookTriggerTypeTest {
     @Test
     void shouldMatchWithWildcardDomainAndAction() {
         TriggerMatchContext context = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 Map.of("eventDomain", "*", "eventAction", "*"),
                 Map.of("resourceIds", List.of(1)));
@@ -44,7 +44,7 @@ class FubWebhookTriggerTypeTest {
         TriggerMatchContext context = new TriggerMatchContext(
                 WebhookSource.INTERNAL,
                 "peopleUpdated",
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 Map.of(),
                 Map.of("eventDomain", "*", "eventAction", "*"));
@@ -57,7 +57,7 @@ class FubWebhookTriggerTypeTest {
         TriggerMatchContext context = context(
                 NormalizedDomain.CALL,
                 NormalizedAction.CREATED,
-                Map.of("eventDomain", "LEAD", "eventAction", "UPDATED"),
+                Map.of("eventDomain", "PERSON", "eventAction", "UPDATED"),
                 Map.of("resourceIds", List.of(1)));
 
         assertFalse(triggerType.matches(context));
@@ -66,18 +66,18 @@ class FubWebhookTriggerTypeTest {
     @Test
     void shouldApplyFilterWhenPresent() {
         TriggerMatchContext matching = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 Map.of(
-                        "eventDomain", "LEAD",
+                        "eventDomain", "PERSON",
                         "eventAction", "CREATED",
                         "filter", "event.payload.channel = \"zillow\""),
                 Map.of("channel", "zillow", "resourceIds", List.of(10)));
         TriggerMatchContext nonMatching = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 Map.of(
-                        "eventDomain", "LEAD",
+                        "eventDomain", "PERSON",
                         "eventAction", "CREATED",
                         "filter", "event.payload.channel = \"zillow\""),
                 Map.of("channel", "manual", "resourceIds", List.of(10)));
@@ -89,10 +89,10 @@ class FubWebhookTriggerTypeTest {
     @Test
     void shouldReturnFalseWhenFilterPathMissing() {
         TriggerMatchContext context = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 Map.of(
-                        "eventDomain", "LEAD",
+                        "eventDomain", "PERSON",
                         "eventAction", "CREATED",
                         "filter", "event.payload.metadata.source = \"zillow\""),
                 Map.of("resourceIds", List.of(10)));
@@ -101,11 +101,11 @@ class FubWebhookTriggerTypeTest {
     }
 
     @Test
-    void shouldExtractLeadEntitiesFromResourceIds() {
+    void shouldExtractPersonEntitiesFromResourceIds() {
         List<Object> resourceIds = new ArrayList<>(List.of(777, "778", " "));
         resourceIds.add(null);
         TriggerMatchContext context = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 Map.of("eventDomain", "*", "eventAction", "*"),
                 Map.of("resourceIds", resourceIds));
@@ -113,19 +113,19 @@ class FubWebhookTriggerTypeTest {
         List<EntityRef> entities = triggerType.extractEntities(context);
 
         assertEquals(2, entities.size());
-        assertEquals(new EntityRef("lead", "777"), entities.get(0));
-        assertEquals(new EntityRef("lead", "778"), entities.get(1));
+        assertEquals(new EntityRef("person", "777"), entities.get(0));
+        assertEquals(new EntityRef("person", "778"), entities.get(1));
     }
 
     @Test
     void shouldReturnEmptyEntitiesWhenResourceIdsMissingOrNotArray() {
         TriggerMatchContext missing = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 Map.of("eventDomain", "*", "eventAction", "*"),
                 Map.of());
         TriggerMatchContext invalid = context(
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 Map.of("eventDomain", "*", "eventAction", "*"),
                 Map.of("resourceIds", "not-a-list"));

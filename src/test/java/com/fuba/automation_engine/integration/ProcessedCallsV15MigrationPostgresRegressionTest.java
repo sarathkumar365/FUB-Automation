@@ -36,14 +36,14 @@ class ProcessedCallsV15MigrationPostgresRegressionTest {
     private JdbcTemplate jdbcTemplate;
 
     @Test
-    void shouldCreateProcessedCallFactColumnsAndLeadStartedIndex() {
-        assertEquals(1, columnCount("processed_calls", "source_lead_id"));
+    void shouldCreateProcessedCallFactColumnsAndPersonStartedIndex() {
+        assertEquals(1, columnCount("processed_calls", "source_person_id"));
         assertEquals(1, columnCount("processed_calls", "source_user_id"));
         assertEquals(1, columnCount("processed_calls", "is_incoming"));
         assertEquals(1, columnCount("processed_calls", "duration_seconds"));
         assertEquals(1, columnCount("processed_calls", "outcome"));
         assertEquals(1, columnCount("processed_calls", "call_started_at"));
-        assertEquals(1, indexCount("processed_calls", "idx_processed_calls_lead_started"));
+        assertEquals(1, indexCount("processed_calls", "idx_processed_calls_person_started"));
     }
 
     private Integer columnCount(String tableName, String columnName) {

@@ -8,8 +8,8 @@ import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
 import com.fuba.automation_engine.persistence.entity.WebhookEventEntity;
-import com.fuba.automation_engine.persistence.entity.LeadEntity;
-import com.fuba.automation_engine.persistence.repository.LeadRepository;
+import com.fuba.automation_engine.persistence.entity.PersonEntity;
+import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.rules.CallDecisionEngine;
@@ -71,7 +71,7 @@ class WebhookProcessingFlowTest {
     private WebhookEventRepository webhookEventRepository;
 
     @Autowired
-    private LeadRepository leadRepository;
+    private PersonRepository personRepository;
 
     @Autowired
     private TestFollowUpBossClient followUpBossClient;
@@ -79,7 +79,7 @@ class WebhookProcessingFlowTest {
     @BeforeEach
     void setUp() {
         processedCallRepository.deleteAll();
-        leadRepository.deleteAll();
+        personRepository.deleteAll();
         followUpBossClient.reset();
     }
 
@@ -155,7 +155,7 @@ class WebhookProcessingFlowTest {
                 .andExpect(status().isAccepted());
 
         ProcessedCallEntity processedCall = waitForCall(1300L);
-        assertEquals("19355", processedCall.getSourceLeadId());
+        assertEquals("19355", processedCall.getSourcePersonId());
         assertEquals(301L, processedCall.getSourceUserId());
         assertEquals(true, processedCall.getIsIncoming());
         assertEquals(48, processedCall.getDurationSeconds());
@@ -223,7 +223,7 @@ class WebhookProcessingFlowTest {
         followUpBossClient.setPersonPayload(556L, """
                 {
                   "id": 556,
-                  "name": "Lead 556",
+                  "name": "Person 556",
                   "stage": "Lead",
                   "assignedUserId": 20,
                   "claimed": true,
@@ -242,13 +242,13 @@ class WebhookProcessingFlowTest {
                 "evt-step4-11");
         assertTrue(persistedEvent.isPresent());
         assertEquals(EventSupportState.SUPPORTED, persistedEvent.orElseThrow().getCatalogState());
-        assertEquals("556", persistedEvent.orElseThrow().getSourceLeadId());
+        assertEquals("556", persistedEvent.orElseThrow().getSourcePersonId());
         assertTrue(processedCallRepository.findByCallId(556L).isEmpty());
         assertTrue(followUpBossClient.calledCallIds().isEmpty());
-        LeadEntity lead = waitForLead("556");
+        PersonEntity person = waitForPerson("556");
         assertEquals(
-                "Lead 556",
-                lead.getLeadDetails()
+                "Person 556",
+                person.getPersonDetails()
                         .path("name")
                         .asText());
     }
@@ -360,17 +360,17 @@ class WebhookProcessingFlowTest {
         return current.get();
     }
 
-    private LeadEntity waitForLead(String sourceLeadId) throws InterruptedException {
+    private PersonEntity waitForPerson(String sourcePersonId) throws InterruptedException {
         Instant deadline = Instant.now().plus(Duration.ofSeconds(10));
-        Optional<LeadEntity> current = Optional.empty();
+        Optional<PersonEntity> current = Optional.empty();
         while (Instant.now().isBefore(deadline)) {
-            current = leadRepository.findBySourceSystemAndSourceLeadId("FUB", sourceLeadId);
+            current = personRepository.findBySourceSystemAndSourcePersonId("FUB", sourcePersonId);
             if (current.isPresent()) {
                 return current.get();
             }
             Thread.sleep(50);
         }
-        assertTrue(current.isPresent(), "Expected lead row for sourceLeadId=" + sourceLeadId);
+        assertTrue(current.isPresent(), "Expected person row for sourcePersonId=" + sourcePersonId);
         return current.orElseThrow();
     }
 
@@ -494,7 +494,7 @@ class WebhookProcessingFlowTest {
             return personPayloads.computeIfAbsent(personId, ignored -> {
                 ObjectNode node = OBJECT_MAPPER.createObjectNode();
                 node.put("id", personId);
-                node.put("name", "Lead " + personId);
+                node.put("name", "Person " + personId);
                 node.put("assignedUserId", 0L);
                 node.put("claimed", false);
                 node.putArray("tags");

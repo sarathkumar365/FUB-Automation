@@ -158,7 +158,7 @@ For "+ New Policy":
 | Column | Source Field | Display |
 |--------|------------|---------|
 | ID | `id` | Run ID number |
-| Lead | `sourceLeadId` | Lead ID or "-" if null |
+| Person | `sourcePersonId` | Person ID or "-" if null |
 | Policy | `policyKey` + `policyVersion` | e.g. "SLA v3" (truncate long keys) |
 | Status | `status` | StatusBadge with tone mapping |
 | When | `createdAt` | Relative time ("2m ago", "1h ago") |
@@ -307,7 +307,7 @@ ui/src/
 
 1. **`policySchemas.ts`** — Zod schemas matching backend DTOs:
    - `policyResponseSchema` — id, domain, policyKey, enabled, blueprint, status, version
-   - `policyExecutionRunListItemSchema` — id, source, eventId, sourceLeadId, domain, policyKey, policyVersion, status, reasonCode, createdAt, updatedAt
+   - `policyExecutionRunListItemSchema` — id, source, eventId, sourcePersonId, domain, policyKey, policyVersion, status, reasonCode, createdAt, updatedAt
    - `policyExecutionRunPageSchema` — items[], nextCursor, serverTime
    - `policyExecutionRunDetailSchema` — all list fields + webhookEventId, policyBlueprintSnapshot, idempotencyKey, steps[]
    - `policyExecutionStepSchema` — id, stepOrder, stepType, status, dueAt, dependsOnStepOrder, resultCode, errorMessage, createdAt, updatedAt

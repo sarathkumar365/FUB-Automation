@@ -58,8 +58,8 @@ public class WorkflowRunEntity {
     @Column(name = "webhook_event_id")
     private Long webhookEventId;
 
-    @Column(name = "source_lead_id", length = 255)
-    private String sourceLeadId;
+    @Column(name = "source_person_id", length = 255)
+    private String sourcePersonId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false, length = 32)

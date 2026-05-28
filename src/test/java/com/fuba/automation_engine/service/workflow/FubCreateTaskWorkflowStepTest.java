@@ -36,7 +36,7 @@ class FubCreateTaskWorkflowStepTest {
         FubCreateTaskWorkflowStep step = new FubCreateTaskWorkflowStep(followUpBossClient, fubCallHelper);
         StepExecutionContext context = context(
                 Map.of(
-                        "name", "Follow up with lead",
+                        "name", "Follow up with person",
                         "personId", 123L,
                         "assignedUserId", 77L,
                         "dueDate", "2026-04-18",
@@ -46,7 +46,7 @@ class FubCreateTaskWorkflowStepTest {
                 999L,
                 123L,
                 77L,
-                "Follow up with lead",
+                "Follow up with person",
                 LocalDate.of(2026, 4, 18),
                 OffsetDateTime.parse("2026-04-18T09:00:00Z"));
         when(fubCallHelper.executeWithRetry(org.mockito.ArgumentMatchers.<java.util.function.Supplier<CreatedTask>>any()))
@@ -60,7 +60,7 @@ class FubCreateTaskWorkflowStepTest {
         assertEquals(999L, ((Number) result.outputs().get("taskId")).longValue());
         assertEquals(123L, ((Number) result.outputs().get("personId")).longValue());
         assertEquals(77L, ((Number) result.outputs().get("assignedUserId")).longValue());
-        assertEquals("Follow up with lead", result.outputs().get("name"));
+        assertEquals("Follow up with person", result.outputs().get("name"));
         assertEquals("2026-04-18", result.outputs().get("dueDate"));
         assertEquals("2026-04-18T09:00Z", result.outputs().get("dueDateTime"));
     }
@@ -78,7 +78,7 @@ class FubCreateTaskWorkflowStepTest {
     }
 
     @Test
-    void shouldUseSourceLeadIdWhenPersonIdNotProvided() {
+    void shouldUseSourcePersonIdWhenPersonIdNotProvided() {
         FubCreateTaskWorkflowStep step = new FubCreateTaskWorkflowStep(followUpBossClient, fubCallHelper);
         StepExecutionContext context = context(Map.of("name", "Fallback person"), Map.of());
         when(fubCallHelper.parsePersonId("123")).thenReturn(123L);

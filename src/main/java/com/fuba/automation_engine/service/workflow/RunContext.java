@@ -6,7 +6,7 @@ import java.util.Map;
 /**
  * Per-step execution context. Built fresh in
  * {@code WorkflowStepExecutionService.buildRunContext} before each step runs,
- * so any pre-resolved data ({@code lead}, {@code now}, future {@code config})
+ * so any pre-resolved data ({@code person}, {@code now}, future {@code config})
  * reflects the latest state at the moment of step execution.
  *
  * <p>{@link com.fuba.automation_engine.service.workflow.expression.ExpressionScope}
@@ -15,12 +15,13 @@ import java.util.Map;
  *
  * @param metadata        run-identifying metadata
  * @param triggerPayload  the webhook payload that started the run
- * @param sourceLeadId    the FUB person ID this run operates on (may be null
- *                        for workflows triggered by non-lead events)
- * @param lead            the locally-snapshotted lead details (Map view of
- *                        {@code leads.lead_details}); empty map when no
- *                        snapshot exists or {@code sourceLeadId} is null. See
- *                        {@link com.fuba.automation_engine.service.lead.LeadSnapshotResolver}
+ * @param sourcePersonId  the FUB person ID this run operates on (may be null
+ *                        for workflows triggered by non-person events)
+ * @param person          the locally-snapshotted person details (Map view of
+ *                        {@code persons.person_details} plus {@code kind}); empty
+ *                        map when no snapshot exists or {@code sourcePersonId} is
+ *                        null. See
+ *                        {@link com.fuba.automation_engine.service.person.PersonSnapshotResolver}
  * @param now             time-of-day flags resolved at step execution from
  *                        {@code BusinessHoursService}; carries
  *                        {@code isDaytime} (boolean) and {@code hourLocal}
@@ -32,8 +33,8 @@ import java.util.Map;
 public record RunContext(
         RunMetadata metadata,
         Map<String, Object> triggerPayload,
-        String sourceLeadId,
-        Map<String, Object> lead,
+        String sourcePersonId,
+        Map<String, Object> person,
         Map<String, Object> now,
         Map<String, Map<String, Object>> stepOutputs) {
 

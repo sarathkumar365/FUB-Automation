@@ -26,12 +26,12 @@ import org.springframework.stereotype.Component;
  * <p>Workflow authors pass mention IDs and matching display names via two
  * parallel arrays. The step does NOT look up names from FUB — it accepts
  * pre-resolved values from the JSONata scope (typically
- * {@code {{ lead.assignedUserId }}} / {@code {{ lead.assignedTo }}} which
- * Phase 1's {@code lead.*} namespace exposes from the local snapshot). See
+ * {@code {{ person.assignedUserId }}} / {@code {{ person.assignedTo }}} which
+ * Phase 1's {@code person.*} namespace exposes from the local snapshot). See
  * {@code Docs/features/agent-followup-enforcement/research.md} "Why no
  * getUser lookup" for the design rationale.
  *
- * <p>The {@code personId} is implicit from {@code runContext.sourceLeadId}.
+ * <p>The {@code personId} is implicit from {@code runContext.sourcePersonId}.
  *
  * <p>Three things must travel together for a mention to render as a chip and
  * trigger notification (verified empirically):
@@ -75,7 +75,7 @@ public class FubCreateNoteWorkflowStep implements WorkflowStepType {
 
     @Override
     public String description() {
-        return "Post a note on a Follow Up Boss lead with optional @mention chips that notify the mentioned users.";
+        return "Post a note on a Follow Up Boss person with optional @mention chips that notify the mentioned users.";
     }
 
     @Override
@@ -116,9 +116,9 @@ public class FubCreateNoteWorkflowStep implements WorkflowStepType {
     public StepExecutionResult execute(StepExecutionContext context) {
         long personId;
         try {
-            personId = fubCallHelper.parsePersonId(context.sourceLeadId());
+            personId = fubCallHelper.parsePersonId(context.sourcePersonId());
         } catch (IllegalArgumentException ex) {
-            String code = (context.sourceLeadId() == null || context.sourceLeadId().isBlank())
+            String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
                     ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
             return StepExecutionResult.failure(code, ex.getMessage());
         }
@@ -156,7 +156,7 @@ public class FubCreateNoteWorkflowStep implements WorkflowStepType {
             if (name == null || name.isBlank()) {
                 // A non-blank name is required so the chip has visible text and the
                 // user is unambiguously identified in the body. Workflow authors
-                // typically source this from {{ lead.assignedTo }}.
+                // typically source this from {{ person.assignedTo }}.
                 return StepExecutionResult.failure(
                         MENTIONS_MISMATCH,
                         "Blank mentionUserNames[" + i + "]; expected display name");
@@ -186,8 +186,8 @@ public class FubCreateNoteWorkflowStep implements WorkflowStepType {
                     "Permanent failure creating note for person " + personId
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
-            log.error("Unexpected note creation execution failure stepId={} runId={} sourceLeadId={}",
-                    context.stepId(), context.runId(), context.sourceLeadId(), ex);
+            log.error("Unexpected note creation execution failure stepId={} runId={} sourcePersonId={}",
+                    context.stepId(), context.runId(), context.sourcePersonId(), ex);
             return StepExecutionResult.failure(FAILED, "Unexpected note creation execution failure");
         }
     }

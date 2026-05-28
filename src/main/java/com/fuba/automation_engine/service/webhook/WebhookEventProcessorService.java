@@ -7,7 +7,7 @@ import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
-import com.fuba.automation_engine.persistence.repository.LeadRepository;
+import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.rules.CallDecision;
 import com.fuba.automation_engine.rules.CallDecisionAction;
@@ -17,7 +17,7 @@ import com.fuba.automation_engine.rules.CallbackTaskCommandFactory;
 import com.fuba.automation_engine.rules.PreValidationResult;
 import com.fuba.automation_engine.rules.ValidatedCallContext;
 import com.fuba.automation_engine.service.FollowUpBossClient;
-import com.fuba.automation_engine.service.lead.LeadUpsertService;
+import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
@@ -62,8 +62,8 @@ public class WebhookEventProcessorService {
     private final CallOutcomeRulesProperties callOutcomeRulesProperties;
     private final Environment environment;
     private final WorkflowTriggerRouter workflowTriggerRouter;
-    private final LeadUpsertService leadUpsertService;
-    private final LeadRepository leadRepository;
+    private final PersonUpsertService personUpsertService;
+    private final PersonRepository personRepository;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
@@ -75,8 +75,8 @@ public class WebhookEventProcessorService {
             CallOutcomeRulesProperties callOutcomeRulesProperties,
             Environment environment,
             WorkflowTriggerRouter workflowTriggerRouter,
-            LeadUpsertService leadUpsertService,
-            LeadRepository leadRepository) {
+            PersonUpsertService personUpsertService,
+            PersonRepository personRepository) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
         this.callPreValidationService = callPreValidationService;
@@ -86,8 +86,8 @@ public class WebhookEventProcessorService {
         this.callOutcomeRulesProperties = callOutcomeRulesProperties;
         this.environment = environment;
         this.workflowTriggerRouter = workflowTriggerRouter;
-        this.leadUpsertService = leadUpsertService;
-        this.leadRepository = leadRepository;
+        this.personUpsertService = personUpsertService;
+        this.personRepository = personRepository;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -101,7 +101,7 @@ public class WebhookEventProcessorService {
                 event.sourceEventType());
         switch (domain) {
             case CALL -> processCallDomainEvent(event);
-            case LEAD -> processLeadDomainEvent(event);
+            case PERSON -> processPersonDomainEvent(event);
             case UNKNOWN -> processUnknownDomainEvent(event);
         }
 
@@ -147,21 +147,21 @@ public class WebhookEventProcessorService {
         }
     }
 
-    private void processLeadDomainEvent(NormalizedWebhookEvent event) {
+    private void processPersonDomainEvent(NormalizedWebhookEvent event) {
         String eventType = extractEventType(event.payload());
         String sourceEventType = event.sourceEventType() == null || event.sourceEventType().isBlank()
                 ? eventType
                 : event.sourceEventType();
-        List<Long> leadIds = extractResourceIds(event.payload());
+        List<Long> personIds = extractResourceIds(event.payload());
         log.info(
-                "Processing LEAD domain event eventId={} source={} sourceEventType={} leadIdCount={}",
+                "Processing PERSON domain event eventId={} source={} sourceEventType={} personIdCount={}",
                 event.eventId(),
                 event.sourceSystem(),
                 sourceEventType,
-                leadIds.size());
-        if (leadIds.isEmpty()) {
+                personIds.size());
+        if (personIds.isEmpty()) {
             log.warn(
-                    "No lead resourceIds present; skipping lead-specific processing eventId={} source={} sourceEventType={}",
+                    "No person resourceIds present; skipping person-specific processing eventId={} source={} sourceEventType={}",
                     event.eventId(),
                     event.sourceSystem(),
                     sourceEventType);
@@ -169,52 +169,44 @@ public class WebhookEventProcessorService {
         }
 
         log.info(
-                "Assignment domain event accepted for workflow routing and lead upsert eventId={} source={} sourceEventType={} leadIdCount={}",
+                "Person domain event accepted for workflow routing and person upsert eventId={} source={} sourceEventType={} personIdCount={}",
                 event.eventId(),
                 event.sourceSystem(),
                 sourceEventType,
-                leadIds.size());
+                personIds.size());
 
-        for (Long leadId : leadIds) {
-            upsertLeadFromAssignmentEvent(event, sourceEventType, leadId);
+        for (Long personId : personIds) {
+            upsertPersonFromEvent(event, sourceEventType, personId);
         }
     }
 
-    private void upsertLeadFromAssignmentEvent(NormalizedWebhookEvent event, String sourceEventType, Long leadId) {
-        String sourceLeadId = String.valueOf(leadId);
+    private void upsertPersonFromEvent(NormalizedWebhookEvent event, String sourceEventType, Long personId) {
+        String sourcePersonId = String.valueOf(personId);
         try {
-            JsonNode personPayload = followUpBossClient.getPersonRawById(leadId);
-            // CREATE LEAD in system only if stage is actually lead
-            // Because this can get triggered for propleUpdate events too.
-            if (!leadUpsertService.isFubLeadPerson(personPayload)) {
-                log.info(
-                        "Skipping lead upsert because person payload is not lead-classified eventId={} sourceEventType={} sourceLeadId={} reason=missing-or-blank-stage",
-                        event.eventId(),
-                        sourceEventType,
-                        sourceLeadId);
-                return;
-            }
-            leadUpsertService.upsertFubPerson(sourceLeadId, personPayload);
+            // Every person FUB sends a webhook for is persisted regardless of stage; the
+            // normalized `kind` column classifies them and workflows filter via person.kind.
+            JsonNode personPayload = followUpBossClient.getPersonRawById(personId);
+            personUpsertService.upsertFubPerson(sourcePersonId, personPayload);
         } catch (FubTransientException ex) {
             log.warn(
-                    "Transient FUB failure fetching person for lead upsert; skipping upsert eventId={} sourceEventType={} sourceLeadId={} status={}",
+                    "Transient FUB failure fetching person for upsert; skipping upsert eventId={} sourceEventType={} sourcePersonId={} status={}",
                     event.eventId(),
                     sourceEventType,
-                    sourceLeadId,
+                    sourcePersonId,
                     stringifyStatus(ex.getStatusCode()));
         } catch (FubPermanentException ex) {
             log.warn(
-                    "Permanent FUB failure fetching person for lead upsert; skipping upsert eventId={} sourceEventType={} sourceLeadId={} status={}",
+                    "Permanent FUB failure fetching person for upsert; skipping upsert eventId={} sourceEventType={} sourcePersonId={} status={}",
                     event.eventId(),
                     sourceEventType,
-                    sourceLeadId,
+                    sourcePersonId,
                     stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
             log.error(
-                    "Unexpected failure during lead upsert eventId={} sourceEventType={} sourceLeadId={}",
+                    "Unexpected failure during person upsert eventId={} sourceEventType={} sourcePersonId={}",
                     event.eventId(),
                     sourceEventType,
-                    sourceLeadId,
+                    sourcePersonId,
                     ex);
         }
     }
@@ -274,8 +266,8 @@ public class WebhookEventProcessorService {
     }
 
     private void persistCallFacts(NormalizedWebhookEvent event, ProcessedCallEntity entity, CallDetails callDetails) {
-        String sourceLeadId = callDetails.personId() == null ? null : String.valueOf(callDetails.personId());
-        entity.setSourceLeadId(sourceLeadId);
+        String sourcePersonId = callDetails.personId() == null ? null : String.valueOf(callDetails.personId());
+        entity.setSourcePersonId(sourcePersonId);
         entity.setSourceUserId(callDetails.userId());
         entity.setIsIncoming(callDetails.isIncoming());
         entity.setDurationSeconds(callDetails.duration());
@@ -284,15 +276,15 @@ public class WebhookEventProcessorService {
         entity.setUpdatedAt(OffsetDateTime.now());
         processedCallRepository.save(entity);
 
-        if (sourceLeadId == null || sourceLeadId.isBlank()) {
+        if (sourcePersonId == null || sourcePersonId.isBlank()) {
             return;
         }
-        if (leadRepository.findBySourceSystemAndSourceLeadId(LeadUpsertService.SOURCE_SYSTEM_FUB, sourceLeadId).isEmpty()) {
+        if (personRepository.findBySourceSystemAndSourcePersonId(PersonUpsertService.SOURCE_SYSTEM_FUB, sourcePersonId).isEmpty()) {
             log.warn(
-                    "lead-missing-on-call eventId={} callId={} sourceLeadId={} sourceEventType={}",
+                    "person-missing-on-call eventId={} callId={} sourcePersonId={} sourceEventType={}",
                     event.eventId(),
                     entity.getCallId(),
-                    sourceLeadId,
+                    sourcePersonId,
                     event.sourceEventType());
         }
     }

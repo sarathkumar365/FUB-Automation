@@ -182,7 +182,7 @@ class AutomationWorkflowServiceTest {
         AutomationWorkflowEntity latest = existing("WF", 1, WorkflowStatus.ACTIVE, validGraph("v1"));
         Map<String, Object> newTrigger = Map.of(
                 "type", "webhook_fub",
-                "config", Map.of("eventDomain", "LEAD", "eventAction", "UPDATED"));
+                "config", Map.of("eventDomain", "PERSON", "eventAction", "UPDATED"));
 
         when(workflowRepository.findFirstByKeyOrderByVersionNumberDesc("WF")).thenReturn(Optional.of(latest));
         when(graphValidator.validate(any())).thenReturn(GraphValidationResult.success());

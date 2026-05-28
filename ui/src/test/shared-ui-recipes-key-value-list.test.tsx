@@ -28,7 +28,7 @@ describe('KeyValueList recipe', () => {
     const { container } = render(
       <KeyValueList
         variant="stacked"
-        items={[{ label: 'Type', value: 'webhook' }, { label: 'Path', value: '/leads' }]}
+        items={[{ label: 'Type', value: 'webhook' }, { label: 'Path', value: '/persons' }]}
       />,
     )
     // In stacked mode, no <dl> — FieldRow renders its own flex-col wrapper.

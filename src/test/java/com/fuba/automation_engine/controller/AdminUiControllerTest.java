@@ -14,7 +14,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  * Unit-tests the SPA fallback wired by {@link AdminUiController}.
  *
  * <p>The controller is intentionally a single catch-all so adding new SPA
- * routes (e.g. {@code /admin-ui/login}, {@code /admin-ui/leads/42}) doesn't
+ * routes (e.g. {@code /admin-ui/login}, {@code /admin-ui/persons/42}) doesn't
  * require touching this file. These tests pin that promise.
  */
 @SpringBootTest
@@ -40,7 +40,7 @@ class AdminUiControllerTest {
 
     @Test
     void forwardsAdminUiDeepLinkWithPathVariable() throws Exception {
-        mockMvc.perform(get("/admin-ui/leads/42"))
+        mockMvc.perform(get("/admin-ui/persons/42"))
                 .andExpect(status().isOk())
                 .andExpect(forwardedUrl("/index.html"));
     }

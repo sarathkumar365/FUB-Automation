@@ -51,3 +51,4 @@ ui/playwright-report/
 
 ### Claude Code personal/local config ###
 .claude/settings.local.json
+.claude/worktrees/

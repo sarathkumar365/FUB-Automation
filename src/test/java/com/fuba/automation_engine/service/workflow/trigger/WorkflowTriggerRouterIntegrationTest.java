@@ -76,7 +76,7 @@ class WorkflowTriggerRouterIntegrationTest {
 
     @Test
     void shouldCreateRunsForMatchingWorkflow() {
-        seedWorkflow("WF_LEAD", WorkflowStatus.ACTIVE, triggerConfig("LEAD", "UPDATED", null));
+        seedWorkflow("WF_PERSON", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
 
         WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payload("peopleUpdated", "zillow", 777, 778)));
 
@@ -85,15 +85,15 @@ class WorkflowTriggerRouterIntegrationTest {
         assertEquals(2, summary.plannedCount());
         assertEquals(2, runRepository.count());
 
-        Set<String> leadIds = runRepository.findAll().stream()
-                .map(WorkflowRunEntity::getSourceLeadId)
+        Set<String> personIds = runRepository.findAll().stream()
+                .map(WorkflowRunEntity::getSourcePersonId)
                 .collect(Collectors.toSet());
-        assertEquals(Set.of("777", "778"), leadIds);
+        assertEquals(Set.of("777", "778"), personIds);
     }
 
     @Test
     void shouldNotCreateRunWhenFilterDoesNotMatch() {
-        seedWorkflow("WF_FILTERED", WorkflowStatus.ACTIVE, triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""));
+        seedWorkflow("WF_FILTERED", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", "event.payload.channel = \"zillow\""));
 
         WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payload("peopleUpdated", "manual", 777)));
 
@@ -105,8 +105,8 @@ class WorkflowTriggerRouterIntegrationTest {
 
     @Test
     void shouldPlanAcrossMultipleWorkflowsAndEntities() {
-        seedWorkflow("WF_A", WorkflowStatus.ACTIVE, triggerConfig("LEAD", "UPDATED", null));
-        seedWorkflow("WF_B", WorkflowStatus.ACTIVE, triggerConfig("LEAD", "UPDATED", null));
+        seedWorkflow("WF_A", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
+        seedWorkflow("WF_B", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
 
         WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payload("peopleUpdated", "zillow", 900, 901)));
 
@@ -118,8 +118,8 @@ class WorkflowTriggerRouterIntegrationTest {
 
     @Test
     void shouldSkipInactiveUnknownAndNullTriggers() {
-        seedWorkflow("WF_ACTIVE", WorkflowStatus.ACTIVE, triggerConfig("LEAD", "UPDATED", null));
-        seedWorkflow("WF_INACTIVE", WorkflowStatus.INACTIVE, triggerConfig("LEAD", "UPDATED", null));
+        seedWorkflow("WF_ACTIVE", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
+        seedWorkflow("WF_INACTIVE", WorkflowStatus.INACTIVE, triggerConfig("PERSON", "UPDATED", null));
         seedWorkflowWithRawTrigger("WF_UNKNOWN", WorkflowStatus.ACTIVE, Map.of("type", "unknown", "config", Map.of()));
         seedWorkflowWithRawTrigger("WF_NULL_TRIGGER", WorkflowStatus.ACTIVE, null);
 
@@ -177,7 +177,7 @@ class WorkflowTriggerRouterIntegrationTest {
                 payload.path("eventType").asText(""),
                 null,
                 null,
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,

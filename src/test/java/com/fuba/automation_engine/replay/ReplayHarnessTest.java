@@ -8,7 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
-import com.fuba.automation_engine.persistence.repository.LeadRepository;
+import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import java.nio.charset.StandardCharsets;
@@ -73,7 +73,7 @@ class ReplayHarnessTest {
     private WebhookEventRepository webhookEventRepository;
 
     @Autowired
-    private LeadRepository leadRepository;
+    private PersonRepository personRepository;
 
     @Autowired
     private ReplayHarnessFollowUpBossClient fubClient;
@@ -86,7 +86,7 @@ class ReplayHarnessTest {
         workflowRunRepository.deleteAll();
         webhookEventRepository.deleteAll();
         workflowRepository.deleteAll();
-        leadRepository.deleteAll();
+        personRepository.deleteAll();
         fubClient.reset();
         seedTestWorkflow();
     }
@@ -101,7 +101,7 @@ class ReplayHarnessTest {
     }
 
     private void runFixture(ReplayFixture fixture) throws Exception {
-        // Script per-lead FUB person snapshots BEFORE driving webhooks so the
+        // Script per-person FUB person snapshots BEFORE driving webhooks so the
         // upsert path sees real-looking data.
         if (fixture.personSnapshots() != null) {
             fixture.personSnapshots()
@@ -143,7 +143,7 @@ class ReplayHarnessTest {
                 "fixture=" + fixture.name()
                         + " expected workflow_runs.webhook_event_id non-null for runId="
                         + run.getId()
-                        + " sourceLeadId=" + run.getSourceLeadId()
+                        + " sourcePersonId=" + run.getSourcePersonId()
                         + " — Phase 1 foundation must populate this from the trigger router."));
     }
 
@@ -152,10 +152,10 @@ class ReplayHarnessTest {
                 && webhookEventRepository.count() < expected.minWebhookEvents()) {
             return false;
         }
-        if (expected.minWorkflowRunsForLead() != null) {
-            for (Map.Entry<String, Integer> entry : expected.minWorkflowRunsForLead().entrySet()) {
+        if (expected.minWorkflowRunsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.minWorkflowRunsForPerson().entrySet()) {
                 long actual = workflowRunRepository.findAll().stream()
-                        .filter(run -> entry.getKey().equals(run.getSourceLeadId()))
+                        .filter(run -> entry.getKey().equals(run.getSourcePersonId()))
                         .count();
                 if (actual < entry.getValue()) {
                     return false;
@@ -182,14 +182,14 @@ class ReplayHarnessTest {
                     prefix + "expected >=" + expected.minWebhookEvents()
                             + " webhook_events rows, saw " + actual);
         }
-        if (expected.minWorkflowRunsForLead() != null) {
-            for (Map.Entry<String, Integer> entry : expected.minWorkflowRunsForLead().entrySet()) {
+        if (expected.minWorkflowRunsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.minWorkflowRunsForPerson().entrySet()) {
                 long actual = workflowRunRepository.findAll().stream()
-                        .filter(run -> entry.getKey().equals(run.getSourceLeadId()))
+                        .filter(run -> entry.getKey().equals(run.getSourcePersonId()))
                         .count();
                 assertTrue(actual >= entry.getValue(),
                         prefix + "expected >=" + entry.getValue()
-                                + " workflow_runs for lead=" + entry.getKey()
+                                + " workflow_runs for person=" + entry.getKey()
                                 + ", saw " + actual);
             }
         }
@@ -236,7 +236,7 @@ class ReplayHarnessTest {
         entity.setTrigger(Map.of(
                 "type", "webhook_fub",
                 "config", Map.of(
-                        "eventDomain", "LEAD",
+                        "eventDomain", "PERSON",
                         "eventAction", "UPDATED")));
         entity.setGraph(Map.of(
                 "schemaVersion", 1,

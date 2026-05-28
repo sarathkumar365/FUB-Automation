@@ -1,6 +1,6 @@
 package com.fuba.automation_engine.service.workflow;
 
-import com.fuba.automation_engine.service.lead.LeadUpsertService;
+import com.fuba.automation_engine.service.person.PersonUpsertService;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -20,20 +20,20 @@ import org.springframework.stereotype.Component;
 public class WorkflowGraphValidator {
 
     /**
-     * Captures references like {@code lead.assignedUserId} inside any JSONata
-     * expression string. The {@code \b} ensures we don't match {@code mislead.}
-     * substrings. Only the first segment after {@code lead.} is captured because
+     * Captures references like {@code person.assignedUserId} inside any JSONata
+     * expression string. The {@code \b} ensures we don't match {@code aperson.}
+     * substrings. Only the first segment after {@code person.} is captured because
      * {@code SNAPSHOT_FIELDS} is top-level today; nested references such as
-     * {@code lead.customFields.foo} validate against the top-level head.
+     * {@code person.customFields.foo} validate against the top-level head.
      */
-    private static final Pattern LEAD_EXPRESSION_PATTERN =
-            Pattern.compile("\\blead\\.([a-zA-Z][a-zA-Z0-9_]*)");
+    private static final Pattern PERSON_EXPRESSION_PATTERN =
+            Pattern.compile("\\bperson\\.([a-zA-Z][a-zA-Z0-9_]*)");
 
     /**
-     * Captures references inside templates like {@code {{ lead.firstName }}}.
+     * Captures references inside templates like {@code {{ person.firstName }}}.
      */
-    private static final Pattern LEAD_TEMPLATE_PATTERN =
-            Pattern.compile("\\{\\{\\s*lead\\.([a-zA-Z][a-zA-Z0-9_]*)");
+    private static final Pattern PERSON_TEMPLATE_PATTERN =
+            Pattern.compile("\\{\\{\\s*person\\.([a-zA-Z][a-zA-Z0-9_]*)");
 
     private final WorkflowStepRegistry stepRegistry;
 
@@ -114,7 +114,7 @@ public class WorkflowGraphValidator {
             WorkflowStepType stepType = stepTypeOpt.get();
             validateTransitions(node, id, stepType, nodeIds, errors);
             validateConfig(node, id, stepType, errors);
-            validateLeadFieldReferences(node, id, errors);
+            validatePersonFieldReferences(node, id, errors);
         }
 
         if (!errors.isEmpty()) {
@@ -289,12 +289,12 @@ public class WorkflowGraphValidator {
 
     /**
      * Walks every string value reachable from this node's {@code config} map and
-     * flags references to {@code lead.<field>} where {@code <field>} is not
-     * captured by {@link LeadUpsertService#capturedFieldNames()}.
+     * flags references to {@code person.<field>} where {@code <field>} is not
+     * captured by {@link PersonUpsertService#capturedFieldNames()}.
      *
      * <p>Two patterns are matched: bare JSONata expressions
-     * ({@code $boolean(lead.assignedUserId)}) and template strings
-     * ({@code "Hi, {{ lead.firstName }}"}). Both forms appear in real
+     * ({@code $boolean(person.assignedUserId)}) and template strings
+     * ({@code "Hi, {{ person.firstName }}"}). Both forms appear in real
      * workflow JSON — see {@code Docs/features/agent-followup-enforcement/workflow.json}.
      *
      * <p>Rationale: without this check, a workflow author can ship a workflow
@@ -303,18 +303,18 @@ public class WorkflowGraphValidator {
      * both see null, and the failure is invisible until production. Phase 1 of
      * the domain-events feature catches the mistake at save time.
      */
-    private void validateLeadFieldReferences(
+    private void validatePersonFieldReferences(
             Map<String, Object> node, String nodeId, List<String> errors) {
         Object configObj = node.get("config");
         if (!(configObj instanceof Map<?, ?> config)) {
             return;
         }
         Set<String> referenced = new LinkedHashSet<>();
-        collectLeadReferences(config, referenced);
+        collectPersonReferences(config, referenced);
         if (referenced.isEmpty()) {
             return;
         }
-        Set<String> captured = LeadUpsertService.capturedFieldNames();
+        Set<String> captured = PersonUpsertService.capturedFieldNames();
         Set<String> unknown = new TreeSet<>();
         for (String field : referenced) {
             if (!captured.contains(field)) {
@@ -325,39 +325,39 @@ public class WorkflowGraphValidator {
             errors.add(
                     "Node '"
                             + nodeId
-                            + "' references unknown lead field 'lead."
+                            + "' references unknown person field 'person."
                             + field
-                            + "' — not in LeadUpsertService.SNAPSHOT_FIELDS. "
+                            + "' — not in PersonUpsertService.capturedFieldNames(). "
                             + "If this is a new field, add it to SNAPSHOT_FIELDS and update the validator tests.");
         }
     }
 
     /**
      * Recursively descends into the supplied value, scanning every string for
-     * {@code lead.<field>} references in both JSONata and template form and
+     * {@code person.<field>} references in both JSONata and template form and
      * accumulating the captured field names into {@code referenced}.
      */
-    private void collectLeadReferences(Object value, Set<String> referenced) {
+    private void collectPersonReferences(Object value, Set<String> referenced) {
         if (value instanceof String s) {
             scanString(s, referenced);
         } else if (value instanceof Map<?, ?> map) {
             for (Object child : map.values()) {
-                collectLeadReferences(child, referenced);
+                collectPersonReferences(child, referenced);
             }
         } else if (value instanceof List<?> list) {
             for (Object child : list) {
-                collectLeadReferences(child, referenced);
+                collectPersonReferences(child, referenced);
             }
         }
         // Numbers, booleans, null: no references possible.
     }
 
     private void scanString(String s, Set<String> referenced) {
-        Matcher exprMatcher = LEAD_EXPRESSION_PATTERN.matcher(s);
+        Matcher exprMatcher = PERSON_EXPRESSION_PATTERN.matcher(s);
         while (exprMatcher.find()) {
             referenced.add(exprMatcher.group(1));
         }
-        Matcher templateMatcher = LEAD_TEMPLATE_PATTERN.matcher(s);
+        Matcher templateMatcher = PERSON_TEMPLATE_PATTERN.matcher(s);
         while (templateMatcher.find()) {
             referenced.add(templateMatcher.group(1));
         }

@@ -112,10 +112,10 @@ class WorkflowParityTest {
     }
 
     // ──────────────────────────────────────────────────────────
-    // Scenario 1: Lead is claimed → terminal COMPLIANT_CLOSED
+    // Scenario 1: Person is claimed → terminal COMPLIANT_CLOSED
     // ──────────────────────────────────────────────────────────
     @Test
-    void shouldTerminateWhenLeadIsClaimed() {
+    void shouldTerminateWhenPersonIsClaimed() {
         seedParityWorkflow();
         stubClient.setPersonDetails(7890L, new PersonDetails(7890L, true, 42L, 0));
 
@@ -141,7 +141,7 @@ class WorkflowParityTest {
     }
 
     // ──────────────────────────────────────────────────────────
-    // Scenario 2: Lead unclaimed, communication found → COMPLIANT_CLOSED
+    // Scenario 2: Person unclaimed, communication found → COMPLIANT_CLOSED
     // ──────────────────────────────────────────────────────────
     @Test
     void shouldTerminateWhenCommunicationFound() {
@@ -271,7 +271,7 @@ class WorkflowParityTest {
                 501L,
                 7890L,
                 77L,
-                "Call back lead",
+                "Call back person",
                 LocalDate.of(2026, 1, 2),
                 OffsetDateTime.parse("2026-01-02T09:30:00Z")));
 
@@ -288,7 +288,7 @@ class WorkflowParityTest {
         assertEquals(501L, ((Number) createTaskStep.getOutputs().get("taskId")).longValue());
         assertEquals(7890L, ((Number) createTaskStep.getOutputs().get("personId")).longValue());
         assertEquals(77L, ((Number) createTaskStep.getOutputs().get("assignedUserId")).longValue());
-        assertEquals("Call back lead", createTaskStep.getOutputs().get("name"));
+        assertEquals("Call back person", createTaskStep.getOutputs().get("name"));
 
         assertEquals(1, stubClient.createTaskCommands.size());
         CreateTaskCommand issuedCommand = stubClient.createTaskCommands.getFirst();
@@ -319,25 +319,25 @@ class WorkflowParityTest {
         workflowRepository.saveAndFlush(entity);
     }
 
-    private WorkflowPlanningResult planParityRun(String sourceLeadId, String eventId) {
+    private WorkflowPlanningResult planParityRun(String sourcePersonId, String eventId) {
         Map<String, Object> triggerPayload = new HashMap<>();
         triggerPayload.put("fallbackUserId", 77);
         triggerPayload.put("eventType", "peopleCreated");
-        triggerPayload.put("resourceIds", List.of(Integer.parseInt(sourceLeadId)));
+        triggerPayload.put("resourceIds", List.of(Integer.parseInt(sourcePersonId)));
 
         return executionManager.plan(new WorkflowPlanRequest(
-                "LEAD_FOLLOWUP_SLA", "TEST", eventId, null, sourceLeadId, triggerPayload));
+                "LEAD_FOLLOWUP_SLA", "TEST", eventId, null, sourcePersonId, triggerPayload));
     }
 
-    private WorkflowPlanningResult planTaskRun(String sourceLeadId, String eventId) {
+    private WorkflowPlanningResult planTaskRun(String sourcePersonId, String eventId) {
         Map<String, Object> triggerPayload = new HashMap<>();
         triggerPayload.put("fallbackUserId", 77);
-        triggerPayload.put("taskName", "Call back lead");
+        triggerPayload.put("taskName", "Call back person");
         triggerPayload.put("eventType", "peopleCreated");
-        triggerPayload.put("resourceIds", List.of(Integer.parseInt(sourceLeadId)));
+        triggerPayload.put("resourceIds", List.of(Integer.parseInt(sourcePersonId)));
 
         return executionManager.plan(new WorkflowPlanRequest(
-                "TASK_CREATE_PARITY", "TEST", eventId, null, sourceLeadId, triggerPayload));
+                "TASK_CREATE_PARITY", "TEST", eventId, null, sourcePersonId, triggerPayload));
     }
 
     @SuppressWarnings("unchecked")
@@ -410,16 +410,16 @@ class WorkflowParityTest {
 
     private void saveOutboundCallEvidence(
             Long callId,
-            String sourceLeadId,
+            String sourcePersonId,
             Integer durationSeconds,
             String outcome,
             int minutesAgo) {
-        saveLocalCallEvidence(callId, sourceLeadId, false, durationSeconds, outcome, minutesAgo);
+        saveLocalCallEvidence(callId, sourcePersonId, false, durationSeconds, outcome, minutesAgo);
     }
 
     private void saveLocalCallEvidence(
             Long callId,
-            String sourceLeadId,
+            String sourcePersonId,
             boolean isIncoming,
             Integer durationSeconds,
             String outcome,
@@ -429,7 +429,7 @@ class WorkflowParityTest {
         entity.setCallId(callId);
         entity.setStatus(ProcessedCallStatus.RECEIVED);
         entity.setRetryCount(0);
-        entity.setSourceLeadId(sourceLeadId);
+        entity.setSourcePersonId(sourcePersonId);
         entity.setIsIncoming(isIncoming);
         entity.setDurationSeconds(durationSeconds);
         entity.setOutcome(outcome);

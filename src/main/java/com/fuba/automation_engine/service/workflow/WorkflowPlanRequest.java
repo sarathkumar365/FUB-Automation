@@ -7,6 +7,6 @@ public record WorkflowPlanRequest(
         String source,
         String eventId,
         Long webhookEventId,
-        String sourceLeadId,
+        String sourcePersonId,
         Map<String, Object> triggerPayload) {
 }

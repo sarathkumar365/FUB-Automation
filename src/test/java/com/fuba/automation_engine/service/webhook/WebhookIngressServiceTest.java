@@ -112,7 +112,7 @@ class WebhookIngressServiceTest {
                 "evt-staged-1",
                 "peopleCreated",
                 null,
-                "lead-123",
+                "person-123",
                 NormalizedDomain.UNKNOWN,
                 NormalizedAction.UNKNOWN,
                 null,
@@ -128,9 +128,9 @@ class WebhookIngressServiceTest {
         assertEquals(1, liveFeedPublisher.publishCount);
         assertEquals(1, dispatcher.dispatchCount);
         assertEquals(EventSupportState.SUPPORTED, repositoryState.lastSavedEntity.getCatalogState());
-        assertEquals(NormalizedDomain.LEAD, repositoryState.lastSavedEntity.getNormalizedDomain());
+        assertEquals(NormalizedDomain.PERSON, repositoryState.lastSavedEntity.getNormalizedDomain());
         assertEquals(NormalizedAction.CREATED, repositoryState.lastSavedEntity.getNormalizedAction());
-        assertEquals("lead-123", repositoryState.lastSavedEntity.getSourceLeadId());
+        assertEquals("person-123", repositoryState.lastSavedEntity.getSourcePersonId());
     }
 
     @Test

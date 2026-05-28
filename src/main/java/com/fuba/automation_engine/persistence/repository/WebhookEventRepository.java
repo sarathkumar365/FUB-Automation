@@ -22,9 +22,9 @@ public interface WebhookEventRepository extends JpaRepository<WebhookEventEntity
     List<String> findDistinctEventTypes();
 
     /**
-     * Top 10 most recent webhook events for a lead, ordered by received_at
-     * then id (both DESC). Used by the leads detail endpoint's timeline
+     * Top 10 most recent webhook events for a person, ordered by received_at
+     * then id (both DESC). Used by the persons detail endpoint's timeline
      * aggregation.
      */
-    List<WebhookEventEntity> findTop10BySourceLeadIdOrderByReceivedAtDescIdDesc(String sourceLeadId);
+    List<WebhookEventEntity> findTop10BySourcePersonIdOrderByReceivedAtDescIdDesc(String sourcePersonId);
 }

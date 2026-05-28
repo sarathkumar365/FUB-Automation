@@ -41,7 +41,7 @@ public record ReplayFixture(
      * relevant to the scenario being validated.
      */
     public record Expected(
-            Map<String, Integer> minWorkflowRunsForLead,
+            Map<String, Integer> minWorkflowRunsForPerson,
             Integer minWebhookEvents,
             Integer minReassignCalls,
             Integer minCreateNoteCalls,

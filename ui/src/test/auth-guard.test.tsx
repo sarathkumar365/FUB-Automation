@@ -16,7 +16,7 @@ function renderApp(initialPath: string) {
         <Route element={<AuthGuard />}>
           <Route path="/admin-ui" element={<Outlet />}>
             <Route index element={<div>dashboard</div>} />
-            <Route path="leads" element={<div>leads</div>} />
+            <Route path="persons" element={<div>persons</div>} />
           </Route>
         </Route>
       </Routes>
@@ -36,7 +36,7 @@ describe('AuthGuard', () => {
   })
 
   it('redirects anonymous users to /admin-ui/login with the next param', () => {
-    renderApp('/admin-ui/leads')
+    renderApp('/admin-ui/persons')
     expect(screen.getByText('login-page')).toBeInTheDocument()
   })
 
@@ -47,8 +47,8 @@ describe('AuthGuard', () => {
       username: 'admin',
       role: 'ADMIN',
     })
-    renderApp('/admin-ui/leads')
-    expect(screen.getByText('leads')).toBeInTheDocument()
+    renderApp('/admin-ui/persons')
+    expect(screen.getByText('persons')).toBeInTheDocument()
   })
 
   it('navigates to login when the unauthorized event fires (e.g. backend 401)', async () => {
@@ -58,15 +58,15 @@ describe('AuthGuard', () => {
       username: 'admin',
       role: 'ADMIN',
     })
-    renderApp('/admin-ui/leads')
-    expect(screen.getByText('leads')).toBeInTheDocument()
+    renderApp('/admin-ui/persons')
+    expect(screen.getByText('persons')).toBeInTheDocument()
 
     // Simulate the http client clearing the token + dispatching the event.
     window.sessionStorage.clear()
     __resetTokenStoreCacheForTests()
     act(() => {
       window.dispatchEvent(
-        new CustomEvent(ADMIN_UNAUTHORIZED_EVENT, { detail: { path: '/admin/leads' } }),
+        new CustomEvent(ADMIN_UNAUTHORIZED_EVENT, { detail: { path: '/admin/persons' } }),
       )
     })
 

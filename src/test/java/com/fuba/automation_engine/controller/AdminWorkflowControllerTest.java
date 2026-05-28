@@ -51,7 +51,7 @@ class AdminWorkflowControllerTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "LEAD",
+                      "eventDomain": "PERSON",
                       "eventAction": "UPDATED"
                     }
                   },
@@ -263,7 +263,7 @@ class AdminWorkflowControllerTest {
         AutomationWorkflowEntity initial = saveWorkflow("WF_TRIGGER", 1, WorkflowStatus.INACTIVE, graphWithLabel("v1"));
         initial.setTrigger(Map.of(
                 "type", "webhook_fub",
-                "config", Map.of("eventDomain", "LEAD", "eventAction", "UPDATED")));
+                "config", Map.of("eventDomain", "PERSON", "eventAction", "UPDATED")));
         workflowRepository.saveAndFlush(initial);
 
         String requestJson = """
@@ -273,7 +273,7 @@ class AdminWorkflowControllerTest {
                   "trigger": {
                     "type": "webhook_fub",
                     "config": {
-                      "eventDomain": "LEAD",
+                      "eventDomain": "PERSON",
                       "eventAction": "UPDATED",
                       "filter": "event.payload.channel = \\"zillow\\""
                     }

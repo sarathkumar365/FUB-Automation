@@ -21,7 +21,7 @@ describe('TerminalPill', () => {
         id="t-wide"
         from={parent}
         resultCode="communication_received"
-        reason="lead responded"
+        reason="person responded"
         index={0}
         totalTerminals={1}
         side="right"
@@ -29,7 +29,7 @@ describe('TerminalPill', () => {
     )
     const group = container.querySelector('[data-terminal-id="t-wide"]')
     const width = Number(group?.getAttribute('data-chip-width') ?? '0')
-    const label = 'communication_received → lead responded'
+    const label = 'communication_received → person responded'
     // Using the shared chipMetrics constants (char width 7.2, padding 20)
     // the minimum width that avoids overflow is ceil(label.length * 7.2 + 20).
     const minimumViableWidth = Math.ceil(label.length * 7.2 + 20)
@@ -87,7 +87,7 @@ describe('TerminalPill', () => {
         id="t-custom"
         from={parent}
         resultCode="communication_received"
-        reason="lead responded"
+        reason="person responded"
         index={0}
         totalTerminals={1}
         side="right"
@@ -97,7 +97,7 @@ describe('TerminalPill', () => {
     expect(group?.getAttribute('data-terminal-kind')).toBe('neutral')
     // No glyph — label starts with the resultCode.
     expect(container.querySelector('text')?.textContent).toBe(
-      'communication_received → lead responded',
+      'communication_received → person responded',
     )
     const rect = container.querySelector('rect')
     expect(rect?.getAttribute('fill')).toContain('chip-neutral-bg')

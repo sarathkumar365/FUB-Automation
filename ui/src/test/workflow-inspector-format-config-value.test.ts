@@ -57,14 +57,14 @@ describe('formatConfigValue kind dispatch (D4.1-a / D4.2-b / D4.4-a / D4.5-c)', 
   })
 
   it('classifies handlebars-style strings ({{ }}) as templating', () => {
-    const out = formatConfigValue('Welcome {{ lead.name }}')
-    expect(out).toEqual({ kind: 'templating', text: 'Welcome {{ lead.name }}' })
+    const out = formatConfigValue('Welcome {{ person.name }}')
+    expect(out).toEqual({ kind: 'templating', text: 'Welcome {{ person.name }}' })
   })
 
   it('prefers url over templating when both patterns could match', () => {
     // URL-shape check comes first; a URL containing {{ still wins as url
     // because copy-only is the useful affordance there.
-    const out = formatConfigValue('https://api.example.com/{{ lead.id }}/tasks')
+    const out = formatConfigValue('https://api.example.com/{{ person.id }}/tasks')
     expect(out.kind).toBe('url')
   })
 

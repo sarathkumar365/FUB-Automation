@@ -41,12 +41,12 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
 
     @Override
     public String displayName() {
-        return "Add Tag to Lead";
+        return "Add Tag to Person";
     }
 
     @Override
     public String description() {
-        return "Add a tag to a Follow Up Boss lead.";
+        return "Add a tag to a Follow Up Boss person.";
     }
 
     @Override
@@ -56,7 +56,7 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
                 "properties", Map.of(
                         "tagName", Map.of(
                                 "type", "string",
-                                "description", "Tag name to add to the lead. Accepts template expressions.")),
+                                "description", "Tag name to add to the person. Accepts template expressions.")),
                 "required", List.of("tagName"));
     }
 
@@ -74,9 +74,9 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
     public StepExecutionResult execute(StepExecutionContext context) {
         long personId;
         try {
-            personId = fubCallHelper.parsePersonId(context.sourceLeadId());
+            personId = fubCallHelper.parsePersonId(context.sourcePersonId());
         } catch (IllegalArgumentException ex) {
-            String code = (context.sourceLeadId() == null || context.sourceLeadId().isBlank())
+            String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
                     ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
             return StepExecutionResult.failure(code, ex.getMessage());
         }
@@ -106,8 +106,8 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
                     "Permanent failure adding tag to person " + personId
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
-            log.error("Unexpected add-tag execution failure stepId={} runId={} sourceLeadId={}",
-                    context.stepId(), context.runId(), context.sourceLeadId(), ex);
+            log.error("Unexpected add-tag execution failure stepId={} runId={} sourcePersonId={}",
+                    context.stepId(), context.runId(), context.sourcePersonId(), ex);
             return StepExecutionResult.failure(FAILED, "Unexpected add-tag execution failure");
         }
     }

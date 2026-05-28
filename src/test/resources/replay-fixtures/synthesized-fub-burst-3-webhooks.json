@@ -37,7 +37,7 @@
   "drainTimeoutMs": 15000,
   "expected": {
     "minWebhookEvents": 3,
-    "minWorkflowRunsForLead": {
+    "minWorkflowRunsForPerson": {
       "22222": 3
     },
     "notes": "Documents BAD behavior under current engine: three parallel runs for one logical edit pattern. After Phase 2 (diff collapse) this should drop to one run; after Phase 5 (run dedup) it is hard-capped at one. Update expectations as those phases land."

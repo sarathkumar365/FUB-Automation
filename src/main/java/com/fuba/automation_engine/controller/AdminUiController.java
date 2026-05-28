@@ -6,7 +6,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 /**
  * Forwards every {@code GET /admin-ui/...} request to {@code /index.html} so
  * the React SPA boots and its client-side router can take over. Without this
- * fallback, deep-link reloads (e.g. {@code /admin-ui/leads/42}) would 404
+ * fallback, deep-link reloads (e.g. {@code /admin-ui/persons/42}) would 404
  * because Spring has no controller mapping for them and the static-resource
  * handler only serves files that physically exist under
  * {@code src/main/resources/static/}.

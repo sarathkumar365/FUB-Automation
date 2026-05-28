@@ -37,7 +37,7 @@ class FubWebhookParserNormalizedContractTest {
         assertEquals("callsCreated", event.sourceEventType());
         assertEquals(NormalizedDomain.CALL, event.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, event.normalizedAction());
-        assertNull(event.sourceLeadId());
+        assertNull(event.sourcePersonId());
         assertNotNull(event.providerMeta());
         assertEquals(2, event.providerMeta().get("resourceIds").size());
         assertEquals("/v1/calls/111", event.providerMeta().get("uri").asText());
@@ -78,10 +78,10 @@ class FubWebhookParserNormalizedContractTest {
         NormalizedWebhookEvent peopleUpdated = parser.parse(peopleUpdatedRawBody, Map.of());
         NormalizedWebhookEvent unknown = parser.parse(unknownRawBody, Map.of());
 
-        assertEquals(NormalizedDomain.LEAD, peopleCreated.normalizedDomain());
+        assertEquals(NormalizedDomain.PERSON, peopleCreated.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, peopleCreated.normalizedAction());
 
-        assertEquals(NormalizedDomain.LEAD, peopleUpdated.normalizedDomain());
+        assertEquals(NormalizedDomain.PERSON, peopleUpdated.normalizedDomain());
         assertEquals(NormalizedAction.UPDATED, peopleUpdated.normalizedAction());
 
         assertEquals(NormalizedDomain.UNKNOWN, unknown.normalizedDomain());
@@ -89,7 +89,7 @@ class FubWebhookParserNormalizedContractTest {
     }
 
     @Test
-    void shouldPopulateSourceLeadIdForPeopleEvents() {
+    void shouldPopulateSourcePersonIdForPeopleEvents() {
         NormalizedWebhookEvent peopleCreated = parser.parse(
                 """
                 {
@@ -118,9 +118,9 @@ class FubWebhookParserNormalizedContractTest {
                 """,
                 Map.of());
 
-        assertEquals("19355", peopleCreated.sourceLeadId());
-        assertEquals("19355", peopleUpdated.sourceLeadId());
-        assertNull(callsCreated.sourceLeadId());
+        assertEquals("19355", peopleCreated.sourcePersonId());
+        assertEquals("19355", peopleUpdated.sourcePersonId());
+        assertNull(callsCreated.sourcePersonId());
     }
 
     @Test
@@ -136,7 +136,7 @@ class FubWebhookParserNormalizedContractTest {
         NormalizedWebhookEvent event = parser.parse(rawBody, Map.of());
 
         assertEquals("peopleCreated", event.sourceEventType());
-        assertEquals(NormalizedDomain.LEAD, event.normalizedDomain());
+        assertEquals(NormalizedDomain.PERSON, event.normalizedDomain());
         assertEquals(NormalizedAction.CREATED, event.normalizedAction());
         assertEquals(0, event.payload().get("resourceIds").size());
         assertTrue(event.payload().get("uri").isNull());

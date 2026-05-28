@@ -9,12 +9,12 @@ import {
   setToken,
 } from '../modules/auth/state/tokenStore'
 
-function renderWithToken(ui: ReactElement, initialPath = '/admin-ui/leads') {
+function renderWithToken(ui: ReactElement, initialPath = '/admin-ui/persons') {
   return render(
     <MemoryRouter initialEntries={[initialPath]}>
       <Routes>
         <Route path="/admin-ui/login" element={<div>login-page</div>} />
-        <Route path="/admin-ui/leads" element={<div>{ui}</div>} />
+        <Route path="/admin-ui/persons" element={<div>{ui}</div>} />
       </Routes>
     </MemoryRouter>,
   )

@@ -1,4 +1,4 @@
-import type { LeadListFilters, LeadSummaryFilters } from '../../shared/types/lead'
+import type { PersonListFilters, PersonSummaryFilters } from '../../shared/types/person'
 import type { WebhookListFilters } from '../../shared/types/webhook'
 import type { ProcessedCallFilters } from '../ports/processedCallsPort'
 import type { WorkflowListFilters } from '../ports/workflowPort'
@@ -13,10 +13,10 @@ export const queryKeys = {
   processedCalls: {
     list: (filters: ProcessedCallFilters) => ['processed-calls', 'list', filters] as const,
   },
-  leads: {
-    list: (filters: LeadListFilters) => ['leads', 'list', filters] as const,
-    summary: (sourceLeadId: string, filters: LeadSummaryFilters) =>
-      ['leads', 'summary', sourceLeadId, filters] as const,
+  persons: {
+    list: (filters: PersonListFilters) => ['persons', 'list', filters] as const,
+    summary: (sourcePersonId: string, filters: PersonSummaryFilters) =>
+      ['persons', 'summary', sourcePersonId, filters] as const,
   },
   workflows: {
     list: (filters: WorkflowListFilters) => ['workflows', 'list', filters] as const,

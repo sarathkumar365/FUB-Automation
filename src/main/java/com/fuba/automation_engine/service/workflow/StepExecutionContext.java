@@ -6,7 +6,7 @@ public record StepExecutionContext(
         long runId,
         long stepId,
         String nodeId,
-        String sourceLeadId,
+        String sourcePersonId,
         Map<String, Object> rawConfig,
         Map<String, Object> resolvedConfig,
         RunContext runContext,
@@ -22,10 +22,10 @@ public record StepExecutionContext(
             long runId,
             long stepId,
             String nodeId,
-            String sourceLeadId,
+            String sourcePersonId,
             Map<String, Object> rawConfig,
             Map<String, Object> resolvedConfig,
             RunContext runContext) {
-        this(runId, stepId, nodeId, sourceLeadId, rawConfig, resolvedConfig, runContext, Map.of());
+        this(runId, stepId, nodeId, sourcePersonId, rawConfig, resolvedConfig, runContext, Map.of());
     }
 }

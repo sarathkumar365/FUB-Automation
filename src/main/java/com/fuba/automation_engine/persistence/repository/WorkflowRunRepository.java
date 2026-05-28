@@ -48,8 +48,8 @@ public interface WorkflowRunRepository extends JpaRepository<WorkflowRunEntity, 
             Pageable pageable);
 
     /**
-     * Top 10 most recent runs for a lead, ordered by created_at then id
-     * (both DESC). Used by the leads detail endpoint's timeline aggregation.
+     * Top 10 most recent runs for a person, ordered by created_at then id
+     * (both DESC). Used by the persons detail endpoint's timeline aggregation.
      */
-    List<WorkflowRunEntity> findTop10BySourceLeadIdOrderByCreatedAtDescIdDesc(String sourceLeadId);
+    List<WorkflowRunEntity> findTop10BySourcePersonIdOrderByCreatedAtDescIdDesc(String sourcePersonId);
 }

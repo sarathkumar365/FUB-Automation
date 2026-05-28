@@ -62,7 +62,7 @@ public class BranchOnFieldWorkflowStep implements WorkflowStepType {
                                         + " Mutually exclusive with op/allOf/anyOf."),
                         "field", Map.of(
                                 "type", "string",
-                                "description", "JSONata path (e.g. 'lead.tags') for the declarative leaf matcher."),
+                                "description", "JSONata path (e.g. 'person.tags') for the declarative leaf matcher."),
                         "op", Map.of(
                                 "type", "string",
                                 "enum", Op.configKeys(),

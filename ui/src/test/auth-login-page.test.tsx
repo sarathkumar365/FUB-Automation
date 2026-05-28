@@ -16,7 +16,7 @@ function renderLoginAt(initialPath: string, authClient: AuthClient) {
       <Routes>
         <Route path="/admin-ui/login" element={<LoginPage authClient={authClient} />} />
         <Route path="/admin-ui" element={<div>dashboard-landing</div>} />
-        <Route path="/admin-ui/leads" element={<div>leads-page</div>} />
+        <Route path="/admin-ui/persons" element={<div>persons-page</div>} />
       </Routes>
     </MemoryRouter>,
   )
@@ -48,14 +48,14 @@ describe('LoginPage', () => {
       role: 'ADMIN' as const,
     }))
 
-    renderLoginAt('/admin-ui/login?next=/admin-ui/leads', buildAuthClient(login))
+    renderLoginAt('/admin-ui/login?next=/admin-ui/persons', buildAuthClient(login))
 
     fireEvent.change(screen.getByLabelText(/username/i), { target: { value: 'alice' } })
     fireEvent.change(screen.getByLabelText(/password/i), { target: { value: 'pw' } })
     fireEvent.submit(screen.getByRole('button', { name: /sign in/i }).closest('form')!)
 
     await waitFor(() => {
-      expect(screen.getByText('leads-page')).toBeInTheDocument()
+      expect(screen.getByText('persons-page')).toBeInTheDocument()
     })
     expect(login).toHaveBeenCalledWith('alice', 'pw')
     expect(getToken()?.token).toBe('jwt.value')
@@ -128,10 +128,10 @@ describe('LoginPage', () => {
     })
     const login = vi.fn()
 
-    renderLoginAt('/admin-ui/login?next=/admin-ui/leads', buildAuthClient(login as never))
+    renderLoginAt('/admin-ui/login?next=/admin-ui/persons', buildAuthClient(login as never))
 
     await waitFor(() => {
-      expect(screen.getByText('leads-page')).toBeInTheDocument()
+      expect(screen.getByText('persons-page')).toBeInTheDocument()
     })
     expect(login).not.toHaveBeenCalled()
   })

@@ -13,7 +13,7 @@ public record WorkflowRunDetailResponse(
         OffsetDateTime startedAt,
         OffsetDateTime completedAt,
         Map<String, Object> triggerPayload,
-        String sourceLeadId,
+        String sourcePersonId,
         String eventId,
         List<WorkflowRunStepDetail> steps) {
 }

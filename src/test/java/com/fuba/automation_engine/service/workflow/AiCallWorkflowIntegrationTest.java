@@ -141,7 +141,7 @@ class AiCallWorkflowIntegrationTest {
         stubAiCallServiceClient.enqueueGet(new GetCallResponse("CA_1", "completed", completedPayload));
 
         WorkflowPlanningResult plan = executionManager.plan(
-                new WorkflowPlanRequest("AI_CALL_WF_A", "TEST", "evt-ai-a", null, "lead-1", null));
+                new WorkflowPlanRequest("AI_CALL_WF_A", "TEST", "evt-ai-a", null, "person-1", null));
         Long runId = plan.runId();
         assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, plan.status());
 
@@ -195,7 +195,7 @@ class AiCallWorkflowIntegrationTest {
         stubAiCallServiceClient.enqueueGet(new GetCallResponse("CA_1", "in_progress", null));
 
         WorkflowPlanningResult plan = executionManager.plan(
-                new WorkflowPlanRequest("AI_CALL_WF_B", "TEST", "evt-ai-b", null, "lead-2", null));
+                new WorkflowPlanRequest("AI_CALL_WF_B", "TEST", "evt-ai-b", null, "person-2", null));
         Long runId = plan.runId();
 
         // Poll #1: place call -> reschedule
@@ -230,7 +230,7 @@ class AiCallWorkflowIntegrationTest {
         stubAiCallServiceClient.enqueueGetException(new AiCallServiceClientException("permanent", false, 400));
 
         WorkflowPlanningResult plan = executionManager.plan(
-                new WorkflowPlanRequest("AI_CALL_WF_C", "TEST", "evt-ai-c", null, "lead-3", null));
+                new WorkflowPlanRequest("AI_CALL_WF_C", "TEST", "evt-ai-c", null, "person-3", null));
         Long runId = plan.runId();
 
         // Poll #1: place call -> reschedule
@@ -258,7 +258,7 @@ class AiCallWorkflowIntegrationTest {
         stubAiCallServiceClient.enqueuePlaceException(new AiCallServiceClientException("blip", true, 503));
 
         WorkflowPlanningResult plan = executionManager.plan(
-                new WorkflowPlanRequest("AI_CALL_WF_E", "TEST", "evt-ai-e", null, "lead-5", null));
+                new WorkflowPlanRequest("AI_CALL_WF_E", "TEST", "evt-ai-e", null, "person-5", null));
         Long runId = plan.runId();
 
         worker.pollAndProcessDueSteps();
@@ -289,7 +289,7 @@ class AiCallWorkflowIntegrationTest {
         stubAiCallServiceClient.enqueueGet(new GetCallResponse("CA_1", "completed", completedPayload));
 
         WorkflowPlanningResult plan = executionManager.plan(
-                new WorkflowPlanRequest("AI_CALL_WF_D", "TEST", "evt-ai-d", null, "lead-4", null));
+                new WorkflowPlanRequest("AI_CALL_WF_D", "TEST", "evt-ai-d", null, "person-4", null));
         Long runId = plan.runId();
 
         // Poll #1: place call -> reschedule, step_state persisted.

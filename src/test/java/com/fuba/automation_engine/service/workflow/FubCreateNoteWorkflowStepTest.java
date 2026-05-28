@@ -37,8 +37,8 @@ class FubCreateNoteWorkflowStepTest {
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L),
                 "mentionUserNames", List.of("ISA AuraKeyRealty"),
-                "message", "this lead hasn't been called yet — please reach out.",
-                "subject", "Lead not called");
+                "message", "this person hasn't been called yet — please reach out.",
+                "subject", "Person not called");
         StepExecutionContext context = context(resolvedConfig);
 
         AtomicReference<CreateNoteCommand> captured = new AtomicReference<>();
@@ -50,7 +50,7 @@ class FubCreateNoteWorkflowStepTest {
         });
         when(followUpBossClient.createNote(any(CreateNoteCommand.class))).thenAnswer(inv -> {
             captured.set(inv.getArgument(0));
-            return new CreatedNote(21240L, 18399L, "Lead not called",
+            return new CreatedNote(21240L, 18399L, "Person not called",
                     inv.<CreateNoteCommand>getArgument(0).body());
         });
 
@@ -66,11 +66,11 @@ class FubCreateNoteWorkflowStepTest {
         assertNotNull(sent);
         assertEquals(18399L, sent.personId());
         assertEquals(List.of(30L), sent.mentionUserIds());
-        assertEquals("Lead not called", sent.subject());
+        assertEquals("Person not called", sent.subject());
         // The body must contain the data-user-id span and the message text.
         assertTrue(sent.body().contains("<span data-user-id=\"30\">ISA AuraKeyRealty</span>"),
                 "body should contain the mention span; got: " + sent.body());
-        assertTrue(sent.body().contains("this lead hasn&#39;t been called yet"),
+        assertTrue(sent.body().contains("this person hasn&#39;t been called yet"),
                 "body should contain the (HTML-escaped) message; got: " + sent.body());
         assertTrue(sent.body().startsWith("<p>") && sent.body().endsWith("</p>"));
     }

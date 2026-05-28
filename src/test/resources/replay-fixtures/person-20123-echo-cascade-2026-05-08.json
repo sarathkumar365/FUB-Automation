@@ -1,0 +1,79 @@
+{
+    "name": "person-20123-echo-cascade-2026-05-08",
+    "events": [
+        {
+            "event": "peopleUpdated",
+            "deltaMs": 0,
+            "eventId": "5da4e0a3-4a9d-452a-9416-0e71a631cb88",
+            "resourceIds": [
+                20123
+            ]
+        },
+        {
+            "event": "peopleCreated",
+            "deltaMs": 0,
+            "eventId": "3d162c30-9b75-47f5-bcac-ce71d7873e17",
+            "resourceIds": [
+                20123
+            ]
+        },
+        {
+            "event": "peopleUpdated",
+            "deltaMs": 97883,
+            "eventId": "4feed311-cf8b-43d0-8d21-a2cf19c5fc57",
+            "resourceIds": [
+                20123
+            ]
+        }
+    ],
+    "expected": {
+        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1.",
+        "minWebhookEvents": 3,
+        "minWorkflowRunsForPerson": {
+            "20123": 2
+        }
+    },
+    "description": "Echo cascade (2026-05-08): two peopleUpdated webhooks 1m38s apart spawned runs 149 and 150; run 150 reassign at 11:16:07 produced echo webhook at 11:16:08 (576ms gap) that spawned run 153. Three stacked bugs (#21, #22, #24) produced two wrong FUB mutations.",
+    "drainTimeoutMs": 30000,
+    "personSnapshots": {
+        "20123": {
+            "name": "Vidhi",
+            "tags": [
+                "buyer",
+                "Dhesi.realestate Connected Page",
+                "Mississauga Detached (v2)"
+            ],
+            "type": "Buyer",
+            "stage": "Lead",
+            "emails": [
+                {
+                    "type": "",
+                    "value": "vidhi.k2020@gmail.com",
+                    "status": "Valid",
+                    "isPrimary": 1
+                }
+            ],
+            "phones": [
+                {
+                    "type": "mobile",
+                    "value": "2503717149",
+                    "status": "Valid",
+                    "isPrimary": 1,
+                    "isLandline": false,
+                    "normalized": "2503717149",
+                    "isOnboardingNumber": false
+                }
+            ],
+            "source": "facebook",
+            "claimed": true,
+            "stageId": 2,
+            "lastName": "",
+            "contacted": 0,
+            "firstName": "Vidhi",
+            "assignedTo": "ISA AuraKeyRealty",
+            "assignedPondId": null,
+            "assignedUserId": 30,
+            "assignedLenderId": null
+        }
+    }
+}

@@ -46,7 +46,7 @@ class ProcessedCallRepositoryTest {
     }
 
     @Test
-    void shouldReturnLatestCallsByLeadWithinLookbackAcrossIncomingAndOutgoing() {
+    void shouldReturnLatestCallsByPersonWithinLookbackAcrossIncomingAndOutgoing() {
         OffsetDateTime now = OffsetDateTime.parse("2026-04-20T12:00:00Z");
         saveCall(1001L, "7890", false, now.minusMinutes(10), 40, "Connected");
         saveCall(1002L, "7890", true, now.minusMinutes(5), 10, "Connected");
@@ -55,7 +55,7 @@ class ProcessedCallRepositoryTest {
         saveCall(1005L, "9999", false, now.minusMinutes(2), 25, "Connected");
 
         List<ProcessedCallEntity> results =
-                processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         "7890",
                         now.minusMinutes(30));
 
@@ -73,7 +73,7 @@ class ProcessedCallRepositoryTest {
         saveCall(2003L, "7890", false, now.minusMinutes(7), 0, "No Answer");
 
         List<ProcessedCallEntity> results =
-                processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
                         "7890",
                         now.minusMinutes(30));
 
@@ -85,7 +85,7 @@ class ProcessedCallRepositoryTest {
 
     private void saveCall(
             Long callId,
-            String sourceLeadId,
+            String sourcePersonId,
             boolean isIncoming,
             OffsetDateTime callStartedAt,
             Integer durationSeconds,
@@ -94,7 +94,7 @@ class ProcessedCallRepositoryTest {
         entity.setCallId(callId);
         entity.setStatus(ProcessedCallStatus.RECEIVED);
         entity.setRetryCount(0);
-        entity.setSourceLeadId(sourceLeadId);
+        entity.setSourcePersonId(sourcePersonId);
         entity.setIsIncoming(isIncoming);
         entity.setDurationSeconds(durationSeconds);
         entity.setOutcome(outcome);

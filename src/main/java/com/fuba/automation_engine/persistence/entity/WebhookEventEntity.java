@@ -63,8 +63,8 @@ public class WebhookEventEntity {
     @Column(name = "normalized_action", nullable = false)
     private NormalizedAction normalizedAction = NormalizedAction.UNKNOWN;
 
-    @Column(name = "source_lead_id")
-    private String sourceLeadId;
+    @Column(name = "source_person_id")
+    private String sourcePersonId;
 
     @Enumerated(EnumType.STRING)
     @Column(nullable = false)

@@ -163,14 +163,14 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void matchingWebhook_createsRun_executesTerminally() {
-        seedActiveWorkflow("WF_WAVE3_E2E_MATCH", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_MATCH", triggerConfig("PERSON", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, false));
         slackResponsePlan.set(List.of(200));
 
         webhookEventProcessorService.process(webhook("evt-w3-e2e-1", "zillow", 777L));
 
         WorkflowRunEntity run = singleWorkflowRun();
-        assertEquals("777", run.getSourceLeadId());
+        assertEquals("777", run.getSourcePersonId());
         assertNull(run.getWebhookEventId(), "Router-planned webhookEventId must stay null in Wave 3");
 
         executeUntilRunTerminal(run.getId(), Duration.ofSeconds(5));
@@ -191,7 +191,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void nonMatchingWebhook_createsNoWorkflowRun() {
-        seedActiveWorkflow("WF_WAVE3_E2E_NON_MATCH", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_NON_MATCH", triggerConfig("PERSON", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, false));
 
         webhookEventProcessorService.process(webhook("evt-w3-e2e-2", "manual", 888L));
@@ -202,7 +202,7 @@ class WorkflowTriggerEndToEndTest {
 
     @Test
     void notificationTransientFailure_thenRetrySuccess_completesRun() {
-        seedActiveWorkflow("WF_WAVE3_E2E_RETRY", triggerConfig("LEAD", "UPDATED", "event.payload.channel = \"zillow\""),
+        seedActiveWorkflow("WF_WAVE3_E2E_RETRY", triggerConfig("PERSON", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, true));
         slackResponsePlan.set(List.of(503, 200));
 
@@ -324,7 +324,7 @@ class WorkflowTriggerEndToEndTest {
                 "peopleUpdated",
                 null,
                 null,
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 null,
                 WebhookEventStatus.RECEIVED,

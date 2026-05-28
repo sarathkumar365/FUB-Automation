@@ -115,7 +115,7 @@ public class WorkflowExecutionManager {
         run.setSource(request.source() != null ? request.source() : "UNKNOWN");
         run.setEventId(request.eventId());
         run.setWebhookEventId(request.webhookEventId());
-        run.setSourceLeadId(request.sourceLeadId());
+        run.setSourcePersonId(request.sourcePersonId());
         run.setStatus(WorkflowRunStatus.PENDING);
         run.setIdempotencyKey(idempotencyKey);
         // Set explicitly so test Clocks reach runStartedAt; entity @PrePersist uses system clock.
@@ -229,7 +229,7 @@ public class WorkflowExecutionManager {
         StringJoiner joiner = new StringJoiner("|");
         joiner.add(KeyNormalizationHelper.normalizeWorkflowKeyOrEmpty(request.workflowKey()));
         joiner.add(normalize(request.source()));
-        joiner.add(normalize(request.sourceLeadId()));
+        joiner.add(normalize(request.sourcePersonId()));
         if (hasText(request.eventId())) {
             joiner.add("EVENT");
             joiner.add(request.eventId().trim());

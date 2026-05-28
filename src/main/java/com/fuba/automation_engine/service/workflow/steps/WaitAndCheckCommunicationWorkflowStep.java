@@ -108,29 +108,29 @@ public class WaitAndCheckCommunicationWorkflowStep implements WorkflowStepType {
     }
 
     // Flow:
-    //   1. Parse the FUB person id from sourceLeadId.
+    //   1. Parse the FUB person id from sourcePersonId.
     //   2. Compute the detection window [since, now], anchored to the run's start time (known-issues #21).
     //   3. Look at local processed_calls in that window. If any call is decisive, return.
     //   4. Otherwise fall back to FUB's /v1/calls. Filter the response to the window. Classify.
-    //   5. If neither path produces a decision, the lead has no qualifying communication → COMM_NOT_FOUND.
+    //   5. If neither path produces a decision, the person has no qualifying communication → COMM_NOT_FOUND.
     @Override
     public StepExecutionResult execute(StepExecutionContext context) {
         long personId;
         try {
-            personId = fubCallHelper.parsePersonId(context.sourceLeadId());
+            personId = fubCallHelper.parsePersonId(context.sourcePersonId());
         } catch (IllegalArgumentException ex) {
-            String code = (context.sourceLeadId() == null || context.sourceLeadId().isBlank())
+            String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
                     ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
             return StepExecutionResult.failure(code, ex.getMessage());
         }
 
         try {
-            String normalizedSourceLeadId = String.valueOf(personId);
+            String normalizedSourcePersonId = String.valueOf(personId);
             OffsetDateTime since = computeLookbackSince(
                     runStartedAtFrom(context), context.resolvedConfig(), context.rawConfig());
 
             // Primary: local DB evidence (already filtered by `since` server-side).
-            String localDecision = classifyFirstDecisive(loadLocalEvidence(normalizedSourceLeadId, since));
+            String localDecision = classifyFirstDecisive(loadLocalEvidence(normalizedSourcePersonId, since));
             if (localDecision != null) {
                 return StepExecutionResult.success(localDecision);
             }
@@ -152,10 +152,10 @@ public class WaitAndCheckCommunicationWorkflowStep implements WorkflowStepType {
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
             log.error(
-                    "Unexpected communication check execution failure stepId={} runId={} sourceLeadId={}",
+                    "Unexpected communication check execution failure stepId={} runId={} sourcePersonId={}",
                     context.stepId(),
                     context.runId(),
-                    context.sourceLeadId(),
+                    context.sourcePersonId(),
                     ex);
             return StepExecutionResult.failure(COMM_CHECK_EXECUTION_ERROR, "Unexpected communication check execution failure");
         }
@@ -184,14 +184,14 @@ public class WaitAndCheckCommunicationWorkflowStep implements WorkflowStepType {
     }
 
     // Local path: DB query already filters by `since` server-side; just map rows to CallEvidence.
-    private List<CallEvidence> loadLocalEvidence(String sourceLeadId, OffsetDateTime since) {
+    private List<CallEvidence> loadLocalEvidence(String sourcePersonId, OffsetDateTime since) {
         List<ProcessedCallEntity> rows =
-                processedCallRepository.findTop10BySourceLeadIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
-                        sourceLeadId, since);
+                processedCallRepository.findTop10BySourcePersonIdAndCallStartedAtGreaterThanEqualOrderByCallStartedAtDescIdDesc(
+                        sourcePersonId, since);
         List<CallEvidence> result = new ArrayList<>(rows.size());
         for (ProcessedCallEntity row : rows) {
             result.add(new CallEvidence(
-                    row.getSourceLeadId(),
+                    row.getSourcePersonId(),
                     row.getCallStartedAt(),
                     row.getDurationSeconds(),
                     row.getOutcome(),

@@ -47,7 +47,7 @@ public class WaitAndCheckClaimWorkflowStep implements WorkflowStepType {
 
     @Override
     public String description() {
-        return "Wait for a specified duration, then check if the lead has been claimed in Follow Up Boss.";
+        return "Wait for a specified duration, then check if the person has been claimed in Follow Up Boss.";
     }
 
     @Override
@@ -75,9 +75,9 @@ public class WaitAndCheckClaimWorkflowStep implements WorkflowStepType {
     public StepExecutionResult execute(StepExecutionContext context) {
         long personId;
         try {
-            personId = fubCallHelper.parsePersonId(context.sourceLeadId());
+            personId = fubCallHelper.parsePersonId(context.sourcePersonId());
         } catch (IllegalArgumentException ex) {
-            String code = (context.sourceLeadId() == null || context.sourceLeadId().isBlank())
+            String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
                     ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
             return StepExecutionResult.failure(code, ex.getMessage());
         }
@@ -98,10 +98,10 @@ public class WaitAndCheckClaimWorkflowStep implements WorkflowStepType {
                     "Permanent failure reading FUB person " + personId + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
             log.error(
-                    "Unexpected claim check execution failure stepId={} runId={} sourceLeadId={}",
+                    "Unexpected claim check execution failure stepId={} runId={} sourcePersonId={}",
                     context.stepId(),
                     context.runId(),
-                    context.sourceLeadId(),
+                    context.sourcePersonId(),
                     ex);
             return StepExecutionResult.failure(CLAIM_CHECK_EXECUTION_ERROR, "Unexpected claim check execution failure");
         }

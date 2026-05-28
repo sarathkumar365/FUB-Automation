@@ -55,7 +55,7 @@ public class FubCreateTaskWorkflowStep implements WorkflowStepType {
 
     @Override
     public String description() {
-        return "Create a task for a lead in Follow Up Boss.";
+        return "Create a task for a person in Follow Up Boss.";
     }
 
     @Override
@@ -68,7 +68,7 @@ public class FubCreateTaskWorkflowStep implements WorkflowStepType {
                                 "description", "Task name. Required. Accepts template expressions."),
                         "personId", Map.of(
                                 "type", "integer",
-                                "description", "Optional person ID override. Defaults to sourceLeadId."),
+                                "description", "Optional person ID override. Defaults to sourcePersonId."),
                         "assignedUserId", Map.of(
                                 "type", "integer",
                                 "description", "Optional assignee user ID."),
@@ -109,9 +109,9 @@ public class FubCreateTaskWorkflowStep implements WorkflowStepType {
             }
         } else {
             try {
-                personId = fubCallHelper.parsePersonId(context.sourceLeadId());
+                personId = fubCallHelper.parsePersonId(context.sourcePersonId());
             } catch (IllegalArgumentException ex) {
-                String code = (context.sourceLeadId() == null || context.sourceLeadId().isBlank())
+                String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
                         ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
                 return StepExecutionResult.failure(code, ex.getMessage());
             }
@@ -165,8 +165,8 @@ public class FubCreateTaskWorkflowStep implements WorkflowStepType {
                     "Permanent failure creating task for person " + personId
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
-            log.error("Unexpected task creation execution failure stepId={} runId={} sourceLeadId={}",
-                    context.stepId(), context.runId(), context.sourceLeadId(), ex);
+            log.error("Unexpected task creation execution failure stepId={} runId={} sourcePersonId={}",
+                    context.stepId(), context.runId(), context.sourcePersonId(), ex);
             return StepExecutionResult.failure(FAILED, "Unexpected task creation execution failure");
         }
     }

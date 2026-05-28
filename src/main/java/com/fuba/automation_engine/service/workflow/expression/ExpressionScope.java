@@ -14,10 +14,10 @@ import java.util.Map;
  * <p>Top-level keys exposed to workflow authors:
  * <ul>
  *   <li>{@code event.payload} — the webhook payload that started the run</li>
- *   <li>{@code sourceLeadId} — string ID of the lead the run operates on</li>
- *   <li>{@code lead} — locally-snapshotted lead details (Map of
- *       {@code leads.lead_details}); empty map if no snapshot exists. Always
- *       present in scope for consistency, even when empty.</li>
+ *   <li>{@code sourcePersonId} — string ID of the person the run operates on</li>
+ *   <li>{@code person} — locally-snapshotted person details (Map of
+ *       {@code persons.person_details} plus {@code kind}); empty map if no snapshot
+ *       exists. Always present in scope for consistency, even when empty.</li>
  *   <li>{@code now} — time-of-day flags pre-resolved by
  *       {@code BusinessHoursService}: {@code now.isDaytime} (bool) and
  *       {@code now.hourLocal} (int 0-23). Always present.</li>
@@ -30,13 +30,13 @@ public record ExpressionScope(Map<String, Object> data) {
         Map<String, Object> scope = new LinkedHashMap<>();
 
         // Workflow expressions only see the trigger payload passed at plan time.
-        // There is no automatic hydration of local lead snapshots here.
+        // There is no automatic hydration of local person snapshots here.
         scope.put("event", Map.of("payload",
                 runContext.triggerPayload() != null ? runContext.triggerPayload() : Map.of()));
 
-        scope.put("sourceLeadId", runContext.sourceLeadId() != null ? runContext.sourceLeadId() : "");
+        scope.put("sourcePersonId", runContext.sourcePersonId() != null ? runContext.sourcePersonId() : "");
 
-        scope.put("lead", runContext.lead() != null ? runContext.lead() : Map.of());
+        scope.put("person", runContext.person() != null ? runContext.person() : Map.of());
 
         scope.put("now", runContext.now() != null ? runContext.now() : Map.of());
 

@@ -58,14 +58,14 @@ class SecurityConfigTest {
 
     @Test
     @WithAnonymousUser
-    void adminListLeadsAnonymousReturns401() throws Exception {
-        mockMvc.perform(get("/admin/leads")).andExpect(status().isUnauthorized());
+    void adminListPersonsAnonymousReturns401() throws Exception {
+        mockMvc.perform(get("/admin/persons")).andExpect(status().isUnauthorized());
     }
 
     @Test
     @WithMockUser(roles = "VIEWER")
-    void viewerCanGetLeads() throws Exception {
-        mockMvc.perform(get("/admin/leads")).andExpect(status().isOk());
+    void viewerCanGetPersons() throws Exception {
+        mockMvc.perform(get("/admin/persons")).andExpect(status().isOk());
     }
 
     @Test

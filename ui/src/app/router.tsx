@@ -13,8 +13,8 @@ import { WorkflowBuilderPage } from '../modules/workflows-builder/ui/WorkflowBui
 import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
 import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
 import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
-import { LeadsPage } from '../modules/leads/ui/LeadsPage'
-import { LeadDetailPage } from '../modules/leads/ui/LeadDetailPage'
+import { PersonsPage } from '../modules/persons/ui/PersonsPage'
+import { PersonDetailPage } from '../modules/persons/ui/PersonDetailPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
 
 export function createAppRouter() {
@@ -54,12 +54,12 @@ export function createAppRouter() {
               element: <ProcessedCallsPage />,
             },
             {
-              path: 'leads',
-              element: <LeadsPage />,
+              path: 'persons',
+              element: <PersonsPage />,
             },
             {
-              path: 'leads/:sourceLeadId',
-              element: <LeadDetailPage />,
+              path: 'persons/:sourcePersonId',
+              element: <PersonDetailPage />,
             },
             {
               path: 'workflows',

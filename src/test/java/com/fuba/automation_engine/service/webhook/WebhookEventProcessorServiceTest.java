@@ -6,7 +6,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.config.CallOutcomeRulesProperties;
 import com.fuba.automation_engine.config.FubRetryProperties;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
-import com.fuba.automation_engine.persistence.repository.LeadRepository;
+import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.rules.CallDecisionAction;
 import com.fuba.automation_engine.rules.CallDecisionEngine;
@@ -14,7 +14,7 @@ import com.fuba.automation_engine.rules.CallPreValidationService;
 import com.fuba.automation_engine.rules.CallbackTaskCommandFactory;
 import com.fuba.automation_engine.rules.PreValidationResult;
 import com.fuba.automation_engine.service.FollowUpBossClient;
-import com.fuba.automation_engine.service.lead.LeadUpsertService;
+import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
@@ -52,8 +52,8 @@ class WebhookEventProcessorServiceTest {
     private CallbackTaskCommandFactory callbackTaskCommandFactory;
     private WorkflowTriggerRouter workflowTriggerRouter;
     private Environment environment;
-    private LeadUpsertService leadUpsertService;
-    private LeadRepository leadRepository;
+    private PersonUpsertService personUpsertService;
+    private PersonRepository personRepository;
     private WebhookEventProcessorService service;
 
     @BeforeEach
@@ -65,9 +65,8 @@ class WebhookEventProcessorServiceTest {
         callbackTaskCommandFactory = mock(CallbackTaskCommandFactory.class);
         workflowTriggerRouter = mock(WorkflowTriggerRouter.class);
         environment = mock(Environment.class);
-        leadUpsertService = mock(LeadUpsertService.class);
-        leadRepository = mock(LeadRepository.class);
-        when(leadUpsertService.isFubLeadPerson(any(JsonNode.class))).thenReturn(true);
+        personUpsertService = mock(PersonUpsertService.class);
+        personRepository = mock(PersonRepository.class);
 
         FubRetryProperties retryProperties = new FubRetryProperties();
         retryProperties.setMaxAttempts(1);
@@ -89,8 +88,8 @@ class WebhookEventProcessorServiceTest {
                 callOutcomeRulesProperties,
                 environment,
                 workflowTriggerRouter,
-                leadUpsertService,
-                leadRepository);
+                personUpsertService,
+                personRepository);
     }
 
     @Test
@@ -120,7 +119,7 @@ class WebhookEventProcessorServiceTest {
     }
 
     @Test
-    void shouldPersistCallFactsAndQueryLeadMappingDuringCallProcessing() {
+    void shouldPersistCallFactsAndQueryPersonMappingDuringCallProcessing() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-call-facts",
                 NormalizedDomain.CALL,
@@ -143,7 +142,7 @@ class WebhookEventProcessorServiceTest {
                 .thenReturn(Optional.of(new PreValidationResult(
                         CallDecisionAction.SKIP,
                         CallDecisionEngine.REASON_CONNECTED_NO_FOLLOWUP)));
-        when(leadRepository.findBySourceSystemAndSourceLeadId("FUB", "19355"))
+        when(personRepository.findBySourceSystemAndSourcePersonId("FUB", "19355"))
                 .thenReturn(Optional.empty());
 
         service.process(event);
@@ -153,21 +152,21 @@ class WebhookEventProcessorServiceTest {
         List<ProcessedCallEntity> savedEntities = savedCaptor.getAllValues();
 
         Assertions.assertTrue(savedEntities.stream().anyMatch(saved ->
-                        "19355".equals(saved.getSourceLeadId())
+                        "19355".equals(saved.getSourcePersonId())
                                 && Long.valueOf(77L).equals(saved.getSourceUserId())
                                 && Boolean.TRUE.equals(saved.getIsIncoming())
                                 && Integer.valueOf(42).equals(saved.getDurationSeconds())
                                 && "Connected".equals(saved.getOutcome())
                                 && OffsetDateTime.parse("2026-04-17T18:00:00Z").equals(saved.getCallStartedAt())),
                 "Expected at least one persisted processed_calls row to include mapped call facts");
-        verify(leadRepository).findBySourceSystemAndSourceLeadId("FUB", "19355");
+        verify(personRepository).findBySourceSystemAndSourcePersonId("FUB", "19355");
     }
 
     @Test
-    void shouldUpsertLeadAndRouteWorkflowForAssignmentEvent() {
+    void shouldUpsertPersonAndRouteWorkflowForAssignmentEvent() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment",
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 777L));
         ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
@@ -178,7 +177,7 @@ class WebhookEventProcessorServiceTest {
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
         verify(followUpBossClient).getPersonRawById(777L);
-        verify(leadUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class));
         verify(processedCallRepository, never()).findByCallId(any());
         verify(processedCallRepository, never()).save(any());
         verify(followUpBossClient, never()).getCallById(anyLong());
@@ -187,10 +186,10 @@ class WebhookEventProcessorServiceTest {
     }
 
     @Test
-    void shouldUpsertLeadForEachResourceIdOnAssignmentEvent() {
+    void shouldUpsertPersonForEachResourceIdOnAssignmentEvent() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-many",
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 payloadWithResourceIds("peopleUpdated", 777L, 778L, 779L));
         ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
@@ -202,18 +201,18 @@ class WebhookEventProcessorServiceTest {
         verify(followUpBossClient).getPersonRawById(777L);
         verify(followUpBossClient).getPersonRawById(778L);
         verify(followUpBossClient).getPersonRawById(779L);
-        verify(leadUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class));
-        verify(leadUpsertService).upsertFubPerson(eq("778"), any(JsonNode.class));
-        verify(leadUpsertService).upsertFubPerson(eq("779"), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("778"), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("779"), any(JsonNode.class));
         verify(processedCallRepository, never()).findByCallId(any());
         verify(workflowTriggerRouter).route(event);
     }
 
     @Test
-    void shouldSwallowFubFailureDuringLeadUpsertAndStillRouteWorkflow() {
+    void shouldSwallowFubFailureDuringPersonUpsertAndStillRouteWorkflow() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-fub-fail",
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 555L));
         when(followUpBossClient.getPersonRawById(555L))
@@ -221,26 +220,28 @@ class WebhookEventProcessorServiceTest {
 
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
-        verify(leadUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class));
+        verify(personUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class));
         verify(workflowTriggerRouter).route(event);
     }
 
     @Test
-    void shouldSkipLeadUpsertWhenPersonPayloadIsNotLeadClassified() {
+    void shouldUpsertEveryPersonRegardlessOfStage() {
+        // The old stage-only ingest filter was dropped: a non-lead-stage person
+        // is still fetched and upserted; PersonUpsertService classifies it via kind.
         NormalizedWebhookEvent event = eventWithPayload(
-                "evt-assignment-non-lead",
-                NormalizedDomain.LEAD,
+                "evt-assignment-non-person",
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 991L));
         ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
         personPayload.put("id", 991L);
+        personPayload.put("stage", "Agent");
         when(followUpBossClient.getPersonRawById(991L)).thenReturn(personPayload);
-        when(leadUpsertService.isFubLeadPerson(personPayload)).thenReturn(false);
 
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
         verify(followUpBossClient).getPersonRawById(991L);
-        verify(leadUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("991"), any(JsonNode.class));
         verify(workflowTriggerRouter).route(event);
     }
 
@@ -248,7 +249,7 @@ class WebhookEventProcessorServiceTest {
     void shouldSkipAssignmentSpecificProcessingWhenNoResourceIdsPresent() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-empty",
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.UPDATED,
                 payloadWithoutResourceIds("peopleUpdated"));
 
@@ -278,7 +279,7 @@ class WebhookEventProcessorServiceTest {
     void shouldContinueDomainProcessingWhenRouterThrows() {
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-assignment-router-fail",
-                NormalizedDomain.LEAD,
+                NormalizedDomain.PERSON,
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 888L));
 

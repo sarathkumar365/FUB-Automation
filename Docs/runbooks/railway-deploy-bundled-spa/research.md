@@ -23,7 +23,7 @@ Make the app deployable as **a single Railway service** by bundling the React SP
 
 ## Key constraint to handle: SPA fallback
 
-When the user reloads `/admin-ui/leads/123`, the request hits Spring. Spring needs to:
+When the user reloads `/admin-ui/persons/123`, the request hits Spring. Spring needs to:
 1. Recognize this path doesn't map to a controller.
 2. Forward to `/index.html` so the React app boots.
 3. **Not** intercept actual API calls (`/admin/**`, `/webhooks/**`, `/health`) — those must reach their controllers.

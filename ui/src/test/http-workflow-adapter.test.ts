@@ -104,7 +104,7 @@ describe('workflow adapters', () => {
           startedAt: '2026-04-10T10:00:00Z',
           completedAt: null,
           triggerPayload: { source: 'FUB' },
-          sourceLeadId: '123',
+          sourcePersonId: '123',
           eventId: 'evt_1',
           steps: [
             {

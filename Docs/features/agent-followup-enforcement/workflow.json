@@ -6,7 +6,7 @@
   "trigger": {
     "type": "webhook_fub",
     "config": {
-      "eventDomain": "LEAD",
+      "eventDomain": "PERSON",
       "eventAction": "UPDATED"
     }
   },
@@ -18,7 +18,7 @@
         "id": "gate_assigned",
         "type": "branch_on_field",
         "config": {
-          "expression": "$boolean(lead.assignedUserId)",
+          "expression": "$boolean(person.assignedUserId) and person.kind = \"LEAD\"",
           "resultMapping": {
             "true": "ASSIGNED",
             "false": "UNASSIGNED"
@@ -46,8 +46,8 @@
         "id": "nudge_note",
         "type": "fub_create_note",
         "config": {
-          "mentionUserIds": ["{{ lead.assignedUserId }}"],
-          "mentionUserNames": ["{{ lead.assignedTo }}"],
+          "mentionUserIds": ["{{ person.assignedUserId }}"],
+          "mentionUserNames": ["{{ person.assignedTo }}"],
           "message": "Please call your lead — no contact attempt logged in the last 3 minutes."
         },
         "transitions": {

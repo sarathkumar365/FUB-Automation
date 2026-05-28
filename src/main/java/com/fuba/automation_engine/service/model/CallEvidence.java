@@ -6,7 +6,7 @@ import java.time.OffsetDateTime;
 // ProcessedCallEntity) and the FUB-fallback path (mapped from FubCallResponseDto).
 // Lets WaitAndCheckCommunicationWorkflowStep run the same classifier over both.
 public record CallEvidence(
-        String sourceLeadId,
+        String sourcePersonId,
         OffsetDateTime callStartedAt,
         Integer durationSeconds,
         String outcome,

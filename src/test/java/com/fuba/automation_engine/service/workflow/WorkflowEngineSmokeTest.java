@@ -9,15 +9,15 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.config.WorkflowWorkerProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
-import com.fuba.automation_engine.persistence.entity.LeadEntity;
-import com.fuba.automation_engine.persistence.entity.LeadStatus;
+import com.fuba.automation_engine.persistence.entity.PersonEntity;
+import com.fuba.automation_engine.persistence.entity.PersonStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
-import com.fuba.automation_engine.persistence.repository.LeadRepository;
+import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
@@ -92,7 +92,7 @@ class WorkflowEngineSmokeTest {
     private WorkflowRunStepClaimRepository stepClaimRepository;
 
     @Autowired
-    private LeadRepository leadRepository;
+    private PersonRepository personRepository;
 
     @Autowired
     private ObjectMapper objectMapper;
@@ -107,7 +107,7 @@ class WorkflowEngineSmokeTest {
         stepRepository.deleteAll();
         runRepository.deleteAll();
         workflowRepository.deleteAll();
-        leadRepository.deleteAll();
+        personRepository.deleteAll();
         worker = new WorkflowExecutionDueWorker(workerProperties, stepClaimRepository, stepExecutionService, clock);
     }
 
@@ -116,7 +116,7 @@ class WorkflowEngineSmokeTest {
         seedActiveWorkflow("SINGLE_DELAY", singleDelayGraph(0));
 
         WorkflowPlanningResult planResult = executionManager.plan(
-                new WorkflowPlanRequest("SINGLE_DELAY", "TEST", "evt-1", null, "lead-1", null));
+                new WorkflowPlanRequest("SINGLE_DELAY", "TEST", "evt-1", null, "person-1", null));
 
         assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
         assertNotNull(planResult.runId());
@@ -150,7 +150,7 @@ class WorkflowEngineSmokeTest {
         seedActiveWorkflow("TWO_DELAY", twoDelayLinearGraph());
 
         WorkflowPlanningResult planResult = executionManager.plan(
-                new WorkflowPlanRequest("TWO_DELAY", "TEST", "evt-2", null, "lead-2", null));
+                new WorkflowPlanRequest("TWO_DELAY", "TEST", "evt-2", null, "person-2", null));
 
         assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
         Long runId = planResult.runId();
@@ -188,7 +188,7 @@ class WorkflowEngineSmokeTest {
     void shouldDeduplicateByIdempotencyKey() {
         seedActiveWorkflow("DEDUP_TEST", singleDelayGraph(0));
 
-        WorkflowPlanRequest request = new WorkflowPlanRequest("DEDUP_TEST", "TEST", "evt-dup", null, "lead-1", null);
+        WorkflowPlanRequest request = new WorkflowPlanRequest("DEDUP_TEST", "TEST", "evt-dup", null, "person-1", null);
 
         WorkflowPlanningResult first = executionManager.plan(request);
         WorkflowPlanningResult second = executionManager.plan(request);
@@ -205,9 +205,9 @@ class WorkflowEngineSmokeTest {
         seedActiveWorkflow("caseflow", singleDelayGraph(0));
 
         WorkflowPlanRequest firstRequest =
-                new WorkflowPlanRequest("CaseFlow", "TEST", "evt-case", null, "lead-1", null);
+                new WorkflowPlanRequest("CaseFlow", "TEST", "evt-case", null, "person-1", null);
         WorkflowPlanRequest secondRequest =
-                new WorkflowPlanRequest("caseflow", "TEST", "evt-case", null, "lead-1", null);
+                new WorkflowPlanRequest("caseflow", "TEST", "evt-case", null, "person-1", null);
 
         WorkflowPlanningResult first = executionManager.plan(firstRequest);
         WorkflowPlanningResult second = executionManager.plan(secondRequest);
@@ -220,7 +220,7 @@ class WorkflowEngineSmokeTest {
     @Test
     void shouldReturnBlockedWhenWorkflowNotFound() {
         WorkflowPlanningResult result = executionManager.plan(
-                new WorkflowPlanRequest("NONEXISTENT", "TEST", "evt-3", null, "lead-1", null));
+                new WorkflowPlanRequest("NONEXISTENT", "TEST", "evt-3", null, "person-1", null));
 
         assertEquals(WorkflowPlanningResult.PlanningStatus.BLOCKED, result.status());
         assertNull(result.runId());
@@ -231,7 +231,7 @@ class WorkflowEngineSmokeTest {
         seedActiveWorkflow("DELAY_5", singleDelayGraph(5));
 
         WorkflowPlanningResult result = executionManager.plan(
-                new WorkflowPlanRequest("DELAY_5", "TEST", "evt-4", null, "lead-1", null));
+                new WorkflowPlanRequest("DELAY_5", "TEST", "evt-4", null, "person-1", null));
 
         WorkflowRunStepEntity step = stepRepository.findByRunId(result.runId()).getFirst();
         // Clock is fixed at 2026-01-01T12:00:00Z, delay is 5 minutes
@@ -245,7 +245,7 @@ class WorkflowEngineSmokeTest {
         seedActiveWorkflow("TERMINAL_ENTRY", singleDelayGraph(0));
 
         WorkflowPlanningResult result = executionManager.plan(
-                new WorkflowPlanRequest("TERMINAL_ENTRY", "TEST", "evt-5", null, "lead-1", null));
+                new WorkflowPlanRequest("TERMINAL_ENTRY", "TEST", "evt-5", null, "person-1", null));
 
         worker.pollAndProcessDueSteps();
 
@@ -273,18 +273,18 @@ class WorkflowEngineSmokeTest {
     }
 
     @Test
-    void shouldExposeLeadNamespaceFromLocalSnapshotInBranchOnFieldExpression() {
+    void shouldExposePersonNamespaceFromLocalSnapshotInBranchOnFieldExpression() {
         // Phase 1 (agent-followup-enforcement) end-to-end check:
-        // seed a LeadEntity locally, plan a workflow whose entry node is a
-        // branch_on_field referencing {{ lead.assignedUserId }}, run it, and
+        // seed a PersonEntity locally, plan a workflow whose entry node is a
+        // branch_on_field referencing {{ person.assignedUserId }}, run it, and
         // assert the JSONata expression saw the snapshotted value (no FUB
         // call) and routed the workflow accordingly.
-        seedLeadSnapshot("lead-phase1-match", 30, "ISA AuraKeyRealty");
-        seedActiveWorkflow("LEAD_NAMESPACE_E2E", branchOnLeadAssignedUserGraph());
+        seedPersonSnapshot("person-phase1-match", 30, "ISA AuraKeyRealty");
+        seedActiveWorkflow("PERSON_NAMESPACE_E2E", branchOnPersonAssignedUserGraph());
 
         WorkflowPlanningResult planResult = executionManager.plan(
                 new WorkflowPlanRequest(
-                        "LEAD_NAMESPACE_E2E", "TEST", "evt-lead-1", null, "lead-phase1-match", null));
+                        "PERSON_NAMESPACE_E2E", "TEST", "evt-person-1", null, "person-phase1-match", null));
 
         assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
         assertNotNull(planResult.runId());
@@ -294,7 +294,7 @@ class WorkflowEngineSmokeTest {
         WorkflowRunStepEntity step = stepRepository.findByRunId(planResult.runId()).getFirst();
         assertEquals(WorkflowRunStepStatus.COMPLETED, step.getStatus());
         assertEquals("MATCHED", step.getResultCode(),
-                "branch_on_field should have read lead.assignedUserId=30 from the local snapshot and matched");
+                "branch_on_field should have read person.assignedUserId=30 from the local snapshot and matched");
 
         WorkflowRunEntity completedRun = runRepository.findById(planResult.runId()).orElseThrow();
         assertEquals(WorkflowRunStatus.COMPLETED, completedRun.getStatus());
@@ -311,7 +311,7 @@ class WorkflowEngineSmokeTest {
 
         WorkflowPlanningResult planResult = executionManager.plan(
                 new WorkflowPlanRequest(
-                        "NOW_NS_E2E_OFFHOURS", "TEST", "evt-now-1", null, "lead-now-1", null));
+                        "NOW_NS_E2E_OFFHOURS", "TEST", "evt-now-1", null, "person-now-1", null));
         assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
 
         worker.pollAndProcessDueSteps();
@@ -338,14 +338,14 @@ class WorkflowEngineSmokeTest {
     }
 
     @Test
-    void shouldGracefullyHandleMissingLeadSnapshotInBranchOnFieldExpression() {
-        // No lead seeded — lead.* should still be present as an empty map; the
+    void shouldGracefullyHandleMissingPersonSnapshotInBranchOnFieldExpression() {
+        // No person seeded — person.* should still be present as an empty map; the
         // branch_on_field default branch should fire instead of throwing.
-        seedActiveWorkflow("LEAD_NAMESPACE_MISSING", branchOnLeadAssignedUserGraph());
+        seedActiveWorkflow("PERSON_NAMESPACE_MISSING", branchOnPersonAssignedUserGraph());
 
         WorkflowPlanningResult planResult = executionManager.plan(
                 new WorkflowPlanRequest(
-                        "LEAD_NAMESPACE_MISSING", "TEST", "evt-lead-2", null, "lead-not-ingested", null));
+                        "PERSON_NAMESPACE_MISSING", "TEST", "evt-person-2", null, "person-not-ingested", null));
 
         assertEquals(WorkflowPlanningResult.PlanningStatus.PLANNED, planResult.status());
 
@@ -354,34 +354,34 @@ class WorkflowEngineSmokeTest {
         WorkflowRunStepEntity step = stepRepository.findByRunId(planResult.runId()).getFirst();
         assertEquals(WorkflowRunStepStatus.COMPLETED, step.getStatus());
         assertEquals("MISSED", step.getResultCode(),
-                "Missing lead snapshot should fall through to defaultResultCode without throwing");
+                "Missing person snapshot should fall through to defaultResultCode without throwing");
     }
 
-    private void seedLeadSnapshot(String sourceLeadId, int assignedUserId, String assignedTo) {
-        ObjectNode leadDetails = objectMapper.createObjectNode();
-        leadDetails.put("assignedUserId", assignedUserId);
-        leadDetails.put("assignedTo", assignedTo);
+    private void seedPersonSnapshot(String sourcePersonId, int assignedUserId, String assignedTo) {
+        ObjectNode personDetails = objectMapper.createObjectNode();
+        personDetails.put("assignedUserId", assignedUserId);
+        personDetails.put("assignedTo", assignedTo);
 
-        LeadEntity entity = new LeadEntity();
+        PersonEntity entity = new PersonEntity();
         entity.setSourceSystem("FUB");
-        entity.setSourceLeadId(sourceLeadId);
-        entity.setStatus(LeadStatus.ACTIVE);
-        entity.setLeadDetails(leadDetails);
+        entity.setSourcePersonId(sourcePersonId);
+        entity.setStatus(PersonStatus.ACTIVE);
+        entity.setPersonDetails(personDetails);
         OffsetDateTime now = OffsetDateTime.now(clock);
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         entity.setLastSyncedAt(now);
-        leadRepository.saveAndFlush(entity);
+        personRepository.saveAndFlush(entity);
     }
 
-    private Map<String, Object> branchOnLeadAssignedUserGraph() {
+    private Map<String, Object> branchOnPersonAssignedUserGraph() {
         return Map.of(
                 "schemaVersion", 1,
                 "entryNode", "check",
                 "nodes", List.of(
                         Map.of("id", "check", "type", "branch_on_field",
                                 "config", Map.of(
-                                        "expression", "lead.assignedUserId",
+                                        "expression", "person.assignedUserId",
                                         "resultMapping", Map.of("30", "MATCHED"),
                                         "defaultResultCode", "MISSED"),
                                 "transitions", Map.of(

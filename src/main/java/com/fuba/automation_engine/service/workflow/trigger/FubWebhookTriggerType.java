@@ -96,7 +96,7 @@ public class FubWebhookTriggerType implements WorkflowTriggerType {
             }
             String entityId = String.valueOf(id).trim();
             if (!entityId.isEmpty()) {
-                entities.add(new EntityRef("lead", entityId));
+                entities.add(new EntityRef("person", entityId));
             }
         }
         return List.copyOf(entities);

@@ -32,7 +32,7 @@ function createWrapper(queryClient: QueryClient) {
     startedAt: null,
     completedAt: null,
     triggerPayload: {},
-    sourceLeadId: null,
+    sourcePersonId: null,
     eventId: null,
     steps: [],
   }))
@@ -45,7 +45,7 @@ function createWrapper(queryClient: QueryClient) {
     startedAt: null,
     completedAt: null,
     triggerPayload: {},
-    sourceLeadId: null,
+    sourcePersonId: null,
     eventId: null,
     steps: [],
   }))

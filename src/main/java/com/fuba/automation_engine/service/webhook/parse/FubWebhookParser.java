@@ -67,12 +67,12 @@ public class FubWebhookParser implements WebhookParser {
         // Track eventual parser semantic deprecation in issue: LMP-STEP3-RESOLVER-SEMANTIC-OWNERSHIP.
         NormalizedDomain normalizedDomain = resolveDomain(sourceEventType);
         NormalizedAction normalizedAction = resolveAction(sourceEventType);
-        String sourceLeadId = resolveSourceLeadId(sourceEventType, resourceIdsNode);
+        String sourcePersonId = resolveSourcePersonId(sourceEventType, resourceIdsNode);
 
         ObjectNode payloadNode = objectMapper.createObjectNode();
         // Keep normalized payload intentionally minimal for routing/idempotency.
-        // Note: this does NOT include expanded lead/contact fields (for example phone),
-        // so workflow expression paths under event.payload cannot resolve lead phone today.
+        // Note: this does NOT include expanded person/contact fields (for example phone),
+        // so workflow expression paths under event.payload cannot resolve person phone today.
         payloadNode.put("eventType", sourceEventType);
 
         ArrayNode resourceIds = payloadNode.putArray("resourceIds");
@@ -113,7 +113,7 @@ public class FubWebhookParser implements WebhookParser {
                 eventId,
                 sourceEventType,
                 null,
-                sourceLeadId,
+                sourcePersonId,
                 normalizedDomain,
                 normalizedAction,
                 providerMetaNode,
@@ -124,7 +124,7 @@ public class FubWebhookParser implements WebhookParser {
                 null);
     }
 
-    private String resolveSourceLeadId(String sourceEventType, JsonNode resourceIdsNode) {
+    private String resolveSourcePersonId(String sourceEventType, JsonNode resourceIdsNode) {
         if (!"peopleCreated".equals(sourceEventType) && !"peopleUpdated".equals(sourceEventType)) {
             return null;
         }
@@ -135,7 +135,7 @@ public class FubWebhookParser implements WebhookParser {
         // TODO(step3-followup): deprecate parser-owned domain compatibility mapping once consumers migrate.
         return switch (sourceEventType) {
             case "callsCreated" -> NormalizedDomain.CALL;
-            case "peopleCreated", "peopleUpdated" -> NormalizedDomain.LEAD;
+            case "peopleCreated", "peopleUpdated" -> NormalizedDomain.PERSON;
             default -> NormalizedDomain.UNKNOWN;
         };
     }

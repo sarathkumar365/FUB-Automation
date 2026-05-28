@@ -23,7 +23,7 @@ function createWorkflowRunDetailPayload(
     startedAt: '2026-04-16T10:00:00Z',
     completedAt: status === 'PENDING' || status === 'BLOCKED' ? null : '2026-04-16T10:01:00Z',
     triggerPayload: { event: 'assignment.updated' },
-    sourceLeadId: 'lead-11',
+    sourcePersonId: 'person-11',
     eventId: 'event-88',
     steps: [
       {
@@ -165,14 +165,14 @@ describe('workflow run detail page', () => {
     expect(screen.getByRole('link', { name: uiText.workflowRuns.detailBackLabel })).toHaveAttribute('href', '/admin-ui/workflow-runs')
   })
 
-  it('links the sourceLeadId to the lead detail page with a backTo', async () => {
+  it('links the sourcePersonId to the person detail page with a backTo', async () => {
     renderWorkflowRunDetailPage('FAILED')
 
-    const link = await screen.findByTestId('workflow-run-source-lead-link')
-    expect(link).toHaveTextContent('lead-11')
+    const link = await screen.findByTestId('workflow-run-source-person-link')
+    expect(link).toHaveTextContent('person-11')
     expect(link).toHaveAttribute(
       'href',
-      `/admin-ui/leads/lead-11?backTo=${encodeURIComponent('/admin-ui/workflow-runs/44')}`,
+      `/admin-ui/persons/person-11?backTo=${encodeURIComponent('/admin-ui/workflow-runs/44')}`,
     )
   })
 

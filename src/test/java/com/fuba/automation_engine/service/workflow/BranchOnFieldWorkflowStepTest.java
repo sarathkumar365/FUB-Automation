@@ -25,10 +25,10 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void expressionMode_routesViaResultMapping() {
         Map<String, Object> config = Map.of(
-                "expression", "lead.type",
+                "expression", "person.type",
                 "resultMapping", Map.of("Buyer", "B", "Seller", "S"),
                 "defaultResultCode", "OTHER");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("type", "Buyer"))));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("type", "Buyer"))));
         assertTrue(r.success());
         assertEquals("B", r.resultCode());
         assertEquals("Buyer", r.outputs().get("expressionResult"));
@@ -38,8 +38,8 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void containsAny_ciExact_hits() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("Realtor"), "ci-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("realtor")))));
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("Realtor"), "ci-exact");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("realtor")))));
         assertTrue(r.success());
         assertEquals("true", r.outputs().get("expressionResult"));
         assertEquals(true, r.outputs().get("matchResult"));
@@ -48,8 +48,8 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void containsAny_ciExact_doesNotMatchSubstring() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("Realtor"), "ci-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("VIP Realtor")))));
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("Realtor"), "ci-exact");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("VIP Realtor")))));
         assertTrue(r.success());
         assertEquals(false, r.outputs().get("matchResult"));
         assertNull(r.outputs().get("matchedValue"));
@@ -57,24 +57,24 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void containsAny_ciContains_matchesSubstring() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("realtor"), "ci-contains");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("VIP Realtor")))));
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("realtor"), "ci-contains");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("VIP Realtor")))));
         assertTrue(r.success());
         assertEquals(true, r.outputs().get("matchResult"));
     }
 
     @Test
     void containsAny_missingField_returnsFalse() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("Realtor"), "ci-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of()))); // no tags key
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("Realtor"), "ci-exact");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of()))); // no tags key
         assertTrue(r.success());
         assertEquals(false, r.outputs().get("matchResult"));
     }
 
     @Test
     void containsAny_scalarField_coercedToSingleElementList() {
-        Map<String, Object> config = leafCfg("lead.type", "containsAny", List.of("Buyer"), "ci-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("type", "Buyer"))));
+        Map<String, Object> config = leafCfg("person.type", "containsAny", List.of("Buyer"), "ci-exact");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("type", "Buyer"))));
         assertTrue(r.success());
         assertEquals(true, r.outputs().get("matchResult"));
     }
@@ -83,8 +83,8 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void equalsAny_scalarMatch_returnsTrue() {
-        Map<String, Object> config = leafCfg("lead.type", "equalsAny", List.of("Buyer", "Seller"), "ci-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("type", "Buyer"))));
+        Map<String, Object> config = leafCfg("person.type", "equalsAny", List.of("Buyer", "Seller"), "ci-exact");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("type", "Buyer"))));
         assertTrue(r.success());
         assertEquals(true, r.outputs().get("matchResult"));
         assertEquals("Buyer", r.outputs().get("matchedValue"));
@@ -92,8 +92,8 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void equalsAny_onListField_returnsConfigInvalid() {
-        Map<String, Object> config = leafCfg("lead.tags", "equalsAny", List.of("Realtor"), "ci-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("Realtor")))));
+        Map<String, Object> config = leafCfg("person.tags", "equalsAny", List.of("Realtor"), "ci-exact");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("Realtor")))));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -102,25 +102,25 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void exists_presentNonBlank_returnsTrue() {
-        Map<String, Object> config = leafCfg("lead.type", "exists", null, null);
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("type", "Buyer"))));
+        Map<String, Object> config = leafCfg("person.type", "exists", null, null);
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("type", "Buyer"))));
         assertTrue(r.success());
         assertEquals(true, r.outputs().get("matchResult"));
     }
 
     @Test
     void exists_blankString_returnsFalse() {
-        Map<String, Object> config = leafCfg("lead.type", "exists", null, null);
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("type", "  "))));
+        Map<String, Object> config = leafCfg("person.type", "exists", null, null);
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("type", "  "))));
         assertTrue(r.success());
         assertEquals(false, r.outputs().get("matchResult"));
     }
 
     @Test
     void missing_isInverseOfExists() {
-        Map<String, Object> config = leafCfg("lead.type", "missing", null, null);
-        StepExecutionResult r1 = step.execute(context(config, leadCtx(Map.of()))); // absent
-        StepExecutionResult r2 = step.execute(context(config, leadCtx(Map.of("type", "Buyer")))); // present
+        Map<String, Object> config = leafCfg("person.type", "missing", null, null);
+        StepExecutionResult r1 = step.execute(context(config, personCtx(Map.of()))); // absent
+        StepExecutionResult r2 = step.execute(context(config, personCtx(Map.of("type", "Buyer")))); // present
         assertEquals(true, r1.outputs().get("matchResult"));
         assertEquals(false, r2.outputs().get("matchResult"));
     }
@@ -130,11 +130,11 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void bothModes_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "expression", "lead.type",
-                "field", "lead.tags",
+                "expression", "person.type",
+                "field", "person.tags",
                 "op", "containsAny",
                 "values", List.of("Realtor"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("type", "Buyer"))));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("type", "Buyer"))));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -142,7 +142,7 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void neitherMode_returnsExpressionMissing() {
         Map<String, Object> config = Map.of("resultMapping", Map.of("true", "X"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.EXPRESSION_MISSING, r.resultCode());
     }
@@ -150,10 +150,10 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void unknownOp_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "regexMatch",
                 "values", List.of("x"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -161,11 +161,11 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void unknownMatch_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "containsAny",
                 "values", List.of("x"),
                 "match", "regex");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -173,9 +173,9 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void valuesMissingForContainsAny_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "containsAny");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -183,10 +183,10 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void valuesSuppliedForExists_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "exists",
                 "values", List.of("x"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -196,13 +196,13 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void routing_defaultResultCodeUsedWhenMappingMisses() {
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "containsAny",
                 "values", List.of("Realtor"),
                 "resultMapping", Map.of("true", "SKIP"),
                 "defaultResultCode", "PROCEED");
         // No tags → matchResult=false → no mapping for "false" → fallback to default.
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertTrue(r.success());
         assertEquals("PROCEED", r.resultCode());
     }
@@ -213,11 +213,11 @@ class BranchOnFieldWorkflowStepTest {
     void allOf_bothTrue_returnsTrue() {
         Map<String, Object> config = Map.of(
                 "allOf", List.of(
-                        leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
-                        leafMap("lead.type", "equalsAny", List.of("Buyer"), null)),
+                        leafMap("person.tags", "containsAny", List.of("Realtor"), null),
+                        leafMap("person.type", "equalsAny", List.of("Buyer"), null)),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Realtor"), "type", "Buyer"))));
+                personCtx(Map.of("tags", List.of("Realtor"), "type", "Buyer"))));
         assertTrue(r.success());
         assertEquals("SKIP", r.resultCode());
         assertEquals(true, r.outputs().get("matchResult"));
@@ -229,11 +229,11 @@ class BranchOnFieldWorkflowStepTest {
     void allOf_oneFalse_shortCircuitsFalse() {
         Map<String, Object> config = Map.of(
                 "allOf", List.of(
-                        leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
-                        leafMap("lead.type", "equalsAny", List.of("Buyer"), null)),
+                        leafMap("person.tags", "containsAny", List.of("Realtor"), null),
+                        leafMap("person.type", "equalsAny", List.of("Buyer"), null)),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Realtor"), "type", "Seller"))));
+                personCtx(Map.of("tags", List.of("Realtor"), "type", "Seller"))));
         assertTrue(r.success());
         assertEquals("PROCEED", r.resultCode());
     }
@@ -244,11 +244,11 @@ class BranchOnFieldWorkflowStepTest {
     void anyOf_firstChildTrue_shortCircuitsTrue() {
         Map<String, Object> config = Map.of(
                 "anyOf", List.of(
-                        leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
-                        leafMap("lead.type", "equalsAny", List.of("Buyer"), null)),
+                        leafMap("person.tags", "containsAny", List.of("Realtor"), null),
+                        leafMap("person.type", "equalsAny", List.of("Buyer"), null)),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Realtor"), "type", "Seller"))));
+                personCtx(Map.of("tags", List.of("Realtor"), "type", "Seller"))));
         assertTrue(r.success());
         assertEquals("SKIP", r.resultCode());
     }
@@ -257,11 +257,11 @@ class BranchOnFieldWorkflowStepTest {
     void anyOf_allFalse_returnsFalse() {
         Map<String, Object> config = Map.of(
                 "anyOf", List.of(
-                        leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
-                        leafMap("lead.type", "equalsAny", List.of("Buyer"), null)),
+                        leafMap("person.tags", "containsAny", List.of("Realtor"), null),
+                        leafMap("person.type", "equalsAny", List.of("Buyer"), null)),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Hot"), "type", "Seller"))));
+                personCtx(Map.of("tags", List.of("Hot"), "type", "Seller"))));
         assertTrue(r.success());
         assertEquals("PROCEED", r.resultCode());
     }
@@ -273,18 +273,18 @@ class BranchOnFieldWorkflowStepTest {
         // "Realtor AND (Buyer OR stage=Hot)"
         Map<String, Object> config = Map.of(
                 "allOf", List.of(
-                        leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
+                        leafMap("person.tags", "containsAny", List.of("Realtor"), null),
                         Map.of("anyOf", List.of(
-                                leafMap("lead.type", "equalsAny", List.of("Buyer"), null),
-                                leafMap("lead.stage", "equalsAny", List.of("Hot"), null)))),
+                                leafMap("person.type", "equalsAny", List.of("Buyer"), null),
+                                leafMap("person.stage", "equalsAny", List.of("Hot"), null)))),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
 
         StepExecutionResult hit = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Realtor"), "type", "Seller", "stage", "Hot"))));
+                personCtx(Map.of("tags", List.of("Realtor"), "type", "Seller", "stage", "Hot"))));
         assertEquals("SKIP", hit.resultCode());
 
         StepExecutionResult miss = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Realtor"), "type", "Seller", "stage", "Cold"))));
+                personCtx(Map.of("tags", List.of("Realtor"), "type", "Seller", "stage", "Cold"))));
         assertEquals("PROCEED", miss.resultCode());
     }
 
@@ -293,7 +293,7 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void emptyAllOf_returnsConfigInvalid() {
         Map<String, Object> config = Map.of("allOf", List.of());
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -301,9 +301,9 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void allOfAndAnyOfAtSameLevel_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "allOf", List.of(leafMap("lead.type", "exists", null, null)),
-                "anyOf", List.of(leafMap("lead.type", "missing", null, null)));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+                "allOf", List.of(leafMap("person.type", "exists", null, null)),
+                "anyOf", List.of(leafMap("person.type", "missing", null, null)));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -311,11 +311,11 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void allOfMixedWithLeafKeys_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "allOf", List.of(leafMap("lead.type", "exists", null, null)),
-                "field", "lead.tags",
+                "allOf", List.of(leafMap("person.type", "exists", null, null)),
+                "field", "person.tags",
                 "op", "containsAny",
                 "values", List.of("x"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -347,17 +347,17 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void csExact_matchesSameCaseOnly() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("Realtor"), "cs-exact");
-        StepExecutionResult hit = step.execute(context(config, leadCtx(Map.of("tags", List.of("Realtor")))));
-        StepExecutionResult miss = step.execute(context(config, leadCtx(Map.of("tags", List.of("realtor")))));
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("Realtor"), "cs-exact");
+        StepExecutionResult hit = step.execute(context(config, personCtx(Map.of("tags", List.of("Realtor")))));
+        StepExecutionResult miss = step.execute(context(config, personCtx(Map.of("tags", List.of("realtor")))));
         assertEquals(true, hit.outputs().get("matchResult"));
         assertEquals(false, miss.outputs().get("matchResult"));
     }
 
     @Test
     void csExact_doesNotMatchSubstringEvenWhenCaseMatches() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("Realtor"), "cs-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("VIP Realtor")))));
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("Realtor"), "cs-exact");
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("VIP Realtor")))));
         assertEquals(false, r.outputs().get("matchResult"));
     }
 
@@ -365,9 +365,9 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void ciExact_matchesAcrossCaseVariations() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("Realtor"), "ci-exact");
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("Realtor"), "ci-exact");
         for (String tag : List.of("Realtor", "realtor", "REALTOR", "rEaLtOr")) {
-            StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of(tag)))));
+            StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of(tag)))));
             assertEquals(true, r.outputs().get("matchResult"),
                     "ci-exact should match case variant: " + tag);
         }
@@ -379,11 +379,11 @@ class BranchOnFieldWorkflowStepTest {
     void noMappingAndNoDefault_returnsNoMatchingResult() {
         // matcher resolves to "false", mapping only has "true", no defaultResultCode
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "containsAny",
                 "values", List.of("Realtor"),
                 "resultMapping", Map.of("true", "SKIP")); // intentionally no "false" mapping
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("Buyer")))));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("Buyer")))));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.NO_MATCHING_RESULT, r.resultCode());
     }
@@ -392,10 +392,10 @@ class BranchOnFieldWorkflowStepTest {
     void noMappingAtAll_returnsNoMatchingResult() {
         // no resultMapping, no defaultResultCode — even on a clean match
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "containsAny",
                 "values", List.of("Realtor"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("Realtor")))));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("Realtor")))));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.NO_MATCHING_RESULT, r.resultCode());
     }
@@ -412,7 +412,7 @@ class BranchOnFieldWorkflowStepTest {
         Map<String, Object> config = Map.of(
                 "expression", "((((",
                 "resultMapping", Map.of("null", "NULL_BRANCH"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertTrue(r.success(), "Today, bad JSONata silently degrades to null. "
                 + "If this assertion ever flips, update both this test and JsonataExpressionEvaluator.");
         assertEquals("NULL_BRANCH", r.resultCode());
@@ -422,7 +422,7 @@ class BranchOnFieldWorkflowStepTest {
     void matcherMode_malformedFieldPath_treatedAsMissingField() {
         // Bad field path → upstream returns null → containsAny on null → false
         Map<String, Object> config = leafCfg("((((", "containsAny", List.of("x"), "ci-exact");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of("tags", List.of("Realtor")))));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of("tags", List.of("Realtor")))));
         assertTrue(r.success());
         assertEquals(false, r.outputs().get("matchResult"));
     }
@@ -432,12 +432,12 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void containsAny_multipleValues_matchesAnyOfThem() {
         Map<String, Object> config = leafCfg(
-                "lead.tags", "containsAny",
+                "person.tags", "containsAny",
                 List.of("Realtor", "Agent", "Partner Agent", "Lender"),
                 "ci-exact");
-        // lead matches the 3rd configured value
+        // person matches the 3rd configured value
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Partner Agent")))));
+                personCtx(Map.of("tags", List.of("Partner Agent")))));
         assertEquals(true, r.outputs().get("matchResult"));
         assertEquals("Partner Agent", r.outputs().get("matchedValue"));
     }
@@ -445,47 +445,47 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void containsAny_multipleValues_noneMatch() {
         Map<String, Object> config = leafCfg(
-                "lead.tags", "containsAny",
+                "person.tags", "containsAny",
                 List.of("Realtor", "Agent", "Lender"),
                 "ci-exact");
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Buyer", "Hot")))));
+                personCtx(Map.of("tags", List.of("Buyer", "Hot")))));
         assertEquals(false, r.outputs().get("matchResult"));
     }
 
     @Test
-    void containsAny_matchedValueIsConfigSide_notLeadSide() {
-        // lead tag "VIP Realtor" matches config value "Realtor" under ci-contains.
-        // matchedValue records WHICH RULE fired, not which lead value triggered it.
+    void containsAny_matchedValueIsConfigSide_notPersonSide() {
+        // person tag "VIP Realtor" matches config value "Realtor" under ci-contains.
+        // matchedValue records WHICH RULE fired, not which person value triggered it.
         Map<String, Object> config = leafCfg(
-                "lead.tags", "containsAny", List.of("Realtor"), "ci-contains");
+                "person.tags", "containsAny", List.of("Realtor"), "ci-contains");
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("VIP Realtor")))));
+                personCtx(Map.of("tags", List.of("VIP Realtor")))));
         assertEquals(true, r.outputs().get("matchResult"));
         assertEquals("Realtor", r.outputs().get("matchedValue"));
     }
 
-    // ---------------- multi-tag lead ----------------
+    // ---------------- multi-tag person ----------------
 
     @Test
     void containsAny_leadHasManyTags_matchViaLateTag() {
         Map<String, Object> config = leafCfg(
-                "lead.tags", "containsAny", List.of("Realtor"), "ci-exact");
+                "person.tags", "containsAny", List.of("Realtor"), "ci-exact");
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Buyer", "Hot", "VIP", "Realtor", "Other")))));
+                personCtx(Map.of("tags", List.of("Buyer", "Hot", "VIP", "Realtor", "Other")))));
         assertEquals(true, r.outputs().get("matchResult"));
         assertEquals("Realtor", r.outputs().get("matchedValue"));
     }
 
     @Test
-    void containsAny_leadHasMultipleHits_returnsFirstMatchWalkingLeadList() {
-        // Lead tags scanned in order; first matching pair wins.
+    void containsAny_personHasMultipleHits_returnsFirstMatchWalkingPersonList() {
+        // Person tags scanned in order; first matching pair wins.
         // tags: [X, Agent, Realtor] vs values: [Realtor, Agent]
         // Iteration: tag=X (no match), tag=Agent (matches values[1]=Agent), short-circuits.
         Map<String, Object> config = leafCfg(
-                "lead.tags", "containsAny", List.of("Realtor", "Agent"), "ci-exact");
+                "person.tags", "containsAny", List.of("Realtor", "Agent"), "ci-exact");
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("X", "Agent", "Realtor")))));
+                personCtx(Map.of("tags", List.of("X", "Agent", "Realtor")))));
         assertEquals(true, r.outputs().get("matchResult"));
         assertEquals("Agent", r.outputs().get("matchedValue"));
     }
@@ -493,9 +493,9 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void containsAny_explicitlyEmptyTagsList_returnsFalse() {
         Map<String, Object> config = leafCfg(
-                "lead.tags", "containsAny", List.of("Realtor"), "ci-exact");
+                "person.tags", "containsAny", List.of("Realtor"), "ci-exact");
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of()))));
+                personCtx(Map.of("tags", List.of()))));
         assertEquals(false, r.outputs().get("matchResult"));
     }
 
@@ -507,14 +507,14 @@ class BranchOnFieldWorkflowStepTest {
         Map<String, Object> config = Map.of(
                 "anyOf", List.of(
                         Map.of("allOf", List.of(
-                                leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
-                                leafMap("lead.type", "equalsAny", List.of("Buyer"), null))),
+                                leafMap("person.tags", "containsAny", List.of("Realtor"), null),
+                                leafMap("person.type", "equalsAny", List.of("Buyer"), null))),
                         Map.of("allOf", List.of(
-                                leafMap("lead.tags", "containsAny", List.of("Lender"), null),
-                                leafMap("lead.type", "equalsAny", List.of("Seller"), null)))),
+                                leafMap("person.tags", "containsAny", List.of("Lender"), null),
+                                leafMap("person.type", "equalsAny", List.of("Seller"), null)))),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Realtor"), "type", "Buyer"))));
+                personCtx(Map.of("tags", List.of("Realtor"), "type", "Buyer"))));
         assertEquals("SKIP", r.resultCode());
     }
 
@@ -523,14 +523,14 @@ class BranchOnFieldWorkflowStepTest {
         Map<String, Object> config = Map.of(
                 "anyOf", List.of(
                         Map.of("allOf", List.of(
-                                leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
-                                leafMap("lead.type", "equalsAny", List.of("Buyer"), null))),
+                                leafMap("person.tags", "containsAny", List.of("Realtor"), null),
+                                leafMap("person.type", "equalsAny", List.of("Buyer"), null))),
                         Map.of("allOf", List.of(
-                                leafMap("lead.tags", "containsAny", List.of("Lender"), null),
-                                leafMap("lead.type", "equalsAny", List.of("Seller"), null)))),
+                                leafMap("person.tags", "containsAny", List.of("Lender"), null),
+                                leafMap("person.type", "equalsAny", List.of("Seller"), null)))),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Lender"), "type", "Seller"))));
+                personCtx(Map.of("tags", List.of("Lender"), "type", "Seller"))));
         assertEquals("SKIP", r.resultCode());
     }
 
@@ -539,15 +539,15 @@ class BranchOnFieldWorkflowStepTest {
         Map<String, Object> config = Map.of(
                 "anyOf", List.of(
                         Map.of("allOf", List.of(
-                                leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
-                                leafMap("lead.type", "equalsAny", List.of("Buyer"), null))),
+                                leafMap("person.tags", "containsAny", List.of("Realtor"), null),
+                                leafMap("person.type", "equalsAny", List.of("Buyer"), null))),
                         Map.of("allOf", List.of(
-                                leafMap("lead.tags", "containsAny", List.of("Lender"), null),
-                                leafMap("lead.type", "equalsAny", List.of("Seller"), null)))),
+                                leafMap("person.tags", "containsAny", List.of("Lender"), null),
+                                leafMap("person.type", "equalsAny", List.of("Seller"), null)))),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
         // Realtor but Seller; Lender absent — neither full pair fires.
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("tags", List.of("Realtor"), "type", "Seller"))));
+                personCtx(Map.of("tags", List.of("Realtor"), "type", "Seller"))));
         assertEquals("PROCEED", r.resultCode());
     }
 
@@ -556,32 +556,32 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void equalsAny_integerEqualsLong_crossNumericType() {
         Map<String, Object> config = leafCfg(
-                "lead.assignedUserId", "equalsAny",
+                "person.assignedUserId", "equalsAny",
                 List.of(12),     // config: Integer 12
                 "ci-exact");
-        // lead carries Long 12 — different runtime type, same numeric value
+        // person carries Long 12 — different runtime type, same numeric value
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("assignedUserId", 12L))));
+                personCtx(Map.of("assignedUserId", 12L))));
         assertEquals(true, r.outputs().get("matchResult"));
     }
 
     @Test
     void equalsAny_booleanField_matches() {
         Map<String, Object> config = leafCfg(
-                "lead.claimed", "equalsAny", List.of(true), "ci-exact");
-        StepExecutionResult hit = step.execute(context(config, leadCtx(Map.of("claimed", true))));
-        StepExecutionResult miss = step.execute(context(config, leadCtx(Map.of("claimed", false))));
+                "person.claimed", "equalsAny", List.of(true), "ci-exact");
+        StepExecutionResult hit = step.execute(context(config, personCtx(Map.of("claimed", true))));
+        StepExecutionResult miss = step.execute(context(config, personCtx(Map.of("claimed", false))));
         assertEquals(true, hit.outputs().get("matchResult"));
         assertEquals(false, miss.outputs().get("matchResult"));
     }
 
     @Test
     void equalsAny_numberAgainstStringConfig_doesNotMatch() {
-        // values has "12" (string), lead has 12 (number) — different types, no match
+        // values has "12" (string), person has 12 (number) — different types, no match
         Map<String, Object> config = leafCfg(
-                "lead.assignedUserId", "equalsAny", List.of("12"), "ci-exact");
+                "person.assignedUserId", "equalsAny", List.of("12"), "ci-exact");
         StepExecutionResult r = step.execute(context(config,
-                leadCtx(Map.of("assignedUserId", 12L))));
+                personCtx(Map.of("assignedUserId", 12L))));
         assertEquals(false, r.outputs().get("matchResult"));
     }
 
@@ -590,12 +590,12 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void emptyAnyOf_returnsConfigInvalid() {
         Map<String, Object> config = Map.of("anyOf", List.of());
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
 
-    // ---------------- non-lead namespaces ----------------
+    // ---------------- non-person namespaces ----------------
 
     @Test
     void field_eventPayloadPath_resolves() {
@@ -630,31 +630,31 @@ class BranchOnFieldWorkflowStepTest {
         // )
         Map<String, Object> config = Map.of(
                 "allOf", List.of(
-                        leafMap("lead.tags", "containsAny", List.of("Realtor"), null),
+                        leafMap("person.tags", "containsAny", List.of("Realtor"), null),
                         Map.of("anyOf", List.of(
                                 Map.of("allOf", List.of(
-                                        leafMap("lead.type", "equalsAny", List.of("Buyer"), null),
-                                        leafMap("lead.claimed", "equalsAny", List.of(true), null))),
-                                leafMap("lead.stage", "equalsAny", List.of("Hot"), null)))),
+                                        leafMap("person.type", "equalsAny", List.of("Buyer"), null),
+                                        leafMap("person.claimed", "equalsAny", List.of(true), null))),
+                                leafMap("person.stage", "equalsAny", List.of("Hot"), null)))),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
 
         // Realtor + Buyer + claimed → matches inner allOf → outer allOf passes
-        StepExecutionResult hitViaInnerAllOf = step.execute(context(config, leadCtx(Map.of(
+        StepExecutionResult hitViaInnerAllOf = step.execute(context(config, personCtx(Map.of(
                 "tags", List.of("Realtor"), "type", "Buyer", "claimed", true, "stage", "Cold"))));
         assertEquals("SKIP", hitViaInnerAllOf.resultCode());
 
         // Realtor + stage=Hot → matches stage leaf in anyOf → outer allOf passes
-        StepExecutionResult hitViaStage = step.execute(context(config, leadCtx(Map.of(
+        StepExecutionResult hitViaStage = step.execute(context(config, personCtx(Map.of(
                 "tags", List.of("Realtor"), "type", "Seller", "claimed", false, "stage", "Hot"))));
         assertEquals("SKIP", hitViaStage.resultCode());
 
         // Realtor + Buyer + NOT claimed + stage Cold → inner allOf fails, stage fails → anyOf fails
-        StepExecutionResult miss = step.execute(context(config, leadCtx(Map.of(
+        StepExecutionResult miss = step.execute(context(config, personCtx(Map.of(
                 "tags", List.of("Realtor"), "type", "Buyer", "claimed", false, "stage", "Cold"))));
         assertEquals("PROCEED", miss.resultCode());
 
         // No Realtor → first leaf in outer allOf fails immediately → false
-        StepExecutionResult missByTag = step.execute(context(config, leadCtx(Map.of(
+        StepExecutionResult missByTag = step.execute(context(config, personCtx(Map.of(
                 "tags", List.of("Buyer"), "type", "Buyer", "claimed", true, "stage", "Hot"))));
         assertEquals("PROCEED", missByTag.resultCode());
     }
@@ -667,7 +667,7 @@ class BranchOnFieldWorkflowStepTest {
                 "field", 42,
                 "op", "containsAny",
                 "values", List.of("x"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -675,7 +675,7 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void allOfAsString_returnsConfigInvalid() {
         Map<String, Object> config = Map.of("allOf", "not a list");
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -683,7 +683,7 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void allOfChildAsString_returnsConfigInvalid() {
         Map<String, Object> config = Map.of("allOf", List.of("not a condition object"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -691,10 +691,10 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void valuesAsMap_returnsConfigInvalid() {
         Map<String, Object> config = Map.of(
-                "field", "lead.tags",
+                "field", "person.tags",
                 "op", "containsAny",
                 "values", Map.of("k", "v"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -705,7 +705,7 @@ class BranchOnFieldWorkflowStepTest {
                 "field", "   ",
                 "op", "containsAny",
                 "values", List.of("x"));
-        StepExecutionResult r = step.execute(context(config, leadCtx(Map.of())));
+        StepExecutionResult r = step.execute(context(config, personCtx(Map.of())));
         assertFalse(r.success());
         assertEquals(BranchOnFieldWorkflowStep.CONFIG_INVALID, r.resultCode());
     }
@@ -714,7 +714,7 @@ class BranchOnFieldWorkflowStepTest {
 
     @Test
     void nullRunContext_doesNotCrashAndYieldsFalse() {
-        Map<String, Object> config = leafCfg("lead.tags", "containsAny", List.of("Realtor"), "ci-exact");
+        Map<String, Object> config = leafCfg("person.tags", "containsAny", List.of("Realtor"), "ci-exact");
         StepExecutionContext ctx = new StepExecutionContext(
                 1L, 2L, "n1", "18399", config, config, null);
         StepExecutionResult r = step.execute(ctx);
@@ -727,10 +727,10 @@ class BranchOnFieldWorkflowStepTest {
     @Test
     void realWorldRule_skipIfRealtorOrLenderRegardlessOfTypeButOnlyDuringDaytime() {
         // "(any partner-agent tag) AND now.isDaytime"
-        // — exercises composite + non-lead namespace + multi-value match
+        // — exercises composite + non-person namespace + multi-value match
         Map<String, Object> config = Map.of(
                 "allOf", List.of(
-                        leafMap("lead.tags", "containsAny",
+                        leafMap("person.tags", "containsAny",
                                 List.of("Realtor", "Agent", "Partner Agent", "Lender"), "ci-exact"),
                         leafMap("now.isDaytime", "equalsAny", List.of(true), null)),
                 "resultMapping", Map.of("true", "SKIP", "false", "PROCEED"));
@@ -779,19 +779,19 @@ class BranchOnFieldWorkflowStepTest {
         return m;
     }
 
-    private RunContext leadCtx(Map<String, Object> leadMap) {
-        return ctxFor(leadMap, Map.of(), Map.of(), Map.of());
+    private RunContext personCtx(Map<String, Object> personMap) {
+        return ctxFor(personMap, Map.of(), Map.of(), Map.of());
     }
 
     private RunContext ctxFor(
-            Map<String, Object> leadMap,
+            Map<String, Object> personMap,
             Map<String, Object> triggerPayload,
             Map<String, Map<String, Object>> stepOutputs) {
-        return ctxFor(leadMap, triggerPayload, stepOutputs, Map.of());
+        return ctxFor(personMap, triggerPayload, stepOutputs, Map.of());
     }
 
     private RunContext ctxFor(
-            Map<String, Object> leadMap,
+            Map<String, Object> personMap,
             Map<String, Object> triggerPayload,
             Map<String, Map<String, Object>> stepOutputs,
             Map<String, Object> nowMap) {
@@ -799,7 +799,7 @@ class BranchOnFieldWorkflowStepTest {
                 new RunContext.RunMetadata(1L, "wf", 1L, OffsetDateTime.now(), null),
                 triggerPayload,
                 "18399",
-                leadMap,
+                personMap,
                 nowMap,
                 stepOutputs);
     }

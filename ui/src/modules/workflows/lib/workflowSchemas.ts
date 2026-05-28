@@ -115,7 +115,7 @@ export const workflowRunDetailResponseSchema = z.object({
   startedAt: z.string().nullable(),
   completedAt: z.string().nullable(),
   triggerPayload: z.record(z.string(), z.unknown()).nullable(),
-  sourceLeadId: z.string().nullable(),
+  sourcePersonId: z.string().nullable(),
   eventId: z.string().nullable(),
   steps: z.array(workflowRunStepDetailSchema),
 })

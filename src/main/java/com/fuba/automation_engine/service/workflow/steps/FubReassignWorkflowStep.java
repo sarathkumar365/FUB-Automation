@@ -43,12 +43,12 @@ public class FubReassignWorkflowStep implements WorkflowStepType {
 
     @Override
     public String displayName() {
-        return "Reassign Lead";
+        return "Reassign Person";
     }
 
     @Override
     public String description() {
-        return "Reassign a lead to a different agent in Follow Up Boss.";
+        return "Reassign a person to a different agent in Follow Up Boss.";
     }
 
     @Override
@@ -58,7 +58,7 @@ public class FubReassignWorkflowStep implements WorkflowStepType {
                 "properties", Map.of(
                         "targetUserId", Map.of(
                                 "type", "integer",
-                                "description", "FUB user ID to reassign the lead to. Accepts template expressions.")),
+                                "description", "FUB user ID to reassign the person to. Accepts template expressions.")),
                 "required", java.util.List.of("targetUserId"));
     }
 
@@ -76,9 +76,9 @@ public class FubReassignWorkflowStep implements WorkflowStepType {
     public StepExecutionResult execute(StepExecutionContext context) {
         long personId;
         try {
-            personId = fubCallHelper.parsePersonId(context.sourceLeadId());
+            personId = fubCallHelper.parsePersonId(context.sourcePersonId());
         } catch (IllegalArgumentException ex) {
-            String code = (context.sourceLeadId() == null || context.sourceLeadId().isBlank())
+            String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
                     ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
             return StepExecutionResult.failure(code, ex.getMessage());
         }
@@ -110,8 +110,8 @@ public class FubReassignWorkflowStep implements WorkflowStepType {
                     "Permanent failure reassigning person " + personId
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
-            log.error("Unexpected reassign execution failure stepId={} runId={} sourceLeadId={}",
-                    context.stepId(), context.runId(), context.sourceLeadId(), ex);
+            log.error("Unexpected reassign execution failure stepId={} runId={} sourcePersonId={}",
+                    context.stepId(), context.runId(), context.sourcePersonId(), ex);
             return StepExecutionResult.failure(REASSIGN_EXECUTION_ERROR, "Unexpected reassign execution failure");
         }
     }

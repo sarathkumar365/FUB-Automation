@@ -192,7 +192,7 @@ class FubFollowUpBossClientTest {
 
         assertEquals(2, result.size(), "client returns all rows; window filtering belongs to callers");
         assertEquals(42, result.get(0).durationSeconds());
-        assertEquals("798", result.get(0).sourceLeadId());
+        assertEquals("798", result.get(0).sourcePersonId());
         assertEquals(OffsetDateTime.parse("2026-05-08T14:44:44Z"), result.get(0).callStartedAt(),
                 "uses startedAt when present");
         assertEquals(OffsetDateTime.parse("2026-05-08T13:00:00Z"), result.get(1).callStartedAt(),

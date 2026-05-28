@@ -5,9 +5,9 @@ package com.fuba.automation_engine.service.webhook.model;
  * implementation translates its source's vocabulary into one of these values.
  *
  * <ul>
- *   <li>{@code LEAD} — events about a prospect/contact record. FUB calls this "person";
- *       HubSpot/GHL call it "contact"; Salesforce splits it into Lead/Contact. We normalize
- *       all of them to LEAD so workflows port across CRMs.</li>
+ *   <li>{@code PERSON} — events about a person record. FUB calls this "person"
+ *       ({@code /v1/people}); HubSpot/GHL call it "contact"; Salesforce splits it into
+ *       Person/Contact. We normalize all of them to PERSON so workflows port across CRMs.</li>
  *   <li>{@code CALL} — phone-call activity.</li>
  *   <li>{@code UNKNOWN} — fallback when an event can't be safely mapped.</li>
  * </ul>
@@ -17,6 +17,6 @@ package com.fuba.automation_engine.service.webhook.model;
  */
 public enum NormalizedDomain {
     CALL,
-    LEAD,
+    PERSON,
     UNKNOWN
 }

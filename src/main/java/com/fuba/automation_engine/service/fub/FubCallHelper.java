@@ -29,14 +29,14 @@ public class FubCallHelper {
         }
     }
 
-    public long parsePersonId(String sourceLeadId) {
-        if (sourceLeadId == null || sourceLeadId.isBlank()) {
-            throw new IllegalArgumentException("sourceLeadId is missing or blank");
+    public long parsePersonId(String sourcePersonId) {
+        if (sourcePersonId == null || sourcePersonId.isBlank()) {
+            throw new IllegalArgumentException("sourcePersonId is missing or blank");
         }
         try {
-            return Long.parseLong(sourceLeadId.trim());
+            return Long.parseLong(sourcePersonId.trim());
         } catch (NumberFormatException ex) {
-            throw new IllegalArgumentException("sourceLeadId is not a valid number: " + sourceLeadId, ex);
+            throw new IllegalArgumentException("sourcePersonId is not a valid number: " + sourcePersonId, ex);
         }
     }
 

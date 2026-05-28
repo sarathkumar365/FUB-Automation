@@ -123,7 +123,7 @@ public class WebhookIngressService {
         entity.setCatalogState(resolution.supportState());
         entity.setNormalizedDomain(resolution.normalizedDomain());
         entity.setNormalizedAction(resolution.normalizedAction());
-        entity.setSourceLeadId(event.sourceLeadId());
+        entity.setSourcePersonId(event.sourcePersonId());
         entity.setStatus(event.status());
         entity.setPayload(event.payload());
         entity.setPayloadHash(event.payloadHash());

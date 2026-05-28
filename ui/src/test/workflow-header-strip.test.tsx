@@ -6,8 +6,8 @@ import type { WorkflowResponse } from '../modules/workflows/lib/workflowSchemas'
 
 const workflow: WorkflowResponse = {
   id: 1,
-  key: 'lead_intake_v1',
-  name: 'Lead Intake',
+  key: 'person_intake_v1',
+  name: 'Person Intake',
   description: 'Intake workflow',
   trigger: { type: 'webhook' },
   graph: {},
@@ -31,7 +31,7 @@ describe('WorkflowHeaderStrip', () => {
         />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { level: 1, name: 'Lead Intake' })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Person Intake' })).toBeInTheDocument()
     // Status badge renders the formatted status label ("Draft").
     expect(screen.getByText('Draft')).toBeInTheDocument()
     // Version chip prints v3.

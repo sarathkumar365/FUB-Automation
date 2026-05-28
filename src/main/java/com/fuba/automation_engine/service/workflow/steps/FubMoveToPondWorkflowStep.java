@@ -43,12 +43,12 @@ public class FubMoveToPondWorkflowStep implements WorkflowStepType {
 
     @Override
     public String displayName() {
-        return "Move Lead to Pond";
+        return "Move Person to Pond";
     }
 
     @Override
     public String description() {
-        return "Move a lead to a specified pond in Follow Up Boss.";
+        return "Move a person to a specified pond in Follow Up Boss.";
     }
 
     @Override
@@ -58,7 +58,7 @@ public class FubMoveToPondWorkflowStep implements WorkflowStepType {
                 "properties", Map.of(
                         "targetPondId", Map.of(
                                 "type", "integer",
-                                "description", "FUB pond ID to move the lead to. Accepts template expressions.")),
+                                "description", "FUB pond ID to move the person to. Accepts template expressions.")),
                 "required", java.util.List.of("targetPondId"));
     }
 
@@ -76,9 +76,9 @@ public class FubMoveToPondWorkflowStep implements WorkflowStepType {
     public StepExecutionResult execute(StepExecutionContext context) {
         long personId;
         try {
-            personId = fubCallHelper.parsePersonId(context.sourceLeadId());
+            personId = fubCallHelper.parsePersonId(context.sourcePersonId());
         } catch (IllegalArgumentException ex) {
-            String code = (context.sourceLeadId() == null || context.sourceLeadId().isBlank())
+            String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
                     ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
             return StepExecutionResult.failure(code, ex.getMessage());
         }
@@ -110,8 +110,8 @@ public class FubMoveToPondWorkflowStep implements WorkflowStepType {
                     "Permanent failure moving person " + personId + " to pond"
                             + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
         } catch (RuntimeException ex) {
-            log.error("Unexpected move-to-pond execution failure stepId={} runId={} sourceLeadId={}",
-                    context.stepId(), context.runId(), context.sourceLeadId(), ex);
+            log.error("Unexpected move-to-pond execution failure stepId={} runId={} sourcePersonId={}",
+                    context.stepId(), context.runId(), context.sourcePersonId(), ex);
             return StepExecutionResult.failure(MOVE_EXECUTION_ERROR, "Unexpected move-to-pond execution failure");
         }
     }

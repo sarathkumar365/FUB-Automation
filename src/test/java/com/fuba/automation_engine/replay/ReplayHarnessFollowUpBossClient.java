@@ -127,7 +127,7 @@ public final class ReplayHarnessFollowUpBossClient implements FollowUpBossClient
         }
         ObjectNode node = MAPPER.createObjectNode();
         node.put("id", personId);
-        node.put("name", "Lead " + personId);
+        node.put("name", "Person " + personId);
         node.put("assignedUserId", 0L);
         node.put("claimed", false);
         node.putArray("tags");
