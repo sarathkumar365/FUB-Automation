@@ -57,8 +57,8 @@ flowchart TD
     B --> C[WebhookEventProcessorService\nclaims and dispatches by event type]
 
     C -->|peopleCreated/Updated| D[PersonUpsertService\nfetch FUB, upsert persons,\ncapture previous_state]
-    C -->|callsCreated/Updated| E[processCall inline\nupsert processed_calls]
-    C -->|notesCreated/Updated/Deleted| EN[processNoteDomainEvent\nno persistence; emit from payload]
+    C -->|callsCreated/Updated| E[CallUpsertService.persistCallFacts\n@Transactional save + emit\n(extracted in Phase 2b)]
+    C -->|notesCreated/Updated/Deleted| EN[processNoteDomainEvent\n@Transactional; no persistence;\nemit from payload]
 
     D --> G{First upsert or\ndiff vs previous_state?}
     G -->|first insert| GC[DomainEventEmitter\nINSERT events row\nevent_kind=person.created]
@@ -234,6 +234,8 @@ When the echo webhook arrives ~500ms later, `PersonUpsertService` fetches FUB, c
 
 **Failure semantic chosen — and why:** if FUB write fails, the engine compensates by reverting local. Worst case: revert fails too; the next legitimate webhook re-syncs anyway. This is preferred over the alternative (write FUB first, then local) because (a) its failure mode is **operation did not execute** — loud, loggable, no FUB-visible side effect; (b) the alternative's failure mode is a **phantom event** — silent, indistinguishable from real events, can cascade.
 
+**Revert means *restore the captured prior snapshot* of the affected fields — not "undo the delta we applied."** For scalar fields (`assignedUserId`, `assignedPondId`) the two are equivalent. For accumulating fields (`tags`, `phones`, `emails`) they diverge: if another webhook landed an unrelated change between our local write and our revert, "undo the delta" would either destroy that change or preserve a destination the user no longer wants. Restoring the prior snapshot is wrong in the opposite direction (it could destroy a legitimate concurrent change), but the next webhook re-syncs the truth — so the worst-case window is one webhook cycle, and the semantics are simple and the same across all field types.
+
 Accepted residual race: an external write (human, another integration) landing in FUB between the local commit and our PUT can produce a brief inconsistency that self-heals on the next webhook. Window ~100–500 ms. Acceptable for dev phase.
 
 ### 6. `EngineWriteTracker` (interface-first)
@@ -254,11 +256,13 @@ A **partial unique index** in addition to the existing `uk_workflow_runs_idempot
 
 ```sql
 CREATE UNIQUE INDEX uk_workflow_runs_active_per_person
-  ON workflow_runs (workflow_key, source_person_id)
+  ON workflow_runs (workflow_key, source_system, source_person_id)
   WHERE status IN ('PENDING','RUNNING','BLOCKED');
 ```
 
-The existing constraint catches "same webhook event replayed forever." The new partial index catches "same workflow, same person, while a run is still active." Both stay — they protect different things and the cost is one extra B-tree index.
+`source_system` is included because the `events` table already carries it from day 1 to allow future CRM adapters (`source_system = 'FUB'` today; e.g. `'SALESFORCE'` later). Without it, person id `100` from FUB and person id `100` from a future second CRM would collide on the same workflow.
+
+The existing constraint catches "same webhook event replayed forever." The new partial index catches "same workflow, same person from the same source, while a run is still active." Both stay — they protect different things and the cost is one extra B-tree index.
 
 On conflict, the planner persists a `SUPPRESSED` row pointing at the active run via `workflow_runs.suppressed_by_run_id` (new column) for audit. Status is hard-suppress only; **supersede semantics are deferred** (see Out of Scope).
 

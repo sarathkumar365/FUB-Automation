@@ -1,6 +1,15 @@
 # Domain Events — Phases
 
-> **Changelog (2026-05-28):** Architecture review before starting Phase 2.
+> **Plan-lock changelog (2026-05-28, late-day):** Final fresh-eyes audit before starting Phase 2. This is the last revision to the roadmap; subsequent surprises go into phase implementation logs, not this file.
+> - **Phase 2 restructured into 5 sub-phases.** A new **2b (pure refactor, no behaviour change)** is inserted between scaffold and emission: extracts `CallUpsertService.persistCallFacts` so the call/note emission paths are `@Transactional` by construction; restructures `PersonUpsertService` to capture-old / apply-new shape; uses `findBy…ForUpdate` at **both** the primary finder and the `DataIntegrityViolationException` recovery re-read (closes the brand-new-row insert-race window). 2c/2d/2e land on a structure where the previously-uncaught defects are impossible to write. See [`phase-2-plan.md`](./phase-2-plan.md).
+> - **Phase 2 replay-harness assertions changed from `min*` to `expected*` (exact counts)** for collapse fixtures. `min: 1` silently accepts a broken collapse that produces 3 events. Append events keep `min` (no uniqueness claim).
+> - **Phase 3 wraps `fub_add_tag` too** — five FUB-mutating step types exist in the codebase; the original list of three missed `fub_add_tag`, which mutates `person.tags` and produces an echo. Without wrapping it, every tag-adding workflow self-triggers.
+> - **Phase 3 revert semantics clarified** in `plan.md` §5: revert means *restore the captured prior snapshot of affected fields*, not *undo the delta we applied*. Equivalent for scalars; materially different for accumulating fields (`tags`, `phones`, `emails`).
+> - **Phase 4 adds a new `DomainEventTriggerType`** alongside the retiring `FubWebhookTriggerType`; `WorkflowTriggerRouter` gains a `route(DomainEvent)` overload registered as a listener on `DomainEventDispatcher`. The "hard cut" framing was under-scoped — these are concrete new classes, not just a rewire.
+> - **Phase 4 validator warns (not refuses) on missing `change.source` predicate** for `person.state_changed` triggers. The `excludeEngineEchoes` opt-in default is per-`plan.md` policy; the warning prevents the silent regression of issue #23 when a future workflow author forgets the predicate.
+> - **Phase 5 partial unique index includes `source_system`** (now `(workflow_key, source_system, source_person_id)`). The `events` table already carries `source_system` from day 1 for future CRM adapters; the run-uniqueness index has to match.
+>
+> **Earlier changelog (2026-05-28, morning):** Architecture review before starting Phase 2.
 > - Pre-Phase-2 rename was under-scoped: the admin read-feed surface (controller, DTOs, read-repo, exception package, HTTP/UI routes) was never enumerated and was still `Lead`-named. Added to deliverables below. The app is not deployed anywhere, so renaming the `/admin/leads` route + admin-ui paths is free.
 > - Phase 2 gains two correctness deliverables surfaced by the review: **per-person upsert serialization** (the diff-collapse invariant is not safe under the 2–4 thread async webhook pool without it) and **after-commit event dispatch** (emit row in-tx, fan out after commit — not inline in the write transaction).
 > - The durable outbox poller (a `dispatched` flag + crash-recovery job) is explicitly **deferred to a Phase 4 decision** — there are no event consumers until then, and the app isn't running anywhere, so the crash-between-commit-and-dispatch window carries no risk today.
@@ -203,7 +212,7 @@ The initial Pre-Phase-2 deliverable list covered the entity, repository, and cor
 ---
 
 ## Phase 2 — Domain events table + diff machinery
-Status: `NOT STARTED`
+Status: `NOT STARTED` — commit-level implementation plan in [`phase-2-plan.md`](./phase-2-plan.md) (**5 sub-phases**: 2a scaffold → 2b refactor (extract `CallUpsertService`, restructure `PersonUpsertService`, both-site lock) → 2c person events emission → 2d append events → 2e harness assertions with **exact** collapse counts).
 
 **Goal:** Webhooks produce typed `events` rows. Diff computed for state-change events. In-process dispatcher available; nothing subscribes yet. Lands on the renamed `Person` substrate (see Pre-Phase-2).
 
@@ -229,8 +238,8 @@ Single method `dispatch(DomainEvent)`. Holds `List<DomainEventListener>`. No lis
 
 **5a. Per-person serialization of upserts** (correctness prerequisite for the collapse invariant):
 - The current `PersonUpsertService.upsertFubPerson` does `findBy → save` with no row lock. Webhooks process on a 2–4 thread async pool ([`WebhookAsyncConfig.java:17`](../../../src/main/java/com/fuba/automation_engine/config/WebhookAsyncConfig.java)), so a FUB burst of 3–4 `peopleUpdated` for the same person can run truly in parallel — every worker reads the same pre-burst state, every worker sees a non-empty diff, every worker emits. The headline collapse claim ("3 webhooks → 1 event") silently fails without a lock.
-- Add a `findBySourceSystemAndSourcePersonIdForUpdate(...)` method on `PersonRepository` annotated with `@Lock(LockModeType.PESSIMISTIC_WRITE)`. Use it in `upsertFubPerson` instead of the plain finder. Different persons still process fully in parallel (row-level lock, not table-level).
-- For brand-new persons (no row to lock on yet) the existing `DataIntegrityViolationException` recovery path remains correct: the loser of the unique-constraint race re-reads under the lock and proceeds as an update.
+- Add a `findBySourceSystemAndSourcePersonIdForUpdate(...)` method on `PersonRepository` annotated with `@Lock(LockModeType.PESSIMISTIC_WRITE)`. Use it in `upsertFubPerson` **at both call sites**: the primary finder AND the `DataIntegrityViolationException` recovery re-read. Different persons still process fully in parallel (row-level lock, not table-level).
+- For brand-new persons (no row to lock on yet) the existing `DataIntegrityViolationException` recovery path becomes correct only when the recovery re-read also uses the locking finder — otherwise concurrent losers of the unique-constraint race re-read without serializing and each emit independently. **Both call sites must use `findBy…ForUpdate`** for the collapse invariant to hold for brand-new persons.
 
 **6. Emission in `PersonUpsertService`** (two event_kinds, decision Q1=B):
 - Inside the existing `@Transactional`, holding the pessimistic lock from (5a), between save and return:
@@ -239,24 +248,24 @@ Single method `dispatch(DomainEvent)`. Holds `List<DomainEventListener>`. No lis
   - If diff empty (echo / no-op upsert): no event emitted. `previousState` left alone.
 - The lock from (5a) is what makes this correct under burst concurrency: the second worker's `findBy...ForUpdate` blocks until the first worker commits, then reads the already-updated state and finds no diff.
 
-**7. Inline `call.created` emission**
-In `WebhookEventProcessorService.processCall`, after `processedCallRepository.save(entity)`. TODO comment about future extraction into a `CallUpsertService` (out of scope for Phase 2).
+**7. `call.created` emission from extracted `CallUpsertService`**
+Sub-phase 2b extracts `WebhookEventProcessorService.persistCallFacts` into a new `CallUpsertService` (in `service/call/`) marked `@Transactional`. Sub-phase 2d injects `DomainEventEmitter` into that service and emits `call.created` after `processedCallRepository.save(entity)`. `source_event_id` is the **webhook** id, not the FUB call id (that's already in `entity_id`). The extraction is surgical — only `persistCallFacts` moves; retry/decision-engine/task-creation stays in `WebhookEventProcessorService`.
 
 **8. Note webhook handling** (decision Q3=B):
 - `FubWebhookParser` learns `notesCreated`, `notesUpdated`, `notesDeleted` → maps to `NormalizedDomain.NOTE` + `NormalizedAction.CREATED/UPDATED/DELETED` (the CHECK constraint loosening lands in Pre-Phase-2's V21 migration).
 - `WebhookEventProcessorService.process()` gets a `case NOTE -> processNoteDomainEvent(event)` branch.
-- `processNoteDomainEvent` emits `note.created` / `note.updated` / `note.deleted` with the webhook payload as the event payload.
-- **No `notes` table** in Phase 2. Note body content is not fetched from `/v1/notes/{id}`. Workflows that need note content can add a fetch path later.
+- `processNoteDomainEvent` is a new **`@Transactional`** private method that emits `note.created` / `note.updated` / `note.deleted` with the webhook payload as the event payload. The `@Transactional` annotation is what makes the emitter's `MANDATORY`-propagation guard pass; without it, the first notes webhook crashes with `IllegalTransactionStateException`.
+- **No `notes` table** in Phase 2. Note body content is not fetched from `/v1/notes/{id}`. Workflows that need note content can add a fetch path later. **No `NoteUpsertService`** — there's no state to own, so a service would be empty ceremony.
 
 **9. Replay harness extensions:**
 - New `ReplayFixture.Expected` fields:
-  - `minStateChangeEventsForPerson` (Map<String, Integer>) — `sourcePersonId → min event count`
-  - `minCreatedEventsForPerson` (Map<String, Integer>)
-  - `minAppendEvents` (Map<String, Integer>) — `event_kind → min count`, e.g. `{"call.created": 1, "note.created": 2}`
+  - `expectedStateChangeEventsForPerson` (Map<String, Integer>) — `sourcePersonId → **exact** event count`. Exact-count is the only assertion strong enough to catch a broken collapse (a `min: 1` silently passes when the bug produces 3).
+  - `expectedCreatedEventsForPerson` (Map<String, Integer>) — `sourcePersonId → **exact** event count`.
+  - `minAppendEvents` (Map<String, Integer>) — `event_kind → min count`, e.g. `{"call.created": 1, "note.created": 2}`. `min` is correct here because no uniqueness claim applies to append events.
 - Update existing fixtures to assert collapse:
-  - `person-20235-fub-burst` (will be `person-20235-fub-burst` after the rename pass): 3 `peopleUpdated` webhooks → assert `minStateChangeEventsForPerson: {"20235": 1}` (collapse from 3 to 1).
-  - `person-20231-fub-burst`: 4 `peopleUpdated` → assert `minStateChangeEventsForPerson: {"20231": 1}`.
-  - `person-20123-echo-cascade`: still produces phantom events under Phase 2 (Phase 3 closes); assert the expected pre-fix shape.
+  - `person-20235-fub-burst-2026-05-12`: 3 `peopleUpdated` webhooks → assert `expectedStateChangeEventsForPerson: {"20235": 1}` (exact-1 proves collapse from 3 → 1).
+  - `person-20231-fub-burst-2026-05-12`: 4 `peopleUpdated` → assert `expectedStateChangeEventsForPerson: {"20231": 1}`.
+  - `person-20123-echo-cascade-2026-05-08`: still produces phantom events under Phase 2 alone (Phase 3 closes); assert `expectedStateChangeEventsForPerson: {"20123": 2}` (1 real + 1 phantom). Phase 3's harness change flips this to exact-1.
 - Add one synthesized fixture for note webhooks (no real-DB note webhook in our extracted set yet).
 
 **10. Phase 2 invariants for the harness:**
@@ -304,12 +313,13 @@ This phase must land **before** Phase 4 — otherwise re-authored workflows trip
 - **`EngineWriteTracker` interface** + `InMemoryEngineWriteTracker` impl
   - `ConcurrentHashMap<TrackerKey, EngineWriteRecord>`
   - Scheduled eviction (30s TTL by default; configurable)
-- **Wrap engine-write step types** (`fub_reassign`, `fub_move_to_pond`, `fub_create_note`, any other FUB-mutating step):
-  - Before FUB call: read current local Person state for affected fields; update local state to intended new value; record in tracker
+- **Wrap engine-write step types** — the **four** FUB-mutating steps that produce a `peopleUpdated` echo: `fub_reassign`, `fub_move_to_pond`, `fub_create_note`, **`fub_add_tag`**. (`fub_create_task` creates a separate task entity and does not echo as a person event, so is excluded.) The list was verified against `service/workflow/steps/Fub*WorkflowStep.java` at plan-lock time.
+  - Before FUB call: capture current local Person state for the affected fields as a **prior-snapshot** value; update local state to intended new value; record in tracker
   - Call FUB
-  - On FUB failure: revert local state; mark tracker entry failed; propagate error to step machinery (step fails as today)
+  - On FUB failure: **restore the captured prior snapshot of the affected fields** (not "undo our delta" — see `plan.md` §5 for why the distinction matters for accumulating fields like `tags`); mark tracker entry failed; propagate error to step machinery (step fails as today)
   - On FUB success: leave local + tracker in place; echo webhook will diff to empty
 - **Diff annotation in Phase 2's emitter:** when `person.state_changed` would be emitted, consult the tracker — if a recent record matches the diff's fields and entity, annotate `payload.source = "ENGINE"`; emit the event anyway (filtering is the workflow's job per the opt-in default)
+- **Tracker metrics exposed as structured logs at INFO**: on every engine-write `record` call, on every emission-time `findMatching` call (hit vs miss), and on every eviction. Phase 4's TTL tuning depends on having this data; building it now is cheaper than retrofitting under load.
 
 ### Verification
 - Replay 05-08 echo cascade: engine reassign → local state updated → echo webhook → diff = empty → no event emitted (verified by harness assertions)
@@ -318,8 +328,9 @@ This phase must land **before** Phase 4 — otherwise re-authored workflows trip
 
 ### Exit criteria
 - Echo webhooks (matched by tracker) produce `source = ENGINE` annotation OR no event (depending on diff)
-- FUB write failures revert local state cleanly
+- FUB write failures revert local state cleanly (prior-snapshot restore semantics)
 - Tracker metrics logged for observability (hit rate, eviction rate, failed-write rate)
+- **No user-visible behaviour change in `agent_followup_enforcement`**. The existing workflow still runs on the old webhook-shaped trigger and does not consume events, so the wrapping has zero effect on bad-run rate until Phase 4 lands. This phase is pure infrastructure for Phase 4 to consume — the bad-run-rate win arrives at Phase 4. A future reviewer asking "why did Phase 3 land if nothing improved?" should find this answer in the exit criteria.
 
 ### Repo decisions impact
 Probably `No`. The local-state-first write pattern is feature-internal; if it generalises to a project-wide rule for "engine writes always update local first," then promote.
@@ -335,12 +346,14 @@ This is the user-facing phase. Everything before it is plumbing.
 
 ### Deliverables
 - **New trigger schema** in workflow JSON: `{ "on": "<event_kind>", "filter": "<JSONata expression>" }`
-- **Workflow JSON validator** updated: accepts new shape; rejects the old `peopleUpdated`-typed trigger with a clear migration error message
-- **`WorkflowTriggerRouter` refactored** to subscribe to `DomainEventDispatcher` instead of receiving raw webhook events:
+- **New `DomainEventTriggerType`** (`service/workflow/trigger/DomainEventTriggerType.java`) implementing `WorkflowTriggerType`, registered alongside the retiring `FubWebhookTriggerType`. Reads `config.on` (event kind) and `config.filter` (JSONata predicate). The two trigger types coexist only briefly — the hard cut deletes the webhook-shaped path at the end of Phase 4 (see exit criteria).
+- **Workflow JSON validator** updated: accepts the new `{on, filter}` shape on FUB triggers; rejects the old `peopleUpdated`-typed trigger with a clear migration error message; **warns (not refuses)** when a `person.state_changed` trigger filter does not reference `change.source` — the `excludeEngineEchoes` opt-in default (per `plan.md`) means a forgetful workflow author re-introduces issue #23 silently; the warning is the friction at the right moment. A workflow that genuinely wants to act on engine writes silences the warning by explicitly including `change.source = 'ENGINE'`.
+- **`WorkflowTriggerRouter` gains a `route(DomainEvent)` overload** registered as a `DomainEventListener` on `DomainEventDispatcher` (Spring auto-wires the constructor-injected listener list — see Phase 2 dispatcher defaults). The new method:
   - Receives a `DomainEvent`
-  - Looks up workflows registered for that `event_kind`
+  - Looks up workflows whose trigger type is `DomainEventTriggerType` AND whose `on` field matches `event.eventKind`
   - Evaluates each workflow's filter expression against the new scope
   - On match, calls `WorkflowExecutionManager.plan` with `domain_event_id` and the proximate `webhook_event_id`
+- **Old `route(NormalizedWebhookEvent)` path retires.** At the end of Phase 4, the webhook-shaped path and `FubWebhookTriggerType` are deleted in the hard cut (no production workflow remains on the old shape — `agent_followup_enforcement` is migrated as part of this phase). This is concretely 2 new classes (`DomainEventTriggerType` + listener wiring on the router) and 2 deletions; the deliverable list reflects that, not "router refactored" as a one-line tweak.
 - **`workflow_runs.domain_event_id`** column (new) + `workflow_runs.suppressed_by_run_id` column (new, used in Phase 5)
 - **Expression scope refactor:**
   - `event.*` now refers to the domain event, not the webhook
@@ -381,9 +394,10 @@ Status: `NOT STARTED`
 - **Partial unique index** on `workflow_runs`:
   ```sql
   CREATE UNIQUE INDEX uk_workflow_runs_active_per_person
-    ON workflow_runs (workflow_key, source_person_id)
+    ON workflow_runs (workflow_key, source_system, source_person_id)
     WHERE status IN ('PENDING','RUNNING','BLOCKED');
   ```
+  `source_system` is included to match the `events` table's day-1 multi-CRM substrate (`plan.md` §"The `events` table"). Without it, person id `100` from FUB and person id `100` from a future second CRM would collide on the same workflow. Costs nothing now; correctness-by-construction for the schema already committed to.
 - **`WorkflowExecutionManager.plan` updated:**
   - Attempt to insert as today
   - On unique-constraint violation from the new index, look up the active run
