@@ -40,7 +40,7 @@ class PersonUpsertServiceTest {
     @Test
     void shouldInsertNewPersonWithTrimmedSnapshot() throws Exception {
         JsonNode personPayload = OBJECT_MAPPER.readTree(samplePersonJson());
-        when(personRepository.findBySourceSystemAndSourcePersonId("FUB", "19355"))
+        when(personRepository.findBySourceSystemAndSourcePersonIdForUpdate("FUB", "19355"))
                 .thenReturn(Optional.empty());
 
         PersonEntity result = service.upsertFubPerson("19355", personPayload);
@@ -77,7 +77,7 @@ class PersonUpsertServiceTest {
         existing.setCreatedAt(originalCreated);
         existing.setUpdatedAt(originalCreated);
         existing.setLastSyncedAt(originalCreated);
-        when(personRepository.findBySourceSystemAndSourcePersonId("FUB", "19355"))
+        when(personRepository.findBySourceSystemAndSourcePersonIdForUpdate("FUB", "19355"))
                 .thenReturn(Optional.of(existing));
 
         PersonEntity result = service.upsertFubPerson("19355", personPayload);
@@ -110,7 +110,7 @@ class PersonUpsertServiceTest {
                   "stage": "Agent"
                 }
                 """);
-        when(personRepository.findBySourceSystemAndSourcePersonId("FUB", "30"))
+        when(personRepository.findBySourceSystemAndSourcePersonIdForUpdate("FUB", "30"))
                 .thenReturn(Optional.empty());
 
         PersonEntity result = service.upsertFubPerson("30", agentPayload);

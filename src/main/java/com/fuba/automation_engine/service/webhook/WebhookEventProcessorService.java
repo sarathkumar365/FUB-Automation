@@ -7,7 +7,6 @@ import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallStatus;
-import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.rules.CallDecision;
 import com.fuba.automation_engine.rules.CallDecisionAction;
@@ -17,6 +16,7 @@ import com.fuba.automation_engine.rules.CallbackTaskCommandFactory;
 import com.fuba.automation_engine.rules.PreValidationResult;
 import com.fuba.automation_engine.rules.ValidatedCallContext;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.call.CallUpsertService;
 import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
@@ -63,7 +63,7 @@ public class WebhookEventProcessorService {
     private final Environment environment;
     private final WorkflowTriggerRouter workflowTriggerRouter;
     private final PersonUpsertService personUpsertService;
-    private final PersonRepository personRepository;
+    private final CallUpsertService callUpsertService;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
@@ -76,7 +76,7 @@ public class WebhookEventProcessorService {
             Environment environment,
             WorkflowTriggerRouter workflowTriggerRouter,
             PersonUpsertService personUpsertService,
-            PersonRepository personRepository) {
+            CallUpsertService callUpsertService) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
         this.callPreValidationService = callPreValidationService;
@@ -87,7 +87,7 @@ public class WebhookEventProcessorService {
         this.environment = environment;
         this.workflowTriggerRouter = workflowTriggerRouter;
         this.personUpsertService = personUpsertService;
-        this.personRepository = personRepository;
+        this.callUpsertService = callUpsertService;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -243,7 +243,7 @@ public class WebhookEventProcessorService {
         try {
             CallDetails callDetails = executeWithRetry(entity, "GET_CALL", () -> followUpBossClient.getCallById(callId));
             log.info("Fetched call details from FUB callId={}", callId);
-            persistCallFacts(event, entity, callDetails);
+            callUpsertService.persistCallFacts(event, entity, callDetails);
             Optional<PreValidationResult> preValidationResult = callPreValidationService.validate(callDetails);
             if (preValidationResult.isPresent()) {
                 handlePreValidationTerminal(entity, callDetails, preValidationResult.get());
@@ -262,30 +262,6 @@ public class WebhookEventProcessorService {
         } catch (RuntimeException ex) {
             log.error("Unexpected processing failure callId={}", callId, ex);
             markFailed(entity, UNEXPECTED_PROCESSING_FAILURE);
-        }
-    }
-
-    private void persistCallFacts(NormalizedWebhookEvent event, ProcessedCallEntity entity, CallDetails callDetails) {
-        String sourcePersonId = callDetails.personId() == null ? null : String.valueOf(callDetails.personId());
-        entity.setSourcePersonId(sourcePersonId);
-        entity.setSourceUserId(callDetails.userId());
-        entity.setIsIncoming(callDetails.isIncoming());
-        entity.setDurationSeconds(callDetails.duration());
-        entity.setOutcome(callDetails.outcome());
-        entity.setCallStartedAt(callDetails.createdAt());
-        entity.setUpdatedAt(OffsetDateTime.now());
-        processedCallRepository.save(entity);
-
-        if (sourcePersonId == null || sourcePersonId.isBlank()) {
-            return;
-        }
-        if (personRepository.findBySourceSystemAndSourcePersonId(PersonUpsertService.SOURCE_SYSTEM_FUB, sourcePersonId).isEmpty()) {
-            log.warn(
-                    "person-missing-on-call eventId={} callId={} sourcePersonId={} sourceEventType={}",
-                    event.eventId(),
-                    entity.getCallId(),
-                    sourcePersonId,
-                    event.sourceEventType());
         }
     }
 

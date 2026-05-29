@@ -6,7 +6,6 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.config.CallOutcomeRulesProperties;
 import com.fuba.automation_engine.config.FubRetryProperties;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
-import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
 import com.fuba.automation_engine.rules.CallDecisionAction;
 import com.fuba.automation_engine.rules.CallDecisionEngine;
@@ -14,6 +13,7 @@ import com.fuba.automation_engine.rules.CallPreValidationService;
 import com.fuba.automation_engine.rules.CallbackTaskCommandFactory;
 import com.fuba.automation_engine.rules.PreValidationResult;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.call.CallUpsertService;
 import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
@@ -23,13 +23,11 @@ import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
 import com.fuba.automation_engine.service.webhook.model.WebhookSource;
 import java.time.OffsetDateTime;
-import java.util.List;
 import java.util.Optional;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.core.env.Environment;
-import org.mockito.ArgumentCaptor;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
@@ -53,7 +51,7 @@ class WebhookEventProcessorServiceTest {
     private WorkflowTriggerRouter workflowTriggerRouter;
     private Environment environment;
     private PersonUpsertService personUpsertService;
-    private PersonRepository personRepository;
+    private CallUpsertService callUpsertService;
     private WebhookEventProcessorService service;
 
     @BeforeEach
@@ -66,7 +64,7 @@ class WebhookEventProcessorServiceTest {
         workflowTriggerRouter = mock(WorkflowTriggerRouter.class);
         environment = mock(Environment.class);
         personUpsertService = mock(PersonUpsertService.class);
-        personRepository = mock(PersonRepository.class);
+        callUpsertService = mock(CallUpsertService.class);
 
         FubRetryProperties retryProperties = new FubRetryProperties();
         retryProperties.setMaxAttempts(1);
@@ -89,7 +87,7 @@ class WebhookEventProcessorServiceTest {
                 environment,
                 workflowTriggerRouter,
                 personUpsertService,
-                personRepository);
+                callUpsertService);
     }
 
     @Test
@@ -119,7 +117,9 @@ class WebhookEventProcessorServiceTest {
     }
 
     @Test
-    void shouldPersistCallFactsAndQueryPersonMappingDuringCallProcessing() {
+    void shouldDelegateCallFactsPersistenceToCallUpsertService() {
+        // Verifies the wiring only: call-facts persistence + orphan-person
+        // logging is asserted in CallUpsertServiceTest, not here.
         NormalizedWebhookEvent event = eventWithPayload(
                 "evt-call-facts",
                 NormalizedDomain.CALL,
@@ -129,37 +129,18 @@ class WebhookEventProcessorServiceTest {
         when(processedCallRepository.findByCallId(321L)).thenReturn(Optional.empty());
         when(processedCallRepository.save(any(ProcessedCallEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0, ProcessedCallEntity.class));
-        when(followUpBossClient.getCallById(321L))
-                .thenReturn(new CallDetails(
-                        321L,
-                        19355L,
-                        42,
-                        77L,
-                        "Connected",
-                        true,
-                        OffsetDateTime.parse("2026-04-17T18:00:00Z")));
+        CallDetails callDetails = new CallDetails(
+                321L, 19355L, 42, 77L, "Connected", true,
+                OffsetDateTime.parse("2026-04-17T18:00:00Z"));
+        when(followUpBossClient.getCallById(321L)).thenReturn(callDetails);
         when(callPreValidationService.validate(any(CallDetails.class)))
                 .thenReturn(Optional.of(new PreValidationResult(
                         CallDecisionAction.SKIP,
                         CallDecisionEngine.REASON_CONNECTED_NO_FOLLOWUP)));
-        when(personRepository.findBySourceSystemAndSourcePersonId("FUB", "19355"))
-                .thenReturn(Optional.empty());
 
         service.process(event);
 
-        ArgumentCaptor<ProcessedCallEntity> savedCaptor = ArgumentCaptor.forClass(ProcessedCallEntity.class);
-        verify(processedCallRepository, atLeastOnce()).save(savedCaptor.capture());
-        List<ProcessedCallEntity> savedEntities = savedCaptor.getAllValues();
-
-        Assertions.assertTrue(savedEntities.stream().anyMatch(saved ->
-                        "19355".equals(saved.getSourcePersonId())
-                                && Long.valueOf(77L).equals(saved.getSourceUserId())
-                                && Boolean.TRUE.equals(saved.getIsIncoming())
-                                && Integer.valueOf(42).equals(saved.getDurationSeconds())
-                                && "Connected".equals(saved.getOutcome())
-                                && OffsetDateTime.parse("2026-04-17T18:00:00Z").equals(saved.getCallStartedAt())),
-                "Expected at least one persisted processed_calls row to include mapped call facts");
-        verify(personRepository).findBySourceSystemAndSourcePersonId("FUB", "19355");
+        verify(callUpsertService).persistCallFacts(eq(event), any(ProcessedCallEntity.class), eq(callDetails));
     }
 
     @Test

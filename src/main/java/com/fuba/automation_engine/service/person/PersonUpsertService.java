@@ -148,19 +148,24 @@ public class PersonUpsertService {
             throw new IllegalArgumentException("personPayload must be non-null");
         }
 
-        JsonNode snapshot = buildSnapshot(personPayload);
+        JsonNode newDetails = buildSnapshot(personPayload);
         PersonKind kind = mapStageToKind(extractStage(personPayload));
         OffsetDateTime now = OffsetDateTime.now();
 
-        Optional<PersonEntity> existing = personRepository.findBySourceSystemAndSourcePersonId(SOURCE_SYSTEM_FUB, sourcePersonId);
+        Optional<PersonEntity> existing = personRepository.findBySourceSystemAndSourcePersonIdForUpdate(
+                SOURCE_SYSTEM_FUB, sourcePersonId);
         if (existing.isPresent()) {
             PersonEntity entity = existing.get();
-            entity.setPersonDetails(snapshot);
+            // Captured for 2c's diff — do not move below the setter.
+            @SuppressWarnings("unused")
+            JsonNode oldDetails = entity.getPersonDetails();
+            entity.setPersonDetails(newDetails);
             entity.setKind(kind);
             entity.setUpdatedAt(now);
             entity.setLastSyncedAt(now);
             PersonEntity saved = personRepository.save(entity);
-            log.info("Person upserted (update) sourceSystem={} sourcePersonId={} kind={} id={}", SOURCE_SYSTEM_FUB, sourcePersonId, kind, saved.getId());
+            log.info("Person upserted (update) sourceSystem={} sourcePersonId={} kind={} id={}",
+                    SOURCE_SYSTEM_FUB, sourcePersonId, kind, saved.getId());
             return saved;
         }
 
@@ -168,22 +173,27 @@ public class PersonUpsertService {
         entity.setSourceSystem(SOURCE_SYSTEM_FUB);
         entity.setSourcePersonId(sourcePersonId);
         entity.setStatus(PersonStatus.ACTIVE);
-        entity.setPersonDetails(snapshot);
+        entity.setPersonDetails(newDetails);
         entity.setKind(kind);
         entity.setCreatedAt(now);
         entity.setUpdatedAt(now);
         entity.setLastSyncedAt(now);
         try {
             PersonEntity saved = personRepository.save(entity);
-            log.info("Person upserted (insert) sourceSystem={} sourcePersonId={} kind={} id={}", SOURCE_SYSTEM_FUB, sourcePersonId, kind, saved.getId());
+            log.info("Person upserted (insert) sourceSystem={} sourcePersonId={} kind={} id={}",
+                    SOURCE_SYSTEM_FUB, sourcePersonId, kind, saved.getId());
             return saved;
         } catch (DataIntegrityViolationException ex) {
-            log.info("Person insert race detected; re-reading sourceSystem={} sourcePersonId={}", SOURCE_SYSTEM_FUB, sourcePersonId);
+            log.info("Person insert race detected; re-reading sourceSystem={} sourcePersonId={}",
+                    SOURCE_SYSTEM_FUB, sourcePersonId);
+            // Recovery must also lock — closes the brand-new-row insert race.
             PersonEntity existingAfterRace = personRepository
-                    .findBySourceSystemAndSourcePersonId(SOURCE_SYSTEM_FUB, sourcePersonId)
+                    .findBySourceSystemAndSourcePersonIdForUpdate(SOURCE_SYSTEM_FUB, sourcePersonId)
                     .orElseThrow(() -> new IllegalStateException(
                             "Unable to recover person after insert race sourcePersonId=" + sourcePersonId));
-            existingAfterRace.setPersonDetails(snapshot);
+            @SuppressWarnings("unused")
+            JsonNode oldDetails = existingAfterRace.getPersonDetails();
+            existingAfterRace.setPersonDetails(newDetails);
             existingAfterRace.setKind(kind);
             existingAfterRace.setUpdatedAt(OffsetDateTime.now());
             existingAfterRace.setLastSyncedAt(OffsetDateTime.now());
