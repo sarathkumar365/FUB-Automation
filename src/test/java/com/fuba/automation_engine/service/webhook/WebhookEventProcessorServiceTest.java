@@ -52,6 +52,7 @@ class WebhookEventProcessorServiceTest {
     private Environment environment;
     private PersonUpsertService personUpsertService;
     private CallUpsertService callUpsertService;
+    private com.fuba.automation_engine.service.event.DomainEventEmitter emitter;
     private WebhookEventProcessorService service;
 
     @BeforeEach
@@ -65,6 +66,7 @@ class WebhookEventProcessorServiceTest {
         environment = mock(Environment.class);
         personUpsertService = mock(PersonUpsertService.class);
         callUpsertService = mock(CallUpsertService.class);
+        emitter = mock(com.fuba.automation_engine.service.event.DomainEventEmitter.class);
 
         FubRetryProperties retryProperties = new FubRetryProperties();
         retryProperties.setMaxAttempts(1);
@@ -87,7 +89,8 @@ class WebhookEventProcessorServiceTest {
                 environment,
                 workflowTriggerRouter,
                 personUpsertService,
-                callUpsertService);
+                callUpsertService,
+                emitter);
     }
 
     @Test
@@ -269,6 +272,102 @@ class WebhookEventProcessorServiceTest {
 
         Assertions.assertDoesNotThrow(() -> service.process(event));
         verify(workflowTriggerRouter).route(event);
+    }
+
+    // ---------- Note events (sub-phase 2d) ----------
+
+    @Test
+    void notesCreatedEmitsExactlyOneNoteCreatedEventPerResourceId() {
+        ObjectNode payload = payloadWithResourceIds("notesCreated", 9001L);
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-note-1", NormalizedDomain.NOTE, NormalizedAction.CREATED, payload);
+
+        service.process(event);
+
+        verify(emitter, org.mockito.Mockito.times(1)).emit(
+                eq("note.created"),
+                eq("FUB"),
+                org.mockito.ArgumentMatchers.any(),  // webhookEventId null in test event
+                eq("note"),
+                eq("9001"),
+                eq(event.payload()));
+    }
+
+    @Test
+    void notesUpdatedMapsToNoteUpdatedEventKind() {
+        ObjectNode payload = payloadWithResourceIds("notesUpdated", 9002L);
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-note-2", NormalizedDomain.NOTE, NormalizedAction.UPDATED, payload);
+
+        service.process(event);
+
+        verify(emitter).emit(
+                eq("note.updated"),
+                anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                eq("note"),
+                eq("9002"),
+                org.mockito.ArgumentMatchers.any(JsonNode.class));
+    }
+
+    @Test
+    void notesDeletedMapsToNoteDeletedEventKind() {
+        ObjectNode payload = payloadWithResourceIds("notesDeleted", 9003L);
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-note-3", NormalizedDomain.NOTE, NormalizedAction.DELETED, payload);
+
+        service.process(event);
+
+        verify(emitter).emit(
+                eq("note.deleted"),
+                anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                eq("note"),
+                eq("9003"),
+                org.mockito.ArgumentMatchers.any(JsonNode.class));
+    }
+
+    @Test
+    void notesWithoutResourceIdsEmitsNothing() {
+        ObjectNode payload = payloadWithoutResourceIds("notesCreated");
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-note-empty", NormalizedDomain.NOTE, NormalizedAction.CREATED, payload);
+
+        service.process(event);
+
+        org.mockito.Mockito.verifyNoInteractions(emitter);
+    }
+
+    @Test
+    void notesWithMultipleResourceIdsEmitsOneEventPerNote() {
+        ObjectNode payload = payloadWithResourceIds("notesCreated", 9010L, 9011L, 9012L);
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-note-multi", NormalizedDomain.NOTE, NormalizedAction.CREATED, payload);
+
+        service.process(event);
+
+        verify(emitter, org.mockito.Mockito.times(3)).emit(
+                eq("note.created"),
+                anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                eq("note"),
+                anyString(),
+                org.mockito.ArgumentMatchers.any(JsonNode.class));
+    }
+
+    @Test
+    void notesEventPayloadPassesThroughWebhookPayloadByReference() {
+        ObjectNode payload = payloadWithResourceIds("notesCreated", 9001L);
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-note-payload", NormalizedDomain.NOTE, NormalizedAction.CREATED, payload);
+
+        service.process(event);
+
+        org.mockito.ArgumentCaptor<JsonNode> cap = org.mockito.ArgumentCaptor.forClass(JsonNode.class);
+        verify(emitter).emit(anyString(), anyString(), org.mockito.ArgumentMatchers.any(),
+                anyString(), anyString(), cap.capture());
+        Assertions.assertSame(event.payload(), cap.getValue(),
+                "note payload must be the raw webhook payload — workflows can fetch body content on demand");
     }
 
     private NormalizedWebhookEvent eventWithPayload(

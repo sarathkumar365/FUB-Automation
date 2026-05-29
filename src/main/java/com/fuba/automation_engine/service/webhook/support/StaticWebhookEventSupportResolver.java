@@ -34,7 +34,25 @@ public class StaticWebhookEventSupportResolver implements WebhookEventSupportRes
                     EventSupportState.SUPPORTED,
                     NormalizedDomain.PERSON,
                     NormalizedAction.UPDATED,
-                    "Supported person update event"));
+                    "Supported person update event"),
+            new ResolverKey(WebhookSource.FUB, "notesCreated"),
+            new EventSupportResolution(
+                    EventSupportState.SUPPORTED,
+                    NormalizedDomain.NOTE,
+                    NormalizedAction.CREATED,
+                    "Supported note create event"),
+            new ResolverKey(WebhookSource.FUB, "notesUpdated"),
+            new EventSupportResolution(
+                    EventSupportState.SUPPORTED,
+                    NormalizedDomain.NOTE,
+                    NormalizedAction.UPDATED,
+                    "Supported note update event"),
+            new ResolverKey(WebhookSource.FUB, "notesDeleted"),
+            new EventSupportResolution(
+                    EventSupportState.SUPPORTED,
+                    NormalizedDomain.NOTE,
+                    NormalizedAction.DELETED,
+                    "Supported note delete event"));
 
     @Override
     public EventSupportResolution resolve(WebhookSource sourceSystem, String sourceEventType) {

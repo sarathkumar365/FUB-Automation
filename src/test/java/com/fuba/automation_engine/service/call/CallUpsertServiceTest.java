@@ -46,6 +46,7 @@ class CallUpsertServiceTest {
 
     private ProcessedCallRepository processedCallRepository;
     private PersonRepository personRepository;
+    private com.fuba.automation_engine.service.event.DomainEventEmitter emitter;
     private CallUpsertService service;
     private ListAppender<ILoggingEvent> logCapture;
 
@@ -53,7 +54,8 @@ class CallUpsertServiceTest {
     void setUp() {
         processedCallRepository = mock(ProcessedCallRepository.class);
         personRepository = mock(PersonRepository.class);
-        service = new CallUpsertService(processedCallRepository, personRepository);
+        emitter = mock(com.fuba.automation_engine.service.event.DomainEventEmitter.class);
+        service = new CallUpsertService(processedCallRepository, personRepository, emitter, OBJECT_MAPPER);
         when(processedCallRepository.save(any(ProcessedCallEntity.class)))
                 .thenAnswer(invocation -> invocation.getArgument(0, ProcessedCallEntity.class));
 
@@ -233,6 +235,76 @@ class CallUpsertServiceTest {
 
         assertEquals("db down", ex.getMessage(), "save exception must propagate, not be swallowed");
         verifyNoInteractions(personRepository); // saving failed, no orphan check should happen
+        verifyNoInteractions(emitter);           // saving failed, no event should be emitted
+    }
+
+    // ---------- call.created emission (sub-phase 2d) ----------
+
+    @Test
+    void emitsExactlyOneCallCreatedEventWithCorrectMetadata() {
+        ProcessedCallEntity entity = freshEntity(321L);
+        CallDetails details = detailsWithPerson(19355L);
+        when(personRepository.findBySourceSystemAndSourcePersonId("FUB", "19355"))
+                .thenReturn(java.util.Optional.of(new com.fuba.automation_engine.persistence.entity.PersonEntity()));
+
+        // event() helper sets webhookEventId=100L
+        service.persistCallFacts(event("evt-emit-1"), entity, details);
+
+        verify(emitter, org.mockito.Mockito.times(1)).emit(
+                eq("call.created"),
+                eq("FUB"),
+                eq(100L),                           // webhookEventId — NOT the call id
+                eq("call"),
+                eq("321"),                          // call id stringified
+                org.mockito.ArgumentMatchers.any(com.fasterxml.jackson.databind.JsonNode.class));
+    }
+
+    @Test
+    void emittedCallCreatedPayloadContainsCallDetailsFields() {
+        ProcessedCallEntity entity = freshEntity(321L);
+        CallDetails details = new CallDetails(321L, 19355L, 42, 77L, "Connected", true,
+                java.time.OffsetDateTime.parse("2026-04-17T18:00:00Z"));
+        when(personRepository.findBySourceSystemAndSourcePersonId("FUB", "19355"))
+                .thenReturn(java.util.Optional.of(new com.fuba.automation_engine.persistence.entity.PersonEntity()));
+
+        service.persistCallFacts(event("evt-emit-2"), entity, details);
+
+        org.mockito.ArgumentCaptor<com.fasterxml.jackson.databind.JsonNode> payloadCap =
+                org.mockito.ArgumentCaptor.forClass(com.fasterxml.jackson.databind.JsonNode.class);
+        verify(emitter).emit(
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.any(),
+                org.mockito.ArgumentMatchers.anyString(),
+                org.mockito.ArgumentMatchers.anyString(),
+                payloadCap.capture());
+
+        com.fasterxml.jackson.databind.JsonNode payload = payloadCap.getValue();
+        assertEquals(321L, payload.get("id").asLong());
+        assertEquals(19355L, payload.get("personId").asLong());
+        assertEquals(77L, payload.get("userId").asLong());
+        assertEquals(42, payload.get("duration").asInt());
+        assertEquals("Connected", payload.get("outcome").asText());
+        assertEquals(true, payload.get("isIncoming").asBoolean());
+    }
+
+    @Test
+    void emitsCallCreatedEvenWhenPersonIsMissingOrPersonIdIsNull() {
+        // The orphan-person warn fires (no person row), but the call.created event
+        // still emits — the call happened regardless of person mapping.
+        ProcessedCallEntity entity = freshEntity(321L);
+        CallDetails details = new CallDetails(321L, null, 0, 77L, "No Answer", false,
+                java.time.OffsetDateTime.parse("2026-04-17T18:00:00Z"));
+
+        service.persistCallFacts(event("evt-emit-3"), entity, details);
+
+        verify(emitter, org.mockito.Mockito.times(1)).emit(
+                eq("call.created"),
+                eq("FUB"),
+                eq(100L),
+                eq("call"),
+                eq("321"),
+                org.mockito.ArgumentMatchers.any(com.fasterxml.jackson.databind.JsonNode.class));
     }
 
     @Test

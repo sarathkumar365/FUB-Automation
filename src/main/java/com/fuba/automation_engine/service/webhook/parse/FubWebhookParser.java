@@ -136,6 +136,7 @@ public class FubWebhookParser implements WebhookParser {
         return switch (sourceEventType) {
             case "callsCreated" -> NormalizedDomain.CALL;
             case "peopleCreated", "peopleUpdated" -> NormalizedDomain.PERSON;
+            case "notesCreated", "notesUpdated", "notesDeleted" -> NormalizedDomain.NOTE;
             default -> NormalizedDomain.UNKNOWN;
         };
     }
@@ -143,8 +144,9 @@ public class FubWebhookParser implements WebhookParser {
     private NormalizedAction resolveAction(String sourceEventType) {
         // TODO(step3-followup): deprecate parser-owned action compatibility mapping once consumers migrate.
         return switch (sourceEventType) {
-            case "callsCreated", "peopleCreated" -> NormalizedAction.CREATED;
-            case "peopleUpdated" -> NormalizedAction.UPDATED;
+            case "callsCreated", "peopleCreated", "notesCreated" -> NormalizedAction.CREATED;
+            case "peopleUpdated", "notesUpdated" -> NormalizedAction.UPDATED;
+            case "notesDeleted" -> NormalizedAction.DELETED;
             default -> NormalizedAction.UNKNOWN;
         };
     }

@@ -124,6 +124,33 @@ class FubWebhookParserNormalizedContractTest {
     }
 
     @Test
+    void notesCreatedParsesToNoteDomainCreatedAction() {
+        NormalizedWebhookEvent event = parser.parse("""
+                {"eventId":"evt-note-c","event":"notesCreated","resourceIds":[9001]}
+                """, Map.of());
+        assertEquals(NormalizedDomain.NOTE, event.normalizedDomain());
+        assertEquals(NormalizedAction.CREATED, event.normalizedAction());
+    }
+
+    @Test
+    void notesUpdatedParsesToNoteDomainUpdatedAction() {
+        NormalizedWebhookEvent event = parser.parse("""
+                {"eventId":"evt-note-u","event":"notesUpdated","resourceIds":[9002]}
+                """, Map.of());
+        assertEquals(NormalizedDomain.NOTE, event.normalizedDomain());
+        assertEquals(NormalizedAction.UPDATED, event.normalizedAction());
+    }
+
+    @Test
+    void notesDeletedParsesToNoteDomainDeletedAction() {
+        NormalizedWebhookEvent event = parser.parse("""
+                {"eventId":"evt-note-d","event":"notesDeleted","resourceIds":[9003]}
+                """, Map.of());
+        assertEquals(NormalizedDomain.NOTE, event.normalizedDomain());
+        assertEquals(NormalizedAction.DELETED, event.normalizedAction());
+    }
+
+    @Test
     void shouldAllowMissingResourceIdsForNonCallEvents() {
         String rawBody = """
                 {

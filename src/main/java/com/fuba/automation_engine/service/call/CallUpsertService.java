@@ -1,8 +1,12 @@
 package com.fuba.automation_engine.service.call;
 
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.ProcessedCallEntity;
 import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.ProcessedCallRepository;
+import com.fuba.automation_engine.service.event.DomainEventEmitter;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
@@ -21,14 +25,26 @@ import org.springframework.transaction.annotation.Transactional;
 @Service
 public class CallUpsertService {
 
+    public static final String EVENT_KIND_CALL_CREATED = "call.created";
+    public static final String ENTITY_TYPE_CALL = "call";
+    public static final String SOURCE_SYSTEM_FUB = "FUB";
+
     private static final Logger log = LoggerFactory.getLogger(CallUpsertService.class);
 
     private final ProcessedCallRepository processedCallRepository;
     private final PersonRepository personRepository;
+    private final DomainEventEmitter domainEventEmitter;
+    private final ObjectMapper objectMapper;
 
-    public CallUpsertService(ProcessedCallRepository processedCallRepository, PersonRepository personRepository) {
+    public CallUpsertService(
+            ProcessedCallRepository processedCallRepository,
+            PersonRepository personRepository,
+            DomainEventEmitter domainEventEmitter,
+            ObjectMapper objectMapper) {
         this.processedCallRepository = processedCallRepository;
         this.personRepository = personRepository;
+        this.domainEventEmitter = domainEventEmitter;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional
@@ -43,6 +59,17 @@ public class CallUpsertService {
         entity.setUpdatedAt(OffsetDateTime.now());
         processedCallRepository.save(entity);
 
+        // source_event_id is the webhook id (FK to webhook_events), NOT the FUB
+        // call id — that's the entity_id.
+        JsonNode payload = buildCallCreatedPayload(callDetails);
+        domainEventEmitter.emit(
+                EVENT_KIND_CALL_CREATED,
+                SOURCE_SYSTEM_FUB,
+                event.webhookEventId(),
+                ENTITY_TYPE_CALL,
+                String.valueOf(entity.getCallId()),
+                payload);
+
         if (sourcePersonId == null || sourcePersonId.isBlank()) {
             return;
         }
@@ -54,5 +81,21 @@ public class CallUpsertService {
                     sourcePersonId,
                     event.sourceEventType());
         }
+    }
+
+    /**
+     * Build payload manually so emission doesn't depend on jackson-datatype-jsr310
+     * being on the classpath. createdAt is rendered as an ISO-8601 string.
+     */
+    private JsonNode buildCallCreatedPayload(CallDetails callDetails) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        if (callDetails.id() != null) payload.put("id", callDetails.id());
+        if (callDetails.personId() != null) payload.put("personId", callDetails.personId());
+        if (callDetails.userId() != null) payload.put("userId", callDetails.userId());
+        if (callDetails.duration() != null) payload.put("duration", callDetails.duration());
+        if (callDetails.outcome() != null) payload.put("outcome", callDetails.outcome());
+        if (callDetails.isIncoming() != null) payload.put("isIncoming", callDetails.isIncoming());
+        if (callDetails.createdAt() != null) payload.put("createdAt", callDetails.createdAt().toString());
+        return payload;
     }
 }
