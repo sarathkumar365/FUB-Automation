@@ -27,10 +27,16 @@
         }
     ],
     "expected": {
-        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1.",
+        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1. expectedCreatedEventsForPerson=1: first event is peopleUpdated, row doesn't exist, INSERT recovery emits person.created. Subsequent peopleCreated + peopleUpdated see existing row with identical snapshot → empty diff → no events.",
         "minWebhookEvents": 3,
         "minWorkflowRunsForPerson": {
             "20123": 2
+        },
+        "expectedCreatedEventsForPerson": {
+            "20123": 1
+        },
+        "expectedStateChangeEventsForPerson": {
+            "20123": 0
         }
     },
     "description": "Echo cascade (2026-05-08): two peopleUpdated webhooks 1m38s apart spawned runs 149 and 150; run 150 reassign at 11:16:07 produced echo webhook at 11:16:08 (576ms gap) that spawned run 153. Three stacked bugs (#21, #22, #24) produced two wrong FUB mutations.",

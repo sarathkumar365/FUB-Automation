@@ -8,6 +8,7 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
+import com.fuba.automation_engine.persistence.repository.EventRepository;
 import com.fuba.automation_engine.persistence.repository.PersonRepository;
 import com.fuba.automation_engine.persistence.repository.WebhookEventRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
@@ -76,6 +77,9 @@ class ReplayHarnessTest {
     private PersonRepository personRepository;
 
     @Autowired
+    private EventRepository eventRepository;
+
+    @Autowired
     private ReplayHarnessFollowUpBossClient fubClient;
 
     @Autowired
@@ -87,6 +91,7 @@ class ReplayHarnessTest {
         webhookEventRepository.deleteAll();
         workflowRepository.deleteAll();
         personRepository.deleteAll();
+        eventRepository.deleteAll();
         fubClient.reset();
         seedTestWorkflow();
     }
@@ -170,7 +175,45 @@ class ReplayHarnessTest {
                 && fubClient.createNoteCalls().size() < expected.minCreateNoteCalls()) {
             return false;
         }
+        // Domain-event readiness: only check the "at-least" side here so the
+        // drain loop terminates promptly; exact-count overshoot is asserted
+        // post-drain (a fast-failing overshoot would cause busy-waiting otherwise).
+        if (expected.expectedCreatedEventsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedCreatedEventsForPerson().entrySet()) {
+                if (countEvents("person.created", "person", entry.getKey()) < entry.getValue()) {
+                    return false;
+                }
+            }
+        }
+        if (expected.expectedStateChangeEventsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedStateChangeEventsForPerson().entrySet()) {
+                if (countEvents("person.state_changed", "person", entry.getKey()) < entry.getValue()) {
+                    return false;
+                }
+            }
+        }
+        if (expected.minAppendEvents() != null) {
+            for (Map.Entry<String, Integer> entry : expected.minAppendEvents().entrySet()) {
+                if (countEventsByKind(entry.getKey()) < entry.getValue()) {
+                    return false;
+                }
+            }
+        }
         return true;
+    }
+
+    private long countEvents(String eventKind, String entityType, String entityId) {
+        return eventRepository.findAll().stream()
+                .filter(e -> eventKind.equals(e.getEventKind()))
+                .filter(e -> entityType.equals(e.getEntityType()))
+                .filter(e -> entityId.equals(e.getEntityId()))
+                .count();
+    }
+
+    private long countEventsByKind(String eventKind) {
+        return eventRepository.findAll().stream()
+                .filter(e -> eventKind.equals(e.getEventKind()))
+                .count();
     }
 
     private void assertExpectations(ReplayFixture fixture, ReplayFixture.Expected expected) {
@@ -204,6 +247,34 @@ class ReplayHarnessTest {
             assertTrue(actual >= expected.minCreateNoteCalls(),
                     prefix + "expected >=" + expected.minCreateNoteCalls()
                             + " createNote calls, saw " + actual);
+        }
+        if (expected.expectedCreatedEventsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedCreatedEventsForPerson().entrySet()) {
+                long actual = countEvents("person.created", "person", entry.getKey());
+                assertTrue(actual == entry.getValue(),
+                        prefix + "expected exactly " + entry.getValue()
+                                + " person.created events for person=" + entry.getKey()
+                                + ", saw " + actual);
+            }
+        }
+        if (expected.expectedStateChangeEventsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedStateChangeEventsForPerson().entrySet()) {
+                long actual = countEvents("person.state_changed", "person", entry.getKey());
+                assertTrue(actual == entry.getValue(),
+                        prefix + "expected exactly " + entry.getValue()
+                                + " person.state_changed events for person=" + entry.getKey()
+                                + ", saw " + actual
+                                + " — overshoot means the per-person collapse is broken; "
+                                + "undershoot means a real state change went unreported");
+            }
+        }
+        if (expected.minAppendEvents() != null) {
+            for (Map.Entry<String, Integer> entry : expected.minAppendEvents().entrySet()) {
+                long actual = countEventsByKind(entry.getKey());
+                assertTrue(actual >= entry.getValue(),
+                        prefix + "expected >=" + entry.getValue()
+                                + " " + entry.getKey() + " events, saw " + actual);
+            }
         }
     }
 

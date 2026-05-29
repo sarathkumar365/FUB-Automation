@@ -17,9 +17,8 @@ import com.fuba.automation_engine.rules.PreValidationResult;
 import com.fuba.automation_engine.rules.ValidatedCallContext;
 import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.call.CallUpsertService;
-import com.fuba.automation_engine.service.event.DomainEventEmitter;
+import com.fuba.automation_engine.service.note.NoteEmissionService;
 import com.fuba.automation_engine.service.person.PersonUpsertService;
-import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
@@ -38,7 +37,6 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.core.env.Environment;
 import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class WebhookEventProcessorService {
@@ -67,7 +65,7 @@ public class WebhookEventProcessorService {
     private final WorkflowTriggerRouter workflowTriggerRouter;
     private final PersonUpsertService personUpsertService;
     private final CallUpsertService callUpsertService;
-    private final DomainEventEmitter domainEventEmitter;
+    private final NoteEmissionService noteEmissionService;
 
     public WebhookEventProcessorService(
             ProcessedCallRepository processedCallRepository,
@@ -81,7 +79,7 @@ public class WebhookEventProcessorService {
             WorkflowTriggerRouter workflowTriggerRouter,
             PersonUpsertService personUpsertService,
             CallUpsertService callUpsertService,
-            DomainEventEmitter domainEventEmitter) {
+            NoteEmissionService noteEmissionService) {
         this.processedCallRepository = processedCallRepository;
         this.followUpBossClient = followUpBossClient;
         this.callPreValidationService = callPreValidationService;
@@ -93,7 +91,7 @@ public class WebhookEventProcessorService {
         this.workflowTriggerRouter = workflowTriggerRouter;
         this.personUpsertService = personUpsertService;
         this.callUpsertService = callUpsertService;
-        this.domainEventEmitter = domainEventEmitter;
+        this.noteEmissionService = noteEmissionService;
     }
 
     public void process(NormalizedWebhookEvent event) {
@@ -108,7 +106,7 @@ public class WebhookEventProcessorService {
         switch (domain) {
             case CALL -> processCallDomainEvent(event);
             case PERSON -> processPersonDomainEvent(event);
-            case NOTE -> processNoteDomainEvent(event);
+            case NOTE -> noteEmissionService.emit(event);
             case UNKNOWN -> processUnknownDomainEvent(event);
         }
 
@@ -227,49 +225,6 @@ public class WebhookEventProcessorService {
                 event.sourceEventType());
     }
 
-    /**
-     * @Transactional is what makes DomainEventEmitter's MANDATORY propagation
-     * pass — without it, the first notes webhook crashes with
-     * IllegalTransactionStateException. No notes table: workflows that need
-     * note body content fetch on demand.
-     */
-    @Transactional
-    void processNoteDomainEvent(NormalizedWebhookEvent event) {
-        NormalizedAction action = event.normalizedAction();
-        String eventKind = switch (action == null ? NormalizedAction.UNKNOWN : action) {
-            case CREATED -> "note.created";
-            case UPDATED -> "note.updated";
-            case DELETED -> "note.deleted";
-            default -> null;
-        };
-        if (eventKind == null) {
-            log.warn(
-                    "Skipping NOTE domain event with unmapped action eventId={} action={} sourceEventType={}",
-                    event.eventId(), action, event.sourceEventType());
-            return;
-        }
-
-        List<Long> noteIds = extractResourceIds(event.payload());
-        if (noteIds.isEmpty()) {
-            log.warn(
-                    "No note resourceIds present; skipping eventId={} eventKind={} sourceEventType={}",
-                    event.eventId(), eventKind, event.sourceEventType());
-            return;
-        }
-
-        for (Long noteId : noteIds) {
-            domainEventEmitter.emit(
-                    eventKind,
-                    "FUB",
-                    event.webhookEventId(),
-                    "note",
-                    String.valueOf(noteId),
-                    event.payload());
-        }
-        log.info(
-                "Note domain event(s) emitted eventId={} eventKind={} noteIdCount={}",
-                event.eventId(), eventKind, noteIds.size());
-    }
 
     private void processCall(NormalizedWebhookEvent event, String eventType, Long callId, boolean supportedEventType) {
         ProcessedCallEntity entity = getOrCreateEntity(callId, event.payload());

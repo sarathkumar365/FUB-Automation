@@ -39,6 +39,12 @@
         "minWebhookEvents": 4,
         "minWorkflowRunsForPerson": {
             "20235": 3
+        },
+        "expectedCreatedEventsForPerson": {
+            "20235": 1
+        },
+        "expectedStateChangeEventsForPerson": {
+            "20235": 0
         }
     },
     "description": "FUB-burst pattern (2026-05-12): 3 peopleUpdated webhooks within 8s on lead 20235 (preceded by peopleCreated). All engine-uncaused. Reproduces the documented worst-case parallel-runs incident from field-observations.md. Truncated to the burst window; the 30-min echo at 12:09:21 is intentionally excluded so the test stays under 30s.",

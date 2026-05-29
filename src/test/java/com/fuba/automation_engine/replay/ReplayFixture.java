@@ -45,6 +45,14 @@ public record ReplayFixture(
             Integer minWebhookEvents,
             Integer minReassignCalls,
             Integer minCreateNoteCalls,
+            // Domain-event assertions (Phase 2). Exact-count for state-change
+            // events catches both undershoot (collapse missed) AND overshoot
+            // (collapse broken silently). min for append events since no
+            // uniqueness claim applies. Per-person counts so multi-person
+            // fixtures can be unambiguous.
+            Map<String, Integer> expectedCreatedEventsForPerson,
+            Map<String, Integer> expectedStateChangeEventsForPerson,
+            Map<String, Integer> minAppendEvents,
             String notes) {
     }
 }

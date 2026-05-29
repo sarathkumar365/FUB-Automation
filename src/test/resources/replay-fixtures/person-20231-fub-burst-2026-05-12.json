@@ -15,6 +15,12 @@
         "minWebhookEvents": 1,
         "minWorkflowRunsForPerson": {
             "20231": 0
+        },
+        "expectedCreatedEventsForPerson": {
+            "20231": 1
+        },
+        "expectedStateChangeEventsForPerson": {
+            "20231": 0
         }
     },
     "description": "FUB-burst pattern (2026-05-12): 4 peopleUpdated webhooks within 16s on lead 20231. All terminated correctly per field-observations.md (no echoes because no mutations executed). Same shape as 20235 burst — distinct lead, different volume.",
