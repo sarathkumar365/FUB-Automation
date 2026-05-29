@@ -186,7 +186,7 @@ public class WebhookEventProcessorService {
             // Every person FUB sends a webhook for is persisted regardless of stage; the
             // normalized `kind` column classifies them and workflows filter via person.kind.
             JsonNode personPayload = followUpBossClient.getPersonRawById(personId);
-            personUpsertService.upsertFubPerson(sourcePersonId, personPayload);
+            personUpsertService.upsertFubPerson(sourcePersonId, personPayload, event.webhookEventId());
         } catch (FubTransientException ex) {
             log.warn(
                     "Transient FUB failure fetching person for upsert; skipping upsert eventId={} sourceEventType={} sourcePersonId={} status={}",

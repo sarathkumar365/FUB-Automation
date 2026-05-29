@@ -7,6 +7,10 @@ import com.fuba.automation_engine.persistence.entity.PersonEntity;
 import com.fuba.automation_engine.persistence.entity.PersonKind;
 import com.fuba.automation_engine.persistence.entity.PersonStatus;
 import com.fuba.automation_engine.persistence.repository.PersonRepository;
+import com.fuba.automation_engine.service.event.DomainEventEmitter;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
+import org.springframework.transaction.support.TransactionTemplate;
 import java.time.OffsetDateTime;
 import java.util.HashSet;
 import java.util.List;
@@ -131,16 +135,36 @@ public class PersonUpsertService {
         };
     }
 
+    public static final String EVENT_KIND_PERSON_CREATED = "person.created";
+    public static final String EVENT_KIND_PERSON_STATE_CHANGED = "person.state_changed";
+    public static final String ENTITY_TYPE_PERSON = "person";
+
     private final PersonRepository personRepository;
     private final ObjectMapper objectMapper;
+    private final DomainEventEmitter domainEventEmitter;
+    private final PersonDiffComputer diffComputer;
+    private final TransactionTemplate requiresNewTx;
 
-    public PersonUpsertService(PersonRepository personRepository, ObjectMapper objectMapper) {
+    public PersonUpsertService(
+            PersonRepository personRepository,
+            ObjectMapper objectMapper,
+            DomainEventEmitter domainEventEmitter,
+            PersonDiffComputer diffComputer,
+            PlatformTransactionManager transactionManager) {
         this.personRepository = personRepository;
         this.objectMapper = objectMapper;
+        this.domainEventEmitter = domainEventEmitter;
+        this.diffComputer = diffComputer;
+        // Insert attempts run in their own transaction so a DIVE doesn't corrupt
+        // the outer @Transactional Hibernate session. Without this, brand-new-row
+        // bursts hit "Entry for instance of PersonEntity has a null identifier"
+        // because Hibernate's session is unusable after a failed INSERT flush.
+        this.requiresNewTx = new TransactionTemplate(transactionManager);
+        this.requiresNewTx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
     }
 
     @Transactional
-    public PersonEntity upsertFubPerson(String sourcePersonId, JsonNode personPayload) {
+    public PersonEntity upsertFubPerson(String sourcePersonId, JsonNode personPayload, Long webhookEventId) {
         if (sourcePersonId == null || sourcePersonId.isBlank()) {
             throw new IllegalArgumentException("sourcePersonId must be non-blank");
         }
@@ -155,31 +179,30 @@ public class PersonUpsertService {
         Optional<PersonEntity> existing = personRepository.findBySourceSystemAndSourcePersonIdForUpdate(
                 SOURCE_SYSTEM_FUB, sourcePersonId);
         if (existing.isPresent()) {
-            PersonEntity entity = existing.get();
-            // Captured for 2c's diff — do not move below the setter.
-            @SuppressWarnings("unused")
-            JsonNode oldDetails = entity.getPersonDetails();
-            entity.setPersonDetails(newDetails);
-            entity.setKind(kind);
-            entity.setUpdatedAt(now);
-            entity.setLastSyncedAt(now);
-            PersonEntity saved = personRepository.save(entity);
-            log.info("Person upserted (update) sourceSystem={} sourcePersonId={} kind={} id={}",
-                    SOURCE_SYSTEM_FUB, sourcePersonId, kind, saved.getId());
-            return saved;
+            return updateExisting(existing.get(), newDetails, kind, now, sourcePersonId, webhookEventId);
         }
 
-        PersonEntity entity = new PersonEntity();
-        entity.setSourceSystem(SOURCE_SYSTEM_FUB);
-        entity.setSourcePersonId(sourcePersonId);
-        entity.setStatus(PersonStatus.ACTIVE);
-        entity.setPersonDetails(newDetails);
-        entity.setKind(kind);
-        entity.setCreatedAt(now);
-        entity.setUpdatedAt(now);
-        entity.setLastSyncedAt(now);
         try {
-            PersonEntity saved = personRepository.save(entity);
+            // INSERT runs in its own transaction (REQUIRES_NEW). If it fails with
+            // DIVE, only the inner tx rolls back — the outer @Transactional's
+            // Hibernate session is untouched, so the recovery findBy…ForUpdate
+            // below sees a clean EntityManager. Emission is inside the inner tx
+            // so the events row is atomic with the persons row insert; the
+            // after-commit dispatch fires only when the inner tx actually commits.
+            PersonEntity saved = requiresNewTx.execute(status -> {
+                PersonEntity entity = new PersonEntity();
+                entity.setSourceSystem(SOURCE_SYSTEM_FUB);
+                entity.setSourcePersonId(sourcePersonId);
+                entity.setStatus(PersonStatus.ACTIVE);
+                entity.setPersonDetails(newDetails);
+                entity.setKind(kind);
+                entity.setCreatedAt(now);
+                entity.setUpdatedAt(now);
+                entity.setLastSyncedAt(now);
+                PersonEntity inserted = personRepository.saveAndFlush(entity);
+                emitCreated(webhookEventId, sourcePersonId, newDetails);
+                return inserted;
+            });
             log.info("Person upserted (insert) sourceSystem={} sourcePersonId={} kind={} id={}",
                     SOURCE_SYSTEM_FUB, sourcePersonId, kind, saved.getId());
             return saved;
@@ -187,18 +210,55 @@ public class PersonUpsertService {
             log.info("Person insert race detected; re-reading sourceSystem={} sourcePersonId={}",
                     SOURCE_SYSTEM_FUB, sourcePersonId);
             // Recovery must also lock — closes the brand-new-row insert race.
+            // From this thread's perspective, the row now exists (winning thread
+            // committed); proceed as an update so we emit person.state_changed
+            // (or nothing on echo), not a duplicate person.created.
             PersonEntity existingAfterRace = personRepository
                     .findBySourceSystemAndSourcePersonIdForUpdate(SOURCE_SYSTEM_FUB, sourcePersonId)
                     .orElseThrow(() -> new IllegalStateException(
                             "Unable to recover person after insert race sourcePersonId=" + sourcePersonId));
-            @SuppressWarnings("unused")
-            JsonNode oldDetails = existingAfterRace.getPersonDetails();
-            existingAfterRace.setPersonDetails(newDetails);
-            existingAfterRace.setKind(kind);
-            existingAfterRace.setUpdatedAt(OffsetDateTime.now());
-            existingAfterRace.setLastSyncedAt(OffsetDateTime.now());
-            return personRepository.save(existingAfterRace);
+            return updateExisting(existingAfterRace, newDetails, kind, OffsetDateTime.now(),
+                    sourcePersonId, webhookEventId);
         }
+    }
+
+    private PersonEntity updateExisting(
+            PersonEntity entity, JsonNode newDetails, PersonKind kind, OffsetDateTime now,
+            String sourcePersonId, Long webhookEventId) {
+        JsonNode oldDetails = entity.getPersonDetails();
+        PersonDiffComputer.DiffResult diff = diffComputer.diff(oldDetails, newDetails);
+
+        entity.setPersonDetails(newDetails);
+        entity.setKind(kind);
+        entity.setUpdatedAt(now);
+        entity.setLastSyncedAt(now);
+        if (!diff.isEmpty()) {
+            entity.setPreviousState(oldDetails);
+        }
+        PersonEntity saved = personRepository.save(entity);
+        log.info("Person upserted (update) sourceSystem={} sourcePersonId={} kind={} id={} diffFields={}",
+                SOURCE_SYSTEM_FUB, sourcePersonId, kind, saved.getId(), diff.changedFields().size());
+
+        if (!diff.isEmpty()) {
+            emitStateChanged(webhookEventId, sourcePersonId, diff);
+        }
+        return saved;
+    }
+
+    private void emitCreated(Long webhookEventId, String sourcePersonId, JsonNode currentSnapshot) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.set("current", currentSnapshot);
+        domainEventEmitter.emit(EVENT_KIND_PERSON_CREATED, SOURCE_SYSTEM_FUB, webhookEventId,
+                ENTITY_TYPE_PERSON, sourcePersonId, payload);
+    }
+
+    private void emitStateChanged(Long webhookEventId, String sourcePersonId, PersonDiffComputer.DiffResult diff) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.set("changed_fields", objectMapper.valueToTree(diff.changedFields()));
+        payload.set("previous", diff.previous());
+        payload.set("current", diff.current());
+        domainEventEmitter.emit(EVENT_KIND_PERSON_STATE_CHANGED, SOURCE_SYSTEM_FUB, webhookEventId,
+                ENTITY_TYPE_PERSON, sourcePersonId, payload);
     }
 
     private static String extractStage(JsonNode personPayload) {

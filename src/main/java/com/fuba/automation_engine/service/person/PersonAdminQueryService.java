@@ -191,7 +191,9 @@ public class PersonAdminQueryService {
             if (livePerson == null || livePerson.isNull()) {
                 return new LiveRefreshOutcome(local, null, PersonLiveStatus.LIVE_FAILED, "FUB returned no person payload");
             }
-            PersonEntity refreshed = personUpsertService.upsertFubPerson(sourcePersonId, livePerson);
+            // Admin-initiated refresh has no upstream webhook — emit with sourceEventId=null
+            // (treated as engine-synthesized per the events table contract).
+            PersonEntity refreshed = personUpsertService.upsertFubPerson(sourcePersonId, livePerson, null);
             return new LiveRefreshOutcome(refreshed, livePerson, PersonLiveStatus.LIVE_OK, null);
         } catch (Exception ex) {
             log.warn("Live FUB refresh failed for sourcePersonId={}: {}", sourcePersonId, ex.getMessage());

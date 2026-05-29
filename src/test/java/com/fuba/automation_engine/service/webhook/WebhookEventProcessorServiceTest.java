@@ -158,7 +158,7 @@ class WebhookEventProcessorServiceTest {
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
         verify(followUpBossClient).getPersonRawById(777L);
-        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class), eq(null));
         verify(processedCallRepository, never()).findByCallId(any());
         verify(processedCallRepository, never()).save(any());
         verify(followUpBossClient, never()).getCallById(anyLong());
@@ -182,9 +182,9 @@ class WebhookEventProcessorServiceTest {
         verify(followUpBossClient).getPersonRawById(777L);
         verify(followUpBossClient).getPersonRawById(778L);
         verify(followUpBossClient).getPersonRawById(779L);
-        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class));
-        verify(personUpsertService).upsertFubPerson(eq("778"), any(JsonNode.class));
-        verify(personUpsertService).upsertFubPerson(eq("779"), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class), eq(null));
+        verify(personUpsertService).upsertFubPerson(eq("778"), any(JsonNode.class), eq(null));
+        verify(personUpsertService).upsertFubPerson(eq("779"), any(JsonNode.class), eq(null));
         verify(processedCallRepository, never()).findByCallId(any());
         verify(workflowTriggerRouter).route(event);
     }
@@ -201,7 +201,7 @@ class WebhookEventProcessorServiceTest {
 
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
-        verify(personUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class));
+        verify(personUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class), any());
         verify(workflowTriggerRouter).route(event);
     }
 
@@ -222,7 +222,7 @@ class WebhookEventProcessorServiceTest {
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
         verify(followUpBossClient).getPersonRawById(991L);
-        verify(personUpsertService).upsertFubPerson(eq("991"), any(JsonNode.class));
+        verify(personUpsertService).upsertFubPerson(eq("991"), any(JsonNode.class), eq(null));
         verify(workflowTriggerRouter).route(event);
     }
 
