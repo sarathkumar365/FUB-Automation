@@ -1,6 +1,6 @@
 # Phase 2 — Implementation Plan (step-by-step)
 
-Status: `NOT STARTED`
+Status: `DONE` — all 5 sub-phases shipped on `feature/domain-events` (commits `a9dc258`, `41044ba`, `26e8103`, `f3a8036`, `9b73759`). Decision narrative and deviations recorded in [`phase-2-implementation.md`](./phase-2-implementation.md).
 
 Companion to [`phases.md`](./phases.md) §"Phase 2 — Domain events table + diff machinery". `phases.md` is the canonical statement of **what** Phase 2 delivers and **why**; this file is the **commit-level order of operations** — concrete files, sequencing, test gates, defaults.
 

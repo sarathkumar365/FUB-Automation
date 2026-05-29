@@ -212,7 +212,7 @@ The initial Pre-Phase-2 deliverable list covered the entity, repository, and cor
 ---
 
 ## Phase 2 — Domain events table + diff machinery
-Status: `NOT STARTED` — commit-level implementation plan in [`phase-2-plan.md`](./phase-2-plan.md) (**5 sub-phases**: 2a scaffold → 2b refactor (extract `CallUpsertService`, restructure `PersonUpsertService`, both-site lock) → 2c person events emission → 2d append events → 2e harness assertions with **exact** collapse counts).
+Status: `DONE` — all 5 sub-phases shipped (`a9dc258` 2a scaffold → `41044ba` 2b refactor → `26e8103` 2c person events + concurrency stress proof → `f3a8036` 2d call/note append events → `9b73759` 2e replay-harness asserts + `NoteEmissionService` extraction). Collapse claim verified at three levels: unit (`PersonDiffComputerTest`), concurrency on real Postgres (`PersonUpsertConcurrencyStressTest`), end-to-end (`ReplayHarnessTest`). 589 tests pass. One reasoned plan deviation — a `NoteEmissionService` was extracted in 2e to fix a Spring proxy self-invocation bug the harness caught; see [`phase-2-implementation.md`](./phase-2-implementation.md). See [`phase-2-plan.md`](./phase-2-plan.md) for the locked commit-level plan.
 
 **Goal:** Webhooks produce typed `events` rows. Diff computed for state-change events. In-process dispatcher available; nothing subscribes yet. Lands on the renamed `Person` substrate (see Pre-Phase-2).
 
