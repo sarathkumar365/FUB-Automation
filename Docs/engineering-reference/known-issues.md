@@ -37,6 +37,9 @@ The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is 
 | 23 | Self-induced over-fire — engine writes to FUB trigger fresh `peopleUpdated` webhooks → fresh workflow runs | High | Open |
 | 24 | No suppression of duplicate workflow runs for the same `(workflow_key, source_person_id)` | High | Open |
 | 25 | `workflow_runs.webhook_event_id` FK is never populated | Medium | Open |
+| 26 | Misleading echo event after permanent FUB failure (Phase 3 trade-off) | Low | Open (accepted) |
+| 27 | Tracker annotation needs Phase 4 verification for note channels | Medium | Open (verification deferred to Phase 4) |
+| 28 | Early-echo race on engine note creation | Low | Open (documented, no fix planned) |
 
 ---
 
@@ -271,3 +274,40 @@ No further action is needed. Active automation lives in the workflow engine; equ
 - **Impact:** Operators investigating a run must correlate by `(source_person_id, created_at)` and time-window matching against `webhook_events`, which is brittle when multiple webhooks for the same person land close together. Also blocks any clean implementation of #24's dedup logic, which would naturally key off "last run for this person, plus its trigger webhook id."
 - **Proposed fix:** bundled in [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md) Layer 5 cleanups. The line in `WorkflowExecutionManager.plan` (~line 117) already calls `run.setWebhookEventId(request.webhookEventId())` — the request just isn't populated upstream. Trace and fix the caller.
 - **Related:** #24 (dedup design needs this column populated for clean auditing).
+
+## 26) Misleading echo event after permanent FUB failure (Phase 3 known trade-off)
+
+- **Status:** Open — known trade-off, accepted by [`Docs/features/domain-events/phase-3-plan.md`](../features/domain-events/phase-3-plan.md) §"Defaults"
+- **Priority:** Low (rare combination; benign for current workflows)
+- **Location:** `service/event/EngineWriteCoordinator` (scalar mode) + downstream `PersonUpsertService` echo processing
+- **Issue:** When a scalar-mode engine write (`fub_reassign`, `fub_move_to_pond`) fails permanently after retry exhaustion, the wrap pattern leaves local Person state with the engine's intended value (e.g., `assignedUserId = Alice`) even though FUB still has the prior value (e.g., `Bob`). The next `peopleUpdated` webhook from FUB carries `assignedUserId = Bob` (FUB's truth) → `PersonUpsertService` computes a diff `Alice → Bob` against local → emits a `person.state_changed` event that **looks like an external reassignment from Alice to Bob** when in reality Alice was never on FUB.
+- **Why this design:** the matrix-audit reframing of Phase 3 dropped revert entirely (`RetryPolicy.DEFAULT_FUB` handles transient failures; permanent failures are the rare residual). Adding a revert path back to address this would re-introduce the matrix's A6/C3 "destroys legitimate concurrent change" failure mode. Trade-off chosen: simpler code + rare misleading event over revert + occasional silent data loss on concurrent writers.
+- **Mitigation today:** workflow authors investigating an unexpected `person.state_changed` event can correlate with `workflow_runs.status = FAILED` for the same `source_person_id` shortly before the event. The misleading event always trails a failed run.
+- **Mitigation if it becomes painful:** annotate post-failure echoes with a new payload field (`event.payload.engine_post_failure_echo = true`) consulted by Phase 4 filters. Defer until observation justifies it.
+- **Proposed fix:** none planned. Documented as accepted.
+- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/phase-3-race-matrix.md) A5/A6 cells.
+
+## 27) Tracker annotation needs Phase 4 verification for note channels
+
+- **Status:** Open — verification required when Phase 4 consumers land
+- **Priority:** Medium (load-bearing for Phase 4's `change.source` filter on note triggers)
+- **Location:** `service/note/NoteEmissionService` (annotation hook landing in Phase 3e), `service/event/DomainEventEmitter` (person-side `lastNoteAt` annotation)
+- **Issue:** Phase 3e wires `EngineWriteTracker` annotation for two echo channels triggered by `fub_create_note`: (a) the `notesCreated` echo emits a `note.created` event annotated `source=ENGINE`; (b) the person-side `peopleUpdated` echo (carrying `lastNoteAt` etc.) emits a `person.state_changed` event also annotated `source=ENGINE`. Both annotations are exercised structurally by the Phase 3 race harness — but no workflow consumes these events in Phase 3 (`WorkflowTriggerRouter.route(event)` still runs on the old webhook-shaped path). Phase 4 introduces the first consumers; until that lands, the annotations are only verified by tests, not by a real subscriber.
+- **What needs verification at Phase 4 time:**
+  - A workflow with trigger `{ on: "note.created", filter: "change.source != 'ENGINE'" }` does NOT fire on engine-created notes.
+  - A workflow with trigger `{ on: "person.state_changed", filter: "change.lastNoteAt.changed AND change.source != 'ENGINE'" }` does NOT fire on the person-side echo of engine note creation.
+  - FUB's actual person-side field names on note creation (currently assumed to be `lastNoteAt`-shaped) match what the coordinator records.
+- **Risk if not verified:** silent over-firing of `note.created` triggers when Phase 4 ships, regressing the bad-run-rate gain.
+- **Proposed fix:** add explicit verification step to Phase 4's exit criteria. Tracked here so the Phase 4 author doesn't miss it.
+- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/phase-3-race-matrix.md) D-cells, [`phase-3-plan.md`](../features/domain-events/phase-3-plan.md) §3e.
+
+## 28) Early-echo race on engine note creation
+
+- **Status:** Open — empirically rare, documented for future fix if observed
+- **Priority:** Low (typically POST response is faster than webhook fire)
+- **Location:** `service/event/EngineWriteCoordinator.applyEntityCreateTrackedOnly` and downstream tracker recording in 3e
+- **Issue:** `fub_create_note` records on the tracker **after** `followUpBossClient.createNote(command)` returns (because the FUB-assigned `noteId` is the tracker key). If FUB's `notesCreated` webhook fires before the POST response arrives back at our coordinator, `NoteEmissionService` processes the echo and consults a tracker that has no record yet → the `note.created` event emits without `source=ENGINE` annotation. Phase 4 workflows filtering `change.source != 'ENGINE'` would treat the engine-created note as a real external note and fire.
+- **Why not fixed in Phase 3:** the cost of fixing (content-hash keying — record on tracker before POST keyed by hash of `(personId, body)`; match on echo by computing the same hash) is high, and the empirical rate is unknown but believed to be low (FUB POST responses typically resolve before webhook fan-out).
+- **Mitigation:** Phase 3 race harness scenario D3 is the diagnostic test for this race. If it ever transitions from "annotation missing" to "annotation present," the race window has changed and the assumption needs revisiting.
+- **Proposed fix when justified:** content-hash key — coordinator records `tracker.record(entityType="note", entityId="hash:" + hashOf(personId, body), changedFields=Set.of("created"))` **before** the POST; `NoteEmissionService` computes the same hash from the echo payload and looks up by hash key (in addition to noteId key). Closes the race at the cost of one extra tracker lookup per note echo.
+- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/phase-3-race-matrix.md) D3, [`phase-3-plan.md`](../features/domain-events/phase-3-plan.md) §3e "The early-echo race".

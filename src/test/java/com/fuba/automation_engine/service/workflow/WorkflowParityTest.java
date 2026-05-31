@@ -97,6 +97,8 @@ class WorkflowParityTest {
     @Autowired private WorkflowWorkerProperties workerProperties;
     @Autowired private WorkflowRunStepClaimRepository stepClaimRepository;
     @Autowired private ProcessedCallRepository processedCallRepository;
+    @Autowired private com.fuba.automation_engine.persistence.repository.PersonRepository personRepository;
+    @Autowired private com.fasterxml.jackson.databind.ObjectMapper objectMapper;
     @Autowired private Clock clock;
     @Autowired private StubFollowUpBossClient stubClient;
     private WorkflowExecutionDueWorker worker;
@@ -107,6 +109,7 @@ class WorkflowParityTest {
         runRepository.deleteAll();
         processedCallRepository.deleteAll();
         workflowRepository.deleteAll();
+        personRepository.deleteAll();
         stubClient.reset();
         worker = new WorkflowExecutionDueWorker(workerProperties, stepClaimRepository, stepExecutionService, clock);
     }
@@ -175,6 +178,7 @@ class WorkflowParityTest {
     @Test
     void shouldReassignWhenNoCommunicationFound() {
         seedParityWorkflow();
+        seedPersonRow("7890");
         stubClient.setPersonDetails(7890L, new PersonDetails(7890L, false, null, 0));
         saveOutboundCallEvidence(8202L, "7890", 12, "Connected", 2);
         stubClient.setReassignResult(ActionExecutionResult.ok());
@@ -212,6 +216,7 @@ class WorkflowParityTest {
     @Test
     void shouldHandleReassignFailure() {
         seedParityWorkflow();
+        seedPersonRow("7890");
         stubClient.setPersonDetails(7890L, new PersonDetails(7890L, false, null, 0));
         saveOutboundCallEvidence(8203L, "7890", 0, "No Answer", 1);
         stubClient.setReassignResult(ActionExecutionResult.failure("FUB_ERROR", "Person update failed"));
@@ -308,6 +313,26 @@ class WorkflowParityTest {
         entity.setGraph(parityGraph());
         entity.setStatus(WorkflowStatus.ACTIVE);
         workflowRepository.saveAndFlush(entity);
+    }
+
+    // Phase 3 requires a local person row for engine scalar writes (fub_reassign).
+    private void seedPersonRow(String sourcePersonId) {
+        try {
+            com.fuba.automation_engine.persistence.entity.PersonEntity p =
+                    new com.fuba.automation_engine.persistence.entity.PersonEntity();
+            p.setSourceSystem("FUB");
+            p.setSourcePersonId(sourcePersonId);
+            p.setStatus(com.fuba.automation_engine.persistence.entity.PersonStatus.ACTIVE);
+            p.setKind(com.fuba.automation_engine.persistence.entity.PersonKind.LEAD);
+            p.setPersonDetails(objectMapper.readTree("{\"assignedUserId\":0,\"stage\":\"Lead\"}"));
+            java.time.OffsetDateTime now = java.time.OffsetDateTime.now();
+            p.setCreatedAt(now);
+            p.setUpdatedAt(now);
+            p.setLastSyncedAt(now);
+            personRepository.saveAndFlush(p);
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
     }
 
     private void seedTaskWorkflow() {

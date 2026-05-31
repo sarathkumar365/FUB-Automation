@@ -211,6 +211,14 @@ This is a workflow-author-facing breaking change. Steps that today use `event.pa
 
 ### 5. Local-state-first engine writes
 
+> **Revision 2026-05-29 (race-matrix audit):** The earlier "capture old → write local → call FUB → revert on failure" pattern below is **superseded** for the three reasons captured in [`phase-3-race-matrix.md`](./phase-3-race-matrix.md) and locked in [`phase-3-plan.md`](./phase-3-plan.md):
+>
+> 1. **Revert is dropped.** `RetryPolicy.DEFAULT_FUB` handles transient FUB failures. Permanent failures leave local ahead of FUB; the next webhook for that person re-syncs. No `revertLocalUpdate` code path is built. Accepted cost: the post-failure webhook produces a `person.state_changed` event that *looks like* an external reversal (known issue #26).
+> 2. **Tags do NOT use local-state-first.** The C2 phantom-removal class (concurrent external tag-add landing before our FUB PUT → diff fabricates a "removal" event) is structurally unfixable with optimistic local writes for accumulating fields. `fub_add_tag` calls FUB first, then records on the tracker; the echo flows through `PersonUpsertService` (truth-from-FUB) annotated `source=ENGINE`.
+> 3. **Notes do NOT have local state to write first.** `fub_create_note` is tracker-only on two channels (`note.created` echo + person-side `peopleUpdated` echo for `lastNoteAt`).
+>
+> The text below is preserved as historical record of the original design intent. The actual Phase 3 pattern is in [`phase-3-plan.md`](./phase-3-plan.md) §"Defaults".
+
 Steps that write to FUB (`fub_reassign`, `fub_move_to_pond`, `fub_create_note`, ...) follow:
 
 ```text

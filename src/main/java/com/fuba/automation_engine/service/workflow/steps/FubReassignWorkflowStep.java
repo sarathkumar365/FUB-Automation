@@ -1,8 +1,10 @@
 package com.fuba.automation_engine.service.workflow.steps;
 
+import com.fasterxml.jackson.databind.node.LongNode;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.event.EngineWriteCoordinator;
 import com.fuba.automation_engine.service.fub.FubCallHelper;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
@@ -18,22 +20,27 @@ import org.springframework.stereotype.Component;
 @Component
 public class FubReassignWorkflowStep implements WorkflowStepType {
 
-    static final String SOURCE_LEAD_ID_MISSING = "SOURCE_LEAD_ID_MISSING";
-    static final String SOURCE_LEAD_ID_INVALID = "SOURCE_LEAD_ID_INVALID";
-    static final String TARGET_USER_ID_MISSING = "TARGET_USER_ID_MISSING";
-    static final String TARGET_USER_ID_INVALID = "TARGET_USER_ID_INVALID";
-    static final String FUB_REASSIGN_TRANSIENT = "FUB_REASSIGN_TRANSIENT";
-    static final String FUB_REASSIGN_PERMANENT = "FUB_REASSIGN_PERMANENT";
-    static final String REASSIGN_EXECUTION_ERROR = "REASSIGN_EXECUTION_ERROR";
+    public static final String SOURCE_LEAD_ID_MISSING = "SOURCE_LEAD_ID_MISSING";
+    public static final String SOURCE_LEAD_ID_INVALID = "SOURCE_LEAD_ID_INVALID";
+    public static final String TARGET_USER_ID_MISSING = "TARGET_USER_ID_MISSING";
+    public static final String TARGET_USER_ID_INVALID = "TARGET_USER_ID_INVALID";
+    public static final String FUB_REASSIGN_TRANSIENT = "FUB_REASSIGN_TRANSIENT";
+    public static final String FUB_REASSIGN_PERMANENT = "FUB_REASSIGN_PERMANENT";
+    public static final String REASSIGN_EXECUTION_ERROR = "REASSIGN_EXECUTION_ERROR";
 
     private static final Logger log = LoggerFactory.getLogger(FubReassignWorkflowStep.class);
 
     private final FollowUpBossClient followUpBossClient;
     private final FubCallHelper fubCallHelper;
+    private final EngineWriteCoordinator engineWriteCoordinator;
 
-    public FubReassignWorkflowStep(FollowUpBossClient followUpBossClient, FubCallHelper fubCallHelper) {
+    public FubReassignWorkflowStep(
+            FollowUpBossClient followUpBossClient,
+            FubCallHelper fubCallHelper,
+            EngineWriteCoordinator engineWriteCoordinator) {
         this.followUpBossClient = followUpBossClient;
         this.fubCallHelper = fubCallHelper;
+        this.engineWriteCoordinator = engineWriteCoordinator;
     }
 
     @Override
@@ -93,8 +100,12 @@ public class FubReassignWorkflowStep implements WorkflowStepType {
         }
 
         try {
-            ActionExecutionResult actionResult =
-                    fubCallHelper.executeWithRetry(() -> followUpBossClient.reassignPerson(personId, targetUserId));
+            ActionExecutionResult actionResult = engineWriteCoordinator.applyScalarFieldUpdate(
+                    context.sourcePersonId(),
+                    Map.of("assignedUserId", LongNode.valueOf(targetUserId)),
+                    context.runId(),
+                    () -> fubCallHelper.executeWithRetry(
+                            () -> followUpBossClient.reassignPerson(personId, targetUserId)));
             if (actionResult == null || !actionResult.success()) {
                 String message = actionResult != null && actionResult.message() != null
                         ? actionResult.message() : "Reassign action returned unsuccessful result";

@@ -1,9 +1,15 @@
 package com.fuba.automation_engine.service.event;
 
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.EventEntity;
 import com.fuba.automation_engine.persistence.repository.EventRepository;
 import java.time.OffsetDateTime;
+import java.util.HashSet;
+import java.util.Iterator;
+import java.util.Optional;
+import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -54,12 +60,23 @@ public class DomainEventEmitter {
 
     private static final Logger log = LoggerFactory.getLogger(DomainEventEmitter.class);
 
+    static final String ANNOTATION_SOURCE_KEY = "source";
+    static final String ANNOTATION_SOURCE_ENGINE = "ENGINE";
+
     private final EventRepository eventRepository;
     private final DomainEventDispatcher dispatcher;
+    private final EngineWriteTracker engineWriteTracker;
+    private final ObjectMapper objectMapper;
 
-    public DomainEventEmitter(EventRepository eventRepository, DomainEventDispatcher dispatcher) {
+    public DomainEventEmitter(
+            EventRepository eventRepository,
+            DomainEventDispatcher dispatcher,
+            EngineWriteTracker engineWriteTracker,
+            ObjectMapper objectMapper) {
         this.eventRepository = eventRepository;
         this.dispatcher = dispatcher;
+        this.engineWriteTracker = engineWriteTracker;
+        this.objectMapper = objectMapper;
     }
 
     @Transactional(propagation = Propagation.MANDATORY)
@@ -71,13 +88,18 @@ public class DomainEventEmitter {
             String entityId,
             JsonNode payload) {
 
+        // Tracker annotation — consult before persist so the annotation lands
+        // in both the DB row and the dispatched record. Mutates the payload
+        // in place if it's an ObjectNode; otherwise wraps in one.
+        JsonNode annotatedPayload = maybeAnnotateEngineSource(entityType, entityId, payload);
+
         EventEntity entity = new EventEntity();
         entity.setEventKind(eventKind);
         entity.setSourceSystem(sourceSystem);
         entity.setSourceEventId(sourceEventId);
         entity.setEntityType(entityType);
         entity.setEntityId(entityId);
-        entity.setPayload(payload);
+        entity.setPayload(annotatedPayload);
         entity.setCreatedAt(OffsetDateTime.now());
 
         EventEntity saved = eventRepository.save(entity);
@@ -95,7 +117,7 @@ public class DomainEventEmitter {
                 sourceEventId,
                 entityType,
                 entityId,
-                payload);
+                annotatedPayload);
 
         TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
             @Override
@@ -103,5 +125,49 @@ public class DomainEventEmitter {
                 dispatcher.dispatch(dispatchEvent);
             }
         });
+    }
+
+    // Caller-set source wins; append/create (no changed_fields) goes unannotated until 3d/3e.
+    private JsonNode maybeAnnotateEngineSource(String entityType, String entityId, JsonNode payload) {
+        if (entityType == null || entityId == null || payload == null) {
+            return payload;
+        }
+        if (payload.has(ANNOTATION_SOURCE_KEY) && !payload.get(ANNOTATION_SOURCE_KEY).isNull()) {
+            return payload;
+        }
+        Set<String> diffFields = extractChangedFields(payload);
+        if (diffFields.isEmpty()) {
+            return payload;
+        }
+
+        Optional<EngineWriteRecord> hit = engineWriteTracker.findMatching(
+                entityType, entityId, diffFields, OffsetDateTime.now());
+        if (hit.isEmpty()) {
+            return payload;
+        }
+
+        ObjectNode annotated = (payload instanceof ObjectNode obj)
+                ? obj
+                : objectMapper.createObjectNode().setAll((ObjectNode) objectMapper.valueToTree(payload));
+        annotated.put(ANNOTATION_SOURCE_KEY, ANNOTATION_SOURCE_ENGINE);
+        log.info("Event annotated source=ENGINE entityType={} entityId={} matchedRecordId={}",
+                entityType, entityId, hit.get().id());
+        return annotated;
+    }
+
+    private Set<String> extractChangedFields(JsonNode payload) {
+        JsonNode node = payload.get("changed_fields");
+        if (node == null || !node.isArray() || node.isEmpty()) {
+            return Set.of();
+        }
+        Set<String> out = new HashSet<>(node.size());
+        Iterator<JsonNode> it = node.elements();
+        while (it.hasNext()) {
+            JsonNode field = it.next();
+            if (field.isTextual()) {
+                out.add(field.asText());
+            }
+        }
+        return out;
     }
 }

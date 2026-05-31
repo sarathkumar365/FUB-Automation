@@ -1,5 +1,16 @@
 # Domain Events — Phases
 
+> **Plan-lock changelog (2026-05-29):** Fresh-eyes race-matrix audit before starting Phase 3. See [`phase-3-race-matrix.md`](./phase-3-race-matrix.md) for the cell-by-cell evaluation that drove these revisions; commit-level plan in [`phase-3-plan.md`](./phase-3-plan.md).
+> - **Phase 3 restructured around three operation modes**, not one wrap pattern. `fub_reassign` and `fub_move_to_pond` use `SCALAR_FIELD_UPDATE` (local-state-first); `fub_add_tag` uses `ENTITY_APPEND_TRACKED_ONLY` (no local write — eliminates phantom-removal class); `fub_create_note` uses `ENTITY_CREATE_TRACKED_ONLY` two-channel (annotates both `note.created` and the person-side `peopleUpdated` echo).
+> - **Revert dropped entirely.** `RetryPolicy.DEFAULT_FUB` already handles transient FUB failures; permanent failures accept drift until next webhook re-syncs. Plan.md §5's "restore prior snapshot" semantics are reversed. Removes a whole code path. Accepted cost: misleading echo on next webhook after a permanent failure (known issue #26).
+> - **`EngineWriteCoordinator` service** owns the multi-tx discipline (lock + tracker + emitter annotation) across all three modes. Steps stay thin. The originally-floated `FubMutatingStep` SPI is dropped — three different mechanisms don't fit one interface.
+> - **`REQUIRES_NEW` is a pattern requirement, not a footnote.** The outer `@Transactional` on `WorkflowStepExecutionService.executeClaimedStep` (line 68) would otherwise pin the row lock across the FUB HTTP call. Coordinator's inner write uses `TransactionTemplate(REQUIRES_NEW)` to escape it. Mirrors `PersonUpsertService` DIVE-recovery discipline.
+> - **Tags become tracker-only**, not local-state-first. The C2 phantom-removal class (concurrent external tag-add lands before our FUB PUT → diff vs. optimistic local fabricates a "removal" event) is structurally unfixable with optimistic local writes. Cost: one annotated event per engine tag-add.
+> - **Race harness is a Phase 3 deliverable**, distributed across sub-phases: A1–A7 in 3b, B subset in 3c, C1–C3 in 3d, D1–D4 in 3e. Skeleton + `FakeFollowUpBossClient` in 3a. Existing harnesses (`ReplayHarnessTest`, `PersonUpsertConcurrencyStressTest`) can't drive engine-write × external-webhook timing races.
+> - **Redis-backed tracker promoted to Phase 4 prerequisite.** Phase 3 ships `InMemoryEngineWriteTracker`; the 30s crash window of phantom events is dev-acceptable until Phase 4 consumers exist.
+> - **Tracker match semantics locked** at `engineRecord.changedFields ⊆ diffFields` → hit. Loosest reasonable match; annotates A4-style concurrent-external scenarios as `ENGINE` (annotation-over-detection bias). Trade-off documented; strict equality would miss A4 entirely.
+> - **`change.source` annotation lives in `event.payload`** (JSON), not as a new field on the `DomainEvent` record. Avoids churning every listener signature; Phase 4 consumers read `event.payload.source` directly.
+
 > **Plan-lock changelog (2026-05-28, late-day):** Final fresh-eyes audit before starting Phase 2. This is the last revision to the roadmap; subsequent surprises go into phase implementation logs, not this file.
 > - **Phase 2 restructured into 5 sub-phases.** A new **2b (pure refactor, no behaviour change)** is inserted between scaffold and emission: extracts `CallUpsertService.persistCallFacts` so the call/note emission paths are `@Transactional` by construction; restructures `PersonUpsertService` to capture-old / apply-new shape; uses `findBy…ForUpdate` at **both** the primary finder and the `DataIntegrityViolationException` recovery re-read (closes the brand-new-row insert-race window). 2c/2d/2e land on a structure where the previously-uncaught defects are impossible to write. See [`phase-2-plan.md`](./phase-2-plan.md).
 > - **Phase 2 replay-harness assertions changed from `min*` to `expected*` (exact counts)** for collapse fixtures. `min: 1` silently accepts a broken collapse that produces 3 events. Append events keep `min` (no uniqueness claim).
@@ -303,7 +314,7 @@ TBD at `phase-2-implementation.md` time. Likely `No`.
 ---
 
 ## Phase 3 — Local-state-first engine writes
-Status: `NOT STARTED`
+Status: `IN PROGRESS` — 3a (scaffold) + 3b (`fub_reassign` wrap + A1–A7 race scenarios) shipped. 3c/3d/3e remain. 644 tests green. See [phase-3a-implementation.md](./phase-3a-implementation.md) and [phase-3b-implementation.md](./phase-3b-implementation.md) for decision narratives.
 
 **Goal:** Engine writes update local state before calling FUB. Echo webhooks see no diff. `EngineWriteTracker` is in place as race-window guard.
 
