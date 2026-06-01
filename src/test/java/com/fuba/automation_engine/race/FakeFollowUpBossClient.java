@@ -54,6 +54,8 @@ public class FakeFollowUpBossClient implements FollowUpBossClient {
     public void reset() {
         behaviors.clear();
         calls.clear();
+        // First createNote per test → id 1001, so D3 (early-echo) can predict it.
+        createdNoteIdSeq.set(1000);
     }
 
     // ────────────────────────────────────────────────────────────────────

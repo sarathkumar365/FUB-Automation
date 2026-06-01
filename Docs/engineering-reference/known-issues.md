@@ -287,19 +287,19 @@ No further action is needed. Active automation lives in the workflow engine; equ
 - **Proposed fix:** none planned. Documented as accepted.
 - **Related:** [`phase-3-race-matrix.md`](../features/domain-events/phase-3-race-matrix.md) A5/A6 cells.
 
-## 27) Tracker annotation needs Phase 4 verification for note channels
+## 27) Note `note.created` annotation needs Phase 4 verification; person-side channel ruled out
 
-- **Status:** Open — verification required when Phase 4 consumers land
+- **Status:** Open — single-channel verification required when Phase 4 consumers land
 - **Priority:** Medium (load-bearing for Phase 4's `change.source` filter on note triggers)
-- **Location:** `service/note/NoteEmissionService` (annotation hook landing in Phase 3e), `service/event/DomainEventEmitter` (person-side `lastNoteAt` annotation)
-- **Issue:** Phase 3e wires `EngineWriteTracker` annotation for two echo channels triggered by `fub_create_note`: (a) the `notesCreated` echo emits a `note.created` event annotated `source=ENGINE`; (b) the person-side `peopleUpdated` echo (carrying `lastNoteAt` etc.) emits a `person.state_changed` event also annotated `source=ENGINE`. Both annotations are exercised structurally by the Phase 3 race harness — but no workflow consumes these events in Phase 3 (`WorkflowTriggerRouter.route(event)` still runs on the old webhook-shaped path). Phase 4 introduces the first consumers; until that lands, the annotations are only verified by tests, not by a real subscriber.
+- **Location:** `service/note/NoteEmissionService` (the `note.created` annotation hook, Phase 3e)
+- **Issue:** Phase 3e wires `EngineWriteTracker` annotation for the **single** echo channel triggered by `fub_create_note`: the `notesCreated` echo emits a `note.created` event annotated `source=ENGINE`. It is exercised structurally by the Phase 3 race harness (D1/D3/D4), but no workflow consumes the event in Phase 3 (`WorkflowTriggerRouter.route(event)` still runs on the old webhook-shaped path). Phase 4 introduces the first consumer; until then the annotation is verified by tests, not a real subscriber.
+- **Person-side channel ruled out (2026-06-01):** an earlier plan assumed a second channel — a person-side `peopleUpdated` echo (carrying `lastNoteAt`) — needing annotation. **It does not exist.** Confirmed three ways: (1) empirical — creating notes produced no `peopleUpdated` webhook; (2) FUB API docs — `peopleUpdated`'s trigger field list excludes note activity, and note creation fires only `notesCreated`; (3) code — `lastNoteAt`/`lastActivity` are not in `PersonUpsertService.SNAPSHOT_FIELDS`/`PersonDiffComputer`, so no `person.state_changed` event is produced. No person-side annotation is wired.
 - **What needs verification at Phase 4 time:**
   - A workflow with trigger `{ on: "note.created", filter: "change.source != 'ENGINE'" }` does NOT fire on engine-created notes.
-  - A workflow with trigger `{ on: "person.state_changed", filter: "change.lastNoteAt.changed AND change.source != 'ENGINE'" }` does NOT fire on the person-side echo of engine note creation.
-  - FUB's actual person-side field names on note creation (currently assumed to be `lastNoteAt`-shaped) match what the coordinator records.
+  - **Watch condition for the ruled-out channel:** if note-activity metadata is ever added to `SNAPSHOT_FIELDS` AND FUB is found to echo it on note creation, wire the person-side channel in `FubCreateNoteWorkflowStep` + `NoteEmissionService`. A breadcrumb at `SNAPSHOT_FIELDS` records this. (Re-verify against a real note-creation `peopleUpdated` payload once prod FUB creds are restored — they were invalid as of 2026-06-01.)
 - **Risk if not verified:** silent over-firing of `note.created` triggers when Phase 4 ships, regressing the bad-run-rate gain.
 - **Proposed fix:** add explicit verification step to Phase 4's exit criteria. Tracked here so the Phase 4 author doesn't miss it.
-- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/phase-3-race-matrix.md) D-cells, [`phase-3-plan.md`](../features/domain-events/phase-3-plan.md) §3e.
+- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/phase-3-race-matrix.md) D-cells, [`phase-3-plan.md`](../features/domain-events/phase-3-plan.md) §3e + 2026-06-01 changelog.
 
 ## 28) Early-echo race on engine note creation
 

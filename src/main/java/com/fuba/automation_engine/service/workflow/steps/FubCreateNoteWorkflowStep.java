@@ -3,6 +3,7 @@ package com.fuba.automation_engine.service.workflow.steps;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.event.EngineWriteCoordinator;
 import com.fuba.automation_engine.service.fub.FubCallHelper;
 import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreatedNote;
@@ -57,10 +58,15 @@ public class FubCreateNoteWorkflowStep implements WorkflowStepType {
 
     private final FollowUpBossClient followUpBossClient;
     private final FubCallHelper fubCallHelper;
+    private final EngineWriteCoordinator engineWriteCoordinator;
 
-    public FubCreateNoteWorkflowStep(FollowUpBossClient followUpBossClient, FubCallHelper fubCallHelper) {
+    public FubCreateNoteWorkflowStep(
+            FollowUpBossClient followUpBossClient,
+            FubCallHelper fubCallHelper,
+            EngineWriteCoordinator engineWriteCoordinator) {
         this.followUpBossClient = followUpBossClient;
         this.fubCallHelper = fubCallHelper;
+        this.engineWriteCoordinator = engineWriteCoordinator;
     }
 
     @Override
@@ -170,7 +176,19 @@ public class FubCreateNoteWorkflowStep implements WorkflowStepType {
         CreateNoteCommand command = new CreateNoteCommand(personId, body, mentionIds, subject);
 
         try {
-            CreatedNote createdNote = fubCallHelper.executeWithRetry(() -> followUpBossClient.createNote(command));
+            // Tracker-only: call FUB, then record the note-creation so the
+            // notesCreated echo annotates as source=ENGINE. Single channel —
+            // note creation produces no person echo (see phase-3-plan §3e).
+            CreatedNote createdNote = engineWriteCoordinator.applyEntityCreateTrackedOnly(
+                    "note",
+                    context.sourcePersonId(),
+                    context.runId(),
+                    () -> fubCallHelper.executeWithRetry(() -> followUpBossClient.createNote(command)),
+                    (tracker, note, ctx) -> {
+                        if (note != null && note.id() != null) {
+                            tracker.record("note", String.valueOf(note.id()), Set.of("created"), ctx.runId());
+                        }
+                    });
             if (createdNote == null) {
                 return StepExecutionResult.failure(FAILED, "Create note returned empty result");
             }

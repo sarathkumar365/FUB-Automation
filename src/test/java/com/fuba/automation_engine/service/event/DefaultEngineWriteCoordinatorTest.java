@@ -232,24 +232,22 @@ class DefaultEngineWriteCoordinatorTest {
 
     @Test
     void entityCreateHappyPath_fubCalledThenCallbackInvokedInRequiresNew() {
+        // Single channel only — the note-creation records (note, id, {created}).
+        // There is NO person-side channel: creating a note does not trigger a
+        // peopleUpdated webhook (FUB docs + empirical 2026-06-01), and
+        // lastNoteAt isn't in SNAPSHOT_FIELDS, so no person event is ever
+        // produced to annotate. See Phase 3e in phase-3-plan.md.
         Long fubReturnedNoteId = coordinator.applyEntityCreateTrackedOnly(
                 "note", PERSON_ID, 42L,
                 () -> 999L,
-                (trk, noteId, ctx) -> {
-                    trk.record("note", String.valueOf(noteId), java.util.Set.of("created"), ctx.runId());
-                    trk.record("person", ctx.sourcePersonId(),
-                            java.util.Set.of("lastNoteAt"), ctx.runId());
-                });
+                (trk, noteId, ctx) ->
+                        trk.record("note", String.valueOf(noteId), java.util.Set.of("created"), ctx.runId()));
 
         assertEquals(999L, fubReturnedNoteId);
         assertTrue(tracker.findMatching(
                 "note", "999", java.util.Set.of("created"),
                 OffsetDateTime.now()).isPresent(),
-                "channel 1 (note id) tracker record must exist");
-        assertTrue(tracker.findMatching(
-                "person", PERSON_ID, java.util.Set.of("lastNoteAt"),
-                OffsetDateTime.now()).isPresent(),
-                "channel 2 (person-side echo) tracker record must exist");
+                "note-channel tracker record must exist");
     }
 
     @Test

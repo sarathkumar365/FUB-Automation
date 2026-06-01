@@ -3,6 +3,7 @@ package com.fuba.automation_engine.service.workflow;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.event.EngineWriteCoordinator;
 import com.fuba.automation_engine.service.fub.FubCallHelper;
 import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreatedNote;
@@ -10,6 +11,8 @@ import com.fuba.automation_engine.service.workflow.steps.FubCreateNoteWorkflowSt
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.Mock;
@@ -20,6 +23,8 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.Mockito.lenient;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -31,9 +36,29 @@ class FubCreateNoteWorkflowStepTest {
     @Mock
     private FubCallHelper fubCallHelper;
 
+    @Mock
+    private EngineWriteCoordinator coordinator;
+
+    // Entity-create mode passes the FUB call as the 4th arg (index 3). Lenient
+    // so validation-fail tests that never reach the coordinator don't trip
+    // strict-stubbing. The recorder (arg 4) is a no-op in unit tests — tracker
+    // recording is proven in DefaultEngineWriteCoordinatorTest + the D-cells.
+    @BeforeEach
+    void coordinatorPassesThrough() {
+        lenient().when(coordinator.applyEntityCreateTrackedOnly(any(), any(), anyLong(), any(), any()))
+                .thenAnswer(inv -> {
+                    Supplier<?> fubCall = inv.getArgument(3);
+                    return fubCall.get();
+                });
+    }
+
+    private FubCreateNoteWorkflowStep step() {
+        return new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper, coordinator);
+    }
+
     @Test
     void shouldBuildSpanAndPostNoteForSingleMention() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L),
                 "mentionUserNames", List.of("ISA AuraKeyRealty"),
@@ -77,7 +102,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldBuildMultipleSpansForMultipleMentions() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L, 14L),
                 "mentionUserNames", List.of("ISA AuraKeyRealty", "Karanjot Makkar"),
@@ -106,7 +131,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldSucceedWithEmptyMentionsAndJustMessage() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(),
                 "mentionUserNames", List.of(),
@@ -136,7 +161,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldFailWhenMentionArraysHaveDifferentLengths() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L, 14L),
                 "mentionUserNames", List.of("ISA AuraKeyRealty"),
@@ -152,7 +177,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldFailWhenMessageMissing() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L),
                 "mentionUserNames", List.of("ISA AuraKeyRealty"));
@@ -167,7 +192,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldFailWhenMentionUserIdInvalid() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of("not-a-number"),
                 "mentionUserNames", List.of("Some Name"),
@@ -183,7 +208,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldFailWhenMentionUserNameBlank() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L),
                 "mentionUserNames", List.of("   "),
@@ -199,7 +224,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldMarkTransientFailureForFubTransientException() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L),
                 "mentionUserNames", List.of("ISA"),
@@ -218,7 +243,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldMarkPermanentFailureForFubPermanentException() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
         Map<String, Object> resolvedConfig = Map.of(
                 "mentionUserIds", List.of(30L),
                 "mentionUserNames", List.of("ISA"),
@@ -237,7 +262,7 @@ class FubCreateNoteWorkflowStepTest {
 
     @Test
     void shouldDeclareSchemaAndResultCodes() {
-        FubCreateNoteWorkflowStep step = new FubCreateNoteWorkflowStep(followUpBossClient, fubCallHelper);
+        FubCreateNoteWorkflowStep step = step();
 
         assertEquals("fub_create_note", step.id());
         assertNotNull(step.displayName());

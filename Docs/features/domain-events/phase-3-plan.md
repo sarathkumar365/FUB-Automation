@@ -1,6 +1,8 @@
 # Phase 3 — Implementation Plan (step-by-step)
 
-Status: `IN PROGRESS` — 3a, 3b, 3c, 3d shipped; 3e remains.
+Status: `IN PROGRESS` — 3a, 3b, 3c, 3d, 3e shipped. Phase 3 complete pending wrap-up log.
+
+> **Plan-lock changelog (2026-06-01): 3e reduced to a single channel.** The original §3e two-channel design rested on the assumption that creating a note makes FUB fire a `peopleUpdated` echo (carrying `lastNoteAt`-style metadata) that needs annotating. That assumption is **confirmed false** three independent ways: (1) **empirical** — created notes produced no `peopleUpdated` webhook; (2) **FUB API docs** — the `peopleUpdated` trigger field list (Name, Emails, Phones, Address, Price, Background, Assigned Agent, Assigned Lender, Contacted, Stage, Lead Source, Tags, Custom Fields, Relationships) does not include note activity, and note creation is documented to fire only `notesCreated`; (3) **code** — `lastNoteAt`/`lastActivity` are not in `PersonUpsertService.SNAPSHOT_FIELDS` nor `PersonDiffComputer`, so even a hypothetical person echo would diff to empty and emit no `person.state_changed` event. With **no person event ever produced to annotate**, the person-side channel is inert. 3e ships **single-channel** (`note.created` annotation only). The two-channel `SideEffectRecorder` in `applyEntityCreateTrackedOnly` is kept as-is (over-general but harmless; zero churn to tested infra). The original **D2** scenario (person-side echo annotated) is **dropped** — there is no such echo. No tripwire/disabled test stands in for it: a test cannot detect FUB changing its webhook semantics; that watch lives in known-issue #27 + a `SNAPSHOT_FIELDS` code comment + a Phase 4 exit criterion instead.
 
 Companion to [`phases.md`](./phases.md) §"Phase 3 — Local-state-first engine writes". `phases.md` is the canonical statement of **what** Phase 3 delivers and **why**; this file is the **commit-level order of operations** — concrete files, sequencing, test gates, defaults.
 
@@ -26,7 +28,7 @@ By the end of Phase 3, every engine-originated write to FUB (`fub_reassign`, `fu
 | **3b** | Wrap `fub_reassign` (scalar mode) + race harness scenarios A1–A7 | ~5 / ~350 | **High** — the load-bearing pattern (REQUIRES_NEW + lock + tracker + emitter annotation) lands here |
 | **3c** ✅ | Wrap `fub_move_to_pond` (scalar mode, reuses 3b coordinator path) + harness A1/A3/A4/A5 mirror for `assignedPondId`. **DONE** — 672 tests green. | ~3 / ~150 | Low — identical pattern to 3b |
 | **3d** ✅ | Wrap `fub_add_tag` (tracker-only append mode) + harness C1–C3. **DONE** — 676 tests green. | ~4 / ~250 | Medium — different mechanism; first exercise of tracker-only path |
-| **3e** | Wrap `fub_create_note` (tracker-only on `note.created` and person-side `peopleUpdated` echoes) + harness D1–D4 + `NoteEmissionService` annotation hook | ~5 / ~300 | Medium — two-channel tracker, content-hash key for the early-echo race |
+| **3e** ✅ | Wrap `fub_create_note` (tracker-only, **single channel** — `note.created` only; person-side channel ruled out, see 2026-06-01 changelog) + harness **D1/D3/D4** + `NoteEmissionService` annotation hook. **DONE** — 682 tests green. | ~5 / ~250 | Medium — first entity-create wrap; early-echo race documented (D3) |
 
 Each commit ships with a green `./mvnw clean test` (589 tests post-Phase-2 baseline; new tests added per sub-phase).
 
@@ -165,18 +167,19 @@ Engine tag-adds no longer modify local state directly. The tag appears in local 
 
 ---
 
-## Sub-phase 3e — Wrap `fub_create_note` (tracker-only, two-channel)
+## Sub-phase 3e — Wrap `fub_create_note` (tracker-only, single channel)
 
-**Goal:** `fub_create_note` calls FUB first, then records on the tracker for **both** echo channels — the `notesCreated` echo (key: returned `noteId`) and the person-side `peopleUpdated` echo (key: `lastNoteAt` / whatever person fields FUB updates on note creation). Race harness D1–D4 exercise both channels.
+**Goal:** `fub_create_note` calls FUB first, then records the note-creation on the tracker (single channel, keyed on the returned `noteId`). When FUB echoes the `notesCreated` webhook, `NoteEmissionService` annotates the `note.created` event `source=ENGINE`. Race harness D1/D3/D4 exercise the channel.
 
-### Why two channels
+### Single channel — the person-side channel was ruled out (2026-06-01)
 
-[Matrix D2](./phase-3-race-matrix.md#d-fub_create_note--entity-creation--no-local-notes-table) — FUB updates the person's `lastNoteAt` (or similar metadata) when a note is created and sends a separate `peopleUpdated` echo. Without tracker annotation on the person side, every engine note creation produces a real `person.state_changed` event that workflows might consume as if a human made the change.
+The original plan had a second channel for a person-side `peopleUpdated` echo (FUB updating `lastNoteAt` on note creation). **That echo does not exist** — confirmed empirically, by FUB's API docs, and by the code (see the 2026-06-01 changelog at the top of this file). Creating a note fires only `notesCreated`; it does not touch any snapshotted person field, so no `person.state_changed` event is ever produced. There is therefore nothing to annotate on the person side, and the channel is dropped entirely.
 
-### Two-channel design
+- **Channel 1 (the only channel) — `note.created` echo:** the coordinator records on the tracker with `entityType="note"`, `entityId=<returned FUB note id>`, `changedFields=Set.of("created")`. When `NoteEmissionService` is about to emit `note.created`, it consults the tracker and annotates if hit. This annotation lives in `NoteEmissionService` (not the universal `DomainEventEmitter` hook) because that hook keys off `payload.changed_fields`, which note webhooks don't carry.
 
-- **Channel 1 — `note.created` echo:** the coordinator records on the tracker with `entityType="note"`, `entityId=<returned FUB note id>`, `changedFields=Set.of("created")`. When `NoteEmissionService` is about to emit `note.created`, it consults the tracker and annotates if hit.
-- **Channel 2 — person-side `peopleUpdated` echo:** the coordinator records on the tracker with `entityType="person"`, `entityId=<sourcePersonId>`, `changedFields=Set.of("lastNoteAt", "lastActivity")` (FUB's actual field names — TBD at impl time; verify via observation in a 3e investigation step). `DomainEventEmitter` (already tracker-aware from 3a) annotates the `person.state_changed` echo if hit.
+### Watch condition (in lieu of Channel 2)
+
+If a future change adds note-activity metadata to `SNAPSHOT_FIELDS` **and** FUB is found to echo it on note creation, the person-side channel must be wired then. This is recorded as: a code comment at `PersonUpsertService.SNAPSHOT_FIELDS`, known-issue #27, and a Phase 4 exit criterion. No disabled/failing test stands in for it — a unit test cannot detect FUB changing its webhook semantics.
 
 ### The early-echo race (documented, not fixed)
 
@@ -188,11 +191,11 @@ Empirically rare (POST responses are typically faster than webhook fires) but po
 
 | # | Path | Purpose |
 |---|---|---|
-| 1 | `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubCreateNoteWorkflowStep.java` *(modify)* | Inject `EngineWriteCoordinator`. Replace direct `followUpBossClient.createNote(command)` with `coordinator.applyEntityCreateTrackedOnly(sourcePersonId, "note", runId, () -> followUpBossClient.createNote(command), (tracker, createdNote) -> { tracker.record(noteChannelRecord(createdNote)); tracker.record(personChannelRecord(sourcePersonId)); })`. The `recordSideEffects` callback decides what gets tracked. |
-| 2 | `src/main/java/com/fuba/automation_engine/service/note/NoteEmissionService.java` *(modify)* | Inject `EngineWriteTracker`. Before emitting each `note.<action>` event, consult tracker with `entityType="note"`, `entityId=<noteId>`, `changedFields=Set.of("created")` (or "updated", "deleted" — match the action). On hit, mutate payload to add `"source": "ENGINE"`. |
-| 3 | `src/main/java/com/fuba/automation_engine/service/event/DomainEventEmitter.java` *(no change)* | Person-side annotation already lands via 3a's emitter hook because person-side echo flows through `DomainEventEmitter.emit("person.state_changed", ...)`. The coordinator's `recordSideEffects` callback registers the person tracker entry; 3a's emitter does the rest. |
-| 4 | `src/test/java/com/fuba/automation_engine/service/note/NoteEmissionServiceTest.java` *(extend)* | Tracker hit on the note channel → `note.created` payload annotated ENGINE; miss → unannotated. Mirror tests for `note.updated`, `note.deleted` (engine doesn't create those today, but the annotation logic is symmetrical). |
-| 5 | `src/test/java/com/fuba/automation_engine/race/scenarios/CreateNoteScenariosTest.java` | <br>**D1** happy path — engine creates note 100; FUB returns; `notesCreated` echo arrives. Expect: 1 `note.created` event **annotated `source=ENGINE`**. <br>**D2** person-side echo — same scenario; FUB also sends `peopleUpdated` for `lastNoteAt`. Expect: 1 `person.state_changed` event **annotated `source=ENGINE`** (because coordinator recorded person channel too). <br>**D3** early-echo race — fake FUB fires `notesCreated` webhook at t=50ms but `createNote` POST returns only at t=200ms. Expect: 1 `note.created` event **NOT annotated** (tracker record didn't exist yet when echo processed). Document as the known early-echo race. <br>**D4** multiple notes — engine creates 3 notes in rapid succession. Expect: 3 `note.created` events, all annotated ENGINE; tracker has 3 records. |
+| 1 | `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubCreateNoteWorkflowStep.java` *(modify)* | Inject `EngineWriteCoordinator`. Replace direct `fubCallHelper.executeWithRetry(() -> followUpBossClient.createNote(command))` with `coordinator.applyEntityCreateTrackedOnly("note", sourcePersonId, runId, () -> fubCallHelper.executeWithRetry(...), (tracker, note, ctx) -> tracker.record("note", String.valueOf(note.id()), Set.of("created"), ctx.runId()))`. **Single channel** — the recorder records only the note entry (guarded against a null note). |
+| 2 | `src/main/java/com/fuba/automation_engine/service/note/NoteEmissionService.java` *(modify)* | Inject `EngineWriteTracker` + `ObjectMapper`. Before emitting each `note.<action>` event, consult tracker with `entityType="note"`, `entityId=<noteId>`, `changedFields=Set.of("created"/"updated"/"deleted")` (match the action). On hit, deep-copy the payload and add `"source": "ENGINE"`; on miss, pass the original reference through unchanged. (Engine only ever records "created" today, so only `note.created` can hit — the updated/deleted handling is symmetrical and inert.) |
+| 3 | `src/main/java/com/fuba/automation_engine/service/event/DomainEventEmitter.java` *(no change)* | Untouched. There is no person-side channel; note annotation is done in `NoteEmissionService` (#2) because the emitter's universal hook keys off `payload.changed_fields`, which note webhooks don't carry. |
+| 4 | `src/test/java/com/fuba/automation_engine/service/note/NoteEmissionServiceTest.java` *(extend)* | Inject a tracker mock (defaults to miss). New: tracker hit → `note.created` payload annotated ENGINE; miss → unannotated + original reference preserved; multi-resourceId webhook → only the tracked note annotated (deep-copy must not leak `source` onto the others). |
+| 5 | `src/test/java/com/fuba/automation_engine/race/scenarios/CreateNoteScenariosTest.java` | <br>**D1** happy path — engine creates note; `notesCreated` echo arrives. Expect: 1 `note.created` event **annotated `source=ENGINE`**. <br>**D3** early-echo race — fake FUB delays `createNote` 300ms; echo fired at t=50ms (before the POST returns, so before the tracker record exists). Expect: 1 `note.created` event **NOT annotated**. Diagnostic for the early-echo race. <br>**D4** multiple notes — engine creates 3 notes; 3 echoes. Expect: 3 `note.created` events, all annotated ENGINE. <br>*(D2 dropped — no person-side echo exists; see 2026-06-01 changelog.)* |
 
 ### Order within the commit
 
@@ -200,11 +203,11 @@ Empirically rare (POST responses are typically faster than webhook fires) but po
 
 ### Test gate
 
-`./mvnw clean test` green. D3 is the diagnostic test for the early-echo race; if it ever passes (annotation present despite the race), the race-window assumption changed and the test needs updating.
+`./mvnw clean test` green (682 tests). D3 is the diagnostic test for the early-echo race; if it ever passes annotated (annotation present despite the race), the race-window assumption changed and the test needs updating.
 
 ### What 3e changes for users
 
-`note.created` events from engine writes carry `source=ENGINE` annotation (except in the rare early-echo race). Person-side `person.state_changed` events triggered by engine note creation also carry the annotation. Phase 4 workflow filters work uniformly across all engine-write step types.
+`note.created` events from engine writes carry `source=ENGINE` annotation (except in the rare early-echo race). Note creation produces **no** person-side event, so there is nothing to annotate there. Phase 4 workflow filters work uniformly across all engine-write step types.
 
 ### Phase 3 complete
 

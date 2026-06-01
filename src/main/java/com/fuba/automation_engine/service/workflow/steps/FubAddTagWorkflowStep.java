@@ -94,12 +94,9 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
         }
 
         try {
-            // Tracker-only append mode: FUB is called FIRST, then the tag-add is
-            // recorded on the tracker (only on success). No local-state-first
-            // write — tags is an accumulating field, and an optimistic local
-            // write would fabricate phantom "tag removed" events when a
-            // concurrent external change lands before our FUB PUT (race-matrix
-            // C2). Local state updates only when FUB's echo arrives.
+            // Tracker-only append: FUB first, then record on success. No local
+            // write — an optimistic write on the accumulating tags field would
+            // fabricate phantom "tag removed" events (race-matrix C2).
             ActionExecutionResult actionResult = engineWriteCoordinator.applyEntityAppendTrackedOnly(
                     context.sourcePersonId(),
                     "tags",

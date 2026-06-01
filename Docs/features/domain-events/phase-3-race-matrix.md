@@ -97,6 +97,8 @@ Structurally identical to `fub_reassign`. Same scalar field semantics, same FUB 
 
 ### D. `fub_create_note` (entity creation — no local notes table)
 
+> **Correction (2026-06-01, post-implementation):** The **D2** row below — and every reference in this doc to a person-side `peopleUpdated` / `lastNoteAt` echo from note creation — rests on an assumption that turned out to be **false**. Creating a note does **not** fire a `peopleUpdated` webhook (confirmed empirically, by FUB's API docs, and by the fact that `lastNoteAt` isn't in `SNAPSHOT_FIELDS`/`PersonDiffComputer`). There is no person-side echo and no phantom on the person side. 3e shipped **single-channel** (`note.created` only); **D2 was dropped**. D1/D3/D4 stand. The "second mechanism for the person-side echo" called for in the verdict below is unnecessary. See [`phase-3-plan.md`](./phase-3-plan.md) §3e 2026-06-01 changelog and known-issue #27. The original analysis is left intact below as a historical record.
+
 | # | Scenario | What actually happens | Thesis |
 |---|---|---|---|
 | **D1** | Happy path. Engine POSTs to FUB → FUB returns note id 100 → FUB sends `notesCreated` webhook with id 100. | `WebhookEventProcessorService` dispatches → `NoteEmissionService.emit` → emits `note.created` event for id 100. **No local notes state exists** — local-state-first cannot apply. | ✗ — thesis fundamentally doesn't apply |

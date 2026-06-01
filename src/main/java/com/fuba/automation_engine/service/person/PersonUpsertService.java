@@ -42,6 +42,12 @@ public class PersonUpsertService {
      * also update the validator tests so the new field is recognised. No migration
      * needed — persons are upserted on every webhook so new fields populate on the
      * next inbound event for each person.
+     *
+     * <p>Note-activity metadata ({@code lastNoteAt}) is deliberately NOT here:
+     * {@code fub_create_note} is single-channel on the basis that note creation
+     * produces no {@code person.state_changed} event. If a note-activity field
+     * is ever added here AND FUB is found to echo it on note creation, wire the
+     * person-side channel in {@code NoteEmissionService}. See known-issue #27.
      */
     private static final List<String> SNAPSHOT_FIELDS = List.of(
             "name",
