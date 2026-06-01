@@ -3,6 +3,7 @@ package com.fuba.automation_engine.service.workflow.steps;
 import com.fuba.automation_engine.exception.fub.FubPermanentException;
 import com.fuba.automation_engine.exception.fub.FubTransientException;
 import com.fuba.automation_engine.service.FollowUpBossClient;
+import com.fuba.automation_engine.service.event.EngineWriteCoordinator;
 import com.fuba.automation_engine.service.fub.FubCallHelper;
 import com.fuba.automation_engine.service.model.ActionExecutionResult;
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
@@ -28,10 +29,15 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
 
     private final FollowUpBossClient followUpBossClient;
     private final FubCallHelper fubCallHelper;
+    private final EngineWriteCoordinator engineWriteCoordinator;
 
-    public FubAddTagWorkflowStep(FollowUpBossClient followUpBossClient, FubCallHelper fubCallHelper) {
+    public FubAddTagWorkflowStep(
+            FollowUpBossClient followUpBossClient,
+            FubCallHelper fubCallHelper,
+            EngineWriteCoordinator engineWriteCoordinator) {
         this.followUpBossClient = followUpBossClient;
         this.fubCallHelper = fubCallHelper;
+        this.engineWriteCoordinator = engineWriteCoordinator;
     }
 
     @Override
@@ -88,7 +94,17 @@ public class FubAddTagWorkflowStep implements WorkflowStepType {
         }
 
         try {
-            ActionExecutionResult actionResult = followUpBossClient.addTag(personId, tagName);
+            // Tracker-only append mode: FUB is called FIRST, then the tag-add is
+            // recorded on the tracker (only on success). No local-state-first
+            // write — tags is an accumulating field, and an optimistic local
+            // write would fabricate phantom "tag removed" events when a
+            // concurrent external change lands before our FUB PUT (race-matrix
+            // C2). Local state updates only when FUB's echo arrives.
+            ActionExecutionResult actionResult = engineWriteCoordinator.applyEntityAppendTrackedOnly(
+                    context.sourcePersonId(),
+                    "tags",
+                    context.runId(),
+                    () -> followUpBossClient.addTag(personId, tagName));
             if (actionResult == null || !actionResult.success()) {
                 String message = actionResult != null && actionResult.message() != null
                         ? actionResult.message() : "Add tag action returned unsuccessful result";

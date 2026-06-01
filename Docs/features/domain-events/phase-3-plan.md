@@ -1,6 +1,6 @@
 # Phase 3 — Implementation Plan (step-by-step)
 
-Status: `NOT STARTED`
+Status: `IN PROGRESS` — 3a, 3b, 3c, 3d shipped; 3e remains.
 
 Companion to [`phases.md`](./phases.md) §"Phase 3 — Local-state-first engine writes". `phases.md` is the canonical statement of **what** Phase 3 delivers and **why**; this file is the **commit-level order of operations** — concrete files, sequencing, test gates, defaults.
 
@@ -24,8 +24,8 @@ By the end of Phase 3, every engine-originated write to FUB (`fub_reassign`, `fu
 |---|---|---|---|
 | **3a** | Scaffold: tracker interface + in-memory impl + coordinator skeleton (3 op modes wired but no callers) + emitter annotation hook + race harness skeleton with fake FUB client | ~12 / ~600 | Low — no behaviour change |
 | **3b** | Wrap `fub_reassign` (scalar mode) + race harness scenarios A1–A7 | ~5 / ~350 | **High** — the load-bearing pattern (REQUIRES_NEW + lock + tracker + emitter annotation) lands here |
-| **3c** | Wrap `fub_move_to_pond` (scalar mode, reuses 3b coordinator path) + harness B = A coverage | ~3 / ~150 | Low — identical pattern to 3b |
-| **3d** | Wrap `fub_add_tag` (tracker-only mode) + harness C1–C3 | ~4 / ~250 | Medium — different mechanism; first exercise of tracker-only path |
+| **3c** ✅ | Wrap `fub_move_to_pond` (scalar mode, reuses 3b coordinator path) + harness A1/A3/A4/A5 mirror for `assignedPondId`. **DONE** — 672 tests green. | ~3 / ~150 | Low — identical pattern to 3b |
+| **3d** ✅ | Wrap `fub_add_tag` (tracker-only append mode) + harness C1–C3. **DONE** — 676 tests green. | ~4 / ~250 | Medium — different mechanism; first exercise of tracker-only path |
 | **3e** | Wrap `fub_create_note` (tracker-only on `note.created` and person-side `peopleUpdated` echoes) + harness D1–D4 + `NoteEmissionService` annotation hook | ~5 / ~300 | Medium — two-channel tracker, content-hash key for the early-echo race |
 
 Each commit ships with a green `./mvnw clean test` (589 tests post-Phase-2 baseline; new tests added per sub-phase).

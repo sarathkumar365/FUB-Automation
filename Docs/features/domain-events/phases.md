@@ -314,7 +314,7 @@ TBD at `phase-2-implementation.md` time. Likely `No`.
 ---
 
 ## Phase 3 — Local-state-first engine writes
-Status: `IN PROGRESS` — 3a (scaffold) + 3b (`fub_reassign` wrap + A1–A7 race scenarios) shipped. 3c/3d/3e remain. 644 tests green. See [phase-3a-implementation.md](./phase-3a-implementation.md) and [phase-3b-implementation.md](./phase-3b-implementation.md) for decision narratives.
+Status: `IN PROGRESS` — 3a (scaffold) + 3b (`fub_reassign` wrap + A1–A7) + 3c (`fub_move_to_pond` wrap + A1/A3/A4/A5 mirror) + 3d (`fub_add_tag` tracker-only append + C1–C3) shipped. 3e remains. 676 tests green. See [phase-3a-implementation.md](./phase-3a-implementation.md) and [phase-3b-implementation.md](./phase-3b-implementation.md) for decision narratives; 3c reused 3b's scalar-mode path verbatim; 3d exercises the coordinator's tracker-only append mode for the first time (FUB-first, record-on-success, no local write — the phantom-removal-free path for accumulating fields).
 
 **Goal:** Engine writes update local state before calling FUB. Echo webhooks see no diff. `EngineWriteTracker` is in place as race-window guard.
 
