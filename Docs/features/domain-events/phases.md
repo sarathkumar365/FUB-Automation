@@ -356,7 +356,7 @@ Probably `No`. The local-state-first write pattern is feature-internal; if it ge
 ---
 
 ## Phase 4 — Trigger schema migration + expression scope
-Status: `NOT STARTED`
+Status: `NOT STARTED` — commit-level breakdown into sub-phases 4a–4e locked in [`phase-4-plan.md`](./phase-4-plan.md) (2026-06-02).
 
 **Goal:** Workflows subscribe to domain events. New trigger schema in effect. `agent_followup_enforcement` re-authored against the new shape. Bad-run rate actually drops here.
 
