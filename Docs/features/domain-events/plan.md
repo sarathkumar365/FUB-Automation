@@ -164,12 +164,12 @@ Replaces the existing `peopleUpdated`-typed trigger. Hard cut — one workflow e
 {
   "trigger": {
     "on": "person.state_changed",
-    "filter": "person.stage = 'Lead' AND change.assignedUserId.changed AND change.source != 'ENGINE'"
+    "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND change.source != 'ENGINE'"
   }
 }
 ```
 
-The `person.stage = 'Lead'` predicate is mandatory under the new architecture because the Pre-Phase-2 rename pass drops the `isFubLeadPerson` ingestion filter — workflows now own the stage filtering instead of the ingestion layer.
+The `person.kind = 'LEAD'` predicate is mandatory under the new architecture because the Pre-Phase-2 rename pass drops the `isFubLeadPerson` ingestion filter — workflows now own the lead filtering instead of the ingestion layer. It uses our normalized `kind` enum (set by `PersonUpsertService.mapStageToKind`) rather than FUB's raw `stage` string, matching the predicate already added to `agent_followup_enforcement` during the rename pass. (Updated 2026-06-02 — an earlier draft showed `person.stage = 'Lead'`, which predates the `kind` enum.)
 
 For brand-new lead arrivals:
 

@@ -1,5 +1,12 @@
 # Domain Events — Phases
 
+> **Plan-lock changelog (2026-06-02):** Fresh-eyes verification before starting Phase 4. Intent confirmed unchanged — workflows subscribe to domain events, `agent_followup_enforcement` is re-authored against the new shape, and the bad-run-rate win lands here. Five accuracy corrections, all in the Phase 4 section below:
+> - **`engine.write.emit-events` reframed as a platform config, not a dormancy flag.** The `events` table is *already* populated and dispatched on every webhook today — Phase 2 emission (`PersonUpsertService` / `CallUpsertService` / `NoteEmissionService` → `DomainEventEmitter.emit`) is ungated. The flag gates only the engine's emission of *its own* `person.state_changed` event (`DefaultEngineWriteCoordinator:180`); annotation (`source=ENGINE`) is always on regardless. Target state is **ON**, surfaced as a platform-level toggle on the future config page (workflows that want to act on engine writes vs. exclude them is a per-workflow filter concern, not a global one). Cutover **sequencing** is now explicit so the listener registration and the flag don't flip in the wrong order.
+> - **Validator generalized to a per-event-kind field-schema check.** The silent-no-fire bug (a filter references a path the event payload never carries → predicate never true → trigger never fires, no error) is universal across event kinds, not `change.*`-specific. The validator checks every filter reference against the declaring event kind's field set. We own the person schema (full guard now); append-event payloads (`call`, `note`) are FUB-shaped and get the registry seam but stay explicitly unvalidated until a consumer exists.
+> - **Dispatch crash-window: decision lands in Phase 4, build does not.** The in-memory dispatcher loses an event if the process dies between commit and after-commit dispatch. Phase 4 records the accepted dev-phase gap + adds one observability log; the durable-outbox poller is a separate tracked follow-up (per `plan.md` Out-of-scope).
+> - **Re-authored filter uses `person.kind = 'LEAD'`** (normalized enum), reconciling the stale `person.stage = 'Lead'` example in `plan.md` §3.
+> - **Note-channel echo filtering explicitly deferred.** `notesCreated` is not ingested (`config/fub-webhook-events.txt` subscribes to `callsCreated` / `peopleCreated` / `peopleUpdated` only), so the note-annotation channel is dormant by definition — no note event ever arrives to filter. Revisit when note ingestion is enabled; tracked in known-issue #27.
+
 > **Plan-lock changelog (2026-05-29):** Fresh-eyes race-matrix audit before starting Phase 3. See [`phase-3-race-matrix.md`](./phase-3-race-matrix.md) for the cell-by-cell evaluation that drove these revisions; commit-level plan in [`phase-3-plan.md`](./phase-3-plan.md).
 > - **Phase 3 restructured around three operation modes**, not one wrap pattern. `fub_reassign` and `fub_move_to_pond` use `SCALAR_FIELD_UPDATE` (local-state-first); `fub_add_tag` uses `ENTITY_APPEND_TRACKED_ONLY` (no local write — eliminates phantom-removal class); `fub_create_note` uses `ENTITY_CREATE_TRACKED_ONLY` (annotates the `note.created` echo). _(2026-06-01: 3e reduced to a single channel — the originally-planned person-side `peopleUpdated` echo was confirmed not to exist; note creation fires only `notesCreated`. See `phase-3-plan.md` §3e changelog.)_
 > - **Revert dropped entirely.** `RetryPolicy.DEFAULT_FUB` already handles transient FUB failures; permanent failures accept drift until next webhook re-syncs. Plan.md §5's "restore prior snapshot" semantics are reversed. Removes a whole code path. Accepted cost: misleading echo on next webhook after a permanent failure (known issue #26).
@@ -355,10 +362,22 @@ Status: `NOT STARTED`
 
 This is the user-facing phase. Everything before it is plumbing.
 
+> **Cutover sequencing (load-bearing — verified 2026-06-02).** The `events` table is already populated and after-commit-dispatched on every webhook today; the dispatcher's listener list is empty (`InMemoryDomainEventDispatcher`). The instant Phase 4 registers a listener, it consumes the already-flowing events **regardless of `engine.write.emit-events`**. So the flag flip and the listener registration must be sequenced, not bundled:
+> 1. Register `WorkflowTriggerRouter` as a `DomainEventListener` **and** migrate `agent_followup_enforcement` to the new `{on, filter}` shape, with `engine.write.emit-events` still **OFF**. Verify on replay that the old workflow behaves and engine reassigns produce no event (pure echo-suppression — Phase 3 local-state-first).
+> 2. Flip `engine.write.emit-events` **ON**. Verify the engine's own (now annotated `source=ENGINE`) `person.state_changed` events are filtered out by the workflow's `change.source != 'ENGINE'` predicate — bad runs stay at 0, and engine writes are now *visible* as labeled events for any future consumer that wants them.
+> 3. Hard-cut the old webhook-shaped path (see exit criteria).
+>
+> `engine.write.emit-events` is a **platform-level config** (config-page toggle), not a temporary scaffold. Target state ON; it stays as an operational lever. It gates only the engine's *own* event emission — annotation of engine writes is always on irrespective of the flag.
+
 ### Deliverables
 - **New trigger schema** in workflow JSON: `{ "on": "<event_kind>", "filter": "<JSONata expression>" }`
 - **New `DomainEventTriggerType`** (`service/workflow/trigger/DomainEventTriggerType.java`) implementing `WorkflowTriggerType`, registered alongside the retiring `FubWebhookTriggerType`. Reads `config.on` (event kind) and `config.filter` (JSONata predicate). The two trigger types coexist only briefly — the hard cut deletes the webhook-shaped path at the end of Phase 4 (see exit criteria).
-- **Workflow JSON validator** updated: accepts the new `{on, filter}` shape on FUB triggers; rejects the old `peopleUpdated`-typed trigger with a clear migration error message; **warns (not refuses)** when a `person.state_changed` trigger filter does not reference `change.source` — the `excludeEngineEchoes` opt-in default (per `plan.md`) means a forgetful workflow author re-introduces issue #23 silently; the warning is the friction at the right moment. A workflow that genuinely wants to act on engine writes silences the warning by explicitly including `change.source = 'ENGINE'`.
+- **Workflow JSON validator — generalized per-event-kind field-reference check.** The silent-no-fire bug is universal: any filter reference to a path the subscribed event kind's payload does not carry makes the predicate never-true and the trigger silently never fires. The validator therefore checks every filter reference against the **declaring event kind's field set**, not against a `change.*`-specific allowlist:
+  - **Each event kind declares the fields its payload exposes.** Person kinds (`person.created`, `person.state_changed`) populate from the captured/diffable set — keyed off `PersonDiffComputer`'s actual field list (not a duplicated constant) so the schema can't drift from what is really diffed. Append kinds (`call.created`, `note.*`) get the registry seam but are marked **unvalidated-payload** (FUB-shaped, no declared schema, no consumer yet) — an explicit documented gap, not a silent one. Populate them when a consumer arrives.
+  - **Refuse at save-time:** `change.<field>` / `current.<field>` not in the person field set (clear "field not captured — trigger would never fire" message); the old `peopleUpdated`-typed trigger, with a migration hint.
+  - **Allowlist `change.source`** — it is the engine annotation, not a captured person field; the standard echo-exclusion predicate must validate.
+  - **Cheap cross-checks:** `change.*` is valid only when `on = person.state_changed`; `current.*` only when `on ∈ {person.created, person.state_changed}`.
+  - **Warn (not refuse)** when a `person.state_changed` trigger filter does not reference `change.source` — the `excludeEngineEchoes` opt-in default (per `plan.md`) means a forgetful author re-introduces issue #23 silently; the warning is the friction at the right moment. A workflow that genuinely wants to act on engine writes silences the warning by explicitly including `change.source = 'ENGINE'`.
 - **`WorkflowTriggerRouter` gains a `route(DomainEvent)` overload** registered as a `DomainEventListener` on `DomainEventDispatcher` (Spring auto-wires the constructor-injected listener list — see Phase 2 dispatcher defaults). The new method:
   - Receives a `DomainEvent`
   - Looks up workflows whose trigger type is `DomainEventTriggerType` AND whose `on` field matches `event.eventKind`
@@ -384,15 +403,19 @@ This is the user-facing phase. Everything before it is plumbing.
   - **Person 20235 (05-12 FUB burst)** — one event for the burst (Phase 2 collapse), one run created, one reassign. Bad runs = 0.
   - **Person 20207 (05-11 triple-run)** — first event creates run; echo run suppressed by no-event-emission (Phase 3); unknown peopleUpdated either filtered semantically or absorbed by Phase 5's run dedup.
 - Workflow JSON validation refuses old-shape triggers with a migration hint
+- Validation refuses a `change.<field>` / `current.<field>` reference to an uncaptured field (silent-no-fire guard); allows `change.source`; warns on a missing `change.source` predicate
 - All step expressions in the re-authored workflow resolve without error
+- Cutover sequencing verified: step 1 (listener on, flag OFF) and step 2 (flag ON) each replay clean, per the Cutover sequencing note above
 
 ### Exit criteria
 - `agent_followup_enforcement` running entirely on the new pipeline
 - Replay harness shows bad-run rate <5% on recorded field-obs traffic (residual = genuine multi-transition cases that supersede semantics would close)
 - Old trigger path code paths can be deleted (hard cut)
+- **Dispatch crash-window decision recorded.** With the first real consumer now live, the in-memory dispatcher's loss-on-crash window (event committed, process dies before the after-commit dispatch) is a live concern. Phase 4 **accepts the gap for dev phase** and adds one observability log/metric so a post-commit dispatch failure is visible rather than silent. The durable-outbox poller (a `dispatched` flag + crash-recovery job) is **not** built here — it is a separate tracked follow-up (`plan.md` Out-of-scope), cleanly additive when justified.
+- **Note-channel echo filtering deferred (not regressed).** `notesCreated` is not ingested, so no `note.created` event reaches a consumer; the note-annotation channel and a `note`-trigger validator schema are revisited when note ingestion is enabled (known-issue #27). No Phase 4 work — recorded here so the deferral is explicit.
 
 ### Repo decisions impact
-Probably `Yes` — the trigger schema is part of the workflow JSON contract; document the new shape in a repo-decision.
+Probably `Yes` — the trigger schema is part of the workflow JSON contract; document the new shape in a repo-decision. The `engine.write.emit-events` platform toggle is also a candidate to canonicalise once the config page exists (per `plan.md` linked-decisions).
 
 ---
 
