@@ -24,7 +24,7 @@
 Because events already flow, the listener and the flag must flip in order, never bundled:
 
 1. **4d** — register listener + migrate `agent_followup_enforcement`, `emit-events` **OFF**. Engine writes stay invisible (pure echo-suppression, proven in Phase 3). Replay-verify old workflow behaves.
-2. **4e** — flip `emit-events` **ON**. Engine's own `person.state_changed` events become visible, annotated `source=ENGINE` (surfaced in scope as `event.origin='ENGINE'`), and are filtered out by the workflow's `event.origin != 'ENGINE'`. Replay-verify bad-run-rate.
+2. **4e** — flip `emit-events` **ON**. Engine's own `person.state_changed` events become visible (annotated `source=ENGINE` → `event.origin='ENGINE'`), but the **platform engine-echo gate excludes them from every workflow by default** (two-level gate — see `plan.md` "Engine-echo exclusion"), so no per-workflow predicate is needed. Replay-verify bad-run-rate.
 3. **4e** — hard-cut the old webhook-shaped path.
 
 ---
@@ -54,7 +54,7 @@ Because events already flow, the listener and the flag must flip in order, never
 
 **Explicitly NOT in 4b → deferred to 4d:** `buildRunContext`/`ExpressionScope` step-time rewrite (single-mode), `webhook.*`, listener wiring / `route(DomainEvent)`, **Rail 1 deletion** (`FubWebhookTriggerType`, `TriggerMatchContext`, `WorkflowTriggerType`, `WorkflowTriggerRegistry`, `route(NormalizedWebhookEvent)` + its `process()` call). Validator → 4c.
 
-**Verification:** unit tests only — scope builder per-kind + `change`/`current`/`event.origin`; trigger filter matrix incl. the production filter (`person.kind='LEAD' AND change.assignedUserId.changed AND event.origin != 'ENGINE'`) — engine echo filtered, real assignment passes, kind-mismatch rejected, watched-field-unchanged rejected; **`event.origin` is always present (`ENGINE`/`EXTERNAL`)** so the `!= 'ENGINE'` predicate is never undefined in JSONata. No runtime path.
+**Verification:** unit tests only — scope builder per-kind + `change`/`current`/`event.origin`; trigger filter matrix — engine echo filtered, real assignment passes, kind-mismatch rejected, watched-field-unchanged rejected. (The test filter includes `event.origin != 'ENGINE'` to exercise the `event.origin` scope key — as an *opt-in* workflow would; the **default** production filter omits it, since engine-echo exclusion is platform-enforced.) **`event.origin` is always present (`ENGINE`/`EXTERNAL`)** so the `!= 'ENGINE'` predicate is never undefined in JSONata. No runtime path.
 **Exit:** new trigger + scope resolve correctly in isolation; full suite green (4b touched no live path; Rail 1 untouched). **✅ DONE — 12 tests, full suite 696 green.**
 
 ### 4c — Validator generalization
@@ -62,17 +62,17 @@ Because events already flow, the listener and the flag must flip in order, never
 **Deliverables**
 - Per-event-kind **field-schema registry**: each event kind declares the fields a filter may reference. Person kinds populate from `PersonDiffComputer`'s diffable list (keyed off the computer, not a duplicated constant — drift-proof). `call`/`note` get the seam but are marked **unvalidated-payload** (documented gap, no consumer).
 - Save-time **refusals**: `change.<field>`/`current.<field>` not in the person set (clear "field not captured — would never fire" message); old `webhook_fub`/`peopleUpdated`-typed trigger with a migration hint.
-- **`event.*` (incl. `event.origin`) is always-valid metadata** — no special-casing. (`change.source` is no longer special either: `source` is a captured person field, so `change.source` validates like any field delta — the engine-exclusion predicate now lives at `event.origin`.)
+- **`event.*` (incl. `event.origin`) is always-valid metadata** — no special-casing. (`change.source` is no longer special either: `source` is a captured person field, so `change.source` validates like any field delta.)
 - **Cross-checks**: `change.*` ⇒ `on = person.state_changed`; `current.*` ⇒ `on ∈ {person.created, person.state_changed}`.
-- **Warn (not refuse)** on a `person.state_changed` filter missing `event.origin` (the engine-echo exclusion predicate).
+- **Accept the optional `reactToEngineEvents` boolean** in the trigger config (validate type only). **No engine-echo warning** — exclusion is platform-enforced and safe-by-default (the two-level gate; `plan.md` "Engine-echo exclusion"), so there is no author predicate to forget. The whole warnings-channel question is moot.
 
-**Verification:** validator unit tests — uncaptured-field refusal, old-shape refusal, `event.origin` recognized, cross-check failures, missing-`event.origin` warning.
+**Verification:** validator unit tests — uncaptured-field refusal, old-shape refusal, `event.origin` recognized, cross-check failures, `reactToEngineEvents` accepted.
 **Exit:** save-time validation closes the silent-no-fire gap for person triggers; append kinds explicitly deferred.
 **Risk:** low — save-time only, no runtime path.
 
 ### 4d — The switch (wire + single-mode scope + delete Rail 1 + re-author)
 
-> **Restructured 2026-06-03 ("no Rail 1"):** dev-phase → no coexistence window, so 4d does the whole switch in one coordinated change and **4e is folded in** (no separate hard-cut phase). The "coexist + compare" and "flag-OFF staging" framing below is superseded — to be rewritten in full when we build 4d. Net: wire `route(DomainEvent)` as a listener; make `buildRunContext`/`ExpressionScope` single-mode domain-event; populate `domain_event_id`; **delete Rail 1** (`FubWebhookTriggerType`, `TriggerMatchContext`, `WorkflowTriggerType`, `WorkflowTriggerRegistry`, `route(NormalizedWebhookEvent)` + its `process()` call); re-author `agent_followup_enforcement`; decide the `emit-events` default. Replay-verify bad-run-rate.
+> **Restructured 2026-06-03 ("no Rail 1"):** dev-phase → no coexistence window, so 4d does the whole switch in one coordinated change and **4e is folded in** (no separate hard-cut phase). The "coexist + compare" and "flag-OFF staging" framing below is superseded — to be rewritten in full when we build 4d. Net: wire `route(DomainEvent)` as a listener; **enforce the engine-echo gate** (skip `event.origin='ENGINE'` events unless global capability ON **and** the workflow's `reactToEngineEvents` is true — `plan.md` "Engine-echo exclusion"); make `buildRunContext`/`ExpressionScope` single-mode domain-event; populate `domain_event_id`; **delete Rail 1** (`FubWebhookTriggerType`, `TriggerMatchContext`, `WorkflowTriggerType`, `WorkflowTriggerRegistry`, `route(NormalizedWebhookEvent)` + its `process()` call); re-author `agent_followup_enforcement`; decide the `emit-events` default. Replay-verify bad-run-rate.
 
 **Deliverables (superseded — see note above; kept for reference until the 4d rewrite)**
 - `WorkflowTriggerRouter.route(DomainEvent)` registered as a `DomainEventListener` (Spring auto-wires the constructor-injected list). Looks up `domain_event`-typed ACTIVE workflows whose `on` matches `event.eventKind`, evaluates filters, calls `WorkflowExecutionManager.plan` populating **both** `domain_event_id` and the proximate `webhook_event_id`.
@@ -86,7 +86,7 @@ Because events already flow, the listener and the flag must flip in order, never
 ### 4e — Re-author, flip flag, hard cut (cutover steps 2–3)
 
 **Deliverables**
-- Re-author `agent_followup_enforcement` trigger → `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND event.origin != 'ENGINE'" }`. Migrate any step expression using `event.payload.*` → `webhook.payload.*`.
+- Re-author `agent_followup_enforcement` trigger → `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed" }` — no echo-exclusion predicate (platform-enforced; this workflow leaves `reactToEngineEvents` unset → engine echoes excluded). Migrate any step expression using `event.payload.*` → `webhook.payload.*`.
 - Flip `engine.write.emit-events` **ON**; verify annotated engine events are filtered out.
 - **Hard cut:** delete `route(NormalizedWebhookEvent)`, `FubWebhookTriggerType`, and the `WebhookEventProcessorService:114` call. ~2 new classes (4b/4d) + 2 deletions.
 

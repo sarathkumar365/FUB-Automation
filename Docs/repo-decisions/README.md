@@ -12,6 +12,7 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-002-event-catalog-state-and-routing-model.md` — Status: Accepted
 - `RD-003-lead-identity-mapping-boundary.md` — Status: Accepted
 - `RD-004-admin-auth-uses-jwt-bearer.md` — Status: Accepted
+- `RD-006-engine-echo-exclusion-safe-by-default.md` — Status: Accepted (enforcement in domain-events Phase 4d)
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`

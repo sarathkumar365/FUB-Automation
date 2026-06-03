@@ -164,7 +164,7 @@ Replaces the existing `peopleUpdated`-typed trigger. Hard cut — one workflow e
 {
   "trigger": {
     "on": "person.state_changed",
-    "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND event.origin != 'ENGINE'"
+    "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed"
   }
 }
 ```
@@ -284,15 +284,24 @@ CREATE UNIQUE INDEX uk_workflow_runs_active_per_person
 
 </details>
 
-## Engine-echo exclusion default
+## Engine-echo exclusion — safe-by-default, two-level gated (revised 2026-06-03)
 
-`event.origin` carries engine-write provenance (`"ENGINE"` when the diff matched a recent engine-write tracker record, else `"EXTERNAL"` — always present). The `event.origin != 'ENGINE'` predicate is **opt-in per workflow**: workflow authors must include it (or set a workflow-level `excludeEngineEchoes` toggle once the config page exists). Default is opt-in. (It reads the top-level `source` annotation but is exposed as `event.origin`, not `change.source`, to avoid colliding with the diffable `source` person field.)
+> Supersedes the earlier **opt-in** design (authors had to add `event.origin != 'ENGINE'` themselves; we'd warn if they forgot). That carried a real risk — a forgetful author silently reintroduces #23. The model below makes the safe behaviour the **default the platform enforces**, so it can't be forgotten.
 
-This is a deliberate platform choice for flexibility. It carries a real risk: a workflow author who forgets the predicate reintroduces #23 silently. Mitigation at the platform level:
+Engine-caused events (`event.origin = 'ENGINE'`, from the Phase 3 annotation) are **excluded from every workflow by default.** A workflow reacts to them only when **both** gates are open:
 
-- Document the predicate as the standard pattern for any workflow that does FUB writes
-- Surface the toggle prominently in the future workflow-creation UI
-- Revisit the default if/when a second workflow shows the opt-in pattern is error-prone
+1. **Global capability ON** — a platform-level switch (entitlement/"license" style: *is this system allowed to let workflows consume engine events at all?*). **Default OFF.** Today a config flag (single-tenant, dev); shaped to become a per-tenant entitlement later.
+2. **Per-workflow opt-in** — `reactToEngineEvents: true` in the workflow's trigger config. **Default OFF.**
+
+> `reacts-to-engine-event = globalCapability AND workflow.reactToEngineEvents`. External events are unaffected — they always evaluate normally; this gate only suppresses engine-caused events.
+
+**Enforced by the platform at trigger evaluation** (Phase 4d) — it reads `event.origin` and skips engine-caused events for workflows that haven't opted in (with the capability on). Authors do **not** write an echo-exclusion predicate; the standard filter is just the change/state predicate (e.g. `person.kind = 'LEAD' AND change.assignedUserId.changed`). `event.origin` stays available in scope so an opt-in workflow can still discriminate (e.g. react *only* to engine events with `event.origin = 'ENGINE'`).
+
+**Distinct from `engine.write.emit-events`:** that flag controls whether the engine *emits* its own events (so they're recorded/visible); this gate controls whether workflows *consume* them. The intended posture is emit **ON** (audit trail) + consumption-gate **OFF** (nobody reacts) — not redundant.
+
+**Debuggability:** when the platform skips an engine-caused event for a non-opted-in workflow, log it (`skipped engine-caused event workflowKey=… reactToEngineEvents=false`) so "why didn't my workflow fire?" is traceable rather than silent.
+
+This is a platform-behaviour decision, recorded as [`RD-006`](../../repo-decisions/RD-006-engine-echo-exclusion-safe-by-default.md) (engine-echo exclusion — safe-by-default, two-level gated).
 
 ## Workflow-creation-time validation
 
@@ -350,7 +359,7 @@ Per phase (see [phases.md](phases.md)) but at the feature level:
 ## Linked decisions
 
 - This plan does not require a new entry in `Docs/repo-decisions/`. The state-observation framing is a feature-level architectural choice limited to the workflow-trigger pipeline; it does not cross-cut other subsystems. If the model proves out and we want to canonicalise "state-observation as engine policy," promote to `repo-decisions/` then.
-- The `excludeEngineEchoes` opt-in default is a platform behaviour choice worth promoting to `repo-decisions/` once the config page exists, so future workflow authors have a referenceable rationale.
+- The engine-echo exclusion model (safe-by-default, two-level gated — global capability + per-workflow `reactToEngineEvents`) is recorded as [`RD-006`](../../repo-decisions/RD-006-engine-echo-exclusion-safe-by-default.md).
 
 ## Cross-references
 
