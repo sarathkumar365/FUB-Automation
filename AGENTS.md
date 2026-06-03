@@ -273,3 +273,7 @@ This section exists because of a real incident (2026-04-21, `ai_call` Phase 3 wo
 - For every code change, run the previously existing test suite in addition to the new test(s).
 - A change is considered acceptable only if overall test success is greater than 85%.
 - If test execution is blocked (environment, credentials, infra), clearly report the blocker and do not claim validation as complete.
+
+## Comment minimally
+— only where a comment earns its place. Add a comment only when it explains something the code cannot say itself: a non-obvious "why", a subtle constraint, a gotcha. Do    not add comments that restate what the code already says, narrate each field/step, or summarize a change (that belongs in the commit message / plan doc). Match — don't exceed — the surrounding file's existing comment density. When unsure, leave it out.
+
