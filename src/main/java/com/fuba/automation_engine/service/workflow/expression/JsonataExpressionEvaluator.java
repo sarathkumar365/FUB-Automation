@@ -50,6 +50,19 @@ public class JsonataExpressionEvaluator implements ExpressionEvaluator {
         return evaluateExpression(expression, scope);
     }
 
+    @Override
+    public boolean isValidExpression(String expression) {
+        if (expression == null || expression.isBlank()) {
+            return false;
+        }
+        try {
+            Jsonata.jsonata(expression); // compile only — surfaces syntax errors
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
+    }
+
     private Object evaluateExpression(String expression, ExpressionScope scope) {
         try {
             Jsonata jsonata = Jsonata.jsonata(expression);

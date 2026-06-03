@@ -16,4 +16,11 @@ public interface ExpressionEvaluator {
      * Used by branch_on_field and other expression-driven steps.
      */
     Object evaluatePredicate(String expression, ExpressionScope scope);
+
+    /**
+     * True if the expression compiles as valid syntax (does not evaluate it).
+     * Used by save-time validation to reject malformed trigger filters before
+     * they degrade silently to null at runtime (known-issue #10).
+     */
+    boolean isValidExpression(String expression);
 }

@@ -28,6 +28,20 @@ public class PersonDiffComputer {
             "assignedUserId", "assignedTo", "assignedPondId", "assignedLenderId",
             "claimed", "contacted");
 
+    private static final List<String> ARRAY_FIELDS = List.of("tags", "phones", "emails");
+
+    private static final Set<String> DIFFABLE_FIELDS;
+
+    static {
+        Set<String> all = new HashSet<>(SCALAR_FIELDS);
+        all.addAll(ARRAY_FIELDS);
+        DIFFABLE_FIELDS = Set.copyOf(all);
+    }
+
+    public static Set<String> diffableFieldNames() {
+        return DIFFABLE_FIELDS;
+    }
+
     private final ObjectMapper objectMapper;
 
     public PersonDiffComputer(ObjectMapper objectMapper) {
