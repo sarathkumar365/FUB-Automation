@@ -46,7 +46,7 @@ The unified abstraction is `events` (or `domain_events`) — a single table with
 | **I1** | Local `persons` state authoritatively mirrors FUB for fields any workflow references | Webhook-driven upsert (existing — without the historical `isFubLeadPerson` filter; **all persons** are captured, workflows filter lead-only behaviour by `person.kind = "LEAD"`); workflow-creation-time validation that every field referenced in trigger filter / step expressions is captured |
 | **I2** | A domain event is emitted iff something meaningful happened (state diff, or append) | Diff at upsert for state entities (`person.created` on first insert, `person.state_changed` on subsequent diff); pass-through for append entities (`call.created`, `note.created`, `note.updated`, `note.deleted`) |
 | **I3** | Engine-originated writes do not produce phantom events | Local-state-first writes (update local before FUB call); `EngineWriteTracker` cache as race-window guard |
-| **I4** | At most one active run per `(workflow_key, source_person_id)` | Partial unique index, hard suppression; supersede semantics deferred |
+| **I4** | At most one active run per `(workflow_key, source_person_id)` | Cancel-on-collision — cancel the in-flight run when a newer event arrives (Phase 5, cancel-only); supersede + freshness deferred (known-issue #29) |
 | **I5** | Every run knows the proximate webhook AND the logical domain event that caused it | Populate both `workflow_runs.webhook_event_id` and a new `workflow_runs.domain_event_id` |
 
 ## End-to-end lifecycle
@@ -310,8 +310,8 @@ These are deliberately deferred, not forgotten. Each will land as its own change
 
 | Deferred item | Why deferred |
 |---|---|
-| **Supersede semantics for same-workflow multi-transition** (Option B from deliberation) — when a second `person.state_changed` event arrives for a person with an active run, terminate the active run and start a fresh one | Hard-suppress is the placeholder; supersede needs run-termination machinery that's a separate effort. No observed incident requires it today. |
-| **Action-step freshness gate** (re-read assignedUserId immediately before reassigning) | Only justified by the supersede case, which is deferred. We trust local state for the single-transition case. |
+| **Supersede semantics for same-workflow multi-transition** (Option B from deliberation) — when a second `person.state_changed` event arrives for a person with an active run, terminate the active run and start a fresh one | **Cancel-only is the shipped placeholder** (Phase 5: cancel the in-flight run, start no replacement — known-issue #29). Supersede needs run-restart + freshness machinery, a separate effort. No observed incident requires it today. |
+| **Action-step freshness gate** (re-read assignedUserId immediately before reassigning) | Only justified by the supersede case, which is deferred (known-issue #29). We trust local state for the single-transition case. |
 | **5-min lookback buffer narrowing** | Once Phase 4 lands and over-fires stop reaching `wait_and_check_communication`, the buffer's "absorb agent over-fire" job disappears. Should be narrowed back to its true purpose (calls-before-claim race). Trivial to do; deferred to a follow-up that touches the step's config. |
 | **FUB-to-local reconciliation / catch-up** | If FUB stops sending webhooks the engine has no recovery path. Whole system already relies on FUB to keep sending; not regressing. Out of scope; address if/when observed. |
 | **Stale-assignment guard** (person 19255 case — prior real conversation outside buffer window) | Product concern, not engine bug. Workflow author should add a `person.lastCallAt` predicate; engine should expose the data. |

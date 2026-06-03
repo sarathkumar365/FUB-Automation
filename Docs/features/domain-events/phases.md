@@ -463,11 +463,11 @@ Status: `NOT STARTED`
 | Pre-Phase-2 → 2 | Phase 2 hardens vocabulary (`events.event_kind = 'person.state_changed'`, validator `change.*`). Renaming after Phase 2 would require a data migration of the `events` table. |
 | 2 → 3 | Local-state-first writes need the diff layer in place to annotate `source = ENGINE` |
 | **3 → 4** | **Critical**: if 4 ships before 3, re-authored workflows trip on their own echoes during the deployment window |
-| 4 → 5 | Run uniqueness only matters once workflows actually subscribe to events |
+| 4 → 5 | Run-collision handling only matters once workflows actually subscribe to events |
 
 ## Non-goals across all phases
 
-- No supersede / cancel-on-new-event behaviour (deferred — see plan.md "Out of scope")
+- Phase 5 ships **cancel-on-collision only** (cancel the in-flight run on a newer event, no replacement). Supersede/restart + the freshness gate are deferred — see known-issue #29 and plan.md "Out of scope"
 - No reconciliation / catch-up for missed webhooks
 - No drain protocol at deploy time (dev phase)
 - No retention policy enforcement on `events` or `previous_state`

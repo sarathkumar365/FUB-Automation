@@ -38,8 +38,9 @@ The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is 
 | 24 | No suppression of duplicate workflow runs for the same `(workflow_key, source_person_id)` | High | Open |
 | 25 | `workflow_runs.webhook_event_id` FK is never populated | Medium | Open |
 | 26 | Misleading echo event after permanent FUB failure (Phase 3 trade-off) | Low | Open (accepted) |
-| 27 | Tracker annotation needs Phase 4 verification for note channels | Medium | Open (verification deferred to Phase 4) |
+| 27 | Note annotation channel dormant until `notesCreated` is ingested | Low | Deferred (revisit when note ingestion is enabled) |
 | 28 | Early-echo race on engine note creation | Low | Open (documented, no fix planned) |
+| 29 | Run-collision handling is cancel-only — newer change goes unenforced | Low | Open (accepted trade-off; revisit on data) |
 
 ---
 

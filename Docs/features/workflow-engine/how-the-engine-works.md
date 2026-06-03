@@ -1,5 +1,9 @@
 # How the Workflow Engine Works — A Walkthrough
 
+> **⚠️ Status (2026-06-03).** Accurate for the **execution machinery** (claiming, delays, branching, retries, scope), but two things have moved since it was written:
+> - **Naming:** predates the `Lead`→`Person` rename — read `lead`/`sourceLeadId` as `person`/`sourcePersonId` (the code is renamed; the snapshot lives under `person.*`).
+> - **Trigger model:** the webhook-shaped trigger described here (`fub_webhook` → `WorkflowTriggerRouter.route(webhook)`) is **"Rail 1"**, being migrated to **domain-event triggers** in Phase 4 — workflows will subscribe to typed events (`person.state_changed`, …), not raw webhooks. For the current/target architecture and the migration, see [`../domain-events/overview.md`](../domain-events/overview.md) and [`../domain-events/current-wiring.md`](../domain-events/current-wiring.md).
+
 **Audience:** You, a stakeholder, or any engineer new to this codebase who needs the whole picture in one sitting before touching the engine.
 **Approach:** One realistic example traced end-to-end, from the moment a webhook hits the server to the moment the last step completes. Every mechanism (claiming, delays, branching, retries) is explained against the same example, with file paths and line numbers so you can jump to the code.
 

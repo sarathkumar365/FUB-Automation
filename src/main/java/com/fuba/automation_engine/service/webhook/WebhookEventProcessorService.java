@@ -103,6 +103,12 @@ public class WebhookEventProcessorService {
                 domain,
                 event.normalizedAction(),
                 event.sourceEventType());
+        // Source-specific ingestion boundary: normalizes FUB webhooks into
+        // source-agnostic domain events (emitted by the handlers below). A second
+        // CRM would arrive as a sibling adapter emitting the same events, not a
+        // change here — deferred until a real second source exists; the domain-event
+        // model + events.source_system are the seam that keeps that cheap. See
+        // Docs/features/domain-events/current-wiring.md "Extensibility: a second source".
         switch (domain) {
             case CALL -> processCallDomainEvent(event);
             case PERSON -> processPersonDomainEvent(event);

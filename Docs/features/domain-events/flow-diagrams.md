@@ -1,5 +1,11 @@
 # Webhook → Workflow flow: today vs. after domain-events
 
+> **⚠️ Superseded (2026-06-03) — historical record.** This was an early, **pre-rename** sketch (uses `Lead` naming, predates Phase 2–4). For the current, accurate picture use:
+> - [`overview.md`](./overview.md) — the plain-language feature map (the *why*)
+> - [`current-wiring.md`](./current-wiring.md) — the as-built pipeline today (the *how-it-runs*)
+>
+> Kept for history; do not treat its diagrams as current.
+
 Two visualisations of the webhook-arrival-to-workflow-run pipeline. Open this file in any Mermaid-capable viewer (VS Code with the Markdown Preview Mermaid Support extension, IntelliJ's markdown preview, or GitHub).
 
 ---
