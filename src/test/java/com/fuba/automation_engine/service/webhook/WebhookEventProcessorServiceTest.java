@@ -16,7 +16,6 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.call.CallUpsertService;
 import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.model.CallDetails;
-import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
@@ -48,7 +47,6 @@ class WebhookEventProcessorServiceTest {
     private CallPreValidationService callPreValidationService;
     private CallDecisionEngine callDecisionEngine;
     private CallbackTaskCommandFactory callbackTaskCommandFactory;
-    private WorkflowTriggerRouter workflowTriggerRouter;
     private Environment environment;
     private PersonUpsertService personUpsertService;
     private CallUpsertService callUpsertService;
@@ -62,7 +60,6 @@ class WebhookEventProcessorServiceTest {
         callPreValidationService = mock(CallPreValidationService.class);
         callDecisionEngine = mock(CallDecisionEngine.class);
         callbackTaskCommandFactory = mock(CallbackTaskCommandFactory.class);
-        workflowTriggerRouter = mock(WorkflowTriggerRouter.class);
         environment = mock(Environment.class);
         personUpsertService = mock(PersonUpsertService.class);
         callUpsertService = mock(CallUpsertService.class);
@@ -75,8 +72,6 @@ class WebhookEventProcessorServiceTest {
 
         CallOutcomeRulesProperties callOutcomeRulesProperties = new CallOutcomeRulesProperties();
         callOutcomeRulesProperties.setDevTestUserId(0L);
-        when(workflowTriggerRouter.route(any(NormalizedWebhookEvent.class)))
-                .thenReturn(new WorkflowTriggerRouter.RoutingSummary(0, 0, 0, 0, 0, 0, 0));
 
         service = new WebhookEventProcessorService(
                 processedCallRepository,
@@ -87,7 +82,6 @@ class WebhookEventProcessorServiceTest {
                 retryProperties,
                 callOutcomeRulesProperties,
                 environment,
-                workflowTriggerRouter,
                 personUpsertService,
                 callUpsertService,
                 noteEmissionService);
@@ -116,7 +110,6 @@ class WebhookEventProcessorServiceTest {
         verify(processedCallRepository).findByCallId(123L);
         verify(processedCallRepository, never()).findByCallId(999L);
         verify(processedCallRepository, atLeastOnce()).save(any(ProcessedCallEntity.class));
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -166,7 +159,6 @@ class WebhookEventProcessorServiceTest {
         verify(processedCallRepository, never()).save(any());
         verify(followUpBossClient, never()).getCallById(anyLong());
         verify(followUpBossClient, never()).createTask(any());
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -189,7 +181,6 @@ class WebhookEventProcessorServiceTest {
         verify(personUpsertService).upsertFubPerson(eq("778"), any(JsonNode.class), eq(null));
         verify(personUpsertService).upsertFubPerson(eq("779"), any(JsonNode.class), eq(null));
         verify(processedCallRepository, never()).findByCallId(any());
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -205,7 +196,6 @@ class WebhookEventProcessorServiceTest {
         Assertions.assertDoesNotThrow(() -> service.process(event));
 
         verify(personUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class), any());
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -226,7 +216,6 @@ class WebhookEventProcessorServiceTest {
 
         verify(followUpBossClient).getPersonRawById(991L);
         verify(personUpsertService).upsertFubPerson(eq("991"), any(JsonNode.class), eq(null));
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -238,8 +227,6 @@ class WebhookEventProcessorServiceTest {
                 payloadWithoutResourceIds("peopleUpdated"));
 
         service.process(event);
-
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -256,7 +243,6 @@ class WebhookEventProcessorServiceTest {
         verify(processedCallRepository, never()).save(any());
         verify(followUpBossClient, never()).getCallById(anyLong());
         verify(followUpBossClient, never()).createTask(any());
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test
@@ -267,11 +253,7 @@ class WebhookEventProcessorServiceTest {
                 NormalizedAction.CREATED,
                 payload("peopleCreated", 888L));
 
-        when(workflowTriggerRouter.route(any(NormalizedWebhookEvent.class)))
-                .thenThrow(new RuntimeException("router failure"));
-
         Assertions.assertDoesNotThrow(() -> service.process(event));
-        verify(workflowTriggerRouter).route(event);
     }
 
     @Test

@@ -11,10 +11,10 @@
         }
     ],
     "expected": {
-        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1.",
+        "notes": "Recorded from dev DB. Pre-Phase-4 the single peopleCreated webhook spawned 0 runs (old trigger matched UPDATED only). Post-Phase-4 the harness workflow triggers on person.created, so the creation now yields exactly 1 run.",
         "minWebhookEvents": 1,
         "minWorkflowRunsForPerson": {
-            "20231": 0
+            "20231": 1
         },
         "expectedCreatedEventsForPerson": {
             "20231": 1

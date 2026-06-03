@@ -24,13 +24,8 @@ import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
-import com.fuba.automation_engine.service.webhook.WebhookEventProcessorService;
-import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
-import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
-import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
-import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
-import com.fuba.automation_engine.service.webhook.model.WebhookSource;
-import com.fuba.automation_engine.service.workflow.trigger.FubWebhookTriggerType;
+import com.fuba.automation_engine.service.event.DomainEvent;
+import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.sun.net.httpserver.HttpServer;
 import java.io.IOException;
 import java.io.OutputStream;
@@ -108,7 +103,7 @@ class WorkflowTriggerEndToEndTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private WebhookEventProcessorService webhookEventProcessorService;
+    private WorkflowTriggerRouter workflowTriggerRouter;
 
     @Autowired
     private WorkflowRunRepository workflowRunRepository;
@@ -167,11 +162,11 @@ class WorkflowTriggerEndToEndTest {
                 workflowGraph(slackEndpoint, false));
         slackResponsePlan.set(List.of(200));
 
-        webhookEventProcessorService.process(webhook("evt-w3-e2e-1", "zillow", 777L));
+        workflowTriggerRouter.route(domainEvent("zillow", 777L));
 
         WorkflowRunEntity run = singleWorkflowRun();
         assertEquals("777", run.getSourcePersonId());
-        assertNull(run.getWebhookEventId(), "Router-planned webhookEventId must stay null in Wave 3");
+        assertNull(run.getWebhookEventId(), "webhookEventId is null when the domain event has no source webhook");
 
         executeUntilRunTerminal(run.getId(), Duration.ofSeconds(5));
 
@@ -194,9 +189,9 @@ class WorkflowTriggerEndToEndTest {
         seedActiveWorkflow("WF_WAVE3_E2E_NON_MATCH", triggerConfig("PERSON", "UPDATED", "event.payload.channel = \"zillow\""),
                 workflowGraph(slackEndpoint, false));
 
-        webhookEventProcessorService.process(webhook("evt-w3-e2e-2", "manual", 888L));
+        workflowTriggerRouter.route(domainEvent("manual", 888L));
 
-        assertEquals(0, workflowRunRepository.count(), "Non-matching webhook must not plan workflow run");
+        assertEquals(0, workflowRunRepository.count(), "Non-matching event must not plan workflow run");
         assertEquals(0, workflowRunStepRepository.count(), "No workflow run steps should be materialized");
     }
 
@@ -206,7 +201,7 @@ class WorkflowTriggerEndToEndTest {
                 workflowGraph(slackEndpoint, true));
         slackResponsePlan.set(List.of(503, 200));
 
-        webhookEventProcessorService.process(webhook("evt-w3-e2e-3", "zillow", 999L));
+        workflowTriggerRouter.route(domainEvent("zillow", 999L));
 
         WorkflowRunEntity run = singleWorkflowRun();
         executeUntilRunTerminal(run.getId(), Duration.ofSeconds(5));
@@ -264,16 +259,13 @@ class WorkflowTriggerEndToEndTest {
         entity.setKey(key);
         entity.setName("Workflow " + key);
         entity.setStatus(WorkflowStatus.ACTIVE);
-        entity.setTrigger(Map.of("type", FubWebhookTriggerType.TRIGGER_TYPE_ID, "config", triggerConfig));
+        entity.setTrigger(triggerConfig);
         entity.setGraph(graph);
         automationWorkflowRepository.saveAndFlush(entity);
     }
 
     private Map<String, Object> triggerConfig(String eventDomain, String eventAction, String filter) {
-        if (filter == null || filter.isBlank()) {
-            return Map.of("eventDomain", eventDomain, "eventAction", eventAction);
-        }
-        return Map.of("eventDomain", eventDomain, "eventAction", eventAction, "filter", filter);
+        return Map.of("on", "person.state_changed", "filter", filter);
     }
 
     private Map<String, Object> workflowGraph(String webhookUrl, boolean withRetryOverride) {
@@ -311,27 +303,12 @@ class WorkflowTriggerEndToEndTest {
                                         "FAILED", Map.of("terminal", "ACTION_FAILED")))));
     }
 
-    private NormalizedWebhookEvent webhook(String eventId, String channel, long leadId) {
+    private DomainEvent domainEvent(String channel, long leadId) {
         ObjectNode payload = objectMapper.createObjectNode();
-        payload.put("eventType", "peopleUpdated");
         payload.put("channel", channel);
-        payload.put("fallbackUserId", 77);
-        payload.putArray("resourceIds").add(leadId);
-
-        return new NormalizedWebhookEvent(
-                WebhookSource.FUB,
-                eventId,
-                "peopleUpdated",
-                null,
-                null,
-                NormalizedDomain.PERSON,
-                NormalizedAction.UPDATED,
-                null,
-                WebhookEventStatus.RECEIVED,
-                payload,
-                OffsetDateTime.now(testClock),
-                "hash-" + eventId,
-                null);
+        // id null → run.domainEventId null (no events row to FK against in this test);
+        // dedup falls back to workflowKey + source + sourcePersonId, unique per test.
+        return new DomainEvent(null, "person.state_changed", "FUB", null, "person", String.valueOf(leadId), payload);
     }
 
     private void startSlackServer() throws IOException {

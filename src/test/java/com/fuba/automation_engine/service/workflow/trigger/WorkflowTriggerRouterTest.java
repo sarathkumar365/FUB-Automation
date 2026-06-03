@@ -6,15 +6,11 @@ import com.fuba.automation_engine.config.WorkflowTriggerRouterProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
-import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
-import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
-import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
-import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
-import com.fuba.automation_engine.service.webhook.model.WebhookSource;
+import com.fuba.automation_engine.service.event.DomainEvent;
+import com.fuba.automation_engine.service.event.EngineEchoGate;
 import com.fuba.automation_engine.service.workflow.WorkflowExecutionManager;
 import com.fuba.automation_engine.service.workflow.WorkflowPlanRequest;
 import com.fuba.automation_engine.service.workflow.WorkflowPlanningResult;
-import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -30,16 +26,16 @@ import static org.mockito.Mockito.when;
 class WorkflowTriggerRouterTest {
 
     private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final String KIND = "person.state_changed";
 
     @Test
     void shouldApplyDeterministicFanoutCap() {
         AutomationWorkflowRepository repository = mock(AutomationWorkflowRepository.class);
         WorkflowExecutionManager executionManager = mock(WorkflowExecutionManager.class);
-        WorkflowTriggerType triggerType = mock(WorkflowTriggerType.class);
+        DomainEventTriggerType triggerType = mock(DomainEventTriggerType.class);
 
-        when(triggerType.id()).thenReturn("test_trigger");
-        when(triggerType.matches(any(TriggerMatchContext.class))).thenReturn(true);
-        when(triggerType.extractEntities(any(TriggerMatchContext.class)))
+        when(triggerType.matches(any(DomainEvent.class), any())).thenReturn(true);
+        when(triggerType.extractEntities(any(DomainEvent.class)))
                 .thenReturn(List.of(
                         new EntityRef("person", "1"),
                         new EntityRef("person", "2"),
@@ -48,21 +44,16 @@ class WorkflowTriggerRouterTest {
         when(executionManager.plan(any(WorkflowPlanRequest.class)))
                 .thenReturn(new WorkflowPlanningResult(WorkflowPlanningResult.PlanningStatus.PLANNED, 1L, null));
 
-        AutomationWorkflowEntity laterId = workflow(20L, "WF_LATER", WorkflowStatus.ACTIVE, "test_trigger", Map.of());
-        AutomationWorkflowEntity earlierId = workflow(10L, "WF_EARLY", WorkflowStatus.ACTIVE, "test_trigger", Map.of());
-        when(repository.findByStatus(WorkflowStatus.ACTIVE)).thenReturn(List.of(laterId, earlierId));
+        AutomationWorkflowEntity later = workflow(20L, "WF_LATER", Map.of("on", KIND));
+        AutomationWorkflowEntity earlier = workflow(10L, "WF_EARLY", Map.of("on", KIND));
+        when(repository.findByStatus(WorkflowStatus.ACTIVE)).thenReturn(List.of(later, earlier));
 
         WorkflowTriggerRouterProperties properties = new WorkflowTriggerRouterProperties();
         properties.setMaxFanoutPerEvent(3);
 
-        WorkflowTriggerRouter router = new WorkflowTriggerRouter(
-                repository,
-                new WorkflowTriggerRegistry(List.of(triggerType)),
-                executionManager,
-                properties,
-                OBJECT_MAPPER);
+        WorkflowTriggerRouter router = router(repository, triggerType, new EngineEchoGate(false), executionManager, properties);
 
-        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payloadWithIds(100, 200)));
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(KIND, false));
 
         assertEquals(2, summary.activeWorkflowCount());
         assertEquals(2, summary.matchedWorkflowCount());
@@ -74,7 +65,6 @@ class WorkflowTriggerRouterTest {
         ArgumentCaptor<WorkflowPlanRequest> requestCaptor = ArgumentCaptor.forClass(WorkflowPlanRequest.class);
         verify(executionManager, times(3)).plan(requestCaptor.capture());
         List<WorkflowPlanRequest> requests = requestCaptor.getAllValues();
-
         assertEquals("WF_EARLY", requests.get(0).workflowKey());
         assertEquals("1", requests.get(0).sourcePersonId());
         assertEquals("WF_EARLY", requests.get(1).workflowKey());
@@ -84,26 +74,19 @@ class WorkflowTriggerRouterTest {
     }
 
     @Test
-    void shouldSkipUnknownAndNullTriggers() {
+    void shouldSkipTriggersWithoutMatchingOn() {
         AutomationWorkflowRepository repository = mock(AutomationWorkflowRepository.class);
         WorkflowExecutionManager executionManager = mock(WorkflowExecutionManager.class);
-        WorkflowTriggerType triggerType = mock(WorkflowTriggerType.class);
+        DomainEventTriggerType triggerType = mock(DomainEventTriggerType.class);
 
-        when(triggerType.id()).thenReturn("known");
+        AutomationWorkflowEntity nullTrigger = workflow(1L, "WF_NULL", null);
+        AutomationWorkflowEntity otherKind = workflow(2L, "WF_OTHER", Map.of("on", "person.created"));
+        when(repository.findByStatus(WorkflowStatus.ACTIVE)).thenReturn(List.of(nullTrigger, otherKind));
 
-        AutomationWorkflowEntity nullTrigger = workflow(1L, "WF_NULL", WorkflowStatus.ACTIVE, null, null);
-        nullTrigger.setTrigger(null);
-        AutomationWorkflowEntity unknownTrigger = workflow(2L, "WF_UNKNOWN", WorkflowStatus.ACTIVE, "unknown", Map.of());
-        when(repository.findByStatus(WorkflowStatus.ACTIVE)).thenReturn(List.of(nullTrigger, unknownTrigger));
+        WorkflowTriggerRouter router = router(repository, triggerType, new EngineEchoGate(false),
+                executionManager, new WorkflowTriggerRouterProperties());
 
-        WorkflowTriggerRouter router = new WorkflowTriggerRouter(
-                repository,
-                new WorkflowTriggerRegistry(List.of(triggerType)),
-                executionManager,
-                new WorkflowTriggerRouterProperties(),
-                OBJECT_MAPPER);
-
-        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payloadWithIds(10)));
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(KIND, false));
 
         assertEquals(2, summary.activeWorkflowCount());
         assertEquals(0, summary.matchedWorkflowCount());
@@ -112,46 +95,53 @@ class WorkflowTriggerRouterTest {
         verify(executionManager, times(0)).plan(any(WorkflowPlanRequest.class));
     }
 
-    private AutomationWorkflowEntity workflow(
-            long id,
-            String key,
-            WorkflowStatus status,
-            String triggerType,
-            Map<String, Object> triggerConfig) {
+    @Test
+    void shouldSkipEngineEchoWhenGateClosed() {
+        AutomationWorkflowRepository repository = mock(AutomationWorkflowRepository.class);
+        WorkflowExecutionManager executionManager = mock(WorkflowExecutionManager.class);
+        DomainEventTriggerType triggerType = mock(DomainEventTriggerType.class);
+        when(triggerType.matches(any(DomainEvent.class), any())).thenReturn(true);
+        when(triggerType.extractEntities(any(DomainEvent.class))).thenReturn(List.of(new EntityRef("person", "1")));
+
+        AutomationWorkflowEntity wf = workflow(1L, "WF", Map.of("on", KIND));
+        when(repository.findByStatus(WorkflowStatus.ACTIVE)).thenReturn(List.of(wf));
+
+        WorkflowTriggerRouter router = router(repository, triggerType, new EngineEchoGate(false),
+                executionManager, new WorkflowTriggerRouterProperties());
+
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(KIND, true)); // engine-caused, gate closed
+
+        assertEquals(0, summary.matchedWorkflowCount());
+        assertEquals(1, summary.skippedCount());
+        verify(executionManager, times(0)).plan(any(WorkflowPlanRequest.class));
+    }
+
+    private WorkflowTriggerRouter router(
+            AutomationWorkflowRepository repository,
+            DomainEventTriggerType triggerType,
+            EngineEchoGate gate,
+            WorkflowExecutionManager executionManager,
+            WorkflowTriggerRouterProperties properties) {
+        return new WorkflowTriggerRouter(repository, triggerType, gate, executionManager, properties, OBJECT_MAPPER);
+    }
+
+    private AutomationWorkflowEntity workflow(long id, String key, Map<String, Object> trigger) {
         AutomationWorkflowEntity entity = new AutomationWorkflowEntity();
         entity.setId(id);
         entity.setKey(key);
-        entity.setStatus(status);
-        if (triggerType != null) {
-            entity.setTrigger(Map.of("type", triggerType, "config", triggerConfig != null ? triggerConfig : Map.of()));
+        entity.setStatus(WorkflowStatus.ACTIVE);
+        if (trigger != null) {
+            entity.setTrigger(trigger);
         }
         return entity;
     }
 
-    private NormalizedWebhookEvent event(ObjectNode payload) {
-        return new NormalizedWebhookEvent(
-                WebhookSource.FUB,
-                "evt-router-unit",
-                "peopleUpdated",
-                null,
-                null,
-                NormalizedDomain.PERSON,
-                NormalizedAction.UPDATED,
-                null,
-                WebhookEventStatus.RECEIVED,
-                payload,
-                OffsetDateTime.now(),
-                "hash-router-unit",
-                null);
-    }
-
-    private ObjectNode payloadWithIds(long... ids) {
+    private DomainEvent event(String kind, boolean engineCaused) {
         ObjectNode payload = OBJECT_MAPPER.createObjectNode();
-        payload.put("eventType", "peopleUpdated");
-        var array = payload.putArray("resourceIds");
-        for (long id : ids) {
-            array.add(id);
+        payload.set("changed_fields", OBJECT_MAPPER.valueToTree(List.of("assignedUserId")));
+        if (engineCaused) {
+            payload.put("source", "ENGINE");
         }
-        return payload;
+        return new DomainEvent(1L, kind, "FUB", 7L, "person", "1", payload);
     }
 }

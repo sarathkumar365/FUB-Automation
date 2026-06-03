@@ -8,16 +8,9 @@ import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
-import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
-import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
-import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
-import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
-import com.fuba.automation_engine.service.webhook.model.WebhookSource;
-import java.time.OffsetDateTime;
+import com.fuba.automation_engine.service.event.DomainEvent;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -75,27 +68,23 @@ class WorkflowTriggerRouterIntegrationTest {
     }
 
     @Test
-    void shouldCreateRunsForMatchingWorkflow() {
-        seedWorkflow("WF_PERSON", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
+    void shouldCreateRunForMatchingWorkflow() {
+        seedWorkflow("WF_PERSON", WorkflowStatus.ACTIVE, trigger(null));
 
-        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payload("peopleUpdated", "zillow", 777, 778)));
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event("zillow", 777));
 
         assertEquals(1, summary.activeWorkflowCount());
         assertEquals(1, summary.matchedWorkflowCount());
-        assertEquals(2, summary.plannedCount());
-        assertEquals(2, runRepository.count());
-
-        Set<String> personIds = runRepository.findAll().stream()
-                .map(WorkflowRunEntity::getSourcePersonId)
-                .collect(Collectors.toSet());
-        assertEquals(Set.of("777", "778"), personIds);
+        assertEquals(1, summary.plannedCount());
+        assertEquals(1, runRepository.count());
+        assertEquals("777", runRepository.findAll().getFirst().getSourcePersonId());
     }
 
     @Test
     void shouldNotCreateRunWhenFilterDoesNotMatch() {
-        seedWorkflow("WF_FILTERED", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", "event.payload.channel = \"zillow\""));
+        seedWorkflow("WF_FILTERED", WorkflowStatus.ACTIVE, trigger("event.payload.channel = \"zillow\""));
 
-        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payload("peopleUpdated", "manual", 777)));
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event("manual", 777));
 
         assertEquals(1, summary.activeWorkflowCount());
         assertEquals(0, summary.matchedWorkflowCount());
@@ -104,26 +93,26 @@ class WorkflowTriggerRouterIntegrationTest {
     }
 
     @Test
-    void shouldPlanAcrossMultipleWorkflowsAndEntities() {
-        seedWorkflow("WF_A", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
-        seedWorkflow("WF_B", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
+    void shouldPlanAcrossMultipleMatchingWorkflows() {
+        seedWorkflow("WF_A", WorkflowStatus.ACTIVE, trigger(null));
+        seedWorkflow("WF_B", WorkflowStatus.ACTIVE, trigger(null));
 
-        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payload("peopleUpdated", "zillow", 900, 901)));
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event("zillow", 900));
 
         assertEquals(2, summary.activeWorkflowCount());
         assertEquals(2, summary.matchedWorkflowCount());
-        assertEquals(4, summary.plannedCount());
-        assertEquals(4, runRepository.count());
+        assertEquals(2, summary.plannedCount());
+        assertEquals(2, runRepository.count());
     }
 
     @Test
-    void shouldSkipInactiveUnknownAndNullTriggers() {
-        seedWorkflow("WF_ACTIVE", WorkflowStatus.ACTIVE, triggerConfig("PERSON", "UPDATED", null));
-        seedWorkflow("WF_INACTIVE", WorkflowStatus.INACTIVE, triggerConfig("PERSON", "UPDATED", null));
-        seedWorkflowWithRawTrigger("WF_UNKNOWN", WorkflowStatus.ACTIVE, Map.of("type", "unknown", "config", Map.of()));
+    void shouldSkipInactiveWrongKindAndNullTriggers() {
+        seedWorkflow("WF_ACTIVE", WorkflowStatus.ACTIVE, trigger(null));
+        seedWorkflow("WF_INACTIVE", WorkflowStatus.INACTIVE, trigger(null));
+        seedWorkflowWithRawTrigger("WF_OTHER_KIND", WorkflowStatus.ACTIVE, Map.of("on", "person.created"));
         seedWorkflowWithRawTrigger("WF_NULL_TRIGGER", WorkflowStatus.ACTIVE, null);
 
-        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(payload("peopleUpdated", "zillow", 123)));
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event("zillow", 123));
 
         assertEquals(3, summary.activeWorkflowCount());
         assertEquals(1, summary.matchedWorkflowCount());
@@ -132,8 +121,8 @@ class WorkflowTriggerRouterIntegrationTest {
         assertEquals(1, runRepository.count());
     }
 
-    private void seedWorkflow(String key, WorkflowStatus status, Map<String, Object> triggerConfig) {
-        seedWorkflowWithRawTrigger(key, status, Map.of("type", FubWebhookTriggerType.TRIGGER_TYPE_ID, "config", triggerConfig));
+    private void seedWorkflow(String key, WorkflowStatus status, Map<String, Object> trigger) {
+        seedWorkflowWithRawTrigger(key, status, trigger);
     }
 
     private void seedWorkflowWithRawTrigger(String key, WorkflowStatus status, Map<String, Object> trigger) {
@@ -158,43 +147,18 @@ class WorkflowTriggerRouterIntegrationTest {
                                 "transitions", Map.of("DONE", Map.of("terminal", "COMPLETED")))));
     }
 
-    private Map<String, Object> triggerConfig(String domain, String action, String filter) {
+    private Map<String, Object> trigger(String filter) {
         if (filter == null) {
-            return Map.of(
-                    "eventDomain", domain,
-                    "eventAction", action);
+            return Map.of("on", "person.state_changed");
         }
-        return Map.of(
-                "eventDomain", domain,
-                "eventAction", action,
-                "filter", filter);
+        return Map.of("on", "person.state_changed", "filter", filter);
     }
 
-    private NormalizedWebhookEvent event(ObjectNode payload) {
-        return new NormalizedWebhookEvent(
-                WebhookSource.FUB,
-                "evt-router-integration",
-                payload.path("eventType").asText(""),
-                null,
-                null,
-                NormalizedDomain.PERSON,
-                NormalizedAction.UPDATED,
-                null,
-                WebhookEventStatus.RECEIVED,
-                payload,
-                OffsetDateTime.now(),
-                "hash-router-integration",
-                null);
-    }
-
-    private ObjectNode payload(String eventType, String channel, long... resourceIds) {
+    /** id null → run.domainEventId null (no events row to FK against); dedup falls back to key+source+person. */
+    private DomainEvent event(String channel, long entityId) {
         ObjectNode payload = objectMapper.createObjectNode();
-        payload.put("eventType", eventType);
         payload.put("channel", channel);
-        var ids = payload.putArray("resourceIds");
-        for (long resourceId : resourceIds) {
-            ids.add(resourceId);
-        }
-        return payload;
+        payload.set("changed_fields", objectMapper.valueToTree(List.of("assignedUserId")));
+        return new DomainEvent(null, "person.state_changed", "FUB", null, "person", String.valueOf(entityId), payload);
     }
 }

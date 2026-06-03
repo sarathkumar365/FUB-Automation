@@ -304,11 +304,7 @@ class ReplayHarnessTest {
         entity.setKey(TEST_WORKFLOW_KEY);
         entity.setName("Replay Harness Test Workflow");
         entity.setStatus(WorkflowStatus.ACTIVE);
-        entity.setTrigger(Map.of(
-                "type", "webhook_fub",
-                "config", Map.of(
-                        "eventDomain", "PERSON",
-                        "eventAction", "UPDATED")));
+        entity.setTrigger(Map.of("on", "person.created"));
         entity.setGraph(Map.of(
                 "schemaVersion", 1,
                 "entryNode", "noop",

@@ -22,7 +22,6 @@ import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.model.CallDetails;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
-import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
 import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
 import com.fuba.automation_engine.service.webhook.parse.WebhookPayloadExtractors;
@@ -62,7 +61,6 @@ public class WebhookEventProcessorService {
     private final FubRetryProperties fubRetryProperties;
     private final CallOutcomeRulesProperties callOutcomeRulesProperties;
     private final Environment environment;
-    private final WorkflowTriggerRouter workflowTriggerRouter;
     private final PersonUpsertService personUpsertService;
     private final CallUpsertService callUpsertService;
     private final NoteEmissionService noteEmissionService;
@@ -76,7 +74,6 @@ public class WebhookEventProcessorService {
             FubRetryProperties fubRetryProperties,
             CallOutcomeRulesProperties callOutcomeRulesProperties,
             Environment environment,
-            WorkflowTriggerRouter workflowTriggerRouter,
             PersonUpsertService personUpsertService,
             CallUpsertService callUpsertService,
             NoteEmissionService noteEmissionService) {
@@ -88,7 +85,6 @@ public class WebhookEventProcessorService {
         this.fubRetryProperties = fubRetryProperties;
         this.callOutcomeRulesProperties = callOutcomeRulesProperties;
         this.environment = environment;
-        this.workflowTriggerRouter = workflowTriggerRouter;
         this.personUpsertService = personUpsertService;
         this.callUpsertService = callUpsertService;
         this.noteEmissionService = noteEmissionService;
@@ -104,37 +100,15 @@ public class WebhookEventProcessorService {
                 event.normalizedAction(),
                 event.sourceEventType());
         // Source-specific ingestion boundary: normalizes FUB webhooks into
-        // source-agnostic domain events (emitted by the handlers below). A second
-        // CRM would arrive as a sibling adapter emitting the same events, not a
-        // change here — deferred until a real second source exists; the domain-event
-        // model + events.source_system are the seam that keeps that cheap. See
-        // Docs/features/domain-events/current-wiring.md "Extensibility: a second source".
+        // source-agnostic domain events. Workflows consume those events via the
+        // DomainEventDispatcher (WorkflowTriggerRouter is a listener) — there is no
+        // direct routing call here. A second CRM would be a sibling adapter emitting
+        // the same events; see Docs/features/domain-events/current-wiring.md.
         switch (domain) {
             case CALL -> processCallDomainEvent(event);
             case PERSON -> processPersonDomainEvent(event);
             case NOTE -> noteEmissionService.emit(event);
             case UNKNOWN -> processUnknownDomainEvent(event);
-        }
-
-        try {
-            WorkflowTriggerRouter.RoutingSummary summary = workflowTriggerRouter.route(event);
-            log.info(
-                    "Workflow trigger routing completed eventId={} source={} activeWorkflowCount={} matchedWorkflowCount={} candidatePlanCount={} plannedCount={} failedCount={} skippedCount={} cappedCount={}",
-                    event.eventId(),
-                    event.sourceSystem(),
-                    summary.activeWorkflowCount(),
-                    summary.matchedWorkflowCount(),
-                    summary.candidatePlanCount(),
-                    summary.plannedCount(),
-                    summary.failedCount(),
-                    summary.skippedCount(),
-                    summary.cappedCount());
-        } catch (RuntimeException ex) {
-            log.error(
-                    "Workflow trigger routing failed but webhook processing will continue eventId={} source={}",
-                    event.eventId(),
-                    event.sourceSystem(),
-                    ex);
         }
     }
 

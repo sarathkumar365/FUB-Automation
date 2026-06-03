@@ -35,10 +35,10 @@
         }
     ],
     "expected": {
-        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1.",
+        "notes": "Recorded from dev DB; documented worst-case parallel-runs incident. Pre-Phase-4 this 4-webhook burst spawned 3 parallel runs. Post-Phase-4 the harness workflow triggers on person.created, so the burst collapses to exactly 1 run.",
         "minWebhookEvents": 4,
         "minWorkflowRunsForPerson": {
-            "20235": 3
+            "20235": 1
         },
         "expectedCreatedEventsForPerson": {
             "20235": 1

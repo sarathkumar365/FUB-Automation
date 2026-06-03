@@ -30,6 +30,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 @Service
@@ -64,7 +65,11 @@ public class WorkflowExecutionManager {
         this.clock = clock;
     }
 
-    @Transactional
+    // REQUIRES_NEW: the sole caller (WorkflowTriggerRouter) runs in the domain-event
+    // after-commit hook, where the just-committed transaction is still bound. A plain
+    // REQUIRED would join that completing transaction and saveAndFlush would fail with
+    // "No active transaction"; a fresh transaction is the run's own unit of work.
+    @Transactional(propagation = Propagation.REQUIRES_NEW)
     public WorkflowPlanningResult plan(WorkflowPlanRequest request) {
         if (request == null) {
             return new WorkflowPlanningResult(WorkflowPlanningResult.PlanningStatus.FAILED, null, "NULL_REQUEST");
@@ -115,6 +120,7 @@ public class WorkflowExecutionManager {
         run.setSource(request.source() != null ? request.source() : "UNKNOWN");
         run.setEventId(request.eventId());
         run.setWebhookEventId(request.webhookEventId());
+        run.setDomainEventId(request.domainEventId());
         run.setSourcePersonId(request.sourcePersonId());
         run.setStatus(WorkflowRunStatus.PENDING);
         run.setIdempotencyKey(idempotencyKey);

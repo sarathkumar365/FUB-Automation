@@ -27,10 +27,10 @@
         }
     ],
     "expected": {
-        "notes": "Recorded from dev DB. minWorkflowRunsForPerson documents BAD behavior under current engine (one run per peopleUpdated webhook). After Phase 2 (diff collapse) this should drop; after Phase 5 (run dedup) it is hard-capped at 1. expectedCreatedEventsForPerson=1: first event is peopleUpdated, row doesn't exist, INSERT recovery emits person.created. Subsequent peopleCreated + peopleUpdated see existing row with identical snapshot → empty diff → no events.",
+        "notes": "Recorded from dev DB. Pre-Phase-4 this burst spawned 2 runs (one per peopleUpdated webhook). Post-Phase-4 the harness workflow triggers on person.created, so the burst collapses to exactly 1 run. expectedCreatedEventsForPerson=1: first event is peopleUpdated, row doesn't exist, INSERT recovery emits person.created. Subsequent peopleCreated + peopleUpdated see existing row with identical snapshot → empty diff → no events.",
         "minWebhookEvents": 3,
         "minWorkflowRunsForPerson": {
-            "20123": 2
+            "20123": 1
         },
         "expectedCreatedEventsForPerson": {
             "20123": 1

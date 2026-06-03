@@ -5,7 +5,6 @@ import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
 import com.fuba.automation_engine.service.support.KeyNormalizationHelper;
 import com.fuba.automation_engine.service.workflow.trigger.DomainEventTriggerValidator;
-import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRegistry;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -25,19 +24,16 @@ public class AutomationWorkflowService {
     private final AutomationWorkflowRepository workflowRepository;
     private final WorkflowGraphValidator graphValidator;
     private final WorkflowStepRegistry stepRegistry;
-    private final WorkflowTriggerRegistry triggerRegistry;
     private final DomainEventTriggerValidator domainEventTriggerValidator;
 
     public AutomationWorkflowService(
             AutomationWorkflowRepository workflowRepository,
             WorkflowGraphValidator graphValidator,
             WorkflowStepRegistry stepRegistry,
-            WorkflowTriggerRegistry triggerRegistry,
             DomainEventTriggerValidator domainEventTriggerValidator) {
         this.workflowRepository = workflowRepository;
         this.graphValidator = graphValidator;
         this.stepRegistry = stepRegistry;
-        this.triggerRegistry = triggerRegistry;
         this.domainEventTriggerValidator = domainEventTriggerValidator;
     }
 
@@ -287,13 +283,7 @@ public class AutomationWorkflowService {
         } else if (trigger.get("on") != null) {
             errors.addAll(domainEventTriggerValidator.validate(trigger));
         } else {
-            Object triggerTypeObj = trigger.get("type");
-            String triggerType = triggerTypeObj instanceof String s ? s.trim() : null;
-            if (triggerType == null || triggerType.isEmpty()) {
-                errors.add("trigger.type or trigger.on is required");
-            } else if (triggerRegistry.get(triggerType).isEmpty()) {
-                errors.add("Unknown trigger type: " + triggerType);
-            }
+            errors.add("trigger.on is required (domain-event trigger: { on, filter })");
         }
 
         Object nodesObj = graph != null ? graph.get("nodes") : null;
@@ -350,21 +340,11 @@ public class AutomationWorkflowService {
         if (trigger == null) {
             return null;
         }
-        // Domain-event trigger ({on, filter}) — validated by DomainEventTriggerValidator.
-        if (trigger.get("on") != null) {
-            List<String> errors = domainEventTriggerValidator.validate(trigger);
-            return errors.isEmpty() ? null : String.join("; ", errors);
+        if (trigger.get("on") == null) {
+            return "trigger.on is required (domain-event trigger: { on, filter })";
         }
-        // Legacy webhook trigger ({type}) — still valid until Rail 1 is deleted in Phase 4d.
-        Object triggerTypeObj = trigger.get("type");
-        String triggerType = triggerTypeObj instanceof String s ? s.trim() : null;
-        if (triggerType == null || triggerType.isEmpty()) {
-            return "trigger.type or trigger.on is required";
-        }
-        if (triggerRegistry.get(triggerType).isEmpty()) {
-            return "Unknown trigger type: " + triggerType;
-        }
-        return null;
+        List<String> errors = domainEventTriggerValidator.validate(trigger);
+        return errors.isEmpty() ? null : String.join("; ", errors);
     }
 
     private record ParsedStatusFilter(boolean valid, WorkflowStatus status) {

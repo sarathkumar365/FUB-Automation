@@ -4,11 +4,8 @@
   "description": "If an assigned agent doesn't call within 3 minutes, post an @mention note to nudge them. If still no call by 30 minutes, reassign to ISA during business hours, or move the lead to the unorganic POND off-hours.",
   "status": "ACTIVE",
   "trigger": {
-    "type": "webhook_fub",
-    "config": {
-      "eventDomain": "PERSON",
-      "eventAction": "UPDATED"
-    }
+    "on": "person.state_changed",
+    "filter": "person.kind = 'LEAD' and change.assignedUserId.changed"
   },
   "graph": {
     "schemaVersion": 1,

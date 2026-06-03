@@ -49,11 +49,7 @@ class AdminWorkflowControllerTest {
                   "name": "Assignment Followup SLA",
                   "description": "Workflow for assignment follow-up",
                   "trigger": {
-                    "type": "webhook_fub",
-                    "config": {
-                      "eventDomain": "PERSON",
-                      "eventAction": "UPDATED"
-                    }
+                    "on": "person.state_changed"
                   },
                   "graph": {
                     "schemaVersion": 1,
@@ -78,7 +74,7 @@ class AdminWorkflowControllerTest {
                 .andExpect(jsonPath("$.id").exists())
                 .andExpect(jsonPath("$.key").value("LEAD_FOLLOWUP_SLA"))
                 .andExpect(jsonPath("$.name").value("Assignment Followup SLA"))
-                .andExpect(jsonPath("$.trigger.type").value("webhook_fub"))
+                .andExpect(jsonPath("$.trigger.on").value("person.state_changed"))
                 .andExpect(jsonPath("$.status").value("DRAFT"))
                 .andExpect(jsonPath("$.versionNumber").value(1));
     }
@@ -261,9 +257,7 @@ class AdminWorkflowControllerTest {
     @Test
     void shouldUpdateWorkflowTriggerWhenProvided() throws Exception {
         AutomationWorkflowEntity initial = saveWorkflow("WF_TRIGGER", 1, WorkflowStatus.INACTIVE, graphWithLabel("v1"));
-        initial.setTrigger(Map.of(
-                "type", "webhook_fub",
-                "config", Map.of("eventDomain", "PERSON", "eventAction", "UPDATED")));
+        initial.setTrigger(Map.of("on", "person.state_changed"));
         workflowRepository.saveAndFlush(initial);
 
         String requestJson = """
@@ -271,12 +265,8 @@ class AdminWorkflowControllerTest {
                   "name": "Workflow WF_TRIGGER v2",
                   "description": "updated trigger",
                   "trigger": {
-                    "type": "webhook_fub",
-                    "config": {
-                      "eventDomain": "PERSON",
-                      "eventAction": "UPDATED",
-                      "filter": "event.payload.channel = \\"zillow\\""
-                    }
+                    "on": "person.state_changed",
+                    "filter": "event.payload.channel = \\"zillow\\""
                   },
                   "graph": {
                     "schemaVersion": 1,
@@ -298,8 +288,8 @@ class AdminWorkflowControllerTest {
                         .content(requestJson))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.versionNumber").value(2))
-                .andExpect(jsonPath("$.trigger.type").value("webhook_fub"))
-                .andExpect(jsonPath("$.trigger.config.filter").value("event.payload.channel = \"zillow\""));
+                .andExpect(jsonPath("$.trigger.on").value("person.state_changed"))
+                .andExpect(jsonPath("$.trigger.filter").value("event.payload.channel = \"zillow\""));
     }
 
     @Test
@@ -413,11 +403,8 @@ class AdminWorkflowControllerTest {
     void shouldReturnTriggerTypeCatalog() throws Exception {
         mockMvc.perform(get("/admin/workflows/trigger-types"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.length()").value(greaterThan(0)))
-                .andExpect(jsonPath("$[*].id", hasItems("webhook_fub")))
-                .andExpect(jsonPath("$[*].displayName").exists())
-                .andExpect(jsonPath("$[*].description").exists())
-                .andExpect(jsonPath("$[*].configSchema").exists());
+                .andExpect(jsonPath("$.shape").exists())
+                .andExpect(jsonPath("$.eventKinds", hasItems("person.state_changed", "person.created")));
     }
 
     @Test
@@ -437,8 +424,7 @@ class AdminWorkflowControllerTest {
                     ]
                   },
                   "trigger": {
-                    "type": "webhook_fub",
-                    "config": {}
+                    "on": "person.state_changed"
                   }
                 }
                 """;
@@ -541,7 +527,7 @@ class AdminWorkflowControllerTest {
                         .content(requestJson))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid").value(false))
-                .andExpect(jsonPath("$.errors", hasItem("Unknown trigger type: unknown_trigger")));
+                .andExpect(jsonPath("$.errors", hasItem("trigger.on is required (domain-event trigger: { on, filter })")));
     }
 
     @Test

@@ -42,6 +42,7 @@ The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is 
 | 28 | Early-echo race on engine note creation | Low | Open (documented, no fix planned) |
 | 29 | Run-collision handling is cancel-only — newer change goes unenforced | Low | Open (accepted trade-off; revisit on data) |
 | 30 | Append-event trigger filters (`event.payload.*`) unvalidated at save-time | Low | Open (accepted; no consumer today) |
+| 31 | Rail 2 run planning ran in the after-commit hook without a live transaction | High | Resolved (2026-06-03, Phase 4d; caught by replay harness) |
 
 ---
 
@@ -334,3 +335,13 @@ No further action is needed. Active automation lives in the workflow engine; equ
 - **Why accepted:** no workflow subscribes to append/non-person events today. Declaring a FUB-payload field schema with zero consumers would be speculative (you'd guess the wrong fields); the right schema emerges when a real consumer defines what it needs.
 - **Revisit trigger:** when the first workflow subscribes to an append-event kind, declare that kind's field schema in the validator's per-event-kind registry (the seam already exists, marked "unvalidated-payload"). For `note` specifically this is bundled with note ingestion — see #27.
 - **Related:** [`phase-4-plan.md`](../features/domain-events/phase-4-plan.md) 4c, #27.
+
+## 31) Rail 2 run planning ran in the after-commit hook without a live transaction
+
+- **Status:** Resolved (2026-06-03, Phase 4d)
+- **Priority:** High — would have created **zero** workflow runs on Rail 2 in production
+- **Location:** `WorkflowExecutionManager.plan` ← `WorkflowTriggerRouter` ← `InMemoryDomainEventDispatcher` ← `DomainEventEmitter` after-commit hook
+- **Issue:** Domain events dispatch from `DomainEventEmitter`'s `TransactionSynchronization.afterCommit()` — by design, so the event row is durably committed before any listener acts. Under Rail 1 the trigger router ran *inside* the live webhook-processing transaction, so `plan()`'s `saveAndFlush` had an active transaction. Under Rail 2 (Phase 4) the router is a domain-event listener and runs in that after-commit callback, where Spring still reports the just-committed transaction as active (`isActualTransactionActive()` is `true` until cleanup). `plan()` was `@Transactional` (default `REQUIRED`), so it **joined the completing transaction** instead of starting a fresh one — and `saveAndFlush` against it threw `InvalidDataAccessApiUsageException: No active transaction`. The dispatcher caught and logged it per-listener, so emission and the rest of webhook processing succeeded silently while **no run was ever created**.
+- **Fix:** `plan()` → `@Transactional(propagation = REQUIRES_NEW)`. Its sole caller is the post-commit router, so the new transaction is the run's own unit of work; this also preserves the existing per-workflow isolation (each `plan()` already its own transaction, one bad workflow not rolling back siblings). Event durability is unaffected — the event is committed before dispatch, so a planning failure can only fail to act, never lose the event.
+- **How it was caught:** `ReplayHarnessTest` — replaying the five recorded incident bursts end-to-end through `/webhooks/fub` produced 0 runs where the migrated workflow expected 1, surfacing the after-commit transaction gap that no unit test reached.
+- **Related:** [`phase-4-plan.md`](../features/domain-events/phase-4-plan.md) 4d.

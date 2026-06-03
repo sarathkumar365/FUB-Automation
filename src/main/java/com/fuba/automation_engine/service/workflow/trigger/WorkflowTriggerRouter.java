@@ -7,7 +7,9 @@ import com.fuba.automation_engine.config.WorkflowTriggerRouterProperties;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
-import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
+import com.fuba.automation_engine.service.event.DomainEvent;
+import com.fuba.automation_engine.service.event.DomainEventListener;
+import com.fuba.automation_engine.service.event.EngineEchoGate;
 import com.fuba.automation_engine.service.workflow.WorkflowExecutionManager;
 import com.fuba.automation_engine.service.workflow.WorkflowPlanRequest;
 import com.fuba.automation_engine.service.workflow.WorkflowPlanningResult;
@@ -19,32 +21,47 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+/**
+ * Routes domain events to workflows. Registered as a {@link DomainEventListener},
+ * so it is invoked after the emitting transaction commits. For each
+ * ACTIVE workflow whose {@code trigger.on} matches the event kind, it applies
+ * the engine-echo gate, evaluates the filter, and plans a run per entity.
+ */
 @Service
-public class WorkflowTriggerRouter {
+public class WorkflowTriggerRouter implements DomainEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(WorkflowTriggerRouter.class);
+    private static final String TRIGGER_ON_KEY = "on";
 
     private final AutomationWorkflowRepository workflowRepository;
-    private final WorkflowTriggerRegistry triggerRegistry;
+    private final DomainEventTriggerType domainEventTriggerType;
+    private final EngineEchoGate engineEchoGate;
     private final WorkflowExecutionManager workflowExecutionManager;
     private final WorkflowTriggerRouterProperties properties;
     private final ObjectMapper objectMapper;
 
     public WorkflowTriggerRouter(
             AutomationWorkflowRepository workflowRepository,
-            WorkflowTriggerRegistry triggerRegistry,
+            DomainEventTriggerType domainEventTriggerType,
+            EngineEchoGate engineEchoGate,
             WorkflowExecutionManager workflowExecutionManager,
             WorkflowTriggerRouterProperties properties,
             ObjectMapper objectMapper) {
         this.workflowRepository = workflowRepository;
-        this.triggerRegistry = triggerRegistry;
+        this.domainEventTriggerType = domainEventTriggerType;
+        this.engineEchoGate = engineEchoGate;
         this.workflowExecutionManager = workflowExecutionManager;
         this.properties = properties;
         this.objectMapper = objectMapper;
     }
 
-    public RoutingSummary route(NormalizedWebhookEvent event) {
-        if (event == null) {
+    @Override
+    public void onEvent(DomainEvent event) {
+        route(event);
+    }
+
+    public RoutingSummary route(DomainEvent event) {
+        if (event == null || event.eventKind() == null) {
             return new RoutingSummary(0, 0, 0, 0, 0, 0, 0);
         }
 
@@ -53,8 +70,7 @@ public class WorkflowTriggerRouter {
                 .sorted(Comparator.comparing(AutomationWorkflowEntity::getId))
                 .toList();
 
-        Map<String, Object> payloadMap = toMap(event.payload());
-        String eventType = resolveEventType(event, payloadMap);
+        Map<String, Object> eventPayload = toMap(event.payload());
 
         int matchedWorkflows = 0;
         int skippedCount = 0;
@@ -62,69 +78,36 @@ public class WorkflowTriggerRouter {
 
         for (AutomationWorkflowEntity workflow : activeWorkflows) {
             Map<String, Object> trigger = workflow.getTrigger();
-            if (trigger == null || trigger.isEmpty()) {
+            if (trigger == null || trigger.get(TRIGGER_ON_KEY) == null) {
                 skippedCount++;
                 continue;
             }
-
-            String triggerTypeId = toStringOrNull(trigger.get("type"));
-            if (triggerTypeId == null || triggerTypeId.isBlank()) {
+            if (!String.valueOf(trigger.get(TRIGGER_ON_KEY)).trim().equals(event.eventKind())) {
                 skippedCount++;
                 continue;
             }
-
-            WorkflowTriggerType triggerType = triggerRegistry.get(triggerTypeId.trim()).orElse(null);
-            if (triggerType == null) {
+            if (engineEchoGate.shouldExclude(event, trigger)) {
                 skippedCount++;
-                log.warn("Workflow trigger type unknown; skipping workflowId={} triggerType={}", workflow.getId(), triggerTypeId);
+                log.info("Skipped engine-caused event workflowKey={} eventKind={} eventId={} reactToEngineEvents={}",
+                        workflow.getKey(), event.eventKind(), event.id(), trigger.get("reactToEngineEvents"));
                 continue;
             }
-
-            Map<String, Object> triggerConfig = toConfigMap(trigger.get("config"));
-            TriggerMatchContext context = new TriggerMatchContext(
-                    event.sourceSystem(),
-                    eventType,
-                    event.normalizedDomain(),
-                    event.normalizedAction(),
-                    payloadMap,
-                    triggerConfig);
 
             boolean matches;
             try {
-                matches = triggerType.matches(context);
+                matches = domainEventTriggerType.matches(event, trigger);
             } catch (RuntimeException ex) {
                 skippedCount++;
-                log.warn(
-                        "Workflow trigger match evaluation failed; skipping workflowId={} triggerType={} eventId={}",
-                        workflow.getId(),
-                        triggerTypeId,
-                        event.eventId(),
-                        ex);
+                log.warn("Domain-event trigger match failed workflowKey={} eventId={}", workflow.getKey(), event.id(), ex);
                 continue;
             }
-
             if (!matches) {
                 skippedCount++;
                 continue;
             }
 
             matchedWorkflows++;
-
-            List<EntityRef> entities;
-            try {
-                entities = triggerType.extractEntities(context);
-            } catch (RuntimeException ex) {
-                skippedCount++;
-                log.warn(
-                        "Workflow trigger entity extraction failed; skipping workflowId={} triggerType={} eventId={}",
-                        workflow.getId(),
-                        triggerTypeId,
-                        event.eventId(),
-                        ex);
-                continue;
-            }
-
-            for (EntityRef entity : entities) {
+            for (EntityRef entity : domainEventTriggerType.extractEntities(event)) {
                 targets.add(new PlannedTarget(workflow, entity));
             }
         }
@@ -135,27 +118,21 @@ public class WorkflowTriggerRouter {
         if (targets.size() > maxFanout) {
             cappedCount = targets.size() - maxFanout;
             targets = new ArrayList<>(targets.subList(0, maxFanout));
-            log.warn(
-                    "Workflow trigger routing capped eventId={} source={} candidatePlanCount={} maxFanout={} cappedCount={}",
-                    event.eventId(),
-                    event.sourceSystem(),
-                    candidatePlanCount,
-                    maxFanout,
-                    cappedCount);
+            log.warn("Domain-event routing capped eventId={} candidatePlanCount={} maxFanout={} cappedCount={}",
+                    event.id(), candidatePlanCount, maxFanout, cappedCount);
         }
 
         int plannedCount = 0;
         int failedCount = 0;
         for (PlannedTarget target : targets) {
-            // Pass normalized webhook payload through as triggerPayload. This payload currently
-            // carries event metadata, not enriched person/contact fields.
             WorkflowPlanRequest request = new WorkflowPlanRequest(
                     target.workflow().getKey(),
-                    event.sourceSystem() != null ? event.sourceSystem().name() : "UNKNOWN",
-                    event.eventId(),
-                    event.webhookEventId(),
+                    event.sourceSystem() != null ? event.sourceSystem() : "UNKNOWN",
+                    event.id() != null ? String.valueOf(event.id()) : null,
+                    event.sourceEventId(),
                     target.entity().entityId(),
-                    payloadMap);
+                    eventPayload,
+                    event.id());
             try {
                 WorkflowPlanningResult result = workflowExecutionManager.plan(request);
                 if (result.status() == WorkflowPlanningResult.PlanningStatus.FAILED) {
@@ -163,35 +140,19 @@ public class WorkflowTriggerRouter {
                 } else {
                     plannedCount++;
                 }
-                log.info(
-                        "Workflow trigger planned eventId={} workflowKey={} workflowId={} entityId={} planningStatus={} runId={} reasonCode={}",
-                        event.eventId(),
-                        target.workflow().getKey(),
-                        target.workflow().getId(),
-                        target.entity().entityId(),
-                        result.status(),
-                        result.runId(),
-                        result.reasonCode());
+                log.info("Domain-event planned eventId={} eventKind={} workflowKey={} entityId={} status={} runId={}",
+                        event.id(), event.eventKind(), target.workflow().getKey(),
+                        target.entity().entityId(), result.status(), result.runId());
             } catch (RuntimeException ex) {
                 failedCount++;
-                log.error(
-                        "Workflow trigger planning failed eventId={} workflowKey={} workflowId={} entityId={}",
-                        event.eventId(),
-                        target.workflow().getKey(),
-                        target.workflow().getId(),
-                        target.entity().entityId(),
-                        ex);
+                log.error("Domain-event planning failed eventId={} workflowKey={} entityId={}",
+                        event.id(), target.workflow().getKey(), target.entity().entityId(), ex);
             }
         }
 
         return new RoutingSummary(
-                activeWorkflows.size(),
-                matchedWorkflows,
-                candidatePlanCount,
-                plannedCount,
-                failedCount,
-                skippedCount,
-                cappedCount);
+                activeWorkflows.size(), matchedWorkflows, candidatePlanCount,
+                plannedCount, failedCount, skippedCount, cappedCount);
     }
 
     private Map<String, Object> toMap(JsonNode payload) {
@@ -203,35 +164,9 @@ public class WorkflowTriggerRouter {
             });
             return map != null ? map : Map.of();
         } catch (IllegalArgumentException ex) {
-            log.warn("Unable to convert webhook payload to map, using empty payload", ex);
+            log.warn("Unable to convert event payload to map, using empty payload", ex);
             return Map.of();
         }
-    }
-
-    @SuppressWarnings("unchecked")
-    private Map<String, Object> toConfigMap(Object value) {
-        if (value instanceof Map<?, ?> map) {
-            return (Map<String, Object>) map;
-        }
-        return Map.of();
-    }
-
-    private String toStringOrNull(Object value) {
-        if (value == null) {
-            return null;
-        }
-        return String.valueOf(value);
-    }
-
-    private String resolveEventType(NormalizedWebhookEvent event, Map<String, Object> payloadMap) {
-        if (event.sourceEventType() != null && !event.sourceEventType().isBlank()) {
-            return event.sourceEventType().trim();
-        }
-        Object payloadEventType = payloadMap.get("eventType");
-        if (payloadEventType == null) {
-            return "";
-        }
-        return String.valueOf(payloadEventType).trim();
     }
 
     private record PlannedTarget(

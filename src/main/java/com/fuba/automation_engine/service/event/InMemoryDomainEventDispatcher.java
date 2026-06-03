@@ -3,6 +3,7 @@ package com.fuba.automation_engine.service.event;
 import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Component;
 
 /**
@@ -32,7 +33,10 @@ public class InMemoryDomainEventDispatcher implements DomainEventDispatcher {
 
     private final List<DomainEventListener> listeners;
 
-    public InMemoryDomainEventDispatcher(List<DomainEventListener> listeners) {
+    // @Lazy: a listener (WorkflowTriggerRouter) transitively depends on the
+    // emitter (via step execution → EngineWriteCoordinator), so eager injection
+    // would cycle. Listeners aren't needed until dispatch, always after startup.
+    public InMemoryDomainEventDispatcher(@Lazy List<DomainEventListener> listeners) {
         this.listeners = listeners;
     }
 

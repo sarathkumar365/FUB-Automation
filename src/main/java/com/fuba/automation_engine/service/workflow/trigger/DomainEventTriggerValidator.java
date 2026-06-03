@@ -45,6 +45,11 @@ public class DomainEventTriggerValidator {
 
     private static final Set<String> CURRENT_KINDS = Set.of(PERSON_CREATED, PERSON_STATE_CHANGED);
 
+    /** Event kinds a workflow trigger may subscribe to (the {@code on} catalog). */
+    public static Set<String> knownEventKinds() {
+        return KNOWN_EVENT_KINDS;
+    }
+
     private static final Pattern CHANGE_REF = Pattern.compile("\\bchange\\.([a-zA-Z][a-zA-Z0-9_]*)");
     private static final Pattern CURRENT_REF = Pattern.compile("\\bcurrent\\.([a-zA-Z][a-zA-Z0-9_]*)");
     private static final Pattern PERSON_REF = Pattern.compile("\\bperson\\.([a-zA-Z][a-zA-Z0-9_]*)");

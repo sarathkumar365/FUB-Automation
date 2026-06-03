@@ -70,25 +70,25 @@ Because events already flow, the listener and the flag must flip in order, never
 **Exit:** save-time validation closes the silent-no-fire gap for person triggers; append kinds explicitly deferred.
 **Risk:** low — save-time only, no runtime path.
 
-### 4d — The switch (wire + single-mode scope + delete Rail 1 + re-author)
+### 4d — The switch
 
-> **Restructured 2026-06-03 ("no Rail 1"):** dev-phase → no coexistence window, so 4d does the whole switch in one coordinated change and **4e is folded in** (no separate hard-cut phase). The "coexist + compare" and "flag-OFF staging" framing below is superseded — to be rewritten in full when we build 4d. Net: wire `route(DomainEvent)` as a listener; **enforce the engine-echo gate** (skip `event.origin='ENGINE'` events unless global capability ON **and** the workflow's `reactToEngineEvents` is true — `plan.md` "Engine-echo exclusion"); make `buildRunContext`/`ExpressionScope` single-mode domain-event; populate `domain_event_id`; **delete Rail 1** (`FubWebhookTriggerType`, `TriggerMatchContext`, `WorkflowTriggerType`, `WorkflowTriggerRegistry`, `route(NormalizedWebhookEvent)` + its `process()` call); re-author `agent_followup_enforcement`; decide the `emit-events` default. Replay-verify bad-run-rate.
+> **Plan locked 2026-06-03.** Dev-phase → no Rail 1 coexistence, so the whole cutover is one coordinated step (the old "4e" is folded in — there is no separate hard-cut phase). Split into two commits so the risky part is isolated. Decisions: **(1)** freeze the domain-event payload + proximate webhook payload into the run at plan time (step-time is a pure mapper; only `person` re-resolved live); **(2)** repurpose `/trigger-types` to a domain-event-kinds + `{on,filter}` schema catalog; **(3)** flip `engine.write.emit-events` **ON** at the end (consumption gate keeps engine events harmless); **(4)** global-capability flag `engine.events.workflow-consumption.enabled` (default `false`).
 
-**Deliverables (superseded — see note above; kept for reference until the 4d rewrite)**
-- `WorkflowTriggerRouter.route(DomainEvent)` registered as a `DomainEventListener` (Spring auto-wires the constructor-injected list). Looks up `domain_event`-typed ACTIVE workflows whose `on` matches `event.eventKind`, evaluates filters, calls `WorkflowExecutionManager.plan` populating **both** `domain_event_id` and the proximate `webhook_event_id`.
-- Planner/manager populate `workflow_runs.domain_event_id`.
-- `engine.write.emit-events` stays **OFF**.
+#### 4d.1 — Additive prep (behavior unchanged, reviewable)
+- `WorkflowPlanRequest` += `domainEventId`; `WorkflowExecutionManager.plan` sets `run.domainEventId` (null for current callers → no change).
+- **`EngineEchoGate`** — config flag `engine.events.workflow-consumption.enabled` (default false) + `shouldExclude(DomainEvent, triggerConfig)` = `event.origin == "ENGINE" AND NOT (globalCapability AND reactToEngineEvents)`. Built + unit-tested, **not yet wired**.
+- *Safe: nothing reads the new column / gate until 4d.2.* (The step-time scope rewrite incl. `webhook.*` is coupled to `buildRunContext` → done in 4d.2.)
 
-**Verification:** replay the three incidents (20123 echo cascade, 20235 FUB burst, 20207 triple-run) through the **new** listener; assert bad runs = 0 and engine reassigns produce no event (echo-suppression). Old webhook path still present, runs in parallel for comparison.
-**Exit:** new pipeline drives runs end-to-end with the flag off; `domain_event_id` populated on every new run.
-**Risk:** first live consumption. Mitigated by echo-suppression already proven in Phase 3 and by the flag staying off (engine writes invisible, so no annotated-event handling tested yet).
+#### 4d.2 — The atomic switch (one coherent commit)
+1. `WorkflowTriggerRouter implements DomainEventListener` → `onEvent` → `route(DomainEvent)`: select ACTIVE `{on}`-matching workflows, **apply `EngineEchoGate`** (skip + log engine echoes), evaluate filter, `plan(...)` with `domainEventId` + proximate `webhookEventId`.
+2. **Single-mode `buildRunContext`/`ExpressionScope`** — domain-event bag via `DomainEventScopeBuilder` (`event.*`, `change.*`, `current.*`, `event.origin`, `person.*` live, `webhook.*` from frozen payload, `now`/`steps`). Run freezes the domain-event payload + proximate webhook payload at plan time (decision 1).
+3. **Re-author** `Docs/features/agent-followup-enforcement/workflow.json` → `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed" }`; migrate step `event.payload.*` → `webhook.payload.*`.
+4. **Delete Rail 1:** `FubWebhookTriggerType`, `TriggerMatchContext`, `WorkflowTriggerType`, `WorkflowTriggerRegistry`, `route(NormalizedWebhookEvent)` + the `WebhookEventProcessorService.process()` call. Update `AutomationWorkflowService` (drop the webhook validation branch + `WorkflowTriggerRegistry` dep — all triggers are `{on,filter}`) and `AdminWorkflowController` (`/trigger-types` → domain-event-kinds catalog, decision 2).
+5. Flip `engine.write.emit-events` **ON** (decision 3).
+- **Biggest cost: test rewrite** — every run-execution / trigger test that created runs via the webhook path or asserted on the old router/trigger gets rewritten to the domain-event path. The 709-test suite is the guard.
 
-### 4e — Re-author, flip flag, hard cut (cutover steps 2–3)
-
-**Deliverables**
-- Re-author `agent_followup_enforcement` trigger → `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed" }` — no echo-exclusion predicate (platform-enforced; this workflow leaves `reactToEngineEvents` unset → engine echoes excluded). Migrate any step expression using `event.payload.*` → `webhook.payload.*`.
-- Flip `engine.write.emit-events` **ON**; verify annotated engine events are filtered out.
-- **Hard cut:** delete `route(NormalizedWebhookEvent)`, `FubWebhookTriggerType`, and the `WebhookEventProcessorService:114` call. ~2 new classes (4b/4d) + 2 deletions.
+**Verification:** replay 20123 / 20235 / 20207 through the listener → bad runs ≈ 0; engine echoes excluded by the gate (with `emit-events` ON); `agent_followup_enforcement` runs end-to-end on `{on,filter}`; `domain_event_id` populated; Rail 1 gone; full suite green.
+**Exit:** **Phase 4 complete** — workflows run on domain events; the bad-run-rate win is live.
 
 **Verification:** replay bad-run-rate <5% on recorded field-obs traffic; the re-authored workflow's expressions all resolve; old-shape triggers rejected at save.
 **Exit:** `agent_followup_enforcement` runs entirely on the new pipeline; old path deleted; crash-window decision recorded (accept gap + observability log); note channel deferred (#27).

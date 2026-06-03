@@ -38,8 +38,8 @@
   "expected": {
     "minWebhookEvents": 3,
     "minWorkflowRunsForPerson": {
-      "22222": 3
+      "22222": 1
     },
-    "notes": "Documents BAD behavior under current engine: three parallel runs for one logical edit pattern. After Phase 2 (diff collapse) this should drop to one run; after Phase 5 (run dedup) it is hard-capped at one. Update expectations as those phases land."
+    "notes": "Pre-Phase-4 these three peopleUpdated webhooks for one lead spawned three parallel runs. Post-Phase-4 the harness workflow triggers on person.created (the first webhook INSERT-recovers the row and emits it once), so the burst collapses to exactly 1 run."
   }
 }

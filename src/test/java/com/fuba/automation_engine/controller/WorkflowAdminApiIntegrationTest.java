@@ -21,13 +21,9 @@ import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.model.PersonDetails;
 import com.fuba.automation_engine.service.model.RegisterWebhookCommand;
 import com.fuba.automation_engine.service.model.RegisterWebhookResult;
-import com.fuba.automation_engine.service.webhook.WebhookEventProcessorService;
-import com.fuba.automation_engine.service.webhook.model.NormalizedAction;
-import com.fuba.automation_engine.service.webhook.model.NormalizedDomain;
-import com.fuba.automation_engine.service.webhook.model.NormalizedWebhookEvent;
-import com.fuba.automation_engine.service.webhook.model.WebhookEventStatus;
-import com.fuba.automation_engine.service.webhook.model.WebhookSource;
+import com.fuba.automation_engine.service.event.DomainEvent;
 import com.fuba.automation_engine.service.workflow.WorkflowStepExecutionService;
+import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRouter;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
@@ -111,7 +107,7 @@ class WorkflowAdminApiIntegrationTest {
     private ObjectMapper objectMapper;
 
     @Autowired
-    private WebhookEventProcessorService webhookEventProcessorService;
+    private WorkflowTriggerRouter workflowTriggerRouter;
 
     @Autowired
     private WorkflowRunStepClaimRepository workflowRunStepClaimRepository;
@@ -157,7 +153,7 @@ class WorkflowAdminApiIntegrationTest {
 
         mockMvc.perform(get("/admin/workflows/trigger-types"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$[*].id", hasItem("webhook_fub")));
+                .andExpect(jsonPath("$.eventKinds", hasItem("person.state_changed")));
 
         String validValidationRequest = """
                 {
@@ -174,11 +170,7 @@ class WorkflowAdminApiIntegrationTest {
                     ]
                   },
                   "trigger": {
-                    "type": "webhook_fub",
-                    "config": {
-                      "eventDomain": "PERSON",
-                      "eventAction": "UPDATED"
-                    }
+                    "on": "person.state_changed"
                   }
                 }
                 """;
@@ -203,11 +195,7 @@ class WorkflowAdminApiIntegrationTest {
                     ]
                   },
                   "trigger": {
-                    "type": "webhook_fub",
-                    "config": {
-                      "eventDomain": "PERSON",
-                      "eventAction": "UPDATED"
-                    }
+                    "on": "person.state_changed"
                   }
                 }
                 """;
@@ -224,12 +212,8 @@ class WorkflowAdminApiIntegrationTest {
                   "name": "E2E WF v1",
                   "description": "Wave 4a integration",
                   "trigger": {
-                    "type": "webhook_fub",
-                    "config": {
-                      "eventDomain": "PERSON",
-                      "eventAction": "UPDATED",
-                      "filter": "event.payload.channel = \\"zillow\\""
-                    }
+                    "on": "person.state_changed",
+                    "filter": "event.payload.channel = \\"zillow\\""
                   },
                   "graph": {
                     "schemaVersion": 1,
@@ -257,7 +241,7 @@ class WorkflowAdminApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        webhookEventProcessorService.process(webhook("evt-wave4a-1", "zillow", 777L));
+        workflowTriggerRouter.route(domainEvent("zillow", 777L));
         WorkflowRunEntity v1Run = latestRunForKey(workflowKey);
         JsonNode v1Snapshot = objectMapper.valueToTree(v1Run.getWorkflowGraphSnapshot());
 
@@ -307,7 +291,7 @@ class WorkflowAdminApiIntegrationTest {
                 .andExpect(jsonPath("$.workflowVersionNumber").value(1))
                 .andExpect(jsonPath("$.steps.length()").value(greaterThan(0)));
 
-        webhookEventProcessorService.process(webhook("evt-wave4a-2", "zillow", 778L));
+        workflowTriggerRouter.route(domainEvent("zillow", 778L));
         WorkflowRunEntity v2Run = latestRunForKey(workflowKey);
         executeUntilRunTerminal(v2Run.getId(), Duration.ofSeconds(5));
         WorkflowRunEntity v2Terminal = workflowRunRepository.findById(v2Run.getId()).orElseThrow();
@@ -334,7 +318,7 @@ class WorkflowAdminApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        webhookEventProcessorService.process(webhook("evt-wave4a-3", "zillow", 779L));
+        workflowTriggerRouter.route(domainEvent("zillow", 779L));
         WorkflowRunEntity v3Run = latestRunForKey(workflowKey);
         executeUntilRunTerminal(v3Run.getId(), Duration.ofSeconds(5));
         WorkflowRunEntity v3Terminal = workflowRunRepository.findById(v3Run.getId()).orElseThrow();
@@ -351,7 +335,7 @@ class WorkflowAdminApiIntegrationTest {
                 .andExpect(jsonPath("$.status").value("INACTIVE"));
 
         long runCountBefore = workflowRunRepository.count();
-        webhookEventProcessorService.process(webhook("evt-wave4a-4", "zillow", 780L));
+        workflowTriggerRouter.route(domainEvent("zillow", 780L));
         assertEquals(runCountBefore, workflowRunRepository.count());
 
         mockMvc.perform(delete("/admin/workflows/" + workflowKey))
@@ -373,12 +357,8 @@ class WorkflowAdminApiIntegrationTest {
                   "name": "Cancel WF",
                   "description": "Wave 4c cancel smoke",
                   "trigger": {
-                    "type": "webhook_fub",
-                    "config": {
-                      "eventDomain": "PERSON",
-                      "eventAction": "UPDATED",
-                      "filter": "event.payload.channel = \\"zillow\\""
-                    }
+                    "on": "person.state_changed",
+                    "filter": "event.payload.channel = \\"zillow\\""
                   },
                   "graph": {
                     "schemaVersion": 1,
@@ -405,7 +385,7 @@ class WorkflowAdminApiIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.status").value("ACTIVE"));
 
-        webhookEventProcessorService.process(webhook("evt-wave4c-cancel", "zillow", 880L));
+        workflowTriggerRouter.route(domainEvent("zillow", 880L));
         WorkflowRunEntity run = latestRunForKey(workflowKey);
 
         mockMvc.perform(post("/admin/workflow-runs/" + run.getId() + "/cancel"))
@@ -450,34 +430,12 @@ class WorkflowAdminApiIntegrationTest {
         throw new AssertionError("Run did not reach terminal state within timeout; status=" + run.getStatus());
     }
 
-    private Map<String, Object> triggerConfig(String eventDomain, String eventAction, String filter) {
-        return Map.of(
-                "eventDomain", eventDomain,
-                "eventAction", eventAction,
-                "filter", filter);
-    }
-
-    private NormalizedWebhookEvent webhook(String eventId, String channel, long personId) {
+    /** id null → run.domainEventId null (no events row to FK against); dedup falls back to key+source+person. */
+    private DomainEvent domainEvent(String channel, long personId) {
         ObjectNode payload = objectMapper.createObjectNode();
-        payload.put("eventType", "peopleUpdated");
         payload.put("channel", channel);
-        payload.put("fallbackUserId", 77);
-        payload.putArray("resourceIds").add(personId);
-
-        return new NormalizedWebhookEvent(
-                WebhookSource.FUB,
-                eventId,
-                "peopleUpdated",
-                null,
-                null,
-                NormalizedDomain.PERSON,
-                NormalizedAction.UPDATED,
-                null,
-                WebhookEventStatus.RECEIVED,
-                payload,
-                OffsetDateTime.now(testClock),
-                "hash-" + eventId,
-                null);
+        payload.set("changed_fields", objectMapper.valueToTree(List.of("assignedUserId")));
+        return new DomainEvent(null, "person.state_changed", "FUB", null, "person", String.valueOf(personId), payload);
     }
 
     static final class MutableTestClock extends Clock {

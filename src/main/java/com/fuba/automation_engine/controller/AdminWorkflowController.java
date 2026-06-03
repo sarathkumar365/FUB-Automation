@@ -4,7 +4,6 @@ import com.fuba.automation_engine.controller.dto.CreateWorkflowRequest;
 import com.fuba.automation_engine.controller.dto.PageResponse;
 import com.fuba.automation_engine.controller.dto.RollbackWorkflowRequest;
 import com.fuba.automation_engine.controller.dto.StepTypeCatalogEntry;
-import com.fuba.automation_engine.controller.dto.TriggerTypeCatalogEntry;
 import com.fuba.automation_engine.controller.dto.UpdateWorkflowRequest;
 import com.fuba.automation_engine.controller.dto.ValidateWorkflowRequest;
 import com.fuba.automation_engine.controller.dto.ValidateWorkflowResponse;
@@ -26,9 +25,10 @@ import com.fuba.automation_engine.service.workflow.RetryPolicy;
 import com.fuba.automation_engine.service.workflow.AutomationWorkflowService.UpdateResult;
 import com.fuba.automation_engine.service.workflow.AutomationWorkflowService.UpdateStatus;
 import com.fuba.automation_engine.service.workflow.WorkflowStepRegistry;
-import com.fuba.automation_engine.service.workflow.trigger.WorkflowTriggerRegistry;
+import com.fuba.automation_engine.service.workflow.trigger.DomainEventTriggerValidator;
 import java.util.List;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.Optional;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -50,15 +50,12 @@ public class AdminWorkflowController {
 
     private final AutomationWorkflowService workflowService;
     private final WorkflowStepRegistry stepRegistry;
-    private final WorkflowTriggerRegistry triggerRegistry;
 
     public AdminWorkflowController(
             AutomationWorkflowService workflowService,
-            WorkflowStepRegistry stepRegistry,
-            WorkflowTriggerRegistry triggerRegistry) {
+            WorkflowStepRegistry stepRegistry) {
         this.workflowService = workflowService;
         this.stepRegistry = stepRegistry;
-        this.triggerRegistry = triggerRegistry;
     }
 
     @PostMapping
@@ -122,14 +119,9 @@ public class AdminWorkflowController {
 
     @GetMapping("/trigger-types")
     public ResponseEntity<?> getTriggerTypes() {
-        List<TriggerTypeCatalogEntry> catalog = triggerRegistry.allTypes().stream()
-                .map(triggerType -> new TriggerTypeCatalogEntry(
-                        triggerType.id(),
-                        triggerType.displayName(),
-                        triggerType.description(),
-                        triggerType.configSchema()))
-                .toList();
-        return ResponseEntity.ok(catalog);
+        return ResponseEntity.ok(Map.of(
+                "shape", "{ \"on\": <eventKind>, \"filter\": <JSONata>, \"reactToEngineEvents\": <bool> }",
+                "eventKinds", new TreeSet<>(DomainEventTriggerValidator.knownEventKinds())));
     }
 
     @GetMapping
