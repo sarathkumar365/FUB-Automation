@@ -34,8 +34,8 @@ Because events already flow, the listener and the flag must flip in order, never
 ### 4a — Substrate (dormant, additive)
 
 **Deliverables**
-- `V23` migration: `workflow_runs.domain_event_id BIGINT NULL` (FK → `events.id`, `ON DELETE SET NULL`) + `workflow_runs.suppressed_by_run_id BIGINT NULL` (self-FK, used in Phase 5; added now to avoid a second migration).
-- Entity/field wiring on the run entity for both columns. No population yet.
+- `V23` migration: `workflow_runs.domain_event_id BIGINT NULL` (FK → `events.id`, `ON DELETE SET NULL`). *(The originally-planned `suppressed_by_run_id` was dropped 2026-06-03 — Phase 5 is cancel-only and attributes the cancel to an event via `reason_code` + `domain_event_id`, not a run-to-run link. See `phases.md` changelog.)*
+- Entity/field wiring on the run entity for `domain_event_id`. No population yet.
 - Skeleton `DomainEventScopeBuilder` (or equivalent seam) — signatures only, no live caller.
 
 **Verification:** migration applies cleanly to dev DB; full suite green; no behavior change.
@@ -108,7 +108,7 @@ Because events already flow, the listener and the flag must flip in order, never
 
 ## Non-goals (this phase)
 
-- Run-level uniqueness / suppression — Phase 5 (the `suppressed_by_run_id` column is added in 4a, used later).
+- Run-collision handling — Phase 5 (now cancel-only; reuses the existing `WorkflowRunControlService` cancel, no new column).
 - Durable-outbox poller — separate tracked follow-up.
 - Note-trigger support / `note` validator schema — deferred until `notesCreated` is ingested (#27).
 - Append-event (`call`) filter field validation — deferred until a `call`-triggered workflow exists.

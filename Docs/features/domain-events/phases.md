@@ -1,5 +1,11 @@
 # Domain Events — Phases
 
+> **Plan-lock changelog (2026-06-03):** Phase 5 rescoped, and `suppressed_by_run_id` dropped from Phase 4a. After deliberation on the run-collision case (two genuinely-distinct meaningful changes for the same person while a run is active — rare, since Phases 2–4 already remove duplicates/echoes/over-fires):
+> - **Phase 5 → cancel-only, experimental.** On collision, **cancel the in-flight run** (reason `SUPERSEDED_BY_NEWER_EVENT` + the causing `domain_event_id`); do **not** start a replacement. Conservative "miss it rather than mis-fire" posture. Reuses the existing `WorkflowRunControlService` cancel (step-skip + executor-stop already give safe cancel) with a relaxed status guard; no partial unique index, no supersede/restart, no separate instrumentation. Frequency is self-reported via `reason_code` counts.
+> - **The "ideal" collision policy (supersede + freshness gate) is deferred to a known issue**, not a Phase 5 deliverable. The accepted limitation: the *newer* change goes unenforced when a collision is cancelled. Revisit if cancelled-run counts get high.
+> - **`suppressed_by_run_id` dropped from 4a.** It was a run-to-run link; cancel-only attributes the cancel to an *event* (`reason_code` + `domain_event_id`), so that column is the wrong shape. Re-add in a future phase only if supersede (run-to-run) is actually built. 4a now ships only `domain_event_id`.
+> - **Domain-events feature is declared complete after Phase 5** (cancel-only). The frequent bad-run causes are already closed by Phases 2–4; this is the rare residual, handled safely.
+
 > **Plan-lock changelog (2026-06-02):** Fresh-eyes verification before starting Phase 4. Intent confirmed unchanged — workflows subscribe to domain events, `agent_followup_enforcement` is re-authored against the new shape, and the bad-run-rate win lands here. Five accuracy corrections, all in the Phase 4 section below:
 > - **`engine.write.emit-events` reframed as a platform config, not a dormancy flag.** The `events` table is *already* populated and dispatched on every webhook today — Phase 2 emission (`PersonUpsertService` / `CallUpsertService` / `NoteEmissionService` → `DomainEventEmitter.emit`) is ungated. The flag gates only the engine's emission of *its own* `person.state_changed` event (`DefaultEngineWriteCoordinator:180`); annotation (`source=ENGINE`) is always on regardless. Target state is **ON**, surfaced as a platform-level toggle on the future config page (workflows that want to act on engine writes vs. exclude them is a per-workflow filter concern, not a global one). Cutover **sequencing** is now explicit so the listener registration and the flag don't flip in the wrong order.
 > - **Validator generalized to a per-event-kind field-schema check.** The silent-no-fire bug (a filter references a path the event payload never carries → predicate never true → trigger never fires, no error) is universal across event kinds, not `change.*`-specific. The validator checks every filter reference against the declaring event kind's field set. We own the person schema (full guard now); append-event payloads (`call`, `note`) are FUB-shaped and get the registry seam but stay explicitly unvalidated until a consumer exists.
@@ -384,7 +390,7 @@ This is the user-facing phase. Everything before it is plumbing.
   - Evaluates each workflow's filter expression against the new scope
   - On match, calls `WorkflowExecutionManager.plan` with `domain_event_id` and the proximate `webhook_event_id`
 - **Old `route(NormalizedWebhookEvent)` path retires.** At the end of Phase 4, the webhook-shaped path and `FubWebhookTriggerType` are deleted in the hard cut (no production workflow remains on the old shape — `agent_followup_enforcement` is migrated as part of this phase). This is concretely 2 new classes (`DomainEventTriggerType` + listener wiring on the router) and 2 deletions; the deliverable list reflects that, not "router refactored" as a one-line tweak.
-- **`workflow_runs.domain_event_id`** column (new) + `workflow_runs.suppressed_by_run_id` column (new, used in Phase 5)
+- **`workflow_runs.domain_event_id`** column (new, shipped in 4a). *(The originally-planned `suppressed_by_run_id` was dropped — Phase 5 is cancel-only; see the 2026-06-03 changelog.)*
 - **Expression scope refactor:**
   - `event.*` now refers to the domain event, not the webhook
   - `change.*` sugar over `event.payload` for `person.state_changed` events
@@ -419,39 +425,32 @@ Probably `Yes` — the trigger schema is part of the workflow JSON contract; doc
 
 ---
 
-## Phase 5 — Run-level uniqueness
+## Phase 5 — Run-collision handling (cancel-only, experimental)
 Status: `NOT STARTED`
 
-**Goal:** Hard-suppress duplicate runs of the same workflow on the same person while one is active. Catches residual cases not handled by Phase 2's event-collapse (e.g., genuine distinct state transitions in quick succession).
+> **Rescoped 2026-06-03** from the original "hard-suppress + partial unique index + supersede" design to a deliberately minimal, experimental cancel-only behavior. Rationale in the changelog at the top of this file. The full collision policy (supersede + freshness gate) is **deferred to a known issue**, not a deliverable — see `known-issues.md`. After this phase the domain-events feature is considered **complete**.
+
+**Goal:** When a new triggering event arrives for a `(workflow, person)` that already has an active run, **cancel the in-flight run** rather than run two in parallel. Conservative posture for a rare residual case: cancelling means no stale/duplicate action; the trade-off (the newer change goes unenforced) is accepted and tracked. Phase 2 collapse + Phase 3 echo handling + Phase 4 filters already removed the frequent collision causes, so what reaches here is the rare genuine-double-transition.
 
 ### Deliverables
-- **Partial unique index** on `workflow_runs`:
-  ```sql
-  CREATE UNIQUE INDEX uk_workflow_runs_active_per_person
-    ON workflow_runs (workflow_key, source_system, source_person_id)
-    WHERE status IN ('PENDING','RUNNING','BLOCKED');
-  ```
-  `source_system` is included to match the `events` table's day-1 multi-CRM substrate (`plan.md` §"The `events` table"). Without it, person id `100` from FUB and person id `100` from a future second CRM would collide on the same workflow. Costs nothing now; correctness-by-construction for the schema already committed to.
-- **`WorkflowExecutionManager.plan` updated:**
-  - Attempt to insert as today
-  - On unique-constraint violation from the new index, look up the active run
-  - Insert a `SUPPRESSED` row with `suppressed_by_run_id` pointing to the active run
-  - Do not schedule any step execution for the suppressed run
-- **`status = 'SUPPRESSED'`** added to the run status enum + UI / admin filters acknowledge it
-- **Suppression metrics** — count per workflow_key, surface in `/admin/workflows/{key}/runs` for ops visibility
+- **Collision detection in `WorkflowExecutionManager.plan`:** before creating a run, look up an active run (`PENDING`/`BLOCKED`) for `(workflow_key, source_person_id)`.
+- **On collision: cancel the in-flight run.** Reuse `WorkflowRunControlService` — its existing logic already skips pending/waiting steps and the due-worker only claims due `PENDING` steps, so a cancelled run stops cleanly (no new cancel machinery). Extend `cancelRun` to take a reason code + `domain_event_id`, and relax the status guard inline so the collision path may cancel a `BLOCKED` run (the operator path stays `PENDING`-only). Set `reason_code = SUPERSEDED_BY_NEWER_EVENT` and `domain_event_id` = the triggering event. **Do not start a replacement run.**
+- **No new migration expected** — `CANCELED` status already exists, `reason_code` exists, `domain_event_id` comes from 4a. Full event details are read from the `events` table via `domain_event_id` (not duplicated onto the run).
 
 ### Verification
-- Synthesize two near-simultaneous `person.state_changed` events for the same person in the harness; assert one run runs, one row is `SUPPRESSED` with a back-reference
-- Cross-workflow case: two different workflows triggering on the same person simultaneously both succeed (the partial unique is per `workflow_key`)
-- Existing idempotency-key constraint still catches webhook replay
+- Synthesize two near-simultaneous `person.state_changed` events for the same person in the harness; assert the first run ends `CANCELED` with `reason_code = SUPERSEDED_BY_NEWER_EVENT` and `domain_event_id` set, and no replacement run is created.
+- Cross-workflow case: two different workflows on the same person both proceed (collision is per `workflow_key`).
+- Operator-cancel path still rejects cancelling a non-`PENDING` run (the relaxed guard applies only to the supersede path).
+- Existing idempotency-key constraint still catches webhook replay.
 
 ### Exit criteria
-- Partial unique index created
-- Planner handles conflicts cleanly with audit rows
-- Suppressed runs visible in admin UI
+- Collisions cancel the in-flight run with an attributed reason + `domain_event_id`.
+- Frequency is queryable with no extra instrumentation: `COUNT(*) … WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'`.
+- The cancel-only limitation (newer change unenforced) is recorded in `known-issues.md` with a revisit trigger.
+- Domain-events feature marked complete.
 
 ### Repo decisions impact
-Probably `No` — run uniqueness semantics are feature-internal.
+`No` — collision handling is feature-internal and explicitly experimental.
 
 ---
 

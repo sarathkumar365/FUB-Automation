@@ -258,7 +258,19 @@ interface EngineWriteTracker {
 
 Shipped initial impl: `InMemoryEngineWriteTracker` (ConcurrentHashMap + scheduled eviction). Future impl: `RedisEngineWriteTracker`, swapped in when Redis enters the stack (no Redis dependency in the project today). The interface boundary is the commitment; the impl is replaceable.
 
-### 7. Run-level uniqueness
+### 7. Run-collision handling
+
+> **Revised 2026-06-03.** The original design here — a partial unique index plus a hard-suppressed `SUPPRESSED` row linked via `suppressed_by_run_id` — is **superseded** by a deliberately minimal, experimental **cancel-only** behavior (Phase 5). Rationale: the frequent collision causes are already removed by event-collapse (Phase 2), echo handling (Phase 3), and trigger filters (Phase 4), so what remains is the rare case of two genuinely-distinct meaningful changes for the same person while a run is active. The original index/suppress text is preserved below the line for history.
+
+When the planner is about to create a run for a `(workflow_key, source_person_id)` that already has an **active** run (`PENDING`/`BLOCKED`), it **cancels the in-flight run** instead of running two in parallel: status `CANCELED`, `reason_code = SUPERSEDED_BY_NEWER_EVENT`, `domain_event_id` = the triggering event (full event details read from `events` via that id). It does **not** start a replacement run.
+
+This reuses the existing `WorkflowRunControlService` cancel — its step-skipping plus the due-worker's "claim only due PENDING steps" already make a cancelled run stop cleanly, so there is no new cancel machinery; only a relaxed status guard so the collision path may cancel a `BLOCKED` run (the operator path stays `PENDING`-only). No partial unique index is built.
+
+**Accepted trade-off:** cancelling without a replacement means the lead's *newer* assignment goes unenforced for that collision. This is the conservative "miss it rather than mis-fire" choice for a rare case, and is tracked as a known issue. The fuller policy (**supersede** — cancel the active run *and* start a fresh one — plus an action-step **freshness gate**) is deferred there, to be built only if cancelled-run counts justify it. Frequency is self-reported: `COUNT(*) … WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'`.
+
+The existing `uk_workflow_runs_idempotency_key` still catches "same webhook event replayed forever" — unchanged.
+
+<details><summary>Original hard-suppress design (superseded 2026-06-03)</summary>
 
 A **partial unique index** in addition to the existing `uk_workflow_runs_idempotency_key`:
 
@@ -268,11 +280,9 @@ CREATE UNIQUE INDEX uk_workflow_runs_active_per_person
   WHERE status IN ('PENDING','RUNNING','BLOCKED');
 ```
 
-`source_system` is included because the `events` table already carries it from day 1 to allow future CRM adapters (`source_system = 'FUB'` today; e.g. `'SALESFORCE'` later). Without it, person id `100` from FUB and person id `100` from a future second CRM would collide on the same workflow.
+`source_system` is included because the `events` table already carries it from day 1 to allow future CRM adapters. On conflict, the planner persists a `SUPPRESSED` row pointing at the active run via `workflow_runs.suppressed_by_run_id` (new column) for audit. Status is hard-suppress only; supersede semantics deferred.
 
-The existing constraint catches "same webhook event replayed forever." The new partial index catches "same workflow, same person from the same source, while a run is still active." Both stay — they protect different things and the cost is one extra B-tree index.
-
-On conflict, the planner persists a `SUPPRESSED` row pointing at the active run via `workflow_runs.suppressed_by_run_id` (new column) for audit. Status is hard-suppress only; **supersede semantics are deferred** (see Out of Scope).
+</details>
 
 ## Engine-echo exclusion default
 
