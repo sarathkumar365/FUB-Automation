@@ -1,0 +1,209 @@
+/* ============================================================================
+   Automation Engine — Colors & Type Foundations
+   ----------------------------------------------------------------------------
+   Lifted verbatim from the product source of truth:
+     sarathkumar365/FUB-Automation  →  ui/src/styles/tokens.css
+   Plus added semantic TYPE roles (h1/h2/body/code…) for design work.
+
+   Load order in a deliverable:
+     1) Google Fonts (Manrope + JetBrains Mono) — see <link> in README/preview
+     2) this file
+   Everything references CSS custom properties — never hard-code a hex.
+   ========================================================================== */
+
+:root {
+  /* ---- Type families -------------------------------------------------- */
+  --font-ui:   'Manrope', 'Inter', 'Segoe UI', system-ui, sans-serif;
+  --font-mono: 'JetBrains Mono', 'SFMono-Regular', Menlo, monospace;
+
+  /* ---- Core surfaces -------------------------------------------------- */
+  --color-bg:           #f7f9fc;  /* app background        */
+  --color-surface:      #ffffff;  /* cards, rail, panels   */
+  --color-surface-alt:  #fbfdff;  /* table head, hovers    */
+  --color-border:       #dde6f2;  /* hairline borders      */
+
+  /* ---- Text ----------------------------------------------------------- */
+  --color-text:         #0f172a;  /* primary ink (slate-900) */
+  --color-text-muted:   #64748b;  /* secondary (slate-500)   */
+
+  /* ---- Brand (cyan + teal) ------------------------------------------- */
+  --color-brand:        #0f9fb8;  /* primary actions, active nav, logo */
+  --color-brand-soft:   #e3f7fb;  /* tints, secondary buttons, selected rows */
+  --color-brand-2:      #0d9488;  /* teal accent / gradient partner */
+
+  /* ---- Semantic status (always paired with a text label) ------------- */
+  --color-status-ok:        #0f766e;  --color-status-ok-bg:   #ccfbf1;
+  --color-status-warn:      #b45309;  --color-status-warn-bg: #fef3c7;
+  --color-status-bad:       #be123c;  --color-status-bad-bg:  #ffe4e6;
+
+  /* ---- Live / streaming indicator ------------------------------------ */
+  --color-live:         #10b981;  /* corner pulse-dot only — never a "Live" button */
+
+  /* ---- Workflow storyboard accents (node categories) ----------------- */
+  /* Each tone: fg (text) · bg (chip fill) · dot (solid swatch) */
+  --color-accent-trigger-fg:  #0f9fb8;  --color-accent-trigger-bg:  rgba(15,159,184,.18); --color-accent-trigger-dot:  #0f9fb8;
+  --color-accent-wait-fg:     #4338ca;  --color-accent-wait-bg:     rgba(99,102,241,.14);  --color-accent-wait-dot:     #6366f1;
+  --color-accent-branch-fg:   #9d174d;  --color-accent-branch-bg:   rgba(219,39,119,.14);  --color-accent-branch-dot:   #db2777;
+  --color-accent-side-effect-fg: #b45309; --color-accent-side-effect-bg: rgba(217,119,6,.14); --color-accent-side-effect-dot: #d97706;
+  --color-accent-compute-fg:  #047857;  --color-accent-compute-bg:  rgba(5,150,105,.14);   --color-accent-compute-dot:  #059669;
+  --color-accent-neutral-fg:  #475569;  --color-accent-neutral-bg:  rgba(100,116,139,.10); --color-accent-neutral-dot:  #64748b;
+
+  /* ---- Storyboard surface hints (workflow builder canvas) ------------ */
+  --color-storyboard-grid-dot:    rgba(15, 23, 42, 0.05);
+  --color-storyboard-card-border: rgba(15, 23, 42, 0.12);
+  --color-storyboard-card-shadow: 0 2px 10px rgba(15, 23, 42, 0.06);
+  --color-storyboard-edge:        rgba(15, 23, 42, 0.28);
+
+  /* ---- Radius --------------------------------------------------------- */
+  --radius-sm:   8px;    /* buttons, inputs, badges (square corners) */
+  --radius-md:   12px;   /* cards, panels                            */
+  --radius-pill: 999px;  /* status badges, live pill                 */
+
+  /* ---- Spacing scale (4px base) -------------------------------------- */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+
+  /* ---- Elevation ------------------------------------------------------ */
+  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08);          /* resting card    */
+  --shadow-hover:  0 1px 3px rgba(15, 23, 42, 0.08),
+                   0 4px 12px rgba(15, 23, 42, 0.08);         /* lifted stat-tile */
+  --shadow-float:  0 8px 22px rgba(15, 23, 42, 0.04);         /* glass milestone  */
+
+  /* ==========================================================================
+     SEMANTIC TYPE ROLES — added for design work.
+     Manrope is heavy by design: titles 700–800, body 500.
+     Negative tracking on large display; technical values in mono.
+     ====================================================================== */
+
+  /* Display / hero (landing) */
+  --type-display-font:    var(--font-ui);
+  --type-display-size:    clamp(30px, 4.6vw, 56px);
+  --type-display-weight:  800;
+  --type-display-leading: 1.03;
+  --type-display-tracking:-0.03em;
+
+  /* H1 — page title (PageHeader) */
+  --type-h1-size:    20px;   /* text-xl */
+  --type-h1-weight:  600;
+  --type-h1-leading: 1.3;
+
+  /* H2 — card title (PageCard) */
+  --type-h2-size:    18px;   /* text-lg */
+  --type-h2-weight:  600;
+
+  /* H3 — section / inspector heading */
+  --type-h3-size:    14px;   /* text-sm */
+  --type-h3-weight:  600;
+
+  /* Body */
+  --type-body-size:   14px;  /* text-sm — default UI text */
+  --type-body-weight: 500;
+  --type-body-leading:1.5;
+
+  /* Body small / table cells */
+  --type-small-size:   12px; /* text-xs */
+  --type-small-weight: 500;
+
+  /* Kicker / overline — uppercase labels above headings */
+  --type-kicker-size:    11px;
+  --type-kicker-weight:  800;
+  --type-kicker-tracking:0.12em;
+
+  /* Eyebrow / field caption — uppercase muted labels in inspectors */
+  --type-caption-size:    11px;
+  --type-caption-weight:  600;
+  --type-caption-tracking:0.04em;
+
+  /* Mono — IDs, hashes, timestamps, payloads */
+  --type-mono-size:   12px;
+  --type-mono-weight: 500;
+}
+
+/* ----------------------------------------------------------------------------
+   Optional element defaults. Apply to a scope (e.g. a preview body) — not
+   forced globally so it can sit beside Tailwind utility classes.
+   -------------------------------------------------------------------------- */
+.ae-type {
+  font-family: var(--font-ui);
+  color: var(--color-text);
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+.ae-type .display {
+  font: var(--type-display-weight) var(--type-display-size)/var(--type-display-leading) var(--type-display-font);
+  letter-spacing: var(--type-display-tracking);
+}
+.ae-type h1, .ae-type .h1 { font-size: var(--type-h1-size); font-weight: var(--type-h1-weight); line-height: var(--type-h1-leading); letter-spacing: -0.01em; }
+.ae-type h2, .ae-type .h2 { font-size: var(--type-h2-size); font-weight: var(--type-h2-weight); }
+.ae-type h3, .ae-type .h3 { font-size: var(--type-h3-size); font-weight: var(--type-h3-weight); }
+.ae-type p,  .ae-type .body { font-size: var(--type-body-size); font-weight: var(--type-body-weight); line-height: var(--type-body-leading); }
+.ae-type .small  { font-size: var(--type-small-size); font-weight: var(--type-small-weight); }
+.ae-type .kicker {
+  font-size: var(--type-kicker-size); font-weight: var(--type-kicker-weight);
+  letter-spacing: var(--type-kicker-tracking); text-transform: uppercase; color: #0b7285;
+}
+.ae-type .caption {
+  font-size: var(--type-caption-size); font-weight: var(--type-caption-weight);
+  letter-spacing: var(--type-caption-tracking); text-transform: uppercase; color: var(--color-text-muted);
+}
+.ae-type code, .ae-type .mono {
+  font-family: var(--font-mono);
+  font-size: var(--type-mono-size); font-weight: var(--type-mono-weight);
+}
+
+/* ============================================================================
+   DARK THEME — proposed extension (the product ships light-only).
+   Re-maps the same token names; set on the root element:  <html data-theme="dark">
+   Brand cyan is brightened so it reads on a deep slate canvas; semantic
+   status keeps its hue but uses translucent fills + brighter ink. Anything
+   built against the tokens (the whole UI kit) adopts this automatically.
+   ========================================================================== */
+:root[data-theme="dark"], [data-theme="dark"] {
+  /* surfaces — deep cool slate, layered lighter as you go up */
+  --color-bg:           #0b1220;
+  --color-surface:      #131c2e;
+  --color-surface-alt:  #1a2438;
+  --color-border:       #28344c;
+
+  /* text */
+  --color-text:         #e8eef9;
+  --color-text-muted:   #93a4c0;
+
+  /* brand — brighter cyan for contrast on dark; soft = translucent tint */
+  --color-brand:        #2dc4dd;
+  --color-brand-soft:   rgba(45, 196, 221, 0.16);
+  --color-brand-2:      #2dd4bf;
+
+  /* semantic status — hue preserved, translucent bg, brightened fg */
+  --color-status-ok:        #5eead4;  --color-status-ok-bg:   rgba(20, 184, 166, 0.18);
+  --color-status-warn:      #fbbf24;  --color-status-warn-bg: rgba(245, 158, 11, 0.18);
+  --color-status-bad:       #fb7185;  --color-status-bad-bg:  rgba(244, 63, 94, 0.18);
+
+  --color-live:         #34d399;
+
+  /* storyboard accents — dots brightened, fills lifted for the dark canvas */
+  --color-accent-trigger-fg:  #67e8f9;  --color-accent-trigger-bg:  rgba(34, 211, 238, .20);  --color-accent-trigger-dot:  #22d3ee;
+  --color-accent-wait-fg:     #a5b4fc;  --color-accent-wait-bg:     rgba(129, 140, 248, .20); --color-accent-wait-dot:     #818cf8;
+  --color-accent-branch-fg:   #f9a8d4;  --color-accent-branch-bg:   rgba(244, 114, 182, .20); --color-accent-branch-dot:   #f472b6;
+  --color-accent-side-effect-fg: #fcd34d; --color-accent-side-effect-bg: rgba(251, 191, 36, .20); --color-accent-side-effect-dot: #fbbf24;
+  --color-accent-compute-fg:  #6ee7b7;  --color-accent-compute-bg:  rgba(52, 211, 153, .20);  --color-accent-compute-dot:  #34d399;
+  --color-accent-neutral-fg:  #cbd5e1;  --color-accent-neutral-bg:  rgba(148, 163, 184, .16); --color-accent-neutral-dot:  #94a3b8;
+
+  /* storyboard surfaces */
+  --color-storyboard-grid-dot:    rgba(232, 238, 249, 0.06);
+  --color-storyboard-card-border: rgba(232, 238, 249, 0.14);
+  --color-storyboard-card-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --color-storyboard-edge:        rgba(232, 238, 249, 0.30);
+
+  /* elevation — shadows go darker / deeper on a dark canvas */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-hover:  0 1px 3px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.5);
+  --shadow-float:  0 10px 26px rgba(0, 0, 0, 0.5);
+}
+:root[data-theme="dark"] .ae-type .kicker { color: #67e8f9; }
+

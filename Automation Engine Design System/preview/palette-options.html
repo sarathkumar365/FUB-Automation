@@ -1,0 +1,68 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.opts{display:grid;grid-template-columns:repeat(4,1fr);gap:16px}
+.opt{--b:#0f9fb8;--bs:#e3f7fb;--b2:#0d9488}
+.vig{border:1px solid #dde6f2;border-radius:12px;background:#f7f9fc;padding:14px;display:flex;flex-direction:column;gap:10px}
+.vrow{display:flex;align-items:center;gap:8px}
+.mono-sm{font-family:var(--font-mono);font-size:10px;color:#64748b}
+.mark{height:30px;width:30px;border-radius:7px;background:var(--b);color:#fff;font-weight:700;font-size:13px;display:inflex;display:flex;align-items:center;justify-content:center}
+.nav{font-size:12px;font-weight:600;color:var(--b);background:var(--bs);border-radius:7px;padding:5px 10px}
+.pbtn{font-size:12px;font-weight:600;color:#fff;background:var(--b);border-radius:7px;padding:6px 12px}
+.lpill{display:inline-flex;align-items:center;gap:6px;border-radius:999px;border:1px solid rgba(15,118,110,.3);background:#ccfbf1;color:#0f766e;padding:3px 9px;font-size:11px;font-weight:600}
+.ldot{width:7px;height:7px;border-radius:999px;background:#10b981}
+.bdg{display:inline-flex;border-radius:999px;padding:2px 8px;font-size:10px;font-weight:600}
+.b-ok{background:#ccfbf1;color:#0f766e}.b-bad{background:#ffe4e6;color:#be123c}
+.link{font-size:11px;font-weight:600;color:var(--b);white-space:nowrap}
+.head{font-size:12px;font-weight:700;margin-bottom:2px}
+.swatches{display:flex;gap:5px;margin-top:2px}
+.sw{width:22px;height:22px;border-radius:6px;border:1px solid rgba(15,23,42,.06)}
+.rec{font-size:9px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;color:#0f9fb8}
+</style></head>
+<body style="padding:20px">
+<div class="opts">
+  <div class="opt" style="--b:#0f9fb8;--bs:#e3f7fb;--b2:#0d9488">
+    <div class="head">A · Cyan + Teal <span class="muted" style="font-weight:500">(current)</span></div>
+    <div class="vig">
+      <div class="vrow"><span class="mark">AE</span><span class="nav">Webhooks</span><span class="lpill"><span class="ldot"></span>Live</span></div>
+      <div class="vrow"><span class="pbtn">Apply</span><span class="bdg b-ok">OK</span><span class="bdg b-bad">FAILED</span></div>
+      <div class="vrow"><span class="link">Browse →</span></div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#0f9fb8"></span><span class="sw" style="background:#e3f7fb"></span><span class="sw" style="background:#0d9488"></span></div>
+    <span class="mono-sm">#0f9fb8 · #e3f7fb · #0d9488</span>
+  </div>
+
+  <div class="opt" style="--b:#2563eb;--bs:#e8effd;--b2:#1d4ed8">
+    <div class="head">B · Cobalt <span class="rec">recommended</span></div>
+    <div class="vig">
+      <div class="vrow"><span class="mark">AE</span><span class="nav">Webhooks</span><span class="lpill"><span class="ldot"></span>Live</span></div>
+      <div class="vrow"><span class="pbtn">Apply</span><span class="bdg b-ok">OK</span><span class="bdg b-bad">FAILED</span></div>
+      <div class="vrow"><span class="link">Browse →</span></div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#2563eb"></span><span class="sw" style="background:#e8effd"></span><span class="sw" style="background:#1d4ed8"></span></div>
+    <span class="mono-sm">#2563eb · #e8effd · #1d4ed8</span>
+  </div>
+
+  <div class="opt" style="--b:#0e7490;--bs:#e0f2fe;--b2:#0891b2">
+    <div class="head">C · Deep Azure</div>
+    <div class="vig">
+      <div class="vrow"><span class="mark">AE</span><span class="nav">Webhooks</span><span class="lpill"><span class="ldot"></span>Live</span></div>
+      <div class="vrow"><span class="pbtn">Apply</span><span class="bdg b-ok">OK</span><span class="bdg b-bad">FAILED</span></div>
+      <div class="vrow"><span class="link">Browse →</span></div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#0e7490"></span><span class="sw" style="background:#e0f2fe"></span><span class="sw" style="background:#0891b2"></span></div>
+    <span class="mono-sm">#0e7490 · #e0f2fe · #0891b2</span>
+  </div>
+
+  <div class="opt" style="--b:#4f46e5;--bs:#eef2ff;--b2:#4338ca">
+    <div class="head">D · Royal Indigo</div>
+    <div class="vig">
+      <div class="vrow"><span class="mark">AE</span><span class="nav">Webhooks</span><span class="lpill"><span class="ldot"></span>Live</span></div>
+      <div class="vrow"><span class="pbtn">Apply</span><span class="bdg b-ok">OK</span><span class="bdg b-bad">FAILED</span></div>
+      <div class="vrow"><span class="link">Browse →</span></div>
+    </div>
+    <div class="swatches"><span class="sw" style="background:#4f46e5"></span><span class="sw" style="background:#eef2ff"></span><span class="sw" style="background:#4338ca"></span></div>
+    <span class="mono-sm">#4f46e5 · #eef2ff · #4338ca</span>
+  </div>
+</div>
+<p class="caption" style="margin-top:16px;line-height:1.5">Semantic badges (OK/FAILED) and the green live-dot are <b>locked</b> — only the brand changes. <b>B · Cobalt</b> reads as an infrastructure / control-plane color, stays maximally distinct from the teal "OK" state, and keeps cyan free for the <i>trigger</i> storyboard node. <b>D · Indigo</b> is bolder but collides with the indigo <i>wait</i> node. <b>C</b> is a safe, more-authoritative evolution of your current cyan.</p>
+</body></html>

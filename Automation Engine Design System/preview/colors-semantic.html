@@ -1,0 +1,21 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css"></head>
+<body>
+<div class="grid" style="grid-template-columns:repeat(3,1fr);gap:16px">
+  <div class="col" style="gap:10px">
+    <span style="display:inline-flex;align-items:center;align-self:flex-start;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;background:#ccfbf1;color:#0f766e">TASK_CREATED</span>
+    <div class="row" style="gap:8px"><span class="hex">fg #0f766e</span><span class="hex">bg #ccfbf1</span></div>
+    <div class="name" style="font-size:12px">OK · success</div>
+  </div>
+  <div class="col" style="gap:10px">
+    <span style="display:inline-flex;align-items:center;align-self:flex-start;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;background:#fef3c7;color:#b45309">SKIPPED</span>
+    <div class="row" style="gap:8px"><span class="hex">fg #b45309</span><span class="hex">bg #fef3c7</span></div>
+    <div class="name" style="font-size:12px">WARN · attention</div>
+  </div>
+  <div class="col" style="gap:10px">
+    <span style="display:inline-flex;align-items:center;align-self:flex-start;border-radius:999px;padding:3px 11px;font-size:12px;font-weight:600;background:#ffe4e6;color:#be123c">FAILED</span>
+    <div class="row" style="gap:8px"><span class="hex">fg #be123c</span><span class="hex">bg #ffe4e6</span></div>
+    <div class="name" style="font-size:12px">BAD · error</div>
+  </div>
+</div>
+<p class="caption" style="margin-top:18px">Status is <b>always</b> color + label text — never color alone. Soft tinted pill, saturated ink.</p>
+</body></html>

@@ -13,6 +13,7 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 - Parent agreement: `/Users/sarathkumar/Projects/2Creative/automation-engine/AGENTS.md`
 - Structure/implementation rules: `/Users/sarathkumar/Projects/2Creative/automation-engine/developer-rules.md`
 - UI plan: `/Users/sarathkumar/Projects/2Creative/automation-engine/ui/docs/ui-0.1-plan.md`
+- **Design source of truth: `/Users/sarathkumar/Projects/2Creative/automation-engine/Automation Engine Design System/`** — brand foundations, tokens, component patterns, and a high-fidelity console UI kit. **Start with its `HANDOFF.md`** (context, where-everything-is, locked UX rules); `README.md` is the deep reference, `colors_and_type.css` the canonical tokens. These are design references to recreate with this module's patterns/primitives, not code to copy verbatim.
 - UI style decisions: `/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/ui-style-guide-v1.md`
 - Figma baseline: `/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/ui-figma-reference.md`
 - Tokens: `/Users/sarathkumar/Projects/2Creative/automation-engine/ui/src/styles/tokens.css`

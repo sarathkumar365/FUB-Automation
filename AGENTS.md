@@ -44,7 +44,8 @@ Jump to the section that governs the work in front of you. If a task touches mul
 - **Documentation layout source of truth:** `Docs/README.md` — index of every folder under `Docs/` with a one-line purpose, plus a "where does this go?" routing guide. Consult this **before creating any new folder or file under `Docs/`**.
 - **System-wide implementation deep-dive:** `Docs/deep-dive/` — 12 documents covering every backend flow, configuration value, database schema, and design decision. Start with `Docs/deep-dive/README.md` for the index and reading order. Read these before making changes to understand how the system works end-to-end.
 - UI implementation plan source of truth: `ui/Docs/ui-0.1-plan.md`
-- UI style source of truth: `Docs/ui-style-guide-v1.md` + `Docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
+- **UI design source of truth:** `Automation Engine Design System/` — the brand foundations, tokens, component patterns, and a high-fidelity console UI kit. **Start with its `HANDOFF.md`** for context, where-everything-is, and the locked UX rules; `README.md` is the deep reference and `colors_and_type.css` is the canonical token set. Treat these as design references to recreate using `ui/`'s established patterns, not code to copy verbatim.
+- UI style supporting refs: `Docs/ui-style-guide-v1.md` + `Docs/ui-figma-reference.md` + `ui/src/styles/tokens.css`
 
 ## Workspace quick commands
 - Backend: `./mvnw spring-boot:run`

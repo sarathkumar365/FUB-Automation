@@ -1,0 +1,46 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.rail{width:54px;background:#fff;border:1px solid #dde6f2;border-radius:12px;padding:10px 0;display:flex;flex-direction:column;align-items:center;gap:9px}
+.rmk{height:30px;width:30px;border-radius:8px;background:#0f9fb8;display:flex;align-items:center;justify-content:center;margin-bottom:3px}
+.rmk svg{width:17px;height:17px;fill:none;stroke:#fff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.ri{height:34px;width:34px;border-radius:8px;display:flex;align-items:center;justify-content:center;color:#64748b}
+.ri svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.ri.active{background:#0f9fb8;color:#fff}
+</style></head>
+<body style="background:#f7f9fc">
+<div class="row" style="gap:18px;align-items:stretch">
+  <!-- rail: icons only, primary nav -->
+  <div class="col" style="gap:8px;align-items:center">
+    <span class="caption" style="margin-bottom:2px">Rail · icons</span>
+    <div class="rail">
+      <span class="rmk"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="2.3"/><circle cx="17" cy="6.5" r="2.3"/><circle cx="17" cy="17.5" r="2.3"/><path d="M8 11 15 7.2M8 13 15 16.8"/></svg></span>
+      <span class="ri active" title="Webhooks"><svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 0 1 10 10"/><path d="M12 8a6 6 0 0 1 6 6"/><circle cx="12" cy="18" r="2"/></svg></span>
+      <span class="ri" title="Processed Calls"><svg viewBox="0 0 24 24"><path d="M5 4h4l1.5 4-2 1a11 11 0 0 0 5 5l1-2 4 1.5V18a2 2 0 0 1-2 2A14 14 0 0 1 5 6z"/></svg></span>
+      <span class="ri" title="Workflows"><svg viewBox="0 0 24 24"><path d="M12 3 21 8l-9 5-9-5z"/><path d="m3 13 9 5 9-5"/></svg></span>
+      <span class="ri" title="Leads"><svg viewBox="0 0 24 24"><circle cx="9" cy="8" r="3"/><path d="M3 20a6 6 0 0 1 12 0"/><path d="M16 4a3 3 0 0 1 0 6"/></svg></span>
+    </div>
+  </div>
+  <!-- panel: contextual content for active section (NOT a nav copy) -->
+  <div class="col" style="gap:8px;flex:1">
+    <span class="caption" style="margin-bottom:2px">Panel · contextual to section</span>
+    <div style="background:#fff;border:1px solid #dde6f2;border-radius:12px;padding:14px;height:100%">
+      <div style="font-size:13px;font-weight:600;margin-bottom:10px">Pipeline Summary</div>
+      <div style="display:flex;justify-content:space-between;font-size:13px;margin-bottom:6px"><span class="muted">Active Workflows</span><span style="font-weight:600">12</span></div>
+      <div style="display:flex;justify-content:space-between;font-size:13px"><span class="muted">Failed Runs</span><span style="font-weight:600;color:#be123c">3</span></div>
+    </div>
+  </div>
+  <!-- tabs: sub-nav within a section -->
+  <div class="col" style="gap:8px;flex:1">
+    <span class="caption" style="margin-bottom:2px">Tabs · within a section</span>
+    <div style="background:#fff;border:1px solid #dde6f2;border-radius:12px;padding:14px;height:100%">
+      <div style="display:flex;gap:22px;border-bottom:1px solid #dde6f2">
+        <span style="padding:0 2px 8px;border-bottom:2px solid #0f9fb8;font-size:13px;font-weight:600;color:#0f172a">Definition</span>
+        <span style="padding:0 2px 8px;border-bottom:2px solid transparent;font-size:13px;font-weight:500;color:#64748b">Storyboard</span>
+        <span style="padding:0 2px 8px;border-bottom:2px solid transparent;font-size:13px;font-weight:500;color:#64748b">Runs</span>
+      </div>
+      <div style="font-size:12px;color:#64748b;margin-top:10px">Active tab’s panel content renders here.</div>
+    </div>
+  </div>
+</div>
+<p class="caption" style="margin-top:16px;line-height:1.5">Three distinct layers — not duplicates. <b>Rail</b>: primary destination nav, icons only (active = brand fill, label on hover/tooltip). <b>Panel</b>: contextual to the active section — a summary, catalog or filter set, never a copy of the rail. <b>Tabs</b>: sub-navigation inside one section (active = brand underline).</p>
+</body></html>
