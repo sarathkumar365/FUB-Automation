@@ -58,6 +58,9 @@ public class WorkflowRunEntity {
     @Column(name = "webhook_event_id")
     private Long webhookEventId;
 
+    @Column(name = "domain_event_id")
+    private Long domainEventId;
+
     @Column(name = "source_person_id", length = 255)
     private String sourcePersonId;
 
