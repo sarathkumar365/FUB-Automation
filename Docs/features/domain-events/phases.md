@@ -370,20 +370,20 @@ This is the user-facing phase. Everything before it is plumbing.
 
 > **Cutover sequencing (load-bearing — verified 2026-06-02).** The `events` table is already populated and after-commit-dispatched on every webhook today; the dispatcher's listener list is empty (`InMemoryDomainEventDispatcher`). The instant Phase 4 registers a listener, it consumes the already-flowing events **regardless of `engine.write.emit-events`**. So the flag flip and the listener registration must be sequenced, not bundled:
 > 1. Register `WorkflowTriggerRouter` as a `DomainEventListener` **and** migrate `agent_followup_enforcement` to the new `{on, filter}` shape, with `engine.write.emit-events` still **OFF**. Verify on replay that the old workflow behaves and engine reassigns produce no event (pure echo-suppression — Phase 3 local-state-first).
-> 2. Flip `engine.write.emit-events` **ON**. Verify the engine's own (now annotated `source=ENGINE`) `person.state_changed` events are filtered out by the workflow's `change.source != 'ENGINE'` predicate — bad runs stay at 0, and engine writes are now *visible* as labeled events for any future consumer that wants them.
+> 2. Flip `engine.write.emit-events` **ON**. Verify the engine's own (now annotated `source=ENGINE`, surfaced in scope as `event.origin='ENGINE'`) `person.state_changed` events are filtered out by the workflow's `event.origin != 'ENGINE'` predicate — bad runs stay at 0, and engine writes are now *visible* as labeled events for any future consumer that wants them.
 > 3. Hard-cut the old webhook-shaped path (see exit criteria).
 >
 > `engine.write.emit-events` is a **platform-level config** (config-page toggle), not a temporary scaffold. Target state ON; it stays as an operational lever. It gates only the engine's *own* event emission — annotation of engine writes is always on irrespective of the flag.
 
 ### Deliverables
 - **New trigger schema** in workflow JSON: `{ "on": "<event_kind>", "filter": "<JSONata expression>" }`
-- **New `DomainEventTriggerType`** (`service/workflow/trigger/DomainEventTriggerType.java`) implementing `WorkflowTriggerType`, registered alongside the retiring `FubWebhookTriggerType`. Reads `config.on` (event kind) and `config.filter` (JSONata predicate). The two trigger types coexist only briefly — the hard cut deletes the webhook-shaped path at the end of Phase 4 (see exit criteria).
+- **New `DomainEventTriggerType`** (`service/workflow/trigger/DomainEventTriggerType.java`) — **clean, standalone** (does *not* implement the webhook `WorkflowTriggerType`, and is *not* in the webhook `WorkflowTriggerRegistry`). Reads `config.on` (event kind) and `config.filter` (JSONata). The webhook trigger path is **deleted** in 4d (dev-phase → no coexistence window; see [`phase-4-plan.md`](./phase-4-plan.md), the current sub-phase source of truth). *(Built in 4b ✅.)*
 - **Workflow JSON validator — generalized per-event-kind field-reference check.** The silent-no-fire bug is universal: any filter reference to a path the subscribed event kind's payload does not carry makes the predicate never-true and the trigger silently never fires. The validator therefore checks every filter reference against the **declaring event kind's field set**, not against a `change.*`-specific allowlist:
   - **Each event kind declares the fields its payload exposes.** Person kinds (`person.created`, `person.state_changed`) populate from the captured/diffable set — keyed off `PersonDiffComputer`'s actual field list (not a duplicated constant) so the schema can't drift from what is really diffed. Append kinds (`call.created`, `note.*`) get the registry seam but are marked **unvalidated-payload** (FUB-shaped, no declared schema, no consumer yet) — an explicit documented gap, not a silent one. Populate them when a consumer arrives.
   - **Refuse at save-time:** `change.<field>` / `current.<field>` not in the person field set (clear "field not captured — trigger would never fire" message); the old `peopleUpdated`-typed trigger, with a migration hint.
-  - **Allowlist `change.source`** — it is the engine annotation, not a captured person field; the standard echo-exclusion predicate must validate.
+  - **`event.*` (incl. `event.origin`) is always-valid metadata** — no special-casing needed. (`change.source` is also no longer special: `source` is a captured person field, so `change.source` validates like any field delta; the engine-exclusion predicate lives at `event.origin`.)
   - **Cheap cross-checks:** `change.*` is valid only when `on = person.state_changed`; `current.*` only when `on ∈ {person.created, person.state_changed}`.
-  - **Warn (not refuse)** when a `person.state_changed` trigger filter does not reference `change.source` — the `excludeEngineEchoes` opt-in default (per `plan.md`) means a forgetful author re-introduces issue #23 silently; the warning is the friction at the right moment. A workflow that genuinely wants to act on engine writes silences the warning by explicitly including `change.source = 'ENGINE'`.
+  - **Warn (not refuse)** when a `person.state_changed` trigger filter does not reference `event.origin` — the `excludeEngineEchoes` opt-in default (per `plan.md`) means a forgetful author re-introduces issue #23 silently; the warning is the friction at the right moment. A workflow that genuinely wants to act on engine writes silences the warning by explicitly including `event.origin = 'ENGINE'`.
 - **`WorkflowTriggerRouter` gains a `route(DomainEvent)` overload** registered as a `DomainEventListener` on `DomainEventDispatcher` (Spring auto-wires the constructor-injected listener list — see Phase 2 dispatcher defaults). The new method:
   - Receives a `DomainEvent`
   - Looks up workflows whose trigger type is `DomainEventTriggerType` AND whose `on` field matches `event.eventKind`
@@ -399,7 +399,7 @@ This is the user-facing phase. Everything before it is plumbing.
   - `person.*` available in trigger filter scope too (closes #17)
   - `WorkflowStepExecutionService.buildRunContext` updated accordingly
 - **Re-author `agent_followup_enforcement`** workflow JSON:
-  - Trigger becomes `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND change.source != 'ENGINE'" }` (the `person.kind = 'LEAD'` predicate was already added during the Pre-Phase-2 rename pass; Phase 4 keeps the lead filter and adds the change-based predicates)
+  - Trigger becomes `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND event.origin != 'ENGINE'" }` (the `person.kind = 'LEAD'` predicate was already added during the Pre-Phase-2 rename pass; Phase 4 keeps the lead filter and adds the change-based predicates)
   - Any step expressions using `event.payload.*` migrate to `webhook.payload.*` if needed
   - Verify in field-observations replay that bad-run rate drops
 
@@ -409,7 +409,7 @@ This is the user-facing phase. Everything before it is plumbing.
   - **Person 20235 (05-12 FUB burst)** — one event for the burst (Phase 2 collapse), one run created, one reassign. Bad runs = 0.
   - **Person 20207 (05-11 triple-run)** — first event creates run; echo run suppressed by no-event-emission (Phase 3); unknown peopleUpdated either filtered semantically or absorbed by Phase 5's run dedup.
 - Workflow JSON validation refuses old-shape triggers with a migration hint
-- Validation refuses a `change.<field>` / `current.<field>` reference to an uncaptured field (silent-no-fire guard); allows `change.source`; warns on a missing `change.source` predicate
+- Validation refuses a `change.<field>` / `current.<field>` reference to an uncaptured field (silent-no-fire guard); `event.*` (incl. `event.origin`) is always valid; warns on a missing `event.origin` predicate
 - All step expressions in the re-authored workflow resolve without error
 - Cutover sequencing verified: step 1 (listener on, flag OFF) and step 2 (flag ON) each replay clean, per the Cutover sequencing note above
 

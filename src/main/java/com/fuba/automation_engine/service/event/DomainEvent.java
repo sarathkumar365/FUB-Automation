@@ -18,8 +18,13 @@ import com.fasterxml.jackson.databind.JsonNode;
  * {@code eventKind}, {@code sourceSystem}, {@code payload} must be set.
  * Validation is the emitter's responsibility, not the record's — see
  * {@link DomainEventEmitter}.
+ *
+ * <p>{@code id} is the persisted {@code events.id}, set by the emitter after
+ * INSERT — listeners need it to record {@code workflow_runs.domain_event_id}
+ * and to expose {@code event.id} in trigger scope.
  */
 public record DomainEvent(
+        Long id,
         String eventKind,
         String sourceSystem,
         Long sourceEventId,

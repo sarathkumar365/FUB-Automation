@@ -164,7 +164,7 @@ Replaces the existing `peopleUpdated`-typed trigger. Hard cut — one workflow e
 {
   "trigger": {
     "on": "person.state_changed",
-    "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND change.source != 'ENGINE'"
+    "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND event.origin != 'ENGINE'"
   }
 }
 ```
@@ -201,7 +201,7 @@ Or for append:
 | `event.payload.*` | Domain event payload — shape varies by kind | `person.state_changed`: `{changed_fields, previous, current}`. `person.created`: `{ current }`. Append: the entity record. |
 | `change.<field>.changed` / `.old` / `.new` | Sugar over `event.payload` for `person.state_changed` events | Cleaner than indexing into `changed_fields` arrays |
 | `current.<field>` | Sugar over `event.payload.current` (available for both `person.created` and `person.state_changed`) | Use in filters like `current.stage = 'Lead'` |
-| `change.source` | Annotated by `EngineWriteTracker` if the diff matches a recent engine write | `"ENGINE"` or absent |
+| `event.origin` | Engine-write provenance, from the payload `source` annotation (`EngineWriteTracker`) | `"ENGINE"` (engine-caused) or `"EXTERNAL"` — **always present**. (Lives under `event`, not `change`, because `source` is also a diffable person field — so `change.source` is the lead-source field delta.) |
 | `person.*` | Current Person snapshot (resolved at step time, as today) | Available in trigger filter scope too — closes #17 |
 | `webhook.*` | Raw underlying webhook payload | Available for steps that need source-format fields |
 | `runMetadata.*` | Run timing (unchanged from today) | |
@@ -286,7 +286,7 @@ CREATE UNIQUE INDEX uk_workflow_runs_active_per_person
 
 ## Engine-echo exclusion default
 
-`change.source` is annotated when the diff matches a recent engine-write tracker record. The `change.source != 'ENGINE'` predicate is **opt-in per workflow**: workflow authors must include it (or set a workflow-level `excludeEngineEchoes` toggle once the config page exists). Default is opt-in.
+`event.origin` carries engine-write provenance (`"ENGINE"` when the diff matched a recent engine-write tracker record, else `"EXTERNAL"` — always present). The `event.origin != 'ENGINE'` predicate is **opt-in per workflow**: workflow authors must include it (or set a workflow-level `excludeEngineEchoes` toggle once the config page exists). Default is opt-in. (It reads the top-level `source` annotation but is exposed as `event.origin`, not `change.source`, to avoid colliding with the diffable `source` person field.)
 
 This is a deliberate platform choice for flexibility. It carries a real risk: a workflow author who forgets the predicate reintroduces #23 silently. Mitigation at the platform level:
 
@@ -316,7 +316,7 @@ These are deliberately deferred, not forgotten. Each will land as its own change
 | **FUB-to-local reconciliation / catch-up** | If FUB stops sending webhooks the engine has no recovery path. Whole system already relies on FUB to keep sending; not regressing. Out of scope; address if/when observed. |
 | **Stale-assignment guard** (person 19255 case — prior real conversation outside buffer window) | Product concern, not engine bug. Workflow author should add a `person.lastCallAt` predicate; engine should expose the data. |
 | **30-min reassign threshold tuning** | Product, not platform. |
-| **`change.source` exclusion default reconsidered** | If a second workflow exposes the opt-in pattern as error-prone, revisit. |
+| **`event.origin` exclusion default reconsidered** | If a second workflow exposes the opt-in pattern as error-prone, revisit. |
 | **In-flight run drain protocol** at Phase 4 deploy | App is in dev phase; not worth building a drain protocol yet. |
 | **`previous_state` retention policy** | Currently last-known-only; if storage growth or audit needs change, formalise. |
 | **Person merges** in FUB orphaning events | One-line note; out of scope. |

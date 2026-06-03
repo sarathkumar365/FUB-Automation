@@ -24,7 +24,7 @@
 Because events already flow, the listener and the flag must flip in order, never bundled:
 
 1. **4d** — register listener + migrate `agent_followup_enforcement`, `emit-events` **OFF**. Engine writes stay invisible (pure echo-suppression, proven in Phase 3). Replay-verify old workflow behaves.
-2. **4e** — flip `emit-events` **ON**. Engine's own `person.state_changed` events become visible, annotated `source=ENGINE`, and are filtered out by the workflow's `change.source != 'ENGINE'`. Replay-verify bad-run-rate.
+2. **4e** — flip `emit-events` **ON**. Engine's own `person.state_changed` events become visible, annotated `source=ENGINE` (surfaced in scope as `event.origin='ENGINE'`), and are filtered out by the workflow's `event.origin != 'ENGINE'`. Replay-verify bad-run-rate.
 3. **4e** — hard-cut the old webhook-shaped path.
 
 ---
@@ -42,39 +42,39 @@ Because events already flow, the listener and the flag must flip in order, never
 **Exit:** columns exist, all `NULL`; nothing references them at runtime.
 **Risk:** none — purely additive.
 
-### 4b — `DomainEventTriggerType` + expression scope
+### 4b — `DomainEventTriggerType` + trigger-time scope (additive, isolated, not wired)
 
-**Deliverables**
-- `DomainEventTriggerType implements WorkflowTriggerType` (id e.g. `domain_event`): reads `config.on` (event kind) + `config.filter` (JSONata). `matches()` checks `event.eventKind == config.on` then evaluates the filter against the new scope. `extractEntities()` returns the event's entity ref.
-- **Expression scope refactor** for domain-event evaluation:
-  - `event.*` → domain event metadata (`id`, `kind`, `entityType`, `entityId`, `payload`)
-  - `change.<field>.changed/.old/.new` → sugar over `event.payload` (only for `person.state_changed`)
-  - `current.<field>` → sugar over `event.payload.current` (`person.created` + `person.state_changed`)
-  - `change.source` → `event.payload.source` (the annotation)
-  - `webhook.*` → proximate raw webhook payload
-  - `person.*` → current Person snapshot, now in **trigger** scope too (closes #17)
-- Registered in `WorkflowTriggerRegistry` alongside `webhook_fub`, but **not** wired as a dispatcher listener yet.
+> **Decisions locked 2026-06-03 (revised — "no Rail 1"):** app is dev-phase, so Rail 1 is **deleted, not coexisted** → no dual-mode anywhere. **4b is purely additive** — builds the new trigger front-end alongside the old, wired to nothing, deleting nothing. `buildRunContext`/`ExpressionScope` are **not touched in 4b**; the step-time scope is rewritten single-mode in **4d**, together with deleting Rail 1. Trigger type is clean/standalone (not implementing `WorkflowTriggerType`); `person.*` required → **closes #17**.
 
-**Verification:** unit tests for each scope key + a matrix of filter expressions against synthetic `DomainEvent`s (match/no-match, `change.source` present/absent). No runtime path exercised.
-**Exit:** trigger type resolves and evaluates filters correctly in isolation.
-**Risk:** the scope refactor touches `buildRunContext` (a live path). Contained by not registering the listener — the old webhook path keeps its existing scope until 4d.
+**Deliverables (all new — only `DomainEvent` is modified)**
+- **`DomainEvent` += `Long id`** — `DomainEventEmitter` passes `saved.getId()` (already in hand). Gives `event.id` and lets 4d populate `workflow_runs.domain_event_id`. Sole construction site is the emitter.
+- **`DomainEventScopeBuilder`** (`service/workflow/expression/`) — lean mapper, the single source of the domain-event scope shape. `build(DomainEvent, person) → Map`: `event{id,kind,entityType,entityId,payload}`; `change{<field>:{changed,old,new}, source}` (state_changed only, from `changed_fields/previous/current`; missing field → absent → falsy); `current` (= `payload.current`; created + state_changed); `person` (the snapshot). **No `webhook.*`** (step-time, 4d).
+- **`DomainEventTriggerType`** (`service/workflow/trigger/`) — clean, **standalone** (does NOT implement `WorkflowTriggerType`). Deps: `PersonSnapshotResolver`, `DomainEventScopeBuilder`, `ExpressionEvaluator`. `matches(DomainEvent, config)`: `eventKind == config.on` → resolve person (via `entityId` when `entityType="person"`) → build scope → evaluate `config.filter` (no filter → match on kind). `extractEntity(DomainEvent)` → `EntityRef`.
+- **Not wired** as a listener; nothing creates domain-event runs yet.
+
+**Explicitly NOT in 4b → deferred to 4d:** `buildRunContext`/`ExpressionScope` step-time rewrite (single-mode), `webhook.*`, listener wiring / `route(DomainEvent)`, **Rail 1 deletion** (`FubWebhookTriggerType`, `TriggerMatchContext`, `WorkflowTriggerType`, `WorkflowTriggerRegistry`, `route(NormalizedWebhookEvent)` + its `process()` call). Validator → 4c.
+
+**Verification:** unit tests only — scope builder per-kind + `change`/`current`/`event.origin`; trigger filter matrix incl. the production filter (`person.kind='LEAD' AND change.assignedUserId.changed AND event.origin != 'ENGINE'`) — engine echo filtered, real assignment passes, kind-mismatch rejected, watched-field-unchanged rejected; **`event.origin` is always present (`ENGINE`/`EXTERNAL`)** so the `!= 'ENGINE'` predicate is never undefined in JSONata. No runtime path.
+**Exit:** new trigger + scope resolve correctly in isolation; full suite green (4b touched no live path; Rail 1 untouched). **✅ DONE — 12 tests, full suite 696 green.**
 
 ### 4c — Validator generalization
 
 **Deliverables**
 - Per-event-kind **field-schema registry**: each event kind declares the fields a filter may reference. Person kinds populate from `PersonDiffComputer`'s diffable list (keyed off the computer, not a duplicated constant — drift-proof). `call`/`note` get the seam but are marked **unvalidated-payload** (documented gap, no consumer).
 - Save-time **refusals**: `change.<field>`/`current.<field>` not in the person set (clear "field not captured — would never fire" message); old `webhook_fub`/`peopleUpdated`-typed trigger with a migration hint.
-- **Allowlist** `change.source`.
+- **`event.*` (incl. `event.origin`) is always-valid metadata** — no special-casing. (`change.source` is no longer special either: `source` is a captured person field, so `change.source` validates like any field delta — the engine-exclusion predicate now lives at `event.origin`.)
 - **Cross-checks**: `change.*` ⇒ `on = person.state_changed`; `current.*` ⇒ `on ∈ {person.created, person.state_changed}`.
-- **Warn (not refuse)** on a `person.state_changed` filter missing `change.source`.
+- **Warn (not refuse)** on a `person.state_changed` filter missing `event.origin` (the engine-echo exclusion predicate).
 
-**Verification:** validator unit tests — uncaptured-field refusal, old-shape refusal, `change.source` allowed, cross-check failures, missing-`change.source` warning.
+**Verification:** validator unit tests — uncaptured-field refusal, old-shape refusal, `event.origin` recognized, cross-check failures, missing-`event.origin` warning.
 **Exit:** save-time validation closes the silent-no-fire gap for person triggers; append kinds explicitly deferred.
 **Risk:** low — save-time only, no runtime path.
 
-### 4d — Wire listener, flag OFF (cutover step 1)
+### 4d — The switch (wire + single-mode scope + delete Rail 1 + re-author)
 
-**Deliverables**
+> **Restructured 2026-06-03 ("no Rail 1"):** dev-phase → no coexistence window, so 4d does the whole switch in one coordinated change and **4e is folded in** (no separate hard-cut phase). The "coexist + compare" and "flag-OFF staging" framing below is superseded — to be rewritten in full when we build 4d. Net: wire `route(DomainEvent)` as a listener; make `buildRunContext`/`ExpressionScope` single-mode domain-event; populate `domain_event_id`; **delete Rail 1** (`FubWebhookTriggerType`, `TriggerMatchContext`, `WorkflowTriggerType`, `WorkflowTriggerRegistry`, `route(NormalizedWebhookEvent)` + its `process()` call); re-author `agent_followup_enforcement`; decide the `emit-events` default. Replay-verify bad-run-rate.
+
+**Deliverables (superseded — see note above; kept for reference until the 4d rewrite)**
 - `WorkflowTriggerRouter.route(DomainEvent)` registered as a `DomainEventListener` (Spring auto-wires the constructor-injected list). Looks up `domain_event`-typed ACTIVE workflows whose `on` matches `event.eventKind`, evaluates filters, calls `WorkflowExecutionManager.plan` populating **both** `domain_event_id` and the proximate `webhook_event_id`.
 - Planner/manager populate `workflow_runs.domain_event_id`.
 - `engine.write.emit-events` stays **OFF**.
@@ -86,7 +86,7 @@ Because events already flow, the listener and the flag must flip in order, never
 ### 4e — Re-author, flip flag, hard cut (cutover steps 2–3)
 
 **Deliverables**
-- Re-author `agent_followup_enforcement` trigger → `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND change.source != 'ENGINE'" }`. Migrate any step expression using `event.payload.*` → `webhook.payload.*`.
+- Re-author `agent_followup_enforcement` trigger → `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' AND change.assignedUserId.changed AND event.origin != 'ENGINE'" }`. Migrate any step expression using `event.payload.*` → `webhook.payload.*`.
 - Flip `engine.write.emit-events` **ON**; verify annotated engine events are filtered out.
 - **Hard cut:** delete `route(NormalizedWebhookEvent)`, `FubWebhookTriggerType`, and the `WebhookEventProcessorService:114` call. ~2 new classes (4b/4d) + 2 deletions.
 

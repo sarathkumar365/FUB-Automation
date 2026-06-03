@@ -112,6 +112,7 @@ public class DomainEventEmitter {
                 saved.getId());
 
         DomainEvent dispatchEvent = new DomainEvent(
+                saved.getId(),
                 eventKind,
                 sourceSystem,
                 sourceEventId,

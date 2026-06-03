@@ -211,7 +211,7 @@ flowchart TD
 |---|---|---|
 | Rail 2 dispatcher has no listeners | Register `WorkflowTriggerRouter` as a `DomainEventListener` | 4d |
 | `route(NormalizedWebhookEvent)` matches webhooks | Add `route(DomainEvent)` + `DomainEventTriggerType` matching events | 4b + 4d |
-| Trigger-time scope is `{event:{payload}}` | Rich scope: `event.* / change.* / current.* / change.source / webhook.* / person.*` | 4b |
+| Trigger-time scope is `{event:{payload}}` | Rich scope: `event.*` (incl. `event.origin`) `/ change.* / current.* / webhook.* / person.*` | 4b |
 | `plan` sets only `webhook_event_id` | Also populate `domain_event_id` | 4d |
 | No save-time field validation for `change.*` | Per-event-kind field-reference validator | 4c |
 | `agent_followup_enforcement` triggers on `webhook_fub` | Re-author to `{ on: "person.state_changed", filter: … }` | 4e |
