@@ -150,6 +150,83 @@
   --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 8 10 12 14 8'/></svg>");
 }
 
+/* ============================================================================
+   DARK THEME — opt-in extension. Activated by `data-theme="dark"` on <html>.
+   Re-maps the same token names; brand cyan is brightened so it reads on a deep
+   slate canvas, semantic status keeps its hue with translucent fills + brighter
+   ink. Ported from the design system's colors_and_type.css. Anything built
+   against tokens adopts this automatically. The product ships light by default;
+   this is the explicit "extension beyond the product" the design system ships.
+   ========================================================================== */
+:root[data-theme='dark'] {
+  /* surfaces — deep cool slate, layered lighter as you go up */
+  --color-bg: #0b1220;
+  --color-surface: #131c2e;
+  --color-surface-alt: #1a2438;
+  --color-border: #28344c;
+
+  /* text */
+  --color-text: #e8eef9;
+  --color-text-muted: #93a4c0;
+
+  /* brand — brighter cyan for contrast on dark; soft = translucent tint */
+  --color-brand: #2dc4dd;
+  --color-brand-soft: rgba(45, 196, 221, 0.16);
+  --color-brand-2: #2dd4bf;
+
+  /* semantic status — hue preserved, translucent bg, brightened fg */
+  --color-status-ok: #5eead4;
+  --color-status-ok-bg: rgba(20, 184, 166, 0.18);
+  --color-status-warn: #fbbf24;
+  --color-status-warn-bg: rgba(245, 158, 11, 0.18);
+  --color-status-bad: #fb7185;
+  --color-status-bad-bg: rgba(244, 63, 94, 0.18);
+
+  /* live / streaming indicator */
+  --color-live: #34d399;
+
+  /* storyboard accents — dots brightened, fills lifted for the dark canvas */
+  --color-accent-trigger-fg: #67e8f9;
+  --color-accent-trigger-bg: rgba(34, 211, 238, 0.2);
+  --color-accent-trigger-dot: #22d3ee;
+  --color-accent-side-effect-fg: #fcd34d;
+  --color-accent-side-effect-bg: rgba(251, 191, 36, 0.2);
+  --color-accent-side-effect-dot: #fbbf24;
+  --color-accent-wait-fg: #a5b4fc;
+  --color-accent-wait-bg: rgba(129, 140, 248, 0.2);
+  --color-accent-wait-dot: #818cf8;
+  --color-accent-branch-fg: #f9a8d4;
+  --color-accent-branch-bg: rgba(244, 114, 182, 0.2);
+  --color-accent-branch-dot: #f472b6;
+  --color-accent-compute-fg: #6ee7b7;
+  --color-accent-compute-bg: rgba(52, 211, 153, 0.2);
+  --color-accent-compute-dot: #34d399;
+  --color-accent-neutral-fg: #cbd5e1;
+  --color-accent-neutral-bg: rgba(148, 163, 184, 0.16);
+  --color-accent-neutral-dot: #94a3b8;
+
+  /* storyboard surfaces + ink-based hints (light-on-dark so edges/arrows
+     stay visible against the slate canvas) */
+  --color-storyboard-grid-dot: rgba(232, 238, 249, 0.06);
+  --color-storyboard-card-border: rgba(232, 238, 249, 0.14);
+  --color-storyboard-card-ring-selected: rgba(129, 140, 248, 0.9);
+  --color-storyboard-card-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --color-storyboard-card-shadow-selected: 0 6px 18px rgba(0, 0, 0, 0.55);
+  --color-storyboard-edge: rgba(232, 238, 249, 0.3);
+  --color-storyboard-arrow: rgba(232, 238, 249, 0.55);
+  --color-storyboard-edge-soft: rgba(232, 238, 249, 0.18);
+  --color-storyboard-edge-dashed: rgba(232, 238, 249, 0.2);
+  --color-storyboard-chip-neutral-bg: rgba(148, 163, 184, 0.16);
+  --color-storyboard-chip-neutral-border: rgba(148, 163, 184, 0.35);
+  --color-storyboard-chip-neutral-text: #cbd5e1;
+  --color-storyboard-chip-strong-text: #e2e8f0;
+
+  /* elevation — shadows go darker / deeper on a dark canvas */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-hover: 0 1px 3px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.5);
+  --shadow-float: 0 10px 26px rgba(0, 0, 0, 0.5);
+}
+
 /* Storyboard canvas dot-grid background. Shared across builder + detail. */
 .storyboard-canvas {
   background-image: radial-gradient(var(--color-storyboard-grid-dot) 1px, transparent 1px);

@@ -4,6 +4,7 @@ import { LogoutButton } from '../../modules/auth/ui/LogoutButton'
 import { appNavItems, navItemIsActive, routes, type AppNavKey } from '../constants/routes'
 import { uiText } from '../constants/uiText'
 import { ActivityIcon, PhoneIcon, UsersIcon, WorkflowIcon } from './icons'
+import { ThemeToggle } from './ThemeToggle'
 
 const NAV_ICONS: Record<AppNavKey, ComponentType<SVGProps<SVGSVGElement>>> = {
   webhooks: ActivityIcon,
@@ -51,7 +52,10 @@ export function AppRail() {
         })}
       </nav>
       </div>
-      <LogoutButton variant="rail" />
+      <div className="flex w-full flex-col items-center gap-2">
+        <ThemeToggle />
+        <LogoutButton variant="rail" />
+      </div>
     </aside>
   )
 }

@@ -13,10 +13,12 @@ export const uiText = {
       closePanel: 'Close panel',
       openInspector: 'Open inspector',
       closeInspector: 'Close inspector',
+      themeToggleToDark: 'Switch to dark mode',
+      themeToggleToLight: 'Switch to light mode',
     },
     nav: {
       ariaLabel: 'Primary',
-      home: 'Go to landing page',
+      home: 'Go to dashboard',
       webhooks: 'Webhooks',
       processedCalls: 'Processed Calls',
       persons: 'Persons',
