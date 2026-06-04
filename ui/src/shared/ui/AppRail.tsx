@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { LogoutButton } from '../../modules/auth/ui/LogoutButton'
 import { appNavItems, navItemIsActive, routes, type AppNavKey } from '../constants/routes'
 import { uiText } from '../constants/uiText'
-import { ActivityIcon, PhoneIcon, UsersIcon, WorkflowIcon } from './icons'
+import { ActivityIcon, LogoMarkIcon, PhoneIcon, UsersIcon, WorkflowIcon } from './icons'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV_ICONS: Record<AppNavKey, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -24,9 +24,9 @@ export function AppRail() {
       <NavLink
         to={routes.dashboard}
         aria-label={uiText.app.nav.home}
-        className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-brand)] text-sm font-bold text-white"
+        className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-brand)] text-white"
       >
-        AE
+        <LogoMarkIcon className="h-5 w-5" />
       </NavLink>
       <nav className="mt-2 flex w-full flex-col items-center gap-2" aria-label={uiText.app.nav.ariaLabel}>
         {appNavItems.map((item) => {

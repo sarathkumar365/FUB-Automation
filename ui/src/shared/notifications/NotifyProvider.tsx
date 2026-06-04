@@ -7,11 +7,13 @@ import type { NotifyApi, ToastItem, ToastOptions, ToastVariant } from './types'
 
 const DEFAULT_DURATION_MS = 4500
 
+// Per the design system, toasts carry a 4px colored left-accent plus a border
+// in the status FOREGROUND color (not the pale -bg tint) for legibility.
 const variantToStyles: Record<ToastVariant, string> = {
-  success: 'border-[var(--color-status-ok-bg)] bg-[var(--color-surface)]',
-  error: 'border-[var(--color-status-bad-bg)] bg-[var(--color-surface)]',
-  warning: 'border-[var(--color-status-warn-bg)] bg-[var(--color-surface)]',
-  info: 'border-[var(--color-brand-soft)] bg-[var(--color-surface)]',
+  success: 'border-l-4 border-[var(--color-status-ok)] bg-[var(--color-surface)]',
+  error: 'border-l-4 border-[var(--color-status-bad)] bg-[var(--color-surface)]',
+  warning: 'border-l-4 border-[var(--color-status-warn)] bg-[var(--color-surface)]',
+  info: 'border-l-4 border-[var(--color-brand)] bg-[var(--color-surface)]',
 }
 
 const variantToTitle: Record<ToastVariant, string> = {

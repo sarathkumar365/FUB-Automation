@@ -141,6 +141,21 @@ export function LogoutIcon(props: IconProps) {
   )
 }
 
+// Brand mark — flow-nodes monogram (one node branching to two), stroke-width 2
+// per the design system. Intended to sit inside a brand-cyan square (rail logo).
+export function LogoMarkIcon(props: IconProps) {
+  return (
+    <SvgIcon strokeWidth={2} {...props}>
+      <path d="M8 12h3" />
+      <path d="M11 12c2.2 0 2.2-4 4.4-4" />
+      <path d="M11 12c2.2 0 2.2 4 4.4 4" />
+      <circle cx="6.5" cy="12" r="1.6" />
+      <circle cx="16.5" cy="8" r="1.6" />
+      <circle cx="16.5" cy="16" r="1.6" />
+    </SvgIcon>
+  )
+}
+
 export function MoonIcon(props: IconProps) {
   return (
     <SvgIcon {...props}>
