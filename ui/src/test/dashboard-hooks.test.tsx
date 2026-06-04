@@ -116,7 +116,9 @@ describe('dashboard snapshot query hook', () => {
       size: 5,
     })
     expect(listWebhooks).toHaveBeenCalledWith({
-      limit: 5,
+      // RECENT_WEBHOOK_WINDOW (5) + 1 — fetch one past the window so the
+      // dashboard can distinguish "exactly 5" from "more than 5".
+      limit: 6,
     })
     expect(result.current.data?.activeWorkflows.count).toBe(4)
     expect(result.current.data?.failedRuns.count).toBe(2)

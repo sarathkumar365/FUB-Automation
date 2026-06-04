@@ -63,8 +63,8 @@ export function WorkflowsPage() {
   )
   const triggerTypeNames = useMemo(
     () =>
-      (triggerTypesQuery.data ?? [])
-        .map((item) => item.displayName)
+      (triggerTypesQuery.data?.eventKinds ?? [])
+        .slice()
         .sort((left, right) => left.localeCompare(right)),
     [triggerTypesQuery.data],
   )
@@ -116,6 +116,7 @@ export function WorkflowsPage() {
             isPending={triggerTypesQuery.isPending}
             isError={triggerTypesQuery.isError}
             items={triggerTypeNames}
+            description={triggerTypesQuery.data?.shape}
           />
         </div>
       ),
@@ -127,6 +128,7 @@ export function WorkflowsPage() {
       triggerTypeNames,
       triggerTypesQuery.isError,
       triggerTypesQuery.isPending,
+      triggerTypesQuery.data?.shape,
     ],
   )
 
@@ -291,16 +293,23 @@ function CatalogSection({
   isPending,
   isError,
   items,
+  description,
 }: {
   title: string
   isPending: boolean
   isError: boolean
   items: string[]
+  description?: string
 }) {
   return (
     <details open className="rounded-md border border-[var(--color-border)]">
       <summary className="cursor-pointer px-3 py-2 text-sm font-medium text-[var(--color-text)]">{title}</summary>
       <div className="border-t border-[var(--color-border)] px-3 py-2">
+        {!isPending && !isError && description ? (
+          <p className="mb-2 text-[11px] text-[var(--color-text-muted)]">
+            {uiText.workflows.triggerShapeLabel}: <span className="break-all font-mono">{description}</span>
+          </p>
+        ) : null}
         {isPending ? (
           <p className="text-xs text-[var(--color-text-muted)]">{uiText.states.loadingMessage}</p>
         ) : isError ? (

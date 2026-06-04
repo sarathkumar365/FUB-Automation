@@ -1,5 +1,5 @@
 import { useMemo, type CSSProperties } from 'react'
-import { Link } from 'react-router-dom'
+import { Link, useNavigate } from 'react-router-dom'
 import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
 import { routes } from '../../../shared/constants/routes'
 import { uiText } from '../../../shared/constants/uiText'
@@ -12,11 +12,13 @@ import { StatusBadge } from '../../../shared/ui/StatusBadge'
 import { formatWorkflowRunStatus, getWorkflowRunStatusTone } from '../../workflow-runs/lib/workflowRunsDisplay'
 import type { WorkflowRunSummary } from '../../workflows/lib/workflowSchemas'
 import { useDashboardSnapshotQuery } from '../data/useDashboardSnapshotQuery'
+import { RECENT_WEBHOOK_WINDOW } from '../lib/dashboardSnapshot'
 import './DashboardPage.css'
 
 type StatTone = 'default' | 'error' | 'ok'
 
 export function DashboardPage() {
+  const navigate = useNavigate()
   const snapshotQuery = useDashboardSnapshotQuery()
   const snapshot = snapshotQuery.data
 
@@ -77,6 +79,11 @@ export function DashboardPage() {
     failedCount > 0 ? uiText.dashboard.statFailedRunsLabel : uiText.dashboard.failedRunsEmpty
   const latestIngestValue = formatNullableDate(snapshot.systemHealth.latestWebhookReceivedAt)
 
+  const ingestValue =
+    snapshot.systemHealth.recentWebhookCount > RECENT_WEBHOOK_WINDOW
+      ? `${RECENT_WEBHOOK_WINDOW}+`
+      : snapshot.systemHealth.recentWebhookCount
+
   return (
     <div className="dash-root space-y-4">
       <div className="dash-blob dash-blob-tr" aria-hidden="true" />
@@ -106,7 +113,7 @@ export function DashboardPage() {
         <StatTile
           label={uiText.dashboard.systemHealthTitle}
           subLabel={`${uiText.dashboard.latestIngestLabel}: ${latestIngestValue}`}
-          value={snapshot.systemHealth.recentWebhookCount}
+          value={ingestValue}
           to={routes.webhooks}
           linkLabel={uiText.dashboard.viewIngestActivity}
           tone="default"
@@ -119,7 +126,7 @@ export function DashboardPage() {
           {recentRuns.length === 0 ? (
             <p className="text-sm text-[var(--color-text-muted)]">{uiText.dashboard.recentRunsEmpty}</p>
           ) : (
-            <RunList runs={recentRuns} />
+            <RunList runs={recentRuns} onSelect={(run) => navigate(routes.workflowRunDetail(run.id))} />
           )}
           <DashboardLink to={routes.workflowRuns} label={uiText.dashboard.openRuns} />
         </PageCard>
@@ -135,7 +142,7 @@ export function DashboardPage() {
 type StatTileProps = {
   label: string
   subLabel: string
-  value: number
+  value: number | string
   to: string
   linkLabel: string
   tone: StatTone
@@ -171,7 +178,7 @@ function StatTile({ label, subLabel, value, to, linkLabel, tone, delay }: StatTi
   )
 }
 
-function RunList({ runs }: { runs: WorkflowRunSummary[] }) {
+function RunList({ runs, onSelect }: { runs: WorkflowRunSummary[]; onSelect: (run: WorkflowRunSummary) => void }) {
   return (
     <div className="overflow-x-auto rounded-md border border-[var(--color-border)]">
       <table className="min-w-full text-left text-xs">
@@ -185,8 +192,21 @@ function RunList({ runs }: { runs: WorkflowRunSummary[] }) {
         </thead>
         <tbody>
           {runs.map((run) => (
-            <tr key={run.id} className="border-t border-[var(--color-border)]">
-              <td className="px-2 py-2">{run.id}</td>
+            <tr
+              key={run.id}
+              role="button"
+              tabIndex={0}
+              aria-label={`${uiText.dashboard.runRowAriaLabelPrefix} ${run.id}`}
+              onClick={() => onSelect(run)}
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' || event.key === ' ') {
+                  event.preventDefault()
+                  onSelect(run)
+                }
+              }}
+              className="cursor-pointer border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] ring-offset-[var(--color-surface)]"
+            >
+              <td className="px-2 py-2 font-mono">{run.id}</td>
               <td className="px-2 py-2 font-mono">{run.workflowKey}</td>
               <td className="px-2 py-2">
                 <StatusBadge label={formatWorkflowRunStatus(run.status)} tone={getWorkflowRunStatusTone(run.status)} />

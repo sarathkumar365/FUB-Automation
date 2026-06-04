@@ -48,4 +48,21 @@ describe('App routing and shell', () => {
 
     expect(await screen.findByText(uiText.dashboard.subtitle)).toBeInTheDocument()
   })
+
+  it('renders the 404 page for an unknown admin path', async () => {
+    window.history.pushState({}, '', '/admin-ui/does-not-exist')
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: uiText.notFound.title })).toBeInTheDocument()
+    expect(screen.getByText(uiText.notFound.message)).toBeInTheDocument()
+  })
+
+  it('renders the 404 page for an unknown top-level path', async () => {
+    window.history.pushState({}, '', '/totally-unknown')
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: uiText.notFound.title })).toBeInTheDocument()
+  })
 })

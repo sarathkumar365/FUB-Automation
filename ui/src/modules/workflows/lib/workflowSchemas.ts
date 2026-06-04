@@ -64,13 +64,12 @@ export const stepTypeCatalogEntrySchema = z.object({
 })
 export type StepTypeCatalogEntry = z.infer<typeof stepTypeCatalogEntrySchema>
 
-export const triggerTypeCatalogEntrySchema = z.object({
-  id: z.string(),
-  displayName: z.string(),
-  description: z.string(),
-  configSchema: z.record(z.string(), z.unknown()),
+
+export const triggerTypeCatalogSchema = z.object({
+  shape: z.string(),
+  eventKinds: z.array(z.string()),
 })
-export type TriggerTypeCatalogEntry = z.infer<typeof triggerTypeCatalogEntrySchema>
+export type TriggerTypeCatalog = z.infer<typeof triggerTypeCatalogSchema>
 
 export const workflowVersionSummarySchema = z.object({
   versionNumber: z.number().nullable(),

@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
-import { Input } from '../../../shared/ui'
+import { Input } from '../../../shared/ui/input'
 
 /**
  * Auth-screen field + error helpers, shared by LoginPage and SignupPage so the
@@ -24,7 +24,7 @@ export function AuthError({ children }: { children: ReactNode }) {
   return (
     <p
       role="alert"
-      className="rounded-md border border-[var(--color-status-bad)] bg-[color-mix(in_srgb,var(--color-status-bad),transparent_88%)] px-3 py-2 text-sm text-[var(--color-status-bad)]"
+      className="rounded-md border border-[var(--color-status-bad)] bg-[var(--color-status-bad-bg)] px-3 py-2 text-sm text-[var(--color-status-bad)]"
     >
       {children}
     </p>

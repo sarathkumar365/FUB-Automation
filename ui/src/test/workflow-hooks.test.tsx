@@ -44,7 +44,7 @@ function createPortsMocks() {
     })),
     listWorkflowVersions: vi.fn(async () => []),
     listStepTypes: vi.fn(async () => []),
-    listTriggerTypes: vi.fn(async () => []),
+    listTriggerTypes: vi.fn(async () => ({ shape: '', eventKinds: [] })),
   }
 }
 

@@ -1,6 +1,6 @@
 import {
   stepTypeCatalogEntrySchema,
-  triggerTypeCatalogEntrySchema,
+  triggerTypeCatalogSchema,
   validateWorkflowResponseSchema,
   workflowPageResponseSchema,
   workflowResponseSchema,
@@ -76,6 +76,6 @@ export class HttpWorkflowAdapter implements WorkflowPort {
   }
 
   listTriggerTypes() {
-    return this.httpClient.get('/admin/workflows/trigger-types', z.array(triggerTypeCatalogEntrySchema))
+    return this.httpClient.get('/admin/workflows/trigger-types', triggerTypeCatalogSchema)
   }
 }

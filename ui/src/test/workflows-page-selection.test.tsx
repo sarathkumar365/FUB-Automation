@@ -7,7 +7,7 @@ import { useShellRegions } from '../app/useShellRegions'
 import { PortsContext } from '../app/portsContextValue'
 import { WorkflowsPage } from '../modules/workflows/ui/WorkflowsPage'
 import type { AppPorts } from '../platform/container'
-import type { StepTypeCatalogEntry, TriggerTypeCatalogEntry } from '../modules/workflows/lib/workflowSchemas'
+import type { StepTypeCatalogEntry, TriggerTypeCatalog } from '../modules/workflows/lib/workflowSchemas'
 import { uiText } from '../shared/constants/uiText'
 
 function PanelHost() {
@@ -42,20 +42,10 @@ function renderWorkflowsPage(
       defaultRetryPolicy: {},
     },
   ]
-  const defaultTriggerTypes: TriggerTypeCatalogEntry[] = [
-    {
-      id: 'trigger_b',
-      displayName: 'Beta Trigger',
-      description: 'b',
-      configSchema: {},
-    },
-    {
-      id: 'trigger_a',
-      displayName: 'Alpha Trigger',
-      description: 'a',
-      configSchema: {},
-    },
-  ]
+  const defaultTriggerTypes: TriggerTypeCatalog = {
+    shape: '{ "on": <eventKind> }',
+    eventKinds: ['beta.event', 'alpha.event'],
+  }
 
   const ports = {
     adminWebhookPort: {
@@ -146,11 +136,11 @@ describe('workflows page selection', () => {
 
     const panelHost = await screen.findByTestId('panel-host')
     await within(panelHost).findByText('Alpha Step')
-    await within(panelHost).findByText('Alpha Trigger')
+    await within(panelHost).findByText('alpha.event')
     const panelText = panelHost.textContent ?? ''
 
     expect(panelText.indexOf('Alpha Step')).toBeLessThan(panelText.indexOf('Zeta Step'))
-    expect(panelText.indexOf('Alpha Trigger')).toBeLessThan(panelText.indexOf('Beta Trigger'))
+    expect(panelText.indexOf('alpha.event')).toBeLessThan(panelText.indexOf('beta.event'))
   })
 
   it('renders catalog loading state while catalog queries are pending', async () => {

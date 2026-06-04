@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
 import { useAppPorts } from '../../../app/useAppPorts'
 import { queryKeys } from '../../../platform/query/queryKeys'
-import { buildDashboardSnapshot } from '../lib/dashboardSnapshot'
+import { buildDashboardSnapshot, RECENT_WEBHOOK_WINDOW } from '../lib/dashboardSnapshot'
 
 export function useDashboardSnapshotQuery() {
   const { workflowPort, workflowRunPort, adminWebhookPort } = useAppPorts()
@@ -25,7 +25,10 @@ export function useDashboardSnapshotQuery() {
           size: 5,
         }),
         adminWebhookPort.listWebhooks({
-          limit: 5,
+          // Fetch one past the window so recentWebhookCount can distinguish
+          // "exactly WINDOW" from "more than WINDOW" (the UI shows "N+" only
+          // when the count exceeds WINDOW).
+          limit: RECENT_WEBHOOK_WINDOW + 1,
         }),
       ])
 

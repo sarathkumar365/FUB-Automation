@@ -17,16 +17,20 @@ import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
 import { PersonsPage } from '../modules/persons/ui/PersonsPage'
 import { PersonDetailPage } from '../modules/persons/ui/PersonDetailPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
+import { NotFoundPage } from './NotFoundPage'
+import { RouteErrorBoundary } from './RouteErrorBoundary'
 
 export function createAppRouter() {
   return createBrowserRouter([
     {
       path: routes.root,
       element: <LandingPage />,
+      errorElement: <RouteErrorBoundary />,
     },
     {
       path: routes.adminUi,
       element: <AppShell />,
+      errorElement: <RouteErrorBoundary />,
       children: [
         {
           path: 'session-disabled',
@@ -94,7 +98,18 @@ export function createAppRouter() {
             },
           ],
         },
+        {
+          // Unknown /admin-ui/* path — 404 inside the shell.
+          path: '*',
+          element: <NotFoundPage />,
+        },
       ],
+    },
+    {
+      // Unknown top-level path — standalone 404.
+      path: '*',
+      element: <NotFoundPage />,
+      errorElement: <RouteErrorBoundary />,
     },
   ])
 }

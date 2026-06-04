@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { Link } from 'react-router-dom'
-import { Button } from '../../../shared/ui'
+import { Button } from '../../../shared/ui/button'
 import { routes } from '../../../shared/constants/routes'
 import { uiText } from '../../../shared/constants/uiText'
 import { AuthShell } from './AuthShell'

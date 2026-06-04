@@ -1,5 +1,5 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen } from '@testing-library/react'
+import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
 import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
@@ -99,6 +99,7 @@ function renderDashboardPage(overrides?: {
           <ShellRegionsProvider>
             <Routes>
               <Route path="/admin-ui" element={<DashboardPage />} />
+              <Route path="/admin-ui/workflow-runs/:runId" element={<div>run-detail-page</div>} />
             </Routes>
           </ShellRegionsProvider>
         </MemoryRouter>
@@ -124,6 +125,47 @@ describe('dashboard page', () => {
     expect(screen.getByText('5')).toBeInTheDocument()
     expect(screen.queryByText('6')).not.toBeInTheDocument()
     expect(screen.queryByText('106')).not.toBeInTheDocument()
+  })
+
+  const webhookItems = (n: number) =>
+    Array.from({ length: n }, (_, i) => ({
+      id: i + 1,
+      eventId: `ev_${i + 1}`,
+      source: 'FUB' as const,
+      eventType: 'callsCreated',
+      status: 'RECEIVED' as const,
+      receivedAt: '2026-04-16T10:00:00Z',
+    }))
+
+  it('shows "5+" only when the count EXCEEDS the window (6 fetched > window of 5)', async () => {
+    renderDashboardPage({
+      listWebhooks: vi.fn(async () => ({ items: webhookItems(6), nextCursor: null, serverTime: '2026-04-16T10:00:00Z' })),
+    })
+
+    expect(await screen.findByText('5+')).toBeInTheDocument()
+  })
+
+  it('shows the exact count (not "5+") when it equals the window boundary', async () => {
+    renderDashboardPage({
+      listWebhooks: vi.fn(async () => ({ items: webhookItems(5), nextCursor: null, serverTime: '2026-04-16T10:00:00Z' })),
+      // Empty runs so the only "5" on the page is the ingest stat (default
+      // fixture renders run id 5, which would collide with this assertion).
+      listWorkflowRuns: vi.fn(async () => ({ items: [], page: 0, size: 5, total: 0 })),
+    })
+
+    expect(await screen.findByText('5')).toBeInTheDocument()
+    expect(screen.queryByText('5+')).not.toBeInTheDocument()
+  })
+
+  it('navigates to run detail when a recent-run row is clicked', async () => {
+    renderDashboardPage()
+
+    const row = await screen.findByRole('button', {
+      name: `${uiText.dashboard.runRowAriaLabelPrefix} 1`,
+    })
+    fireEvent.click(row)
+
+    expect(await screen.findByText('run-detail-page')).toBeInTheDocument()
   })
 
   it('renders loading state while snapshot query is pending', () => {

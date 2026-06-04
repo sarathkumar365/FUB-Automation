@@ -1,6 +1,6 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Button } from '../../../shared/ui'
+import { Button } from '../../../shared/ui/button'
 import { routes } from '../../../shared/constants/routes'
 import { uiText } from '../../../shared/constants/uiText'
 import { HttpRequestError } from '../../../platform/adapters/http/httpJsonClient'

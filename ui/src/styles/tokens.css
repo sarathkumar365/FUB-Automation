@@ -221,6 +221,21 @@
   --color-storyboard-chip-neutral-text: #cbd5e1;
   --color-storyboard-chip-strong-text: #e2e8f0;
 
+  /* terminal pills — lifted fills + brightened ink so they read on the dark
+     canvas (light values were near-invisible / low-contrast on #0b1220) */
+  --color-storyboard-terminal-success-bg: rgba(34, 197, 94, 0.18);
+  --color-storyboard-terminal-success-border: rgba(74, 222, 128, 0.5);
+  --color-storyboard-terminal-success-text: #4ade80;
+  --color-storyboard-terminal-failure-bg: rgba(239, 68, 68, 0.18);
+  --color-storyboard-terminal-failure-border: rgba(248, 113, 113, 0.5);
+  --color-storyboard-terminal-failure-text: #fb7185;
+  --color-storyboard-terminal-skipped-bg: rgba(245, 158, 11, 0.18);
+  --color-storyboard-terminal-skipped-border: rgba(251, 191, 36, 0.5);
+  --color-storyboard-terminal-skipped-text: #fbbf24;
+  --color-storyboard-terminal-noop-bg: rgba(100, 116, 139, 0.18);
+  --color-storyboard-terminal-noop-border: rgba(148, 163, 184, 0.5);
+  --color-storyboard-terminal-noop-text: #cbd5e1;
+
   /* elevation — shadows go darker / deeper on a dark canvas */
   --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.45);
   --shadow-hover: 0 1px 3px rgba(0, 0, 0, 0.45), 0 6px 16px rgba(0, 0, 0, 0.5);

@@ -53,36 +53,46 @@ export function DataTable<T>({
           {rows.map((row) => {
             const rowKey = getRowKey(row)
             const isSelected = selectedRowKey !== null && selectedRowKey === rowKey
+            const interactive = Boolean(onRowClick)
+
+            const railClass = isSelected
+              ? 'border-l-[3px] border-l-[var(--color-brand)]'
+              : interactive
+                ? 'border-l-[3px] border-l-transparent group-hover:border-l-[var(--color-brand)]'
+                : 'border-l-[3px] border-l-transparent'
 
             return (
               <tr
                 key={rowKey}
-                // TODO: Replace row-level button semantics with a focusable cell control to preserve native table navigation semantics.
                 className={[
-                  'border-t border-[color-mix(in_srgb,var(--color-border),transparent_40%)] transition-colors',
-                  onRowClick
-                    ? 'cursor-pointer hover:bg-[var(--color-surface-alt)] hover:shadow-[inset_3px_0_0_var(--color-brand)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] focus-visible:ring-offset-2 ring-offset-[var(--color-surface)]'
+                  'group border-t border-[color-mix(in_srgb,var(--color-border),transparent_40%)] transition-colors',
+                  interactive
+                    ? 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-brand)]'
                     : '',
-                  isSelected ? 'bg-[var(--color-brand-soft)] shadow-[inset_3px_0_0_var(--color-brand)]' : '',
+                  interactive && !isSelected ? 'hover:bg-[var(--color-surface-alt)]' : '',
+                  isSelected ? 'bg-[var(--color-brand-soft)]' : '',
                 ].join(' ')}
-                role={onRowClick ? 'button' : undefined}
-                tabIndex={onRowClick ? 0 : undefined}
-                aria-label={onRowClick ? (getRowAriaLabel?.(row) ?? undefined) : undefined}
-                aria-pressed={onRowClick ? isSelected : undefined}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                role={interactive ? 'button' : undefined}
+                tabIndex={interactive ? 0 : undefined}
+                aria-label={interactive ? (getRowAriaLabel?.(row) ?? undefined) : undefined}
+                aria-pressed={interactive ? isSelected : undefined}
+                onClick={interactive ? () => onRowClick?.(row) : undefined}
                 onKeyDown={
-                  onRowClick
+                  interactive
                     ? (event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
-                          onRowClick(row)
+                          onRowClick?.(row)
                         }
                       }
                     : undefined
                 }
               >
-                {columns.map((column) => (
-                  <td key={column.key} className={`px-4 py-3 ${column.className ?? ''}`}>
+                {columns.map((column, colIndex) => (
+                  <td
+                    key={column.key}
+                    className={`px-4 py-3 ${colIndex === 0 ? railClass : ''} ${column.className ?? ''}`}
+                  >
                     {column.render(row)}
                   </td>
                 ))}

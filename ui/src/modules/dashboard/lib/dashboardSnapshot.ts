@@ -1,6 +1,14 @@
 import type { WorkflowRunPageResponse, WorkflowRunSummary, WorkflowPageResponse } from '../../workflows/lib/workflowSchemas'
 import type { WebhookFeedPage } from '../../../shared/types/webhook'
 
+/**
+ * The dashboard's recent-webhook window. The feed is cursor-based (no total),
+ * so `recentWebhookCount` is a windowed count, not a grand total. The query
+ * deliberately fetches WINDOW + 1 so the count can tell "exactly N" apart from
+ * "more than N" — the UI shows "N+" only when the count exceeds WINDOW.
+ */
+export const RECENT_WEBHOOK_WINDOW = 5
+
 export type DashboardSnapshot = {
   activeWorkflows: {
     count: number
