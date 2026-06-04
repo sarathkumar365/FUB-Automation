@@ -47,15 +47,26 @@ export { StatusBadge, type StatusTone } from './StatusBadge'
 
 // --- Icons ---
 export {
+  ActivityIcon,
   ApplyIcon,
   CloseIcon,
   FilterIcon,
+  LogoMarkIcon,
+  LogoutIcon,
+  MoonIcon,
   NextIcon,
   PauseIcon,
+  PhoneIcon,
   ReplayIcon,
   ResetIcon,
   ResumeIcon,
+  SunIcon,
+  UsersIcon,
+  WorkflowIcon,
 } from './icons'
+
+// --- Theme ---
+export { ThemeToggle } from './ThemeToggle'
 
 // --- Recipes ---
 export * from './recipes'

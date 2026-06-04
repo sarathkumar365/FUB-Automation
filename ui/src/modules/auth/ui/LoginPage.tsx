@@ -1,17 +1,15 @@
 import { useEffect, useState, type FormEvent } from 'react'
 import { Link, useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Input } from '../../../shared/ui'
+import { Button } from '../../../shared/ui'
 import { routes } from '../../../shared/constants/routes'
 import { uiText } from '../../../shared/constants/uiText'
 import { HttpRequestError } from '../../../platform/adapters/http/httpJsonClient'
 import { AuthClient } from '../data/authClient'
 import { getToken, setToken } from '../state/tokenStore'
 import { AuthShell } from './AuthShell'
+import { AuthError, AuthField } from './AuthField'
 
 const ADMIN_PREFIX = '/admin-ui'
-
-const FIELD_LABEL_CLASS =
-  'text-[11px] font-semibold uppercase tracking-[0.04em] text-[var(--color-text-muted)]'
 
 function safeNextPath(raw: string | null): string {
   if (raw === null || raw.trim().length === 0) return routes.dashboard
@@ -70,36 +68,25 @@ export function LoginPage({ authClient = new AuthClient() }: { authClient?: Auth
       <h1 className="text-[22px] font-bold text-[var(--color-text)]">{uiText.login.title}</h1>
       <p className="mb-6 mt-1 text-sm text-[var(--color-text-muted)]">{uiText.login.subtitle}</p>
       <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-        <label className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL_CLASS}>{uiText.login.usernameLabel}</span>
-          <Input
-            autoComplete="username"
-            autoFocus
-            disabled={submitting}
-            onChange={(event) => setUsername(event.target.value)}
-            required
-            value={username}
-          />
-        </label>
-        <label className="flex flex-col gap-1.5">
-          <span className={FIELD_LABEL_CLASS}>{uiText.login.passwordLabel}</span>
-          <Input
-            autoComplete="current-password"
-            disabled={submitting}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            type="password"
-            value={password}
-          />
-        </label>
-        {error !== null && (
-          <p
-            role="alert"
-            className="rounded-md border border-[var(--color-status-bad)] bg-[color-mix(in_srgb,var(--color-status-bad),transparent_88%)] px-3 py-2 text-sm text-[var(--color-status-bad)]"
-          >
-            {error}
-          </p>
-        )}
+        <AuthField
+          label={uiText.login.usernameLabel}
+          autoComplete="username"
+          autoFocus
+          disabled={submitting}
+          onChange={(event) => setUsername(event.target.value)}
+          required
+          value={username}
+        />
+        <AuthField
+          label={uiText.login.passwordLabel}
+          autoComplete="current-password"
+          disabled={submitting}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+          type="password"
+          value={password}
+        />
+        {error !== null && <AuthError>{error}</AuthError>}
         <Button
           type="submit"
           disabled={submitting || username.trim().length === 0 || password.length === 0}

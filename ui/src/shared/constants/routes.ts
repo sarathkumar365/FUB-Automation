@@ -31,7 +31,6 @@ export const routes = {
 type NavItem = {
   key: AppNavKey
   to: string
-  railLabel: string
   matchPaths: readonly string[]
 }
 
@@ -39,19 +38,16 @@ export const appNavItems: readonly NavItem[] = [
   {
     key: 'webhooks',
     to: routes.webhooks,
-    railLabel: 'WH',
     matchPaths: [routes.webhooks],
   },
   {
     key: 'processedCalls',
     to: routes.processedCalls,
-    railLabel: 'PC',
     matchPaths: [routes.processedCalls],
   },
   {
     key: 'persons',
     to: routes.persons,
-    railLabel: 'PS',
     // Active on both the list (/admin-ui/persons) and detail
     // (/admin-ui/persons/:sourcePersonId) routes.
     matchPaths: [routes.persons],
@@ -59,7 +55,6 @@ export const appNavItems: readonly NavItem[] = [
   {
     key: 'workflows',
     to: routes.workflows,
-    railLabel: 'WF',
     // Active on both the Definitions sub-tab (/workflows) and the Runs
     // sub-tab (/workflow-runs). Detail pages under each also qualify.
     matchPaths: [routes.workflows, routes.workflowRuns],

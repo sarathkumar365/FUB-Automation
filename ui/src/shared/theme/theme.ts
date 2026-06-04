@@ -1,38 +1,18 @@
 import { useCallback, useState } from 'react'
 
 /**
- * Light/dark theme handling. The actual color values live in `tokens.css`
- * under `:root[data-theme="dark"]`; this module only manages which theme is
- * active (the `data-theme` attribute on <html>) and persists the choice.
+ * Light/dark theme handling. The color values live in `tokens.css` under
+ * `:root[data-theme="dark"]`; this module only manages which theme is active
+ * (the `data-theme` attribute on <html>) and persists the choice.
  *
- * The initial theme is applied by a tiny inline boot script in `index.html`
- * (before React mounts) to avoid a flash of the wrong theme. This module reads
- * that already-applied value and lets the UI toggle it.
+ * Initial-theme resolution (stored choice → OS preference) is owned by the
+ * inline boot script in `index.html` so it runs before first paint (no flash);
+ * it cannot import this module. This module reads the already-applied value and
+ * lets the UI toggle it — keep the storage key in sync with that script.
  */
 export type Theme = 'light' | 'dark'
 
-export const THEME_STORAGE_KEY = 'ae-theme'
-
-export function readStoredTheme(): Theme | null {
-  try {
-    const value = localStorage.getItem(THEME_STORAGE_KEY)
-    return value === 'dark' || value === 'light' ? value : null
-  } catch {
-    return null
-  }
-}
-
-/** Resolve the theme to use when none is applied yet: stored choice, else OS preference. */
-export function resolveInitialTheme(): Theme {
-  const stored = readStoredTheme()
-  if (stored) {
-    return stored
-  }
-  if (typeof window !== 'undefined' && window.matchMedia?.('(prefers-color-scheme: dark)').matches) {
-    return 'dark'
-  }
-  return 'light'
-}
+const STORAGE_KEY = 'ae-theme'
 
 /** Apply a theme to the document and persist the choice. */
 export function applyTheme(theme: Theme): void {
@@ -40,7 +20,7 @@ export function applyTheme(theme: Theme): void {
     document.documentElement.dataset.theme = theme
   }
   try {
-    localStorage.setItem(THEME_STORAGE_KEY, theme)
+    localStorage.setItem(STORAGE_KEY, theme)
   } catch {
     /* persistence is best-effort (private mode etc.) */
   }
@@ -48,10 +28,9 @@ export function applyTheme(theme: Theme): void {
 
 /** Read the theme currently applied to the DOM (set by the inline boot script). */
 function currentTheme(): Theme {
-  if (typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark') {
-    return 'dark'
-  }
-  return 'light'
+  return typeof document !== 'undefined' && document.documentElement.dataset.theme === 'dark'
+    ? 'dark'
+    : 'light'
 }
 
 export function useTheme(): { theme: Theme; toggle: () => void } {
