@@ -46,7 +46,7 @@ The unified abstraction is `events` (or `domain_events`) — a single table with
 | **I1** | Local `persons` state authoritatively mirrors FUB for fields any workflow references | Webhook-driven upsert (existing — without the historical `isFubLeadPerson` filter; **all persons** are captured, workflows filter lead-only behaviour by `person.kind = "LEAD"`); workflow-creation-time validation that every field referenced in trigger filter / step expressions is captured |
 | **I2** | A domain event is emitted iff something meaningful happened (state diff, or append) | Diff at upsert for state entities (`person.created` on first insert, `person.state_changed` on subsequent diff); pass-through for append entities (`call.created`, `note.created`, `note.updated`, `note.deleted`) |
 | **I3** | Engine-originated writes do not produce phantom events | Local-state-first writes (update local before FUB call); `EngineWriteTracker` cache as race-window guard |
-| **I4** | At most one active run per `(workflow_key, source_person_id)` | Cancel-on-collision — cancel the in-flight run when a newer event arrives (Phase 5, cancel-only); supersede + freshness deferred (known-issue #29) |
+| **I4** | At most one active run per `(workflow_key, source_person_id)` | Field-aware supersede — a newer event whose `changed_fields` overlap the in-flight run's cancels it (`SUPERSEDED_BY_NEWER_EVENT`) and the newer run proceeds (Phase 5, **shipped**). Residual simultaneity race in known-issue #29. |
 | **I5** | Every run knows the proximate webhook AND the logical domain event that caused it | Populate both `workflow_runs.webhook_event_id` and a new `workflow_runs.domain_event_id` |
 
 ## End-to-end lifecycle
@@ -260,13 +260,13 @@ Shipped initial impl: `InMemoryEngineWriteTracker` (ConcurrentHashMap + schedule
 
 ### 7. Run-collision handling
 
-> **Revised 2026-06-03.** The original design here — a partial unique index plus a hard-suppressed `SUPPRESSED` row linked via `suppressed_by_run_id` — is **superseded** by a deliberately minimal, experimental **cancel-only** behavior (Phase 5). Rationale: the frequent collision causes are already removed by event-collapse (Phase 2), echo handling (Phase 3), and trigger filters (Phase 4), so what remains is the rare case of two genuinely-distinct meaningful changes for the same person while a run is active. The original index/suppress text is preserved below the line for history.
+> **Revised 2026-06-03 (final, as shipped).** Two earlier designs are superseded: first the partial-unique-index + hard-`SUPPRESSED` row, then a brief **cancel-only** placeholder. The shipped Phase 5 design is **field-aware supersede-at-plan-time** — because under Rail 2 the newer event already spawns its own run, "supersede" (cancel the stale run, the newer one enforces) costs the same as cancel-only but enforces the **newest** state instead of dropping it. The original index/suppress text is preserved below the line for history; see [`phase-5-implementation.md`](./phase-5-implementation.md) and known-issue #29.
 
-When the planner is about to create a run for a `(workflow_key, source_person_id)` that already has an **active** run (`PENDING`/`BLOCKED`), it **cancels the in-flight run** instead of running two in parallel: status `CANCELED`, `reason_code = SUPERSEDED_BY_NEWER_EVENT`, `domain_event_id` = the triggering event (full event details read from `events` via that id). It does **not** start a replacement run.
+When the planner is about to create a run for a `(workflow_key, source_person_id)` that already has an **active** (`PENDING`) run, it cancels the stale run **only if** the two events' `changed_fields` overlap (the newer event re-touched what the in-flight run was premised on — so a phone change never cancels an assignment run): status `CANCELED`, `reason_code = SUPERSEDED_BY_NEWER_EVENT`, `domain_event_id` = the triggering event. The newer run **then proceeds normally** — enforcing the newest state. Owned by `RunSupersedePolicy`, called from `WorkflowExecutionManager.plan` after the idempotency check.
 
-This reuses the existing `WorkflowRunControlService` cancel — its step-skipping plus the due-worker's "claim only due PENDING steps" already make a cancelled run stop cleanly, so there is no new cancel machinery; only a relaxed status guard so the collision path may cancel a `BLOCKED` run (the operator path stays `PENDING`-only). No partial unique index is built.
+This reuses the existing `WorkflowRunControlService` cancel internals (factored into `finalizeCanceled`) — step-skipping plus the due-worker's "claim only due PENDING steps" make a cancelled run stop cleanly, so there is no new cancel machinery. Active runs are always `PENDING` (the `BLOCKED` enum is unused), so no guard relaxation was needed. No partial unique index is built.
 
-**Accepted trade-off:** cancelling without a replacement means the lead's *newer* assignment goes unenforced for that collision. This is the conservative "miss it rather than mis-fire" choice for a rare case, and is tracked as a known issue. The fuller policy (**supersede** — cancel the active run *and* start a fresh one — plus an action-step **freshness gate**) is deferred there, to be built only if cancelled-run counts justify it. Frequency is self-reported: `COUNT(*) … WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'`.
+**Why no freshness gate:** the stale run is cancelled *before* its waited actions fire, so it never acts on stale state — the action-step freshness re-check the "ideal" once needed is unnecessary. **Residual:** truly-simultaneous same-person events can both miss each other's not-yet-committed run (no lock) → two runs proceed. Rare; tracked in known-issue #29. Frequency is self-reported: `COUNT(*) … WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'`.
 
 The existing `uk_workflow_runs_idempotency_key` still catches "same webhook event replayed forever" — unchanged.
 
@@ -319,8 +319,9 @@ These are deliberately deferred, not forgotten. Each will land as its own change
 
 | Deferred item | Why deferred |
 |---|---|
-| **Supersede semantics for same-workflow multi-transition** (Option B from deliberation) — when a second `person.state_changed` event arrives for a person with an active run, terminate the active run and start a fresh one | **Cancel-only is the shipped placeholder** (Phase 5: cancel the in-flight run, start no replacement — known-issue #29). Supersede needs run-restart + freshness machinery, a separate effort. No observed incident requires it today. |
-| **Action-step freshness gate** (re-read assignedUserId immediately before reassigning) | Only justified by the supersede case, which is deferred (known-issue #29). We trust local state for the single-transition case. |
+| ~~Supersede semantics for same-workflow multi-transition~~ — **SHIPPED in Phase 5** | Field-aware supersede-at-plan-time: a newer overlapping-change event cancels the in-flight run and its own run enforces the newest state. Free under Rail 2 (the replacement run already exists). |
+| ~~Action-step freshness gate~~ — **not needed** | The stale run is cancelled before its waited actions fire, so it never acts on stale state. Investigated and deliberately dropped (see `phase-5-implementation.md`). |
+| **Lock/partial-unique-index for the simultaneity race** | Supersede's collision lookup isn't lock-protected; two truly-simultaneous same-person events can both proceed. Rare; tracked in known-issue #29 with a revisit trigger. |
 | **5-min lookback buffer narrowing** | Once Phase 4 lands and over-fires stop reaching `wait_and_check_communication`, the buffer's "absorb agent over-fire" job disappears. Should be narrowed back to its true purpose (calls-before-claim race). Trivial to do; deferred to a follow-up that touches the step's config. |
 | **FUB-to-local reconciliation / catch-up** | If FUB stops sending webhooks the engine has no recovery path. Whole system already relies on FUB to keep sending; not regressing. Out of scope; address if/when observed. |
 | **Stale-assignment guard** (person 19255 case — prior real conversation outside buffer window) | Product concern, not engine bug. Workflow author should add a `person.lastCallAt` predicate; engine should expose the data. |
@@ -354,7 +355,7 @@ Per phase (see [phases.md](phases.md)) but at the feature level:
 - Replay harness covers the 05-08, 05-11, 05-12 incidents recorded in field observations. Each replays cleanly and produces the *expected* sequence under the new architecture (engine echoes collapse, FUB bursts collapse, agent over-fires never produce events).
 - Person 20235 scenario (3 webhooks in 8s, all hitting peopleUpdated): under new architecture, exactly one `person.state_changed` event is emitted; one run is created; one reassign is performed.
 - Person 20123 scenario (echo cascade after reassign): under new architecture, the engine's reassign updates local state first, the echo webhook diff is empty, no second event emitted.
-- The `agent_followup_enforcement` workflow re-authored against the new shape runs the same 26+ days of recorded events with bad-run rate dropping from ~50% to <5% (the residual being genuine multi-transition cases the deferred supersede semantics would close).
+- The `agent_followup_enforcement` workflow re-authored against the new shape runs the same 26+ days of recorded events with bad-run rate dropping from ~50% to <5% (the residual genuine multi-transition cases now closed by Phase 5 field-aware supersede; only the truly-simultaneous race remains, known-issue #29).
 
 ## Linked decisions
 

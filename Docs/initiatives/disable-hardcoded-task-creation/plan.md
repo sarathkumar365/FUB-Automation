@@ -134,8 +134,8 @@ exercise the existing dev-guard / task-create paths.
 **New:**
 - `src/test/java/.../integration/WebhookProcessorActionGuardTest.java`
   (or chosen home) — single kill-switch test.
-- `Docs/features/disable-hardcoded-task-creation/research.md` (done).
-- `Docs/features/disable-hardcoded-task-creation/plan.md` (this file).
+- `Docs/initiatives/disable-hardcoded-task-creation/research.md` (done).
+- `Docs/initiatives/disable-hardcoded-task-creation/plan.md` (this file).
 - `.env.example` — add `TASK_CREATION_ENABLED=true` with a comment.
 
 **Not modified:**

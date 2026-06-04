@@ -1,11 +1,13 @@
 # Phases
 
+> ⚠️ **Historical (2026-06-03).** The policy engine these phases built was **removed** (V12) and replaced by the workflow engine + domain-events feature; `leads`→`persons` (V21). Kept as build history; statuses below describe work that has since been superseded.
+
 ## Sprint 0 (RFC Lock Gate)
 Status: Completed
-Artifacts:
-- `rfc-001-normalized-lead-event-contract.md`
-- `rfc-002-event-catalog-and-routing.md`
-- `rfc-003-lead-identity-mapping-boundary.md`
+Artifacts (promoted to repo-decisions; RFC files removed):
+- `Docs/repo-decisions/RD-001-normalized-lead-event-contract.md`
+- `Docs/repo-decisions/RD-002-event-catalog-state-and-routing-model.md`
+- `Docs/repo-decisions/RD-003-lead-identity-mapping-boundary.md`
 
 Gate: Phase 1 implementation must not start unless Sprint 0 remains approved.
 
@@ -20,7 +22,6 @@ Log: `phase-2-implementation.md`
 ## Phase 3
 Status: Completed (Step 1 through Step 12 completed)
 Log: `phase-3-implementation.md`
-Support artifact: `current-state-implementation-deep-dive.md` (branch vs main + code-flow/method deep dive)
 Planned scope alignment (assignment SLA example):
 - Persist pending checks for assignment events with first checkpoint step `WAIT_AND_CHECK_CLAIM` due in 5 minutes (configurable).
 - Persist follow-up checkpoint intent for step `WAIT_AND_CHECK_COMMUNICATION` at +10 minutes after claimed check pass (configurable).

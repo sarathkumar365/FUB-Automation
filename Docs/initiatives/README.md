@@ -18,5 +18,5 @@ Cross-cutting work that isn't a new feature and isn't a bug fix — security har
 ## What does not go here
 
 - A single new capability → [`../features/`](../features/)
-- A specific defect → [`../bugs/`](../bugs/)
+- A specific defect → [`../bugs/`](../bugs.md)
 - Migration *plans* tied to one library (e.g. Jackson upgrade reference) → [`../engineering-reference/`](../engineering-reference/)

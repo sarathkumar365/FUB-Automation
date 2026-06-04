@@ -1,12 +1,14 @@
 # Plan
 
+> ⚠️ **Historical (2026-06-03).** This feature built a **policy engine** that was later **removed** (Flyway V12) and replaced by the workflow engine + domain-events feature; `leads` became `persons` (V21). The docs here are kept as build history. The Sprint-0 RFCs were promoted to repo decisions and the RFC files removed — see `Docs/repo-decisions/RD-001/RD-002/RD-003`.
+
 ## Primary Plan Source
 - `lead-management-platform-plan.md`
 
-## Sprint 0 RFC Pack (must be locked before code)
-- `rfc-001-normalized-lead-event-contract.md`
-- `rfc-002-event-catalog-and-routing.md`
-- `rfc-003-lead-identity-mapping-boundary.md`
+## Sprint 0 RFC Pack (promoted to repo-decisions)
+- `Docs/repo-decisions/RD-001-normalized-lead-event-contract.md` (field schema folded in)
+- `Docs/repo-decisions/RD-002-event-catalog-state-and-routing-model.md`
+- `Docs/repo-decisions/RD-003-lead-identity-mapping-boundary.md` (superseded — boundary removed in V8)
 
 ## RFC Lock Checklist
 - [x] Normalized event contract locked (required/optional fields, nullability, compatibility mapping)

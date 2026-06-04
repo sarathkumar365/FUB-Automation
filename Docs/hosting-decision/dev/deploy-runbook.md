@@ -46,7 +46,7 @@ Costs ~$5–8/month. Detailed comparison lives in
 - `SPRING_PROFILES_ACTIVE=prod` activates `application-prod.properties` which
   hardens body caps, disables `show-sql`, **and turns the legacy "call →
   task" automation off** (kill switch — see
-  [`Docs/features/disable-hardcoded-task-creation/`](../../features/disable-hardcoded-task-creation/)).
+  [`Docs/initiatives/disable-hardcoded-task-creation/`](../../initiatives/disable-hardcoded-task-creation/)).
 - Auth: stateless JWT bearer per [`RD-004`](../../repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md).
 
 ## Pre-flight (do these before clicking Deploy)
@@ -347,6 +347,6 @@ Local dev convenience. **Not used on Railway.** Two modes:
 
 - Auth design: [`RD-004-admin-auth-uses-jwt-bearer.md`](../../repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md)
 - Security checklist: [`dev-hosting-security-checklist.md`](./dev-hosting-security-checklist.md)
-- Bundled-SPA Dockerfile design: [`Docs/features/railway-deploy-bundled-spa/plan.md`](../../features/railway-deploy-bundled-spa/plan.md)
-- Kill switch design: [`Docs/features/disable-hardcoded-task-creation/plan.md`](../../features/disable-hardcoded-task-creation/plan.md)
+- Bundled-SPA Dockerfile design: [`Docs/runbooks/railway-deploy-bundled-spa/plan.md`](../../runbooks/railway-deploy-bundled-spa/plan.md)
+- Kill switch design: [`Docs/initiatives/disable-hardcoded-task-creation/plan.md`](../../initiatives/disable-hardcoded-task-creation/plan.md)
 - Hosting comparison (Railway vs alternatives): [`dev-phase-hosting-comparison.md`](./dev-phase-hosting-comparison.md)

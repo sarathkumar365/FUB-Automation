@@ -19,4 +19,4 @@ How-to-operate docs: deploy steps, on-call playbooks, environment procedures. Th
 
 - Hosting *decisions* and trade-offs → [`../hosting-decision/`](../hosting-decision/)
 - New feature design → [`../features/`](../features/)
-- Bug investigations → [`../bugs/`](../bugs/)
+- Bug investigations → [`../bugs/`](../bugs.md)

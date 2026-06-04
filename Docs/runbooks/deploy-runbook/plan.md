@@ -93,8 +93,8 @@ taking effect can follow the flow.
 
 **New:**
 - `Docs/hosting-decision/dev/deploy-runbook.md` — the runbook.
-- `Docs/features/deploy-runbook/research.md` (already done).
-- `Docs/features/deploy-runbook/plan.md` — this file.
+- `Docs/runbooks/deploy-runbook/research.md` (already done).
+- `Docs/runbooks/deploy-runbook/plan.md` — this file.
 
 **Modified (already, uncommitted):**
 - `scripts/fub-webhook-sync.sh` — `.env.prod` overlay logic and updated

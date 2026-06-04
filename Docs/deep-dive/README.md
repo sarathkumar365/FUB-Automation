@@ -1,6 +1,8 @@
-# Lead Management Platform — Documentation
+# Automation Engine — System Deep-Dive
 
-Backend implementation documentation for the Automation Engine's lead management platform. Each file covers a specific area — start with the overview, then dive into any flow.
+> ⚠️ **Staleness banner (2026-06-03).** This set predates the **Lead→Person rename (V21)** and the **domain-events feature** (typed domain events / Rail 2, `events` table V22, `workflow_runs.domain_event_id` V23, engine-echo gate, run-supersede). Treat "lead"/`sourceLeadId`/direct webhook→workflow routing/5-method FUB client/legacy policy engine as historical. Current sources: [`../features/domain-events/overview.md`](../features/domain-events/overview.md) and [`../features/domain-events/current-wiring.md`](../features/domain-events/current-wiring.md). A full content refresh of this set is pending.
+
+Backend implementation documentation for the Automation Engine. Each file covers a specific area — start with the overview, then dive into any flow.
 
 ## Contents
 

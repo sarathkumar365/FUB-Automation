@@ -6,7 +6,7 @@ Findings from the codebase security review, scoped for a publicly reachable **de
 - Implementation: feature `dev-hosting-security-hardening` (2026-05-01)
 - Reviewer: Claude (manual scan)
 
-For implementation details see [`Docs/features/dev-hosting-security-hardening/`](../../features/dev-hosting-security-hardening/) — `plan.md` for the design (with end-to-end lifecycle diagram), `phase-N-implementation.md` for what shipped in each phase.
+For implementation details see [`Docs/initiatives/dev-hosting-security-hardening/`](../../initiatives/dev-hosting-security-hardening/) — `plan.md` for the design (with end-to-end lifecycle diagram), `phase-N-implementation.md` for what shipped in each phase.
 
 ---
 

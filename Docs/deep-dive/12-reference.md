@@ -1,5 +1,7 @@
 # Reference: Enums, Known Gaps, and Verification
 
+> ⚠️ **Staleness banner (2026-06-03).** This deep-dive set predates the **Lead→Person rename (V21)** and the **domain-events feature** (typed domain events / Rail 2, the `events` table V22, `workflow_runs.domain_event_id` V23, the engine-echo gate, and run-supersede). Where it describes webhooks triggering workflows directly, a `leads` table / `sourceLeadId`, a 5-method FUB client, or the legacy policy engine as live, treat it as historical. Current sources: [`../features/domain-events/overview.md`](../features/domain-events/overview.md), [`../features/domain-events/current-wiring.md`](../features/domain-events/current-wiring.md), and the latest Flyway migrations (V23). A full content refresh of this set is pending.
+
 ## Enum Reference
 
 ### Webhook enums

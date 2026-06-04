@@ -11,5 +11,5 @@ Notes and decisions about where and how this app is hosted, split by environment
 - Environment-specific operational guidance
 
 ## What does not go here
-- Deploy runbooks for a specific feature → [`../features/deploy-runbook/`](../features/deploy-runbook/)
+- Deploy runbooks for a specific feature → [`../runbooks/deploy-runbook/`](../runbooks/deploy-runbook/)
 - Cross-cutting infra decisions → [`../repo-decisions/`](../repo-decisions/)

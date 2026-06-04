@@ -2,7 +2,7 @@
 
 This document tracks currently known issues identified in the codebase.
 
-**Last reviewed:** 2026-05-12
+**Last reviewed:** 2026-06-03
 
 For cross-cutting learnings spanning #20–#25 (over-fire mechanisms, lookback-buffer overload, defense-in-depth gaps), see [`Docs/features/agent-followup-enforcement/field-observations.md`](../features/agent-followup-enforcement/field-observations.md).
 

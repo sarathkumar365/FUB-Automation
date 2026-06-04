@@ -1,6 +1,6 @@
 # Workflow Builder UI — "Storyboard" Design & Phased Implementation Plan
 
-> **Status:** Proposal · supersedes `workflow-builder-ui-plan.md` (which described a generic React-Flow MVP). This plan picks a distinct design tailored to this platform and engine, and lays out a phased implementation with first-class observability and traceability.
+> **Status:** Proposal · supersedes the earlier generic React-Flow MVP plan (since removed). This plan picks a distinct design tailored to this platform and engine, and lays out a phased implementation with first-class observability and traceability.
 
 ---
 
@@ -584,13 +584,13 @@ When the server returns validation errors, each error is mapped to:
 - Empty state for new workflow: storyboard shows the trigger scene + a friendly "+ Add first scene" affordance.
 - Keyboard shortcuts cheatsheet (Cmd+/) — every shortcut documented inline.
 - Accessibility pass: every action reachable by keyboard, focus order coherent, ARIA labels on canvas elements (announced as "Wait and check claim, scene 2 of 5"), reduced-motion respected (matches existing `prefers-reduced-motion` in landing CSS).
-- Delete the prior `workflow-builder-ui-plan.md` doc (superseded by this one).
+- ~~Delete the prior `workflow-builder-ui-plan.md` doc~~ — done (removed in the 2026-06-03 docs cleanup).
 
 **Files touched:**
 - `ui/src/modules/workflows/ui/WorkflowDetailPage.tsx`
 - `ui/src/modules/workflows/ui/WorkflowsPage.tsx`
 - `ui/src/modules/workflows-builder/WorkflowBuilderPage.tsx`
-- `docs/features/workflow-engine/UI/workflow-builder-ui-plan.md` (delete)
+- `docs/features/workflow-engine/UI/workflow-builder-ui-plan.md` (deleted ✓)
 
 **Tests:**
 - Full E2E suite green; visual regression suite green.

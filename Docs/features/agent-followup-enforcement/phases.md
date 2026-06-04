@@ -1,5 +1,7 @@
 # Agent Follow-up Enforcement — Phases
 
+> ⚠️ **Trigger model superseded (2026-06-03).** The `webhook_fub` / `lead.*` trigger and the "ship with over-firing trigger" decision below were overtaken by the domain-events feature: the workflow now fires on `person.state_changed` + `change.assignedUserId.changed` (`person.*` namespace), and the over-firing it worked around is fixed at the engine level. Current definition: [`workflow.json`](./workflow.json).
+
 Each phase is independently shippable and verifiable. Complete in order.
 
 ---

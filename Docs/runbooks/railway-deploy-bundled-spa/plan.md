@@ -103,8 +103,8 @@ reloading `/admin-ui/persons/42` would hit Spring with no handler and return
 - `src/test/java/com/fuba/automation_engine/FubWebhookSyncScriptTest.java` — contract test for the sync script.
 
 **Modified:**
-- `Docs/features/railway-deploy-bundled-spa/research.md` — context and constraints.
-- `Docs/features/railway-deploy-bundled-spa/plan.md` — this file.
+- `Docs/runbooks/railway-deploy-bundled-spa/research.md` — context and constraints.
+- `Docs/runbooks/railway-deploy-bundled-spa/plan.md` — this file.
 
 **Not modified:**
 - `application.properties` and `application-prod.properties` — already in good shape from `dev-hosting-security-hardening`.

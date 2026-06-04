@@ -721,8 +721,6 @@ to change:
 
 ## Related docs
 
-- [Design / research for matcher mode](../../branch-on-field-matchers/research.md)
-- [Implementation plan for matcher mode](../../branch-on-field-matchers/plan.md)
 - [`how-the-engine-works.md`](../how-the-engine-works.md) — engine
   lifecycle, expression scope, claim loop
 - [Control-flow step-types plan](../control-flow-step-types-plan.md) —

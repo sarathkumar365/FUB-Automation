@@ -178,6 +178,6 @@ Status: `[x]` done — see [`phase-4-implementation.md`](./phase-4-implementatio
 ### Phase gate
 
 - [x] All checklist items in `dev-hosting-security-checklist.md` are either ticked or moved to the known-issues section.
-- [x] `Docs/features/dev-hosting-security-hardening/phases.md` (this file) reflects all `[x]` for Phases 0–4.
+- [x] `Docs/initiatives/dev-hosting-security-hardening/phases.md` (this file) reflects all `[x]` for Phases 0–4.
 - [x] Backend test suite still passes (`./mvnw clean test`); UI suite still passes (`npm test`). No code changes in this phase.
 - [x] **Repo decisions impact**: `No` — Phase 4 is doc-only, codifies the lifecycle-diagram requirement in `AGENTS.md` (a workflow rule, not a code-architecture decision). The auth pattern itself is already in `RD-004`.

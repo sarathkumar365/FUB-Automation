@@ -10,8 +10,9 @@ This folder is the repo-wide decision registry for architectural and process dec
 ## Active Decisions
 - `RD-001-normalized-lead-event-contract.md` — Status: Accepted
 - `RD-002-event-catalog-state-and-routing-model.md` — Status: Accepted
-- `RD-003-lead-identity-mapping-boundary.md` — Status: Accepted
+- `RD-003-lead-identity-mapping-boundary.md` — Status: **Superseded / not implemented** (identity-resolver boundary removed in V8; see the RD)
 - `RD-004-admin-auth-uses-jwt-bearer.md` — Status: Accepted
+- `RD-005-product-name-throughline.md` — Status: Provisional (pending trademark/domain clearance)
 - `RD-006-engine-echo-exclusion-safe-by-default.md` — Status: Accepted (enforcement in domain-events Phase 4d)
 
 ## Decision Lifecycle

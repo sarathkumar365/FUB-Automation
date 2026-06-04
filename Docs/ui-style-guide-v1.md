@@ -4,7 +4,7 @@
 This document is the canonical UI style reference for the admin streaming experience in `automation-engine` UI 0.1.
 
 Use this together with:
-- `docs/ui-figma-reference.md` (Figma node references)
+- `Docs/ui-figma-reference.md` (Figma node references)
 - `ui/src/styles/tokens.css` (code-level design tokens)
 
 ## Canonical layout

@@ -1,6 +1,6 @@
 # Phase 4 — Commit-level plan
 
-> **Status:** Planning (not started). Decomposes the Phase 4 section of [`phases.md`](./phases.md) into five reviewable sub-phases. Built on the fresh-eyes verification of 2026-06-02 (see the `phases.md` changelog) and a local-DB workflow check the same day.
+> **Status:** DONE — shipped as 4a–4d.2. Decomposes the Phase 4 section of [`phases.md`](./phases.md) into reviewable sub-phases; pairs with the decision narrative in [`phase-4-implementation.md`](./phase-4-implementation.md). Built on the fresh-eyes verification of 2026-06-02 (see the `phases.md` changelog) and a local-DB workflow check the same day.
 >
 > **Intent (unchanged):** workflows stop subscribing to raw webhooks and subscribe to **domain events**; the one production workflow (`agent_followup_enforcement`) is re-authored against the new `{on, filter}` shape; the bad-run-rate win (~50% → <5%) lands here. Phases 0–3 are dormant plumbing until this phase consumes them.
 

@@ -1,7 +1,7 @@
 # Phase 1 Implementation — Manual Recovery Script
 
 ## Status
-`IN_PROGRESS` (validation blocked by existing unrelated full-suite failures in current branch)
+`DONE` — `scripts/fub-webhook-reactivate.sh` shipped and covered by `FubWebhookReactivationScriptTest`; the full suite is green on `feature/domain-events`.
 
 ## Implementation Log
 - [x] Created feature documentation bundle (`research.md`, `plan.md`, `phases.md`, this file).

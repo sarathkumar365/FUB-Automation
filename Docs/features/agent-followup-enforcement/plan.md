@@ -1,5 +1,7 @@
 # Agent Follow-up Enforcement
 
+> ⚠️ **Trigger model superseded (2026-06-03).** This plan describes the original trigger (`type: webhook_fub`, `eventDomain`/`eventAction`, `lead.*` namespace). The shipped workflow now fires on a **typed domain event** — `{ "on": "person.state_changed", "filter": "person.kind = 'LEAD' and change.assignedUserId.changed" }` with the `person.*` namespace — per the domain-events feature (Lead→Person rename + Rail 2). The canonical current definition is [`workflow.json`](./workflow.json); architecture in [`../domain-events/overview.md`](../domain-events/overview.md). The motivation and incident analysis below remain accurate history.
+
 ## Context
 
 If an agent is given a lead and doesn't follow up, the platform should escalate automatically. There's no automated nudge today. We want:

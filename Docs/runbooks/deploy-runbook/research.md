@@ -15,10 +15,10 @@ deploy.
 - **README "Hosted dev environment"** — covers the env-var contract and the
   pre-deploy verification command. Doesn't mention Railway specifically, the
   sync script, or `.env.prod`.
-- **`Docs/features/railway-deploy-bundled-spa/plan.md`** — design-level: why
+- **`Docs/runbooks/railway-deploy-bundled-spa/plan.md`** — design-level: why
   the SPA is bundled, what the Dockerfile does. One-line note about the sync
   script. Not an operational runbook.
-- **`Docs/features/dev-hosting-security-hardening/`** — env-var contract,
+- **`Docs/initiatives/dev-hosting-security-hardening/`** — env-var contract,
   RD-004 reference, but no Railway-side wiring.
 - **`Docs/hosting-decision/dev/dev-hosting-security-checklist.md`** — what
   was hardened and what's deferred. Not deploy steps.

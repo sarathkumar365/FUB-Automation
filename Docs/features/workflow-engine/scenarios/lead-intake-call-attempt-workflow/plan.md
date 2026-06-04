@@ -1,5 +1,7 @@
 # Lead Intake Call-Attempt Workflow — Plan
 
+> ⚠️ **Largely superseded (2026-06-03).** This scenario's intent (assign → wait/check → escalate) is now carried by the live [`../../../agent-followup-enforcement/`](../../../agent-followup-enforcement/) feature + the domain-events trigger model. Phases 1–3 here shipped (`fub_create_task`, `wait_and_check_communication`); Phases 4–5 (attempt counter, cross-event state machine) remain unbuilt backlog. Terminology predates the Lead→Person rename. Kept as history + backlog.
+
 ## Scope
 Define a phased path from current workflow-only capability to the requested end-state flow.
 

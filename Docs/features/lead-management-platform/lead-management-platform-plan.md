@@ -1,5 +1,7 @@
 # Lead Management Platform Plan
 
+> ⚠️ **Historical / superseded (2026-06-03).** The policy-engine architecture this plan describes (`automation_policies`, `PolicyExecutionManager`, `policy_execution_runs/steps`, typed linear policy steps) was **removed in Flyway V12** and replaced by the **workflow engine** (`Docs/features/workflow-engine/`) + **domain-events** feature. `leads` was renamed to `persons` (V21). Retained as build history; do not treat the architecture below as current.
+
 ## Intent
 Build a lead-management-ready automation foundation that supports:
 - internal lead inflow

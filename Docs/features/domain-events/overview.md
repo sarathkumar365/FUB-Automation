@@ -137,10 +137,10 @@ flowchart LR
     P1 --> PR[Pre-2 · Rename<br/>Lead→Person ✅]
     PR --> P2[2 · Events table<br/>+ diff ✅]
     P2 --> P3[3 · Engine writes<br/>local-first + tag ✅]
-    P3 --> P4[4 · Workflows<br/>SUBSCRIBE 🔨]
-    P4 --> P5[5 · Run-collision<br/>cancel-only ⏳]
-    style P4 fill:#fff3cd,stroke:#f0ad4e,color:#000
-    style P5 fill:#f0f0f0,stroke:#999,color:#000
+    P3 --> P4[4 · Workflows<br/>SUBSCRIBE ✅]
+    P4 --> P5[5 · Run-collision<br/>supersede ✅]
+    style P4 fill:#d4edda,stroke:#28a745,color:#000
+    style P5 fill:#d4edda,stroke:#28a745,color:#000
 ```
 
 | Phase | What it does | State |
@@ -150,7 +150,7 @@ flowchart LR
 | Pre-2 | Rename `Lead`→`Person` (FUB calls them people) | done |
 | 2 | Build the events table + diff machinery. Events get **written** on every webhook — but **nothing reads them yet** | done |
 | 3 | Engine writes update local state first + tag themselves `source=ENGINE` — the echo-killer | done |
-| **4** | **Workflows actually subscribe to domain events.** The old webhook trigger is retired. *The bad-run-rate win lands here.* | **in progress** |
+| **4** | **Workflows actually subscribe to domain events.** The old webhook trigger is retired. *The bad-run-rate win lands here.* | done |
 | 5 | Run-collision handling — field-aware supersede-at-plan-time (#29) | done |
 
 **Subtlety worth holding onto:** because of Phase 2, **events are already being written on every webhook right now** — they just pile up with no reader. So Phase 4's real job is **attaching the first reader**. (That's why the order of "attach reader" vs. "turn on the engine's own event emission" matters during cutover.)

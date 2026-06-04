@@ -3,10 +3,10 @@
 Status: Completed (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
 
 ## Preconditions (must be true before code changes)
-- Sprint 0 RFC pack is approved:
-  - `rfc-001-normalized-lead-event-contract.md`
-  - `rfc-002-event-catalog-and-routing.md`
-  - `rfc-003-lead-identity-mapping-boundary.md`
+- Sprint 0 RFC pack is approved (RFCs since promoted to `Docs/repo-decisions/RD-001/RD-002/RD-003` and the feature-folder RFC files removed):
+  - RD-001 normalized event contract
+  - RD-002 event catalog + routing
+  - RD-003 lead identity mapping boundary (later superseded — removed in V8)
 - No open contract ambiguities remain for:
   - normalized event required/optional fields
   - catalog state behavior
