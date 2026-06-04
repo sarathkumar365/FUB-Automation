@@ -147,3 +147,14 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 2. `npm run build`
 3. `npm run test`
 - Report blockers clearly if execution is not possible; do not claim completion without validation evidence.
+
+## UI change pre-flight checklist (run through this before writing code)
+Before adding or changing a component, work top-to-bottom:
+1. **Read the rules first.** This file + `src/shared/ui/README.md` (tier model) + `src/styles/tokens.README.md`. Don't infer conventions from the design system alone.
+2. **Search for reuse.** Grep `shared/ui` (primitives), `shared/ui/recipes` (recipes), and the feature module before creating anything. Enhance an existing shared component rather than cloning it. If you write the same markup twice, extract a helper (per "modular design" above).
+3. **Place by tier.** App-agnostic primitive → `shared/ui`. Opinionated composition → `shared/ui/recipes`. Domain/feature UI → `modules/<feature>/ui`. Cross-cutting non-UI (theme, notifications) → its own `shared/<concern>` folder.
+4. **Tokens, never hex.** All colors via `var(--…)` from `tokens.css`. No `#hex`/`rgba()` literals in `*.tsx`/feature `*.css` (enforced by `npm run lint:tokens`). New color → add a token. Anything token-driven also flips in dark mode (`:root[data-theme="dark"]`).
+5. **Copy via `uiText`.** No user-facing string literals in feature files; add a `uiText` key.
+6. **Export new shared primitives from the barrel** (`shared/ui/index.ts`).
+7. **No dead code.** If you remove a usage, remove the now-orphaned field/export/string. `npm run deadcode` (knip) catches these.
+8. **Validate.** `npm run check` (lint + lint:tokens + build + test) must pass; add/adjust tests for changed behavior. For observable UI, browser-verify via the preview.

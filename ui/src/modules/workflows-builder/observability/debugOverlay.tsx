@@ -1,6 +1,10 @@
 /**
  * Workflow Builder debug overlay.
  *
+ * hex-allow-file: dev-only diagnostic overlay (gated on import.meta.env.DEV /
+ * ?builderDebug). Intentionally a fixed dark panel regardless of theme, so its
+ * colors are literal rather than design-system tokens.
+ *
  * Toggle: Cmd+Shift+D (Ctrl+Shift+D on Windows/Linux).
  *
  * Shows, for the current session:
