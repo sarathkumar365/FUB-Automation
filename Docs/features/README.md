@@ -4,13 +4,16 @@ One subfolder per feature, holding its spec, design notes, and any phase plans.
 
 ## Conventions
 - Folder name: kebab-case feature slug (e.g. `lead-management-platform`, `workflow-engine`).
-- Inside each folder: a primary spec/RFC, plus supporting notes, diagrams, or phase docs as needed.
+- **Docs move through two states** (full rules in [`../../AGENTS.md`](../../AGENTS.md) → *Feature documentation workflow*). The tell: an `implementation-log.md` means archived; without one, active.
+  - **Active (in development)** — the granular working set: `research.md`, `plan.md`, `phases.md`, and one `phase-<n>-implementation.md` per phase.
+  - **Archived (all phases done)** — consolidated to three files: `README.md` (entry point + tracker), `plan.md` (design + research), `implementation-log.md` (append-only, one dated section per phase).
+  - **Trigger:** when `phases.md` shows every phase complete, consolidate to the archived shape — a mandatory definition-of-done step. Reopening later appends a new section to `implementation-log.md`; it does not revert to granular.
+  - A trivial feature (≤1 phase) may start and stay as a single `README.md`.
 - Repo-wide decisions surfaced by a feature get promoted to [`../repo-decisions/`](../repo-decisions/).
 
 ## What goes here
-- Feature specs and RFCs
-- Phase plans, rollout notes, vertical-slice breakdowns
-- Feature-scoped diagrams or design discussion
+- The feature's design, current state, and implementation history (the files above).
+- Feature-scoped diagrams or design discussion.
 
 ## What does not go here
 - Bug fixes / defect tracking → [`../bugs.md`](../bugs.md)

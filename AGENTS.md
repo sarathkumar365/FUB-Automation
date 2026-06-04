@@ -81,30 +81,33 @@ Jump to the section that governs the work in front of you. If a task touches mul
   - Hardening, legacy removal, migration, tech-debt sweep → `Docs/initiatives/<slug>/`
   - Repo-wide decision → `Docs/repo-decisions/`
 - For every new feature, create a dedicated folder under `Docs/features/<feature-slug>/`.
-- Each feature folder must include:
-  - `research.md` for discovery, analysis, and references
-  - `plan.md` for the approved implementation plan
-  - `phases.md` for phase definitions and status tracking
-  - `phase-<n>-implementation.md` files to document what was implemented in each phase
-- Before implementing any code change, read the feature's `research.md`, `plan.md`, and current phase docs.
-- After completing a phase, update:
-  - the corresponding `phase-<n>-implementation.md`
-  - `phases.md` status
-- After completing any implementation step (not just full phases), update the corresponding feature docs immediately:
-  - mark the step as completed in the relevant doc/checklist
-  - keep status/progress current so the next agent can continue without re-discovery
+- **A feature's docs move through two states. The tell: a feature with an `implementation-log.md` is archived; without one, it's active.**
+- **Active (in development) — the granular working set.** While the feature is being built, keep the per-artifact files; they're the better workspace (each phase log is a clean, self-contained artifact you write as that phase lands):
+  - `research.md` — discovery, analysis, references.
+  - `plan.md` — approved design + the mandatory lifecycle diagram.
+  - `phases.md` — phase definitions and the status tracker.
+  - `phase-<n>-implementation.md` — one per phase; the decision narrative for that phase.
+- **Archived (all phases done) — consolidated to three files** (reduces git clutter once the docs stop changing):
+  - `README.md` — entry point: what it is, current state, phase tracker (absorbs `overview`/`phases`).
+  - `plan.md` — design + research + lifecycle diagram (absorbs `research` and any per-phase plans).
+  - `implementation-log.md` — **append-only history**: one dated `## Phase <n> — <title> (<YYYY-MM-DD>)` section per phase (absorbs the `phase-<n>-implementation.md` files). Never rewrite an existing section to chase a later decision.
+  - A trivial feature (≤1 phase, thin) may start and stay as a single `README.md`.
+- **Consolidation trigger (mandatory definition-of-done gate).** When `phases.md` shows every phase complete, consolidate to the archived shape as part of wrapping the feature — a phase-complete feature left in the granular shape is *not done*. Move content **verbatim** (co-locate and demote headings by one level; do not rewrite history) and repoint every cross-doc link that referenced a folded file.
+- **Reopening an archived feature** (a new phase after consolidation): do **not** revert to the granular shape — append a new dated `## Phase <n>` section to `implementation-log.md` and update the `README.md` tracker.
+- Before implementing any code change, read the feature's current docs — active: `plan.md` + `phases.md`; archived: `README.md` + `plan.md`.
+- After completing a phase: active → update that phase's `phase-<n>-implementation.md` and `phases.md` status; archived → append a section to `implementation-log.md` and update the `README.md` tracker.
 - Keep entries concise, chronological, and handoff-friendly so the next agent can continue without rediscovery.
 - Before implementing any feature/code change, read in this order:
   1. `Docs/repo-decisions/README.md`
   2. all `Accepted` repo decisions relevant to touched modules
   3. feature docs under `Docs/features/<feature-slug>/`
 - If a feature RFC introduces a repo-wide decision, promote it to `Docs/repo-decisions/` in the same phase.
-- **Repo-decisions impact check (mandatory).** Every `phase-<n>-implementation.md` must include a short "Repo decisions impact" section that explicitly answers one of:
+- **Repo-decisions impact check (mandatory).** Every phase narrative — `phase-<n>-implementation.md` while active, or the `implementation-log.md` phase section once archived — must include a short "Repo decisions impact" note that explicitly answers one of:
   - `No` — local feature concern only, with one sentence saying why.
   - `Yes` — names the new/updated `RD-<id>-<slug>.md` file and the change made.
   Do not omit the section. Forgetting to consider repo-wide impact is the failure mode this rule prevents.
-- **Implementation log style.** Phase implementation logs are *decision narratives*, not change-detail dumps. Capture: the goal, the meaningful decisions taken, the trade-offs accepted, surprises hit during implementation, and validation evidence. Do not exhaustively list every file path or copy code — git history and the working tree are the source of truth for the "what". The doc answers "why was it built this way?" for a future reader.
-- **Diagrams.** Where a flow or component layout is non-trivial, include a Mermaid diagram in `plan.md` (and optionally in the relevant `phase-<n>-implementation.md`). GitHub renders Mermaid natively. Skip diagrams when the change is purely textual / configuration.
+- **Implementation log style.** Each phase narrative (`phase-<n>-implementation.md` active, or its `implementation-log.md` section once archived) is a *decision narrative*, not a change-detail dump. Capture: the goal, the meaningful decisions taken, the trade-offs accepted, surprises hit during implementation, and validation evidence. Do not exhaustively list every file path or copy code — git history and the working tree are the source of truth for the "what". The narrative answers "why was it built this way?" for a future reader.
+- **Diagrams.** Where a flow or component layout is non-trivial, include a Mermaid diagram in `plan.md` (and optionally in the relevant `implementation-log.md` section). GitHub renders Mermaid natively. Skip diagrams when the change is purely textual / configuration.
 - **Mandatory end-to-end lifecycle diagram.** Every feature's `plan.md` must include a vertical Mermaid diagram showing the feature's runtime lifecycle from a user-facing trigger down through the actual files / classes / methods invoked, ending at the response or terminal state. The goal is that a future developer can read this single diagram and understand which code paths matter for the feature without re-reading the implementation. Rules:
   - Top-down (`flowchart TB` or sequence) so it scans naturally.
   - Each node names the **file path** *and* the method/handler invoked, e.g. `LoginPage.handleSubmit()<br/>ui/src/modules/auth/ui/LoginPage.tsx`.

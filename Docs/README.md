@@ -8,7 +8,7 @@ For code layout and implementation rules, see [../developer-rules.md](../develop
 
 | Folder | What it's for |
 |---|---|
-| [features/](features/) | One subfolder per **new feature** — specs, design notes, phase plans. Net-new behavior only. |
+| [features/](features/) | One subfolder per **new feature**. Granular while in development (`research`/`plan`/`phases`/`phase-N-implementation`); consolidated to three files (`README.md` + `plan.md` + `implementation-log.md`) once all phases are done. Net-new behavior only. |
 | [bugs.md](bugs.md) | Lightweight tracker (issue # + description + PR + status). GitHub Issues is the source of truth; this file is the at-a-glance index. |
 | [runbooks/](runbooks/) | How-to-operate docs — deploys, on-call playbooks, manual scripts. |
 | [initiatives/](initiatives/) | Cross-cutting work that isn't a feature or a bug — hardening, legacy removal, migrations, tech-debt sweeps. |

@@ -1,8 +1,14 @@
-# Phases
+# Lead Management Platform
+
+Entry point: what this feature was, and its phase tracker. **Historical** — the policy engine it built was removed (Flyway V12) and replaced by the workflow engine + domain-events feature; `leads`→`persons` (V21). Design rationale in [`plan.md`](./plan.md); dated build history in [`implementation-log.md`](./implementation-log.md).
+
+---
+
+## Phases
 
 > ⚠️ **Historical (2026-06-03).** The policy engine these phases built was **removed** (V12) and replaced by the workflow engine + domain-events feature; `leads`→`persons` (V21). Kept as build history; statuses below describe work that has since been superseded.
 
-## Sprint 0 (RFC Lock Gate)
+### Sprint 0 (RFC Lock Gate)
 Status: Completed
 Artifacts (promoted to repo-decisions; RFC files removed):
 - `Docs/repo-decisions/RD-001-normalized-lead-event-contract.md`
@@ -11,15 +17,15 @@ Artifacts (promoted to repo-decisions; RFC files removed):
 
 Gate: Phase 1 implementation must not start unless Sprint 0 remains approved.
 
-## Phase 1
+### Phase 1
 Status: Completed (Step 1, Step 2, Step 3, Step 4, and Step 5 completed)
 Log: `phase-1-implementation.md`
 
-## Phase 2
+### Phase 2
 Status: Completed (Step 1 through Step 7 completed)
 Log: `phase-2-implementation.md`
 
-## Phase 3
+### Phase 3
 Status: Completed (Step 1 through Step 12 completed)
 Log: `phase-3-implementation.md`
 Planned scope alignment (assignment SLA example):
@@ -36,7 +42,7 @@ Planned scope alignment (assignment SLA example):
   - duplicate semantics finalized with existing-run return (`DUPLICATE_IGNORED` + stable runId)
   - operator read APIs available under `/admin/policy-executions` (list/detail)
 
-## Phase 4
+### Phase 4
 Status: Completed (Step 1 through Step 5 completed)
 Log: `phase-4-implementation.md`
 Planned scope alignment (assignment SLA example):
@@ -44,18 +50,18 @@ Planned scope alignment (assignment SLA example):
 - Execute `WAIT_AND_CHECK_COMMUNICATION` when claim check passes.
 - If no communication is detected, execute `ON_FAILURE_EXECUTE_ACTION` using policy-selected action: reassign or move to pond.
 
-## Phase 5
+### Phase 5
 Status: Completed (Step 1 through Step 4 completed)
 Log: `phase-5-implementation.md`
 
-## Phase 6
+### Phase 6
 Status: Completed (Step 1 completed)
 Log: `phase-6-implementation.md`
 Planned scope alignment (runtime hardening):
 - Add stale `PROCESSING` watchdog/reaper for policy step execution.
 - Requeue stale steps once, then fail deterministically with explicit run reason code.
 
-## Phase 7
+### Phase 7
 Status: Completed (Step 1, Step 2, and Step 3 completed)
 Log: `phase-7-implementation.md`
 Planned scope alignment (action execution structure):
@@ -64,7 +70,7 @@ Planned scope alignment (action execution structure):
 - Add backend-only policy blueprint validation failure diagnostics in service logs.
 - Temporarily bypass active-policy read validation to unblock assignment flow while blueprint/action config evolves.
 
-## Phase 8
+### Phase 8
 Status: Completed (Step 1 completed)
 Log: `phase-8-implementation.md`
 Planned scope alignment (lead-foundation persistence):

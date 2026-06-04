@@ -1,6 +1,6 @@
 # Workflow Engine Rebuild — Research
 
-> ⚠️ **Partly stale (2026-06-03).** The "Current Ground Truth" below stops around Wave 3 and lists `FubWebhookTriggerType` as live. Waves 4–5 and the domain-events cutover shipped since: the only trigger type now is `DomainEventTriggerType`; workflows subscribe to typed domain events. See [`../domain-events/overview.md`](../domain-events/overview.md). Kept as research history.
+> ⚠️ **Partly stale (2026-06-03).** The "Current Ground Truth" below stops around Wave 3 and lists `FubWebhookTriggerType` as live. Waves 4–5 and the domain-events cutover shipped since: the only trigger type now is `DomainEventTriggerType`; workflows subscribe to typed domain events. See [`../domain-events/README.md`](../domain-events/README.md). Kept as research history.
 
 ## Purpose
 This file is the workflow-engine feature research entrypoint required by the repo feature workflow.

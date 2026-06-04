@@ -52,5 +52,5 @@ External (non-engine) events are unaffected — they always evaluate normally. T
 
 ## See Also
 - [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md) — "Engine-echo exclusion" (canonical model), expression scope (`event.origin`).
-- [`Docs/features/domain-events/phases.md`](../features/domain-events/phases.md) — Phase 4; [`phase-4-plan.md`](../features/domain-events/phase-4-plan.md) — 4c (validator), 4d (enforcement).
+- [`Docs/features/domain-events/README.md`](../features/domain-events/README.md) — Phase 4; [`phase-4-plan.md`](../features/domain-events/plan.md) — 4c (validator), 4d (enforcement).
 - [`Docs/engineering-reference/known-issues.md`](../engineering-reference/known-issues.md) — #23 (self-trigger echo), #27/#28 (note-channel echo specifics).
