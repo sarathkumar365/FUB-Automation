@@ -13,7 +13,8 @@
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",
-    "test:e2e": "playwright test"
+    "test:e2e": "playwright test",
+    "doctor": "react-doctor --no-telemetry --diff"
   },
   "dependencies": {
     "@dagrejs/dagre": "^3.0.0",
@@ -51,6 +52,7 @@
     "knip": "^6.15.0",
     "playwright": "^1.58.2",
     "postcss": "^8.5.8",
+    "react-doctor": "^0.3.0",
     "tailwindcss": "^4.2.2",
     "typescript": "~5.9.3",
     "typescript-eslint": "^8.56.1",
