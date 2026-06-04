@@ -82,6 +82,8 @@ Don't add a token for:
 
 ## Dark mode
 
-Not implemented yet. When it lands, overrides will be grouped under a `:root[data-theme='dark']` (or `@media (prefers-color-scheme: dark)`) block in this same file. Every token that needs a dark value gets overridden in one place; TSX does not branch on theme.
+Implemented as an opt-in theme. Dark values are grouped under the `:root[data-theme='dark']` block in this file — every token that needs a dark value is overridden in one place; TSX never branches on theme. The active theme is the `data-theme` attribute on `<html>`, set before first paint by an inline boot script in `index.html` and toggled at runtime via `shared/theme/theme.ts` (persisted to `localStorage` key `ae-theme`, defaulting to `prefers-color-scheme`). The rail's `ThemeToggle` flips it.
+
+Writing primitives against tokens — *not* inline colors — is what makes this work: anything token-driven adopts dark automatically.
 
 Writing primitives against tokens — *not* inline colors — is what makes this future migration a one-file change. The token rule in [`src/shared/ui/README.md`](../shared/ui/README.md) is the enforcement point.
