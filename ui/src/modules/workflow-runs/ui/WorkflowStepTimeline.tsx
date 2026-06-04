@@ -4,6 +4,8 @@ import { formatDateTime } from '../../../shared/lib/date'
 import { JsonViewer } from '../../../shared/ui/JsonViewer'
 import { StatusBadge } from '../../../shared/ui/StatusBadge'
 import type { WorkflowRunStepDetail } from '../../workflows/lib/workflowSchemas'
+import { formatScene } from '../../workflows-builder/model/cardFormatters'
+import { getAccentTone } from '../../workflows-builder/surfaces/storyboard/accentTokens'
 import { formatWorkflowRunStepStatus, getWorkflowRunStepStatusTone } from '../lib/workflowRunsDisplay'
 
 type WorkflowStepTimelineProps = {
@@ -17,8 +19,17 @@ export function WorkflowStepTimeline({ steps }: WorkflowStepTimelineProps) {
 
   return (
     <ol className="space-y-3">
-      {steps.map((step) => (
-        <li key={step.id} className="rounded-md border border-[var(--color-border)] p-3 text-sm">
+      {steps.map((step) => {
+        // Per design-system §4, each step carries its node-category accent
+        // (trigger=cyan, wait=indigo, branch=pink, side-effect=amber,
+        // compute=emerald) as a left rail — the storyboard's signature device.
+        const tone = getAccentTone(formatScene(step.stepType, {}).accent)
+        return (
+        <li
+          key={step.id}
+          className="rounded-md border border-[var(--color-border)] p-3 text-sm"
+          style={{ borderLeftWidth: 3, borderLeftColor: tone.dot }}
+        >
           <div className="grid grid-cols-1 gap-2 md:grid-cols-2">
             <StepField label={uiText.workflowRuns.stepNodeIdLabel} value={step.nodeId} />
             <StepField label={uiText.workflowRuns.stepTypeLabel} value={step.stepType} />
@@ -47,7 +58,7 @@ export function WorkflowStepTimeline({ steps }: WorkflowStepTimelineProps) {
                   </div>
                 )}
                 {step.errorMessage && (
-                  <p className="text-sm text-[var(--color-status-bad-text)]">
+                  <p className="text-sm text-[var(--color-status-bad)]">
                     <span className="font-medium">{uiText.workflowRuns.stepErrorLabel}: </span>
                     {step.errorMessage}
                   </p>
@@ -56,7 +67,8 @@ export function WorkflowStepTimeline({ steps }: WorkflowStepTimelineProps) {
             </details>
           )}
         </li>
-      ))}
+        )
+      })}
     </ol>
   )
 }

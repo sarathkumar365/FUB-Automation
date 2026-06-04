@@ -103,7 +103,48 @@
   --space-5: 20px;
 
   /* Elevation */
-  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08); /* resting card */
+  --shadow-hover: 0 1px 3px rgba(15, 23, 42, 0.08), 0 4px 12px rgba(15, 23, 42, 0.08); /* lifted stat-tile */
+  --shadow-float: 0 8px 22px rgba(15, 23, 42, 0.04); /* glass milestone card */
+
+  /* ---- Semantic type roles ----------------------------------------------
+     Manrope is heavy by design: titles 700–800, body 500. Negative tracking
+     on large display; technical values in mono. Lifted from the design
+     system's colors_and_type.css so type roles are first-class tokens. */
+  /* Display / hero (landing) */
+  --type-display-font: var(--font-ui);
+  --type-display-size: clamp(30px, 4.6vw, 56px);
+  --type-display-weight: 800;
+  --type-display-leading: 1.03;
+  --type-display-tracking: -0.03em;
+  /* H1 — page title (PageHeader) */
+  --type-h1-size: 20px;
+  --type-h1-weight: 600;
+  --type-h1-leading: 1.3;
+  /* H2 — card title (PageCard) */
+  --type-h2-size: 18px;
+  --type-h2-weight: 600;
+  /* H3 — section / inspector heading */
+  --type-h3-size: 14px;
+  --type-h3-weight: 600;
+  /* Body */
+  --type-body-size: 14px;
+  --type-body-weight: 500;
+  --type-body-leading: 1.5;
+  /* Body small / table cells */
+  --type-small-size: 12px;
+  --type-small-weight: 500;
+  /* Kicker / overline — uppercase labels above headings */
+  --type-kicker-size: 11px;
+  --type-kicker-weight: 800;
+  --type-kicker-tracking: 0.12em;
+  /* Eyebrow / field caption — uppercase muted labels in inspectors */
+  --type-caption-size: 11px;
+  --type-caption-weight: 600;
+  --type-caption-tracking: 0.04em;
+  /* Mono — IDs, hashes, timestamps, payloads */
+  --type-mono-size: 12px;
+  --type-mono-weight: 500;
 
   /* Form controls */
   --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 8 10 12 14 8'/></svg>");

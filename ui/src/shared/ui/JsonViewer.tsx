@@ -45,7 +45,7 @@ export function JsonViewer({ value, className, maxHeightClassName }: JsonViewerP
         </Button>
       </div>
       <pre
-        className={`overflow-auto p-3 text-xs text-[var(--color-text)] ${maxHeightClassName ?? 'max-h-72'}`}
+        className={`overflow-auto p-3 font-mono text-xs text-[var(--color-text)] ${maxHeightClassName ?? 'max-h-72'}`}
       >
         {content || '{}'}
       </pre>

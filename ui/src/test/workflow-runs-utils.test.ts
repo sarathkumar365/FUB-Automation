@@ -17,12 +17,12 @@ import {
 
 describe('workflow runs display helpers', () => {
   it('maps run statuses and tones', () => {
-    expect(formatWorkflowRunStatus('PENDING')).toBe('Pending')
-    expect(formatWorkflowRunStatus('BLOCKED')).toBe('Blocked')
-    expect(formatWorkflowRunStatus('DUPLICATE_IGNORED')).toBe('Duplicate Ignored')
-    expect(formatWorkflowRunStatus('CANCELED')).toBe('Canceled')
-    expect(formatWorkflowRunStatus('COMPLETED')).toBe('Completed')
-    expect(formatWorkflowRunStatus('FAILED')).toBe('Failed')
+    expect(formatWorkflowRunStatus('PENDING')).toBe('PENDING')
+    expect(formatWorkflowRunStatus('BLOCKED')).toBe('BLOCKED')
+    expect(formatWorkflowRunStatus('DUPLICATE_IGNORED')).toBe('DUPLICATE IGNORED')
+    expect(formatWorkflowRunStatus('CANCELED')).toBe('CANCELED')
+    expect(formatWorkflowRunStatus('COMPLETED')).toBe('COMPLETED')
+    expect(formatWorkflowRunStatus('FAILED')).toBe('FAILED')
 
     expect(getWorkflowRunStatusTone('PENDING')).toBe('warning')
     expect(getWorkflowRunStatusTone('BLOCKED')).toBe('warning')
@@ -33,12 +33,12 @@ describe('workflow runs display helpers', () => {
   })
 
   it('maps step statuses and tones', () => {
-    expect(formatWorkflowRunStepStatus('PENDING')).toBe('Pending')
-    expect(formatWorkflowRunStepStatus('WAITING_DEPENDENCY')).toBe('Waiting Dependency')
-    expect(formatWorkflowRunStepStatus('PROCESSING')).toBe('Processing')
-    expect(formatWorkflowRunStepStatus('COMPLETED')).toBe('Completed')
-    expect(formatWorkflowRunStepStatus('FAILED')).toBe('Failed')
-    expect(formatWorkflowRunStepStatus('SKIPPED')).toBe('Skipped')
+    expect(formatWorkflowRunStepStatus('PENDING')).toBe('PENDING')
+    expect(formatWorkflowRunStepStatus('WAITING_DEPENDENCY')).toBe('WAITING DEPENDENCY')
+    expect(formatWorkflowRunStepStatus('PROCESSING')).toBe('PROCESSING')
+    expect(formatWorkflowRunStepStatus('COMPLETED')).toBe('COMPLETED')
+    expect(formatWorkflowRunStepStatus('FAILED')).toBe('FAILED')
+    expect(formatWorkflowRunStepStatus('SKIPPED')).toBe('SKIPPED')
 
     expect(getWorkflowRunStepStatusTone('PENDING')).toBe('warning')
     expect(getWorkflowRunStepStatusTone('WAITING_DEPENDENCY')).toBe('info')
@@ -49,9 +49,9 @@ describe('workflow runs display helpers', () => {
   })
 
   it('falls back safely for null values', () => {
-    expect(formatWorkflowRunStatus(null)).toBe('Unknown')
+    expect(formatWorkflowRunStatus(null)).toBe('UNKNOWN')
     expect(getWorkflowRunStatusTone(null)).toBe('info')
-    expect(formatWorkflowRunStepStatus(null)).toBe('Unknown')
+    expect(formatWorkflowRunStepStatus(null)).toBe('UNKNOWN')
     expect(getWorkflowRunStepStatusTone(null)).toBe('info')
   })
 

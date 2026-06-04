@@ -118,7 +118,9 @@ export function WorkflowBuilderPage() {
       </PageHeader>
 
       <PageCard title={uiText.workflows.builderStoryboardCardTitle}>
-        <Storyboard />
+        <div className="storyboard-canvas flex justify-center overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-4 shadow-[var(--shadow-subtle)]">
+          <Storyboard />
+        </div>
       </PageCard>
 
       <BuilderDebugOverlay />

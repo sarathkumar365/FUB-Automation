@@ -1,15 +1,6 @@
 import type { StatusTone } from '../../../shared/ui/StatusBadge'
 import type { WorkflowRunStatus, WorkflowRunStepStatus } from '../../workflows/lib/workflowSchemas'
 
-const RUN_STATUS_LABELS: Record<WorkflowRunStatus, string> = {
-  PENDING: 'Pending',
-  BLOCKED: 'Blocked',
-  DUPLICATE_IGNORED: 'Duplicate Ignored',
-  CANCELED: 'Canceled',
-  COMPLETED: 'Completed',
-  FAILED: 'Failed',
-}
-
 const RUN_STATUS_TONES: Record<WorkflowRunStatus, StatusTone> = {
   PENDING: 'warning',
   BLOCKED: 'warning',
@@ -17,15 +8,6 @@ const RUN_STATUS_TONES: Record<WorkflowRunStatus, StatusTone> = {
   CANCELED: 'info',
   COMPLETED: 'success',
   FAILED: 'error',
-}
-
-const STEP_STATUS_LABELS: Record<WorkflowRunStepStatus, string> = {
-  PENDING: 'Pending',
-  WAITING_DEPENDENCY: 'Waiting Dependency',
-  PROCESSING: 'Processing',
-  COMPLETED: 'Completed',
-  FAILED: 'Failed',
-  SKIPPED: 'Skipped',
 }
 
 const STEP_STATUS_TONES: Record<WorkflowRunStepStatus, StatusTone> = {
@@ -38,11 +20,9 @@ const STEP_STATUS_TONES: Record<WorkflowRunStepStatus, StatusTone> = {
 }
 
 export function formatWorkflowRunStatus(status: WorkflowRunStatus | null): string {
-  if (!status) {
-    return 'Unknown'
-  }
-
-  return RUN_STATUS_LABELS[status]
+  // Render the status enum literally in UPPERCASE per the design system
+  // (e.g. DUPLICATE_IGNORED → "DUPLICATE IGNORED").
+  return status ? status.replace(/_/g, ' ') : 'UNKNOWN'
 }
 
 export function getWorkflowRunStatusTone(status: WorkflowRunStatus | null): StatusTone {
@@ -54,11 +34,8 @@ export function getWorkflowRunStatusTone(status: WorkflowRunStatus | null): Stat
 }
 
 export function formatWorkflowRunStepStatus(status: WorkflowRunStepStatus | null): string {
-  if (!status) {
-    return 'Unknown'
-  }
-
-  return STEP_STATUS_LABELS[status]
+  // Render the step-status enum literally in UPPERCASE per the design system.
+  return status ? status.replace(/_/g, ' ') : 'UNKNOWN'
 }
 
 export function getWorkflowRunStepStatusTone(status: WorkflowRunStepStatus | null): StatusTone {

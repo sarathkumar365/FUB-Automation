@@ -70,18 +70,18 @@ describe('StoryboardViewer', () => {
     expect(typePill?.textContent).toContain('entry')
   })
 
-  it('renders scene cards with neutral pill styling (no colored accent fill)', () => {
+  it('renders scene cards with a per-category accent pill (design-system §4)', () => {
     const { container } = render(<StoryboardViewer graph={graph} trigger={null} />)
     const scene = container.querySelector('[data-builder-region="scene"][data-scene-id="a"]')
-    // data-accent still present so later features can read category.
-    expect(scene?.getAttribute('data-accent')).toBeTruthy()
+    const accent = scene?.getAttribute('data-accent')
+    expect(accent).toBeTruthy()
     const pill = scene?.querySelector('[data-builder-region="scene-type"]') as HTMLElement | null
     expect(pill).toBeTruthy()
-    // Neutral tokens — resolved via CSS custom properties defined in
-    // `src/styles/tokens.css`. Assert the token reference so drift is caught
-    // without re-encoding the raw hex/rgba values in the test.
-    expect(pill?.style.background).toBe('var(--color-accent-neutral-bg)')
-    expect(pill?.style.color).toBe('var(--color-accent-neutral-fg)')
+    // Pill is tinted with its category accent tokens, resolved via CSS custom
+    // properties defined in `src/styles/tokens.css`. Assert the token reference
+    // matches the scene's category so drift is caught without re-encoding hex.
+    expect(pill?.style.background).toBe(`var(--color-accent-${accent}-bg)`)
+    expect(pill?.style.color).toBe(`var(--color-accent-${accent}-fg)`)
   })
 
   it('renders the trigger scene with a humane title, not "unknown"', () => {

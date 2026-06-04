@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/constants/routes'
+import { LogoutIcon } from '../../../shared/ui/icons'
 import { clearToken, getToken } from '../state/tokenStore'
 
 type LogoutButtonProps = {
@@ -44,7 +45,7 @@ export function LogoutButton({ variant = 'rail', className = '' }: LogoutButtonP
           className,
         ].join(' ')}
       >
-        ⏻
+        <LogoutIcon className="h-[18px] w-[18px]" />
       </button>
     )
   }
@@ -60,7 +61,7 @@ export function LogoutButton({ variant = 'rail', className = '' }: LogoutButtonP
         className,
       ].join(' ')}
     >
-      <span aria-hidden>⏻</span>
+      <LogoutIcon aria-hidden />
       <span>{username !== null ? `Sign out (${username})` : 'Sign out'}</span>
     </button>
   )

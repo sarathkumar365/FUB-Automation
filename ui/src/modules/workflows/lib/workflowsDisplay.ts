@@ -1,13 +1,6 @@
 import type { WorkflowStatus } from './workflowSchemas'
 import type { StatusTone } from '../../../shared/ui/StatusBadge'
 
-const STATUS_LABELS: Record<WorkflowStatus, string> = {
-  DRAFT: 'Draft',
-  ACTIVE: 'Active',
-  INACTIVE: 'Inactive',
-  ARCHIVED: 'Archived',
-}
-
 const STATUS_TONES: Record<WorkflowStatus, StatusTone> = {
   DRAFT: 'warning',
   ACTIVE: 'success',
@@ -22,11 +15,8 @@ const ARCHIVABLE_STATUSES: WorkflowStatus[] = ['DRAFT', 'INACTIVE']
 const VALIDATABLE_STATUSES: WorkflowStatus[] = ['DRAFT', 'INACTIVE', 'ACTIVE']
 
 export function formatWorkflowStatus(status: WorkflowStatus | null): string {
-  if (!status) {
-    return 'Unknown'
-  }
-
-  return STATUS_LABELS[status]
+  // Render the status enum literally in UPPERCASE per the design system.
+  return status ? status.replace(/_/g, ' ') : 'UNKNOWN'
 }
 
 export function getWorkflowStatusTone(status: WorkflowStatus | null): StatusTone {

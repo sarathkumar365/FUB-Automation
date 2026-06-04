@@ -10,11 +10,9 @@ const PROCESSED_CALL_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
 })
 
 export function formatProcessedCallStatus(status: ProcessedCallStatus): string {
-  return status
-    .toLowerCase()
-    .split('_')
-    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1))
-    .join(' ')
+  // Status enums are shown literally in UPPERCASE per the design system
+  // (e.g. TASK_CREATED → "TASK CREATED"). Colour reinforces, never replaces, the label.
+  return status.replace(/_/g, ' ')
 }
 
 export function getProcessedCallStatusTone(status: ProcessedCallStatus): 'success' | 'warning' | 'error' | 'info' {

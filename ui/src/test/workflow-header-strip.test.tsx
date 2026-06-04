@@ -32,8 +32,8 @@ describe('WorkflowHeaderStrip', () => {
       </MemoryRouter>,
     )
     expect(screen.getByRole('heading', { level: 1, name: 'Person Intake' })).toBeInTheDocument()
-    // Status badge renders the formatted status label ("Draft").
-    expect(screen.getByText('Draft')).toBeInTheDocument()
+    // Status badge renders the status enum literally in UPPERCASE ("DRAFT").
+    expect(screen.getByText('DRAFT')).toBeInTheDocument()
     // Version chip prints v3.
     expect(screen.getByText('v3')).toBeInTheDocument()
     // Trigger chip exposes a data-testid and prints the trigger type.
