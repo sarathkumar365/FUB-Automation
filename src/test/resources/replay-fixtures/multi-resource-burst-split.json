@@ -1,0 +1,39 @@
+{
+    "name": "multi-resource-burst-split",
+    "description": "FUB splits bulk actions into webhooks carrying MULTIPLE resourceIds (documented behaviour). One peopleUpdated webhook references two people who were both just assigned. Proves the engine fans the single delivery out per resource id — both persons upsert, both emit state_changed, both get their own run, keyed independently per person.",
+    "workflows": [
+        {
+            "key": "assign_followup_multi",
+            "trigger": { "on": "person.state_changed", "filter": "change.assignedUserId.changed" },
+            "graph": {
+                "schemaVersion": 1,
+                "entryNode": "wait",
+                "nodes": [
+                    { "id": "wait", "type": "delay", "config": { "delayMinutes": 60 },
+                      "transitions": { "DONE": { "terminal": "COMPLETED" } } }
+                ]
+            }
+        }
+    ],
+    "personSnapshots": {
+        "50001": { "id": 50001, "name": "Bulk Lead One", "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [] },
+        "50002": { "id": 50002, "name": "Bulk Lead Two", "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [] }
+    },
+    "events": [
+        { "deltaMs": 0, "eventId": "bulk-create", "event": "peopleCreated", "resourceIds": [50001, 50002] },
+        { "deltaMs": 1500, "eventId": "bulk-assign", "event": "peopleUpdated", "resourceIds": [50001, 50002],
+          "personSnapshots": {
+              "50001": { "id": 50001, "name": "Bulk Lead One", "stage": "Lead", "type": "Buyer", "claimed": true, "assignedUserId": 10, "assignedTo": "Agent A", "tags": [], "phones": [], "emails": [] },
+              "50002": { "id": 50002, "name": "Bulk Lead Two", "stage": "Lead", "type": "Buyer", "claimed": true, "assignedUserId": 20, "assignedTo": "Agent B", "tags": [], "phones": [], "emails": [] }
+          } }
+    ],
+    "drainTimeoutMs": 15000,
+    "expected": {
+        "notes": "One multi-id create → two person.created. One multi-id update assigning both → two state_changed[assignedUserId] → one run each. Per-person fan-out, no cross-contamination, no supersede (distinct persons).",
+        "minWebhookEvents": 2,
+        "expectedCreatedEventsForPerson": { "50001": 1, "50002": 1 },
+        "expectedStateChangeEventsForPerson": { "50001": 1, "50002": 1 },
+        "expectedTotalRunsForPerson": { "50001": 1, "50002": 1 },
+        "expectedSupersededRunsForPerson": { "50001": 0, "50002": 0 }
+    }
+}

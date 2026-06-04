@@ -6,7 +6,9 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
+import com.fuba.automation_engine.persistence.entity.WorkflowRunStatus;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
+import com.fuba.automation_engine.service.workflow.WorkflowRunControlService;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
 import com.fuba.automation_engine.persistence.repository.EventRepository;
 import com.fuba.automation_engine.persistence.repository.PersonRepository;
@@ -87,13 +89,22 @@ class ReplayHarnessTest {
 
     @BeforeEach
     void setUp() {
+        resetState();
+    }
+
+    /**
+     * Full reset. Called per-fixture at the start of {@link #runFixture} — NOT just from
+     * {@code @BeforeEach}, because {@code @TestFactory} runs {@code @BeforeEach} once for the
+     * whole factory, so without this each fixture's seeded workflows/runs/persons would leak
+     * into the next (a later fixture's event would match earlier fixtures' workflows).
+     */
+    private void resetState() {
         workflowRunRepository.deleteAll();
         webhookEventRepository.deleteAll();
         workflowRepository.deleteAll();
         personRepository.deleteAll();
         eventRepository.deleteAll();
         fubClient.reset();
-        seedTestWorkflow();
     }
 
     @TestFactory
@@ -106,8 +117,10 @@ class ReplayHarnessTest {
     }
 
     private void runFixture(ReplayFixture fixture) throws Exception {
-        // Script per-person FUB person snapshots BEFORE driving webhooks so the
-        // upsert path sees real-looking data.
+        resetState();
+        seedWorkflows(fixture);
+
+        // Base per-person FUB snapshots (state at t=0) before any webhook.
         if (fixture.personSnapshots() != null) {
             fixture.personSnapshots()
                     .forEach((idStr, snapshot) -> fubClient.setPersonSnapshot(Long.parseLong(idStr), snapshot));
@@ -116,6 +129,12 @@ class ReplayHarnessTest {
         Instant scenarioStart = Instant.now();
         for (ReplayFixture.ReplayEvent event : fixture.events()) {
             sleepUntil(scenarioStart.plus(Duration.ofMillis(event.deltaMs())));
+            // Per-event snapshot override: the follow-up GET now returns this state —
+            // models FUB's ID-only webhooks where state can change between events.
+            if (event.personSnapshots() != null) {
+                event.personSnapshots()
+                        .forEach((idStr, snapshot) -> fubClient.setPersonSnapshot(Long.parseLong(idStr), snapshot));
+            }
             postWebhook(event);
         }
 
@@ -199,7 +218,35 @@ class ReplayHarnessTest {
                 }
             }
         }
+        if (expected.expectedTotalRunsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedTotalRunsForPerson().entrySet()) {
+                if (totalRunsForPerson(entry.getKey()) < entry.getValue()) {
+                    return false;
+                }
+            }
+        }
+        if (expected.expectedSupersededRunsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedSupersededRunsForPerson().entrySet()) {
+                if (supersededRunsForPerson(entry.getKey()) < entry.getValue()) {
+                    return false;
+                }
+            }
+        }
         return true;
+    }
+
+    private long totalRunsForPerson(String personId) {
+        return workflowRunRepository.findAll().stream()
+                .filter(run -> personId.equals(run.getSourcePersonId()))
+                .count();
+    }
+
+    private long supersededRunsForPerson(String personId) {
+        return workflowRunRepository.findAll().stream()
+                .filter(run -> personId.equals(run.getSourcePersonId()))
+                .filter(run -> run.getStatus() == WorkflowRunStatus.CANCELED)
+                .filter(run -> WorkflowRunControlService.SUPERSEDED_BY_NEWER_EVENT.equals(run.getReasonCode()))
+                .count();
     }
 
     private long countEvents(String eventKind, String entityType, String entityId) {
@@ -276,6 +323,24 @@ class ReplayHarnessTest {
                                 + " " + entry.getKey() + " events, saw " + actual);
             }
         }
+        if (expected.expectedTotalRunsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedTotalRunsForPerson().entrySet()) {
+                long actual = totalRunsForPerson(entry.getKey());
+                assertTrue(actual == entry.getValue(),
+                        prefix + "expected exactly " + entry.getValue()
+                                + " total workflow_runs for person=" + entry.getKey()
+                                + ", saw " + actual);
+            }
+        }
+        if (expected.expectedSupersededRunsForPerson() != null) {
+            for (Map.Entry<String, Integer> entry : expected.expectedSupersededRunsForPerson().entrySet()) {
+                long actual = supersededRunsForPerson(entry.getKey());
+                assertTrue(actual == entry.getValue(),
+                        prefix + "expected exactly " + entry.getValue()
+                                + " superseded (SUPERSEDED_BY_NEWER_EVENT) runs for person=" + entry.getKey()
+                                + ", saw " + actual);
+            }
+        }
     }
 
     // -----------------------------------------------------------------
@@ -299,13 +364,30 @@ class ReplayHarnessTest {
                         .content(body));
     }
 
-    private void seedTestWorkflow() {
+    /** Seed the fixture's declared workflows, or the default {@code person.created} one. */
+    private void seedWorkflows(ReplayFixture fixture) {
+        if (fixture.workflows() == null || fixture.workflows().isEmpty()) {
+            seedWorkflow(TEST_WORKFLOW_KEY, Map.of("on", "person.created"), trivialGraph());
+            return;
+        }
+        for (ReplayFixture.WorkflowSpec spec : fixture.workflows()) {
+            seedWorkflow(spec.key(), spec.trigger(), spec.graph() != null ? spec.graph() : trivialGraph());
+        }
+    }
+
+    private void seedWorkflow(String key, Map<String, Object> trigger, Map<String, Object> graph) {
         AutomationWorkflowEntity entity = new AutomationWorkflowEntity();
-        entity.setKey(TEST_WORKFLOW_KEY);
-        entity.setName("Replay Harness Test Workflow");
+        entity.setKey(key);
+        entity.setName("Replay " + key);
         entity.setStatus(WorkflowStatus.ACTIVE);
-        entity.setTrigger(Map.of("on", "person.created"));
-        entity.setGraph(Map.of(
+        entity.setTrigger(trigger);
+        entity.setGraph(graph);
+        workflowRepository.saveAndFlush(entity);
+    }
+
+    /** Entry branch that completes immediately — the run terminates as soon as the worker claims it. */
+    private Map<String, Object> trivialGraph() {
+        return Map.of(
                 "schemaVersion", 1,
                 "entryNode", "noop",
                 "nodes", List.of(
@@ -316,8 +398,7 @@ class ReplayHarnessTest {
                                         "expression", "true",
                                         "resultMapping", Map.of("true", "DONE")),
                                 "transitions", Map.of(
-                                        "DONE", Map.of("terminal", "COMPLETED"))))));
-        workflowRepository.saveAndFlush(entity);
+                                        "DONE", Map.of("terminal", "COMPLETED")))));
     }
 
     private static void sleepUntil(Instant target) throws InterruptedException {

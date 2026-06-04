@@ -1,0 +1,18 @@
+{
+    "name": "duplicate-delivery-idempotency",
+    "description": "At-least-once delivery (documented for FUB: retries up to 5×/8h, plus slow-but-successful handlers that time out at 10s and get retried). The same webhook eventId is delivered twice. The engine must process it once: one person.created, one run — the duplicate is idempotently absorbed (webhook-inbox dedup on eventId, and plan()'s idempotency key as the backstop).",
+    "personSnapshots": {
+        "60001": { "id": 60001, "name": "Dup Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "assignedUserId": 7, "assignedTo": "Agent D", "tags": [], "phones": [], "emails": [] }
+    },
+    "events": [
+        { "deltaMs": 0, "eventId": "dup-delivery-1", "event": "peopleCreated", "resourceIds": [60001] },
+        { "deltaMs": 1500, "eventId": "dup-delivery-1", "event": "peopleCreated", "resourceIds": [60001] }
+    ],
+    "drainTimeoutMs": 12000,
+    "expected": {
+        "notes": "Identical eventId delivered twice → exactly one person.created and one run; the duplicate is absorbed. (The second delivery also sees an identical row → empty diff → no state_changed regardless.)",
+        "expectedCreatedEventsForPerson": { "60001": 1 },
+        "expectedStateChangeEventsForPerson": { "60001": 0 },
+        "expectedTotalRunsForPerson": { "60001": 1 }
+    }
+}

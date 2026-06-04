@@ -1,0 +1,60 @@
+{
+    "name": "supersede-reassignment-collision",
+    "description": "Phase 5 end-to-end: a lead is created unassigned, assigned to Agent A (run starts and waits), then reassigned to Agent B before the first run acts. The newer event supersedes the in-flight run (CANCELED / SUPERSEDED_BY_NEWER_EVENT) and its own run proceeds — one enforcement, on the newest assignment. This is the real reassignment-collision incident (cf. 20207 triple-run), now driven through the full webhook → upsert → diff → emit → dispatch → supersede pipeline.",
+    "workflows": [
+        {
+            "key": "assign_followup_collision",
+            "trigger": { "on": "person.state_changed", "filter": "change.assignedUserId.changed" },
+            "graph": {
+                "schemaVersion": 1,
+                "entryNode": "wait",
+                "nodes": [
+                    {
+                        "id": "wait",
+                        "type": "delay",
+                        "config": { "delayMinutes": 60 },
+                        "transitions": { "DONE": { "terminal": "COMPLETED" } }
+                    }
+                ]
+            }
+        }
+    ],
+    "personSnapshots": {
+        "30001": {
+            "id": 30001, "name": "Collision Lead", "firstName": "Collision", "lastName": "Lead",
+            "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": []
+        }
+    },
+    "events": [
+        { "deltaMs": 0, "eventId": "collide-create", "event": "peopleCreated", "resourceIds": [30001] },
+        {
+            "deltaMs": 1500, "eventId": "collide-assign-a", "event": "peopleUpdated", "resourceIds": [30001],
+            "personSnapshots": {
+                "30001": {
+                    "id": 30001, "name": "Collision Lead", "firstName": "Collision", "lastName": "Lead",
+                    "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [],
+                    "assignedUserId": 10, "assignedTo": "Agent A"
+                }
+            }
+        },
+        {
+            "deltaMs": 3500, "eventId": "collide-reassign-b", "event": "peopleUpdated", "resourceIds": [30001],
+            "personSnapshots": {
+                "30001": {
+                    "id": 30001, "name": "Collision Lead", "firstName": "Collision", "lastName": "Lead",
+                    "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [],
+                    "assignedUserId": 20, "assignedTo": "Agent B"
+                }
+            }
+        }
+    ],
+    "drainTimeoutMs": 15000,
+    "expected": {
+        "notes": "create → person.created (no run). assign A → state_changed[assignedUserId] → run1 (waits 60m, stays PENDING). reassign B → state_changed[assignedUserId] → run2; plan() finds run1 PENDING with overlapping changed_fields → supersedes it. Net: 2 runs, 1 superseded, 1 active enforcing B.",
+        "minWebhookEvents": 3,
+        "expectedCreatedEventsForPerson": { "30001": 1 },
+        "expectedStateChangeEventsForPerson": { "30001": 2 },
+        "expectedTotalRunsForPerson": { "30001": 2 },
+        "expectedSupersededRunsForPerson": { "30001": 1 }
+    }
+}

@@ -1,0 +1,19 @@
+{
+    "name": "out-of-order-update-before-create",
+    "description": "Out-of-order delivery (a documented FUB/webhook reality: no ordering guarantee). A peopleUpdated arrives for a person the engine has never seen — the upsert INSERT-recovers the row and emits person.created. The later peopleCreated for the same id finds an identical row → empty diff → no second event, no duplicate run. Proves update-before-create is handled without crash or double-processing.",
+    "personSnapshots": {
+        "40001": { "id": 40001, "name": "OutOfOrder Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "assignedUserId": 5, "assignedTo": "Agent E", "tags": [], "phones": [], "emails": [] }
+    },
+    "events": [
+        { "deltaMs": 0, "eventId": "ooo-update-first", "event": "peopleUpdated", "resourceIds": [40001] },
+        { "deltaMs": 1500, "eventId": "ooo-create-late", "event": "peopleCreated", "resourceIds": [40001] }
+    ],
+    "drainTimeoutMs": 12000,
+    "expected": {
+        "notes": "update-before-create: INSERT recovery emits exactly one person.created (→ one run via the default person.created workflow). The late create sees the identical row → empty diff → no event, no second run. 0 state_changed.",
+        "minWebhookEvents": 2,
+        "expectedCreatedEventsForPerson": { "40001": 1 },
+        "expectedStateChangeEventsForPerson": { "40001": 0 },
+        "expectedTotalRunsForPerson": { "40001": 1 }
+    }
+}
