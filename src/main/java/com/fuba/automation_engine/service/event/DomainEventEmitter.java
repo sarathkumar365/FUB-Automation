@@ -128,7 +128,6 @@ public class DomainEventEmitter {
         });
     }
 
-    // Caller-set source wins; append/create (no changed_fields) goes unannotated until 3d/3e.
     private JsonNode maybeAnnotateEngineSource(String entityType, String entityId, JsonNode payload) {
         if (entityType == null || entityId == null || payload == null) {
             return payload;

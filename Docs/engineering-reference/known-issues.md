@@ -43,6 +43,8 @@ The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is 
 | 29 | Run-collision supersede has a truly-simultaneous-events race | Low | Open (residual; supersede built in Phase 5; revisit on data) |
 | 30 | Append-event trigger filters (`event.payload.*`) unvalidated at save-time | Low | Open (accepted; no consumer today) |
 | 31 | Rail 2 run planning ran in the after-commit hook without a live transaction | High | Resolved (2026-06-03, Phase 4d; caught by replay harness) |
+| 32 | Domain-event triggers are single-kind — assignment-followup must choose `person.created` *or* `person.state_changed` | Medium | Open (product limitation; multi-kind `on` not supported) |
+| 33 | Partial engine-echo annotation — reassign gates `assignedUserId` but FUB's derived `assignedTo` echo leaks as `external` | Low | Open (harmless for current workflow; real for `change.assignedTo` filters) |
 
 ---
 
@@ -346,3 +348,27 @@ No further action is needed. Active automation lives in the workflow engine; equ
 - **Fix:** `plan()` → `@Transactional(propagation = REQUIRES_NEW)`. Its sole caller is the post-commit router, so the new transaction is the run's own unit of work; this also preserves the existing per-workflow isolation (each `plan()` already its own transaction, one bad workflow not rolling back siblings). Event durability is unaffected — the event is committed before dispatch, so a planning failure can only fail to act, never lose the event.
 - **How it was caught:** `ReplayHarnessTest` — replaying the five recorded incident bursts end-to-end through `/webhooks/fub` produced 0 runs where the migrated workflow expected 1, surfacing the after-commit transaction gap that no unit test reached.
 - **Related:** [`phase-4-plan.md`](../features/domain-events/plan.md) 4d.
+
+## 32) Domain-event triggers are single-kind — `agent_followup_enforcement` must choose `person.created` *or* `person.state_changed`
+
+- **Status:** Open — product limitation (2026-06-04)
+- **Priority:** Medium — narrows real-world coverage of the assignment-followup workflow
+- **Location:** `WorkflowTriggerRouter.route` (`:85`, exact-`equals` on `trigger.on`), `DomainEventTriggerType.matches` (`:51`), `DomainEventTriggerValidator.validate` (`:71`, `on` is a single string)
+- **Issue:** A domain-event trigger's `on` is matched as a **single exact string** against `event.eventKind()` in both the router pre-filter and the authoritative matcher; the validator likewise treats it as one kind. A workflow therefore subscribes to exactly **one** event kind. For `agent_followup_enforcement` the operative signal is *"a lead became assigned to an agent,"* which arrives as **two** different kinds:
+  - new lead created already-assigned → `person.created` (assignment in the `current` snapshot, no `change` block);
+  - existing lead reassigned → `person.state_changed` with `change.assignedUserId.changed`.
+  A single trigger can cover only one. In FUB the dominant case is **assignment-at-creation** (leads arrive auto-assigned), so a `person.state_changed` trigger silently misses the common path — which is what surfaced this (live webhooks produced `person.created`, no runs).
+- **Why it looks like a regression:** under the pre-domain-events Rail 1 trigger (`webhook_fub`, `eventAction=UPDATED`) the workflow fired on the trailing `peopleUpdated` FUB emits right after `peopleCreated` — i.e. it caught new-assigned leads *by over-firing* (the bad-run family #20/#23/#24). Rail 2's diff-collapse correctly suppresses that no-op trailing update, so the assignment signal for new leads now lives **only** in `person.created`. Net coverage is narrower but correct; the breadth was previously an artifact of over-firing.
+- **Workarounds:** (a) trigger on `person.created` with `person.kind = 'LEAD' and $boolean(person.assignedUserId)` — covers the common case (currently deployed); (b) run **two** workflows, one per kind, for full coverage.
+- **Proper fix (not yet built):** make `on` accept a `String` **or** a `List<String>` (match if `event.eventKind()` ∈ set) across the two match sites + the validator's per-kind scoping (`change.*` allowed when `person.state_changed` is among the kinds), paired with a kind-branching filter: `person.kind = 'LEAD' and ((event.kind = 'person.created' and $boolean(person.assignedUserId)) or (event.kind = 'person.state_changed' and change.assignedUserId.changed))`. Small, well-contained; worth having as a general feature.
+- **Evidence:** person 20796/20797 created with `assignedUserId=1` → `person.created`, no run under the `person.state_changed` trigger.
+
+## 33) Partial engine-echo annotation — `assignedTo` echo from a reassign leaks as `external`
+
+- **Status:** Open (2026-06-04) — harmless for `agent_followup_enforcement` today
+- **Priority:** Low
+- **Location:** engine-write tracker / `PersonUpsertService` diff-emit vs `EngineEchoGate`; `fub_reassign` write path
+- **Issue:** When the engine reassigns a person it tracks the `assignedUserId` write, so the FUB echo's `assignedUserId` delta is correctly emitted annotated `source=ENGINE` and the echo gate excludes it. But FUB *also* updates the derived `assignedTo` (the new user's display name) on the same reassign; the engine did **not** write `assignedTo`, so that delta is not tracked, and the echo emits a **separate** `person.state_changed` carrying `change.assignedTo` (and any incidental field like `phones`) annotated `external`. A workflow filtering on `change.assignedTo.changed` would therefore over-fire on the platform's *own* reassignment — the exact self-induced over-fire (#23) the echo gate is meant to prevent, leaking through the derived field.
+- **Why harmless now:** `agent_followup_enforcement` filters on `change.assignedUserId.changed` (gated correctly) and triggers on `person.created`, so neither echo event matches.
+- **Evidence (person 20798, 2026-06-04):** engine reassign → event #57 `change=[assignedUserId]` `source=ENGINE` (suppressed), and a second echo #58 `change=[assignedTo, phones]` with **no** annotation (`external`).
+- **Possible fix:** when the reassign coordinator records the `assignedUserId` write, also record the derived `assignedTo` (resolve the new user's name) so the whole echo is gated; or gate echoes at the person+revision level rather than per-field.
