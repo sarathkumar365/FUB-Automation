@@ -1,5 +1,12 @@
 # Domain Events — Phases
 
+> **Plan-lock changelog (2026-06-03, later):** Phase 5 **re-rescoped from cancel-only → supersede-at-plan-time (field-aware)**, and built. The cancel-only entry below is preserved as the record of the earlier same-day decision. What changed and why:
+> - **Under Rail 2 the newer event already spawns its own run** (it passed the trigger filter), so the "ideal" supersede outcome — cancel the stale run, the newer run enforces the newest state — costs the same as cancel-only but **enforces the newest change instead of dropping it**. The deferred "supersede + restart" machinery is unnecessary: the restart is free because the replacement run already exists.
+> - **No freshness gate needed.** The stale run is cancelled *before* its gated actions fire (they sit behind 3-/30-min waits), so it never acts on stale state. The freshness gate was only for "already acted then cancelled," which doesn't arise here.
+> - **Field-aware.** Supersede fires only when the newer event's `changed_fields` overlap the in-flight run's — a phone change never cancels an assignment-premised run. Scoped to `(workflow_key, source_person_id)`; cross-workflow runs are independent. Implemented in a dedicated `RunSupersedePolicy` (keeps `plan()` thin; documents the entity-generalization seam — person is the only stateful entity today).
+> - **Accepted limitation:** truly-simultaneous same-person events can both miss each other's run (no lock / no partial unique index) → two runs proceed. Rare; documented in known-issue #29 with a revisit-trigger. The cancel-only-era "newer change unenforced" limitation is **resolved** by supersede.
+> - Feature still declared complete after Phase 5.
+
 > **Plan-lock changelog (2026-06-03):** Phase 5 rescoped, and `suppressed_by_run_id` dropped from Phase 4a. After deliberation on the run-collision case (two genuinely-distinct meaningful changes for the same person while a run is active — rare, since Phases 2–4 already remove duplicates/echoes/over-fires):
 > - **Phase 5 → cancel-only, experimental.** On collision, **cancel the in-flight run** (reason `SUPERSEDED_BY_NEWER_EVENT` + the causing `domain_event_id`); do **not** start a replacement. Conservative "miss it rather than mis-fire" posture. Reuses the existing `WorkflowRunControlService` cancel (step-skip + executor-stop already give safe cancel) with a relaxed status guard; no partial unique index, no supersede/restart, no separate instrumentation. Frequency is self-reported via `reason_code` counts.
 > - **The "ideal" collision policy (supersede + freshness gate) is deferred to a known issue**, not a Phase 5 deliverable. The accepted limitation: the *newer* change goes unenforced when a collision is cancelled. Revisit if cancelled-run counts get high.
@@ -425,32 +432,36 @@ Probably `Yes` — the trigger schema is part of the workflow JSON contract; doc
 
 ---
 
-## Phase 5 — Run-collision handling (cancel-only, experimental)
-Status: `NOT STARTED`
+## Phase 5 — Run-collision handling (supersede-at-plan-time, field-aware)
+Status: `DONE`
 
-> **Rescoped 2026-06-03** from the original "hard-suppress + partial unique index + supersede" design to a deliberately minimal, experimental cancel-only behavior. Rationale in the changelog at the top of this file. The full collision policy (supersede + freshness gate) is **deferred to a known issue**, not a deliverable — see `known-issues.md`. After this phase the domain-events feature is considered **complete**.
+> **Re-rescoped 2026-06-03** from cancel-only → **supersede-at-plan-time**. Under Rail 2 the newer event already spawns its own run, so superseding (cancel the stale run, the newer one enforces) costs the same as cancel-only but enforces the **newest** state instead of dropping it — the deferred "ideal" made cheap, since the replacement run already exists. No freshness gate: the stale run is cancelled before its waited actions fire. See the changelog at the top of this file.
 
-**Goal:** When a new triggering event arrives for a `(workflow, person)` that already has an active run, **cancel the in-flight run** rather than run two in parallel. Conservative posture for a rare residual case: cancelling means no stale/duplicate action; the trade-off (the newer change goes unenforced) is accepted and tracked. Phase 2 collapse + Phase 3 echo handling + Phase 4 filters already removed the frequent collision causes, so what reaches here is the rare genuine-double-transition.
+**Goal:** When a newer triggering event arrives for a `(workflow, person)` that already has an in-flight run, **cancel the stale run and let the newer run proceed** — one run, enforcing the newest state. Phase 2 collapse + Phase 3 echo handling + Phase 4 filters already removed the frequent collision causes, so what reaches here is the rare genuine double-transition.
 
-### Deliverables
-- **Collision detection in `WorkflowExecutionManager.plan`:** before creating a run, look up an active run (`PENDING`/`BLOCKED`) for `(workflow_key, source_person_id)`.
-- **On collision: cancel the in-flight run.** Reuse `WorkflowRunControlService` — its existing logic already skips pending/waiting steps and the due-worker only claims due `PENDING` steps, so a cancelled run stops cleanly (no new cancel machinery). Extend `cancelRun` to take a reason code + `domain_event_id`, and relax the status guard inline so the collision path may cancel a `BLOCKED` run (the operator path stays `PENDING`-only). Set `reason_code = SUPERSEDED_BY_NEWER_EVENT` and `domain_event_id` = the triggering event. **Do not start a replacement run.**
-- **No new migration expected** — `CANCELED` status already exists, `reason_code` exists, `domain_event_id` comes from 4a. Full event details are read from the `events` table via `domain_event_id` (not duplicated onto the run).
+**Field-aware:** supersede fires only when the newer event's `changed_fields` **overlap** the in-flight run's. A phone-number change never cancels an assignment-premised run. Only `person.state_changed` carries `changed_fields`, so append events (call/note) and `person.created` never supersede or are superseded.
 
-### Verification
-- Synthesize two near-simultaneous `person.state_changed` events for the same person in the harness; assert the first run ends `CANCELED` with `reason_code = SUPERSEDED_BY_NEWER_EVENT` and `domain_event_id` set, and no replacement run is created.
-- Cross-workflow case: two different workflows on the same person both proceed (collision is per `workflow_key`).
-- Operator-cancel path still rejects cancelling a non-`PENDING` run (the relaxed guard applies only to the supersede path).
-- Existing idempotency-key constraint still catches webhook replay.
+### Deliverables (built)
+- **`RunSupersedePolicy`** (new) — owns the collision decision: look up active (`PENDING`) runs for `(workflow_key, source_person_id)`, supersede each whose triggering `changed_fields` overlap the incoming event's. Keeps `WorkflowExecutionManager.plan` thin and documents the entity-generalization seam (person is the only stateful entity today).
+- **`WorkflowExecutionManager.plan`** calls the policy after the idempotency check (so a replay never supersedes) and before creating the run; the new run then proceeds normally.
+- **`WorkflowRunControlService.supersede(runId, domainEventId)`** — reuses the existing step-skip/cancel internals (factored into a shared `finalizeCanceled`); sets `reason_code = SUPERSEDED_BY_NEWER_EVENT` + `domain_event_id`. Operator `cancelRun` unchanged (`CANCELED_BY_OPERATOR`, `PENDING`-only). No `BLOCKED`-guard relaxation needed — `BLOCKED` is never set; active = `PENDING`, which the cancel path already permits.
+- **`WorkflowRunRepository.findByWorkflowKeyAndSourcePersonIdAndStatus`** — the active-run lookup.
+- **No migration** — `CANCELED`, `reason_code`, `domain_event_id` all already exist.
 
-### Exit criteria
-- Collisions cancel the in-flight run with an attributed reason + `domain_event_id`.
-- Frequency is queryable with no extra instrumentation: `COUNT(*) … WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'`.
-- The cancel-only limitation (newer change unenforced) is recorded in `known-issues.md` with a revisit trigger.
-- Domain-events feature marked complete.
+### Verification (built)
+- `RunSupersedePolicyTest` — overlap → supersede; no overlap → no supersede; no `changed_fields` / no person → no-op; only overlapping runs among many.
+- `WorkflowRunControlServiceTest` — supersede cancels `PENDING` run with reason + `domain_event_id` + step-skip; no-ops on non-`PENDING`/missing.
+- `WorkflowTriggerRouterIntegrationTest` (DB) — overlapping events supersede; non-overlapping both survive; per-`workflow_key` scoping (cross-workflow independent).
+- Idempotency replay still `DUPLICATE_IGNORED` (supersede runs only after the idempotency check).
+
+### Exit criteria — met
+- Newer event cancels the stale run with attributed reason + `domain_event_id`; the newer run enforces the newest state.
+- Frequency queryable: `COUNT(*) … WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'`.
+- Truly-simultaneous-events race recorded in `known-issues.md` #29 with a revisit-trigger.
+- Domain-events feature complete.
 
 ### Repo decisions impact
-`No` — collision handling is feature-internal and explicitly experimental.
+`No` — collision handling is feature-internal. (It flips the documented choice in known-issue #29 from cancel-only/deferred-supersede to adopted-supersede; #29 updated in place — no new RD.)
 
 ---
 

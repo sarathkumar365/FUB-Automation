@@ -17,6 +17,7 @@ public class WorkflowRunControlService {
     // operator-control commands (cancel), while query service remains read-only/list/detail.
 
     static final String CANCELED_BY_OPERATOR = "CANCELED_BY_OPERATOR";
+    public static final String SUPERSEDED_BY_NEWER_EVENT = "SUPERSEDED_BY_NEWER_EVENT";
 
     private final WorkflowRunRepository runRepository;
     private final WorkflowRunStepRepository runStepRepository;
@@ -51,6 +52,26 @@ public class WorkflowRunControlService {
                     "Workflow run cannot be canceled from status " + currentStatus);
         }
 
+        finalizeCanceled(run, CANCELED_BY_OPERATOR, null);
+        return new CancelRunResult(CancelRunStatus.SUCCESS, run.getId(), null);
+    }
+
+    /**
+     * Phase 5 supersede: a newer triggering event for the same (workflow, person)
+     * cancels the in-flight run. Distinct from operator cancel — it attributes the
+     * triggering {@code domainEventId} and uses {@code SUPERSEDED_BY_NEWER_EVENT}.
+     * No-op if the run is already terminal (only {@code PENDING} runs are active).
+     */
+    @Transactional
+    public void supersede(Long runId, Long domainEventId) {
+        WorkflowRunEntity run = runRepository.findById(runId).orElse(null);
+        if (run == null || run.getStatus() != WorkflowRunStatus.PENDING) {
+            return;
+        }
+        finalizeCanceled(run, SUPERSEDED_BY_NEWER_EVENT, domainEventId);
+    }
+
+    private void finalizeCanceled(WorkflowRunEntity run, String reasonCode, Long domainEventId) {
         List<WorkflowRunStepEntity> steps = runStepRepository.findByRunId(run.getId());
         for (WorkflowRunStepEntity step : steps) {
             if (step.getStatus() == WorkflowRunStepStatus.PENDING
@@ -62,10 +83,11 @@ public class WorkflowRunControlService {
         }
 
         run.setStatus(WorkflowRunStatus.CANCELED);
-        run.setReasonCode(CANCELED_BY_OPERATOR);
+        run.setReasonCode(reasonCode);
+        if (domainEventId != null) {
+            run.setDomainEventId(domainEventId);
+        }
         runRepository.save(run);
-
-        return new CancelRunResult(CancelRunStatus.SUCCESS, run.getId(), null);
     }
 
     public record CancelRunResult(CancelRunStatus status, Long runId, String errorMessage) {

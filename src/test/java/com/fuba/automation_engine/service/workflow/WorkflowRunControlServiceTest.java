@@ -102,6 +102,49 @@ class WorkflowRunControlServiceTest {
         verify(runRepository).save(run);
     }
 
+    @Test
+    void supersedeShouldCancelPendingRunWithReasonAndDomainEventIdAndSkipSteps() {
+        WorkflowRunEntity run = run(50L, WorkflowRunStatus.PENDING);
+        WorkflowRunStepEntity pending = step(1L, WorkflowRunStepStatus.PENDING);
+        WorkflowRunStepEntity waiting = step(2L, WorkflowRunStepStatus.WAITING_DEPENDENCY);
+        WorkflowRunStepEntity completed = step(3L, WorkflowRunStepStatus.COMPLETED);
+
+        when(runRepository.findById(50L)).thenReturn(Optional.of(run));
+        when(runStepRepository.findByRunId(50L)).thenReturn(List.of(pending, waiting, completed));
+
+        service.supersede(50L, 909L);
+
+        assertEquals(WorkflowRunStatus.CANCELED, run.getStatus());
+        assertEquals(WorkflowRunControlService.SUPERSEDED_BY_NEWER_EVENT, run.getReasonCode());
+        assertEquals(909L, run.getDomainEventId());
+        assertEquals(WorkflowRunStepStatus.SKIPPED, pending.getStatus());
+        assertEquals(WorkflowRunStepStatus.SKIPPED, waiting.getStatus());
+        assertEquals(WorkflowRunStepStatus.COMPLETED, completed.getStatus());
+        verify(runRepository).save(run);
+    }
+
+    @Test
+    void supersedeShouldNoOpWhenRunNotPending() {
+        WorkflowRunEntity run = run(51L, WorkflowRunStatus.COMPLETED);
+        when(runRepository.findById(51L)).thenReturn(Optional.of(run));
+
+        service.supersede(51L, 909L);
+
+        assertEquals(WorkflowRunStatus.COMPLETED, run.getStatus());
+        verify(runStepRepository, never()).findByRunId(any());
+        verify(runRepository, never()).save(any());
+    }
+
+    @Test
+    void supersedeShouldNoOpWhenRunMissing() {
+        when(runRepository.findById(52L)).thenReturn(Optional.empty());
+
+        service.supersede(52L, 909L);
+
+        verify(runStepRepository, never()).findByRunId(any());
+        verify(runRepository, never()).save(any());
+    }
+
     private WorkflowRunEntity run(Long id, WorkflowRunStatus status) {
         WorkflowRunEntity run = new WorkflowRunEntity();
         run.setId(id);

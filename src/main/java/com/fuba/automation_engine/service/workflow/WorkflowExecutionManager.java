@@ -45,6 +45,7 @@ public class WorkflowExecutionManager {
     private final WorkflowRunStepRepository stepRepository;
     private final WorkflowGraphValidator graphValidator;
     private final WorkflowStepRegistry stepRegistry;
+    private final RunSupersedePolicy runSupersedePolicy;
     private final EntityManager entityManager;
     private final Clock clock;
 
@@ -54,6 +55,7 @@ public class WorkflowExecutionManager {
             WorkflowRunStepRepository stepRepository,
             WorkflowGraphValidator graphValidator,
             WorkflowStepRegistry stepRegistry,
+            RunSupersedePolicy runSupersedePolicy,
             EntityManager entityManager,
             Clock clock) {
         this.workflowRepository = workflowRepository;
@@ -61,6 +63,7 @@ public class WorkflowExecutionManager {
         this.stepRepository = stepRepository;
         this.graphValidator = graphValidator;
         this.stepRegistry = stepRegistry;
+        this.runSupersedePolicy = runSupersedePolicy;
         this.entityManager = entityManager;
         this.clock = clock;
     }
@@ -107,6 +110,9 @@ public class WorkflowExecutionManager {
             return new WorkflowPlanningResult(
                     WorkflowPlanningResult.PlanningStatus.FAILED, null, "GRAPH_INVALID");
         }
+
+        runSupersedePolicy.supersede(
+                workflow.getKey(), request.sourcePersonId(), request.triggerPayload(), request.domainEventId());
 
         OffsetDateTime now = OffsetDateTime.now(clock);
 

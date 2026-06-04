@@ -52,4 +52,12 @@ public interface WorkflowRunRepository extends JpaRepository<WorkflowRunEntity, 
      * (both DESC). Used by the persons detail endpoint's timeline aggregation.
      */
     List<WorkflowRunEntity> findTop10BySourcePersonIdOrderByCreatedAtDescIdDesc(String sourcePersonId);
+
+    /**
+     * Active runs for a (workflow, person) pair in a given status. Phase 5
+     * field-aware supersede queries this for {@code PENDING} runs to find the
+     * in-flight run a newer event should cancel.
+     */
+    List<WorkflowRunEntity> findByWorkflowKeyAndSourcePersonIdAndStatus(
+            String workflowKey, String sourcePersonId, WorkflowRunStatus status);
 }

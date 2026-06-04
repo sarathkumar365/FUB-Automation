@@ -40,7 +40,7 @@ The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is 
 | 26 | Misleading echo event after permanent FUB failure (Phase 3 trade-off) | Low | Open (accepted) |
 | 27 | Note annotation channel dormant until `notesCreated` is ingested | Low | Deferred (revisit when note ingestion is enabled) |
 | 28 | Early-echo race on engine note creation | Low | Open (documented, no fix planned) |
-| 29 | Run-collision handling is cancel-only — newer change goes unenforced | Low | Open (accepted trade-off; revisit on data) |
+| 29 | Run-collision supersede has a truly-simultaneous-events race | Low | Open (residual; supersede built in Phase 5; revisit on data) |
 | 30 | Append-event trigger filters (`event.payload.*`) unvalidated at save-time | Low | Open (accepted; no consumer today) |
 | 31 | Rail 2 run planning ran in the after-commit hook without a live transaction | High | Resolved (2026-06-03, Phase 4d; caught by replay harness) |
 
@@ -315,15 +315,16 @@ No further action is needed. Active automation lives in the workflow engine; equ
 - **Proposed fix when justified:** content-hash key — coordinator records `tracker.record(entityType="note", entityId="hash:" + hashOf(personId, body), changedFields=Set.of("created"))` **before** the POST; `NoteEmissionService` computes the same hash from the echo payload and looks up by hash key (in addition to noteId key). Closes the race at the cost of one extra tracker lookup per note echo.
 - **Related:** [`phase-3-race-matrix.md`](../features/domain-events/phase-3-race-matrix.md) D3, [`phase-3-plan.md`](../features/domain-events/phase-3-plan.md) §3e "The early-echo race".
 
-## 29) Run-collision is cancel-only — the newer change goes unenforced
+## 29) Run-collision supersede has a truly-simultaneous-events race
 
-- **Status:** Open — accepted trade-off, experimental; revisit on data
-- **Priority:** Low (rare case; frequent collision causes already closed by Phases 2–4)
-- **Location:** Phase 5 run-collision handling — `WorkflowExecutionManager.plan` + `WorkflowRunControlService`
-- **Issue:** When a new triggering event arrives for a `(workflow_key, source_person_id)` that already has an active run, Phase 5 **cancels the in-flight run** (`reason_code = SUPERSEDED_BY_NEWER_EVENT`, `domain_event_id` = the triggering event) and **does not start a replacement**. So when a lead has two genuinely-distinct meaningful changes in quick succession, the run for the *newer* change never starts — that follow-up is silently skipped (under-enforcement). This is the conservative "miss it rather than mis-fire" choice for a rare case: cancelling guarantees no stale/duplicate action, at the cost of possibly skipping enforcement of the current assignment.
-- **Why accepted:** the frequent collision causes (FUB bursts, engine echoes, over-fires) are already removed by event-collapse (Phase 2), echo handling (Phase 3), and trigger filters (Phase 4). What remains is rare, and we don't yet have data on how rare. Shipping cancel-only is tiny and safe; building the fuller policy now would be speculative.
-- **Revisit trigger:** frequency is self-reported — `SELECT COUNT(*) FROM workflow_runs WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'` (optionally per `workflow_key`). If counts get high, build the fuller policy.
-- **Proposed fix when justified — supersede + freshness gate:** on collision, cancel the in-flight run **and start a fresh run** on the newer state (supersede), and add an action-step **freshness gate** — re-read live state immediately before the irreversible action (post note / reassign) so a run that has been waiting never acts on something that went stale. Supersede on a still-waiting run is the clean win; the freshness gate covers the edge where the cancelled run had already acted. May reintroduce a run-to-run audit link (`superseded_by_run_id`) at that point.
+- **Status:** Open — accepted residual, experimental; revisit on data. (Supersede itself is **built** — Phase 5; this entry now tracks only the concurrency residual.)
+- **Priority:** Low (doubly-rare case; frequent collision causes already closed by Phases 2–4)
+- **Location:** Phase 5 run-collision handling — `RunSupersedePolicy` + `WorkflowExecutionManager.plan` + `WorkflowRunControlService`
+- **What shipped (resolves the old cancel-only limitation):** When a newer event arrives for a `(workflow_key, source_person_id)` that already has an in-flight (`PENDING`) run **and the two events' `changed_fields` overlap**, Phase 5 **supersedes**: it cancels the stale run (`reason_code = SUPERSEDED_BY_NEWER_EVENT`, `domain_event_id` = the newer event) and the newer run — which the event already spawned under Rail 2 — proceeds to enforce the newest state. So the newer change is **no longer unenforced** (the prior cancel-only trade-off is gone), and the stale run is cancelled before its waited actions fire (no freshness gate needed). Field overlap keeps unrelated changes (e.g. a phone edit) from cancelling an assignment-premised run.
+- **Residual issue:** the collision lookup (`findByWorkflowKeyAndSourcePersonIdAndStatus`) is not lock-protected and there is no partial unique index on `(workflow_key, source_person_id)`. Two **truly simultaneous** events for the same person (each in its own `REQUIRES_NEW` plan transaction) can each fail to see the other's not-yet-committed run → both runs proceed → a duplicate action is possible. This is the same gap the original design accepted when it dropped the partial unique index.
+- **Why accepted:** requires two genuinely-distinct meaningful changes for the same person *within the commit window* — vanishingly rare after Phases 2–4. We don't yet have data that it happens.
+- **Revisit trigger:** frequency is self-reported — `SELECT COUNT(*) FROM workflow_runs WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'` (supersede activity, per `workflow_key`), and watch for `>1` concurrent `PENDING` run per `(workflow_key, source_person_id)`.
+- **Proposed fix when justified:** a partial unique index on `(workflow_key, source_person_id) WHERE status = 'PENDING'` (DB-level mutual exclusion), or a per-step freshness backstop on the irreversible actions (reassign / move-to-pond no-op when the run's premise field changed since trigger). Either closes the race.
 - **Related:** [`plan.md`](../features/domain-events/plan.md) §7, [`phases.md`](../features/domain-events/phases.md) Phase 5, [`overview.md`](../features/domain-events/overview.md) §7.
 
 ## 30) Append-event trigger filters (`event.payload.*`) are not validated at save-time

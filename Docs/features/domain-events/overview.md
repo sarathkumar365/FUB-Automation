@@ -151,7 +151,7 @@ flowchart LR
 | 2 | Build the events table + diff machinery. Events get **written** on every webhook — but **nothing reads them yet** | done |
 | 3 | Engine writes update local state first + tag themselves `source=ENGINE` — the echo-killer | done |
 | **4** | **Workflows actually subscribe to domain events.** The old webhook trigger is retired. *The bad-run-rate win lands here.* | **in progress** |
-| 5 | Run-collision handling — cancel-only; supersede + freshness deferred (#29) | not started |
+| 5 | Run-collision handling — field-aware supersede-at-plan-time (#29) | done |
 
 **Subtlety worth holding onto:** because of Phase 2, **events are already being written on every webhook right now** — they just pile up with no reader. So Phase 4's real job is **attaching the first reader**. (That's why the order of "attach reader" vs. "turn on the engine's own event emission" matters during cutover.)
 
@@ -169,9 +169,9 @@ flowchart TD
     L2 -->|"yes (source=ENGINE)"| X2([filtered out])
     L2 -->|no| L3{3 · FILTER<br/>Phase 4<br/>is THIS the change<br/>the workflow watches?}
     L3 -->|no| X3([ignored])
-    L3 -->|yes| L4{4 · COLLISION<br/>Phase 5<br/>already a run active<br/>for this person?}
+    L3 -->|yes| L4{4 · COLLISION<br/>Phase 5<br/>run active for this person<br/>on an overlapping change?}
     L4 -->|no| RUN([start run → it acts])
-    L4 -->|"yes"| CAN([CANCEL the in-flight run<br/>reason=SUPERSEDED_BY_NEWER_EVENT<br/>· no replacement started ·])
+    L4 -->|"yes"| SUP([SUPERSEDE: cancel the stale run<br/>reason=SUPERSEDED_BY_NEWER_EVENT<br/>· the new run proceeds → enforces newest ·])
 ```
 
 Read top to bottom — each gate answers a different question:
@@ -179,7 +179,7 @@ Read top to bottom — each gate answers a different question:
 1. **Collapse** *(Phase 2)* — "did anything meaningful change?" Kills bursts (3 webhooks → 1 event).
 2. **Echo** *(Phase 3)* — "did *we* cause this?" Tagged `source=ENGINE` → filtered.
 3. **Filter** *(Phase 4)* — "is this the specific change the workflow watches?" The front door.
-4. **Collision** *(Phase 5, cancel-only)* — "is a run already active for this person?" If yes → **cancel the in-flight run, start nothing new**.
+4. **Collision** *(Phase 5, supersede)* — "is a run already active for this person on an *overlapping* change?" If yes → **cancel the stale run; the newer run proceeds and enforces the newest state**.
 
 ### What Phase 5 is actually for
 
@@ -187,17 +187,19 @@ After gates 1–3, almost all duplicates are gone. **One case survives:** two *g
 
 > Example: lead assigned to **Agent A** → a run starts and begins its wait. 90 seconds later, the lead is reassigned to **Agent B**. Both changes are real. The first run is now waiting to nudge about a stale assignment.
 
-**The decision (2026-06-03): cancel-only, experimental.** When the second event arrives and a run is already active, the engine **cancels the in-flight run** (so it never acts on the stale Agent-A state) and **does not start a replacement**. It's the conservative "miss it rather than mis-fire" choice for a rare case.
+**The decision (2026-06-03): supersede-at-plan-time, field-aware.** When Event 2 arrives it **already spawns its own run** (it passed the filter). So at plan time we cancel the *stale* run (Agent A) and let the *new* run (Agent B) proceed — the engine enforces the **newest** state with exactly one run. The stale run is cancelled before its waited actions fire, so it never acts on Agent-A state; no freshness re-check is needed. **Field-aware:** the cancel fires only when Event 2's `changed_fields` overlap the in-flight run's, so an unrelated change (e.g. a phone edit) never cancels an assignment-premised run.
 
 ```mermaid
 sequenceDiagram
     participant Ev1 as Event 1 (→ Agent A)
-    participant Run1 as Run 1
+    participant Run1 as Run 1 (stale)
     participant Ev2 as Event 2 (→ Agent B)
+    participant Run2 as Run 2 (newest)
     Ev1->>Run1: start, begin wait…
     Note over Run1: waiting (no action yet)
-    Ev2->>Run1: CANCEL (reason=SUPERSEDED_BY_NEWER_EVENT,<br/>domain_event_id=Ev2)
-    Note over Ev2,Run1: no replacement run started.<br/>Agent B's assignment goes UNENFORCED — accepted trade-off.
+    Ev2->>Run1: SUPERSEDE — cancel (reason=SUPERSEDED_BY_NEWER_EVENT,<br/>domain_event_id=Ev2) — only if changed_fields overlap
+    Ev2->>Run2: start (the newer run)
+    Note over Ev2,Run2: Run 2 enforces Agent B — the newest state. One run, no stale action.
 ```
 
 The options we weighed:
@@ -206,21 +208,21 @@ The options we weighed:
 |---|---|---|
 | Let both run | Two nudge cycles | ❌ the original bug |
 | Hard-suppress | Ignore #2, keep #1 | ❌ #1 acts on stale info (Agent A, already replaced) |
-| **Cancel-only** *(chosen)* | **Cancel #1, start nothing** | ✅ no stale/duplicate action. ⚠️ #2 unenforced — accepted, rare, tracked |
-| Supersede + freshness | Cancel #1, start #2, re-check before acting | ✅ most correct, but more machinery — **deferred to a known issue** |
+| Cancel-only | Cancel #1, start nothing | ⚠️ safe, but #2 (newest) goes unenforced |
+| **Supersede** *(chosen)* | **Cancel #1, #2 proceeds** | ✅ one run, enforces the newest state. Free here — #2's run already exists |
 
-**Why not supersede now:** it's the more complete answer (act once, on the newest state) but it needs run-restart + a freshness re-check before acting, and we don't yet know the case is frequent enough to justify it. Cancel-only is safe and tiny; the limitation (newer change unenforced) is recorded as a known issue and revisited only if cancelled-run counts get high. Frequency reports itself — every cancel writes a row tagged `SUPERSEDED_BY_NEWER_EVENT`.
+**Why supersede (not cancel-only):** under Rail 2 the replacement run already exists (Event 2 created it), so the "supersede ideal" — act once, on the newest state — costs no more than cancel-only, and it *enforces* the newest change instead of dropping it. The freshness re-check the original ideal needed is unnecessary because the stale run is cancelled before it acts. The only residual is a truly-simultaneous race (both runs miss each other) — rare, tracked in known-issue #29.
 
 After this, the domain-events feature is **complete**.
 
 ### The words that keep blurring — pinned down
 
 - **Filter** *(Phase 4, built)* = "is this event worth reacting to at all?" — at the front door.
-- **Cancel-on-collision** *(Phase 5, built)* = "a newer worthy event cancels an in-flight run (and starts nothing)." — when runs collide.
-- **Supersede + Freshness** *(deferred — known issue)* = "replace the in-flight run with a fresh one, and re-check the world right before acting." — the fuller policy, if the data ever justifies it.
+- **Supersede-on-collision** *(Phase 5, built)* = "a newer event whose change-set *overlaps* an in-flight run cancels that run; the newer run proceeds and enforces the newest state." — when runs collide.
+- **Freshness re-check** *(not needed / not built)* = "re-read live state right before acting." Unnecessary under supersede because the stale run is cancelled before it acts; would only matter if a cancelled run could have already acted.
 
 ---
 
 ## 8. One-paragraph summary
 
-The engine enforces agent follow-up. FUB's webhooks are dumb — they say "something changed" but not *what* — so the old "webhook → run" design fired wrongly about half the time, including triggering on the engine's own writes. The fix is to stop treating webhooks as events and start treating them as *signals*: the engine diffs the new state against what it knew and emits a clean, typed **domain event** only when something meaningful changed, tagging its own writes so it never reacts to itself. Workflows subscribe to those events ("fire when `assignedUserId` changed and I didn't cause it") instead of raw webhooks. That removes the over-fires, the bursts, and the echo loop. The last remaining case — two *genuinely different* changes for the same lead racing each other — is handled in Phase 5 by **cancelling** the in-flight run (so it can't act on stale state) and starting nothing new; the fuller policy (supersede + a freshness re-check before acting) is deferred as a known issue, to be built only if it proves frequent.
+The engine enforces agent follow-up. FUB's webhooks are dumb — they say "something changed" but not *what* — so the old "webhook → run" design fired wrongly about half the time, including triggering on the engine's own writes. The fix is to stop treating webhooks as events and start treating them as *signals*: the engine diffs the new state against what it knew and emits a clean, typed **domain event** only when something meaningful changed, tagging its own writes so it never reacts to itself. Workflows subscribe to those events ("fire when `assignedUserId` changed and I didn't cause it") instead of raw webhooks. That removes the over-fires, the bursts, and the echo loop. The last remaining case — two *genuinely different* changes for the same lead racing each other — is handled in Phase 5 by **superseding**: a newer event whose change-set overlaps an in-flight run cancels that stale run, and the newer run (which the event already spawned) proceeds to enforce the newest state. One run, on the freshest data, no stale action.
