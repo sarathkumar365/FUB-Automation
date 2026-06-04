@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { routes } from '../../../shared/constants/routes'
+import { uiText } from '../../../shared/constants/uiText'
 import { LogoutIcon } from '../../../shared/ui/icons'
 import { clearToken, getToken } from '../state/tokenStore'
 
@@ -37,8 +38,8 @@ export function LogoutButton({ variant = 'rail', className = '' }: LogoutButtonP
       <button
         type="button"
         onClick={handleClick}
-        title={username !== null ? `Sign out (${username})` : 'Sign out'}
-        aria-label={username !== null ? `Sign out as ${username}` : 'Sign out'}
+        title={username !== null ? `${uiText.login.signOut} (${username})` : uiText.login.signOut}
+        aria-label={username !== null ? `${uiText.login.signOut} as ${username}` : uiText.login.signOut}
         className={[
           'flex h-9 w-9 items-center justify-center rounded-md text-xs font-semibold transition-colors',
           'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-status-bad)]',
@@ -54,7 +55,7 @@ export function LogoutButton({ variant = 'rail', className = '' }: LogoutButtonP
     <button
       type="button"
       onClick={handleClick}
-      aria-label={username !== null ? `Sign out as ${username}` : 'Sign out'}
+      aria-label={username !== null ? `${uiText.login.signOut} as ${username}` : uiText.login.signOut}
       className={[
         'inline-flex h-9 items-center gap-2 rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-sm font-medium text-[var(--color-text)] transition-colors',
         'hover:border-[var(--color-status-bad)] hover:text-[var(--color-status-bad)]',
@@ -62,7 +63,7 @@ export function LogoutButton({ variant = 'rail', className = '' }: LogoutButtonP
       ].join(' ')}
     >
       <LogoutIcon aria-hidden />
-      <span>{username !== null ? `Sign out (${username})` : 'Sign out'}</span>
+      <span>{username !== null ? `${uiText.login.signOut} (${username})` : uiText.login.signOut}</span>
     </button>
   )
 }

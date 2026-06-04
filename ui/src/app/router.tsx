@@ -5,6 +5,7 @@ import { SessionGuard } from './SessionGuard'
 import { LandingPage } from '../modules/landing/ui/LandingPage'
 import { AuthGuard } from '../modules/auth/ui/AuthGuard'
 import { LoginPage } from '../modules/auth/ui/LoginPage'
+import { SignupPage } from '../modules/auth/ui/SignupPage'
 import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
 import { ProcessedCallsPage } from '../modules/processed-calls/ui/ProcessedCallsPage'
 import { WorkflowsPage } from '../modules/workflows/ui/WorkflowsPage'
@@ -34,6 +35,10 @@ export function createAppRouter() {
         {
           path: 'login',
           element: <LoginPage />,
+        },
+        {
+          path: 'signup',
+          element: <SignupPage />,
         },
         {
           element: <SessionGuard />,

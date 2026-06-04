@@ -5,6 +5,7 @@ export const routes = {
   adminUi: '/admin-ui',
   dashboard: '/admin-ui',
   login: '/admin-ui/login',
+  signup: '/admin-ui/signup',
   webhooks: '/admin-ui/webhooks',
   processedCalls: '/admin-ui/processed-calls',
   persons: '/admin-ui/persons',
