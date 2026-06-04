@@ -71,8 +71,3 @@ export function emptyGraph(entryNodeId = 'start'): Graph {
     ],
   }
 }
-
-/** True when a parsed value conforms to the graph shape. */
-export function isGraph(value: unknown): value is Graph {
-  return graphSchema.safeParse(value).success
-}

@@ -1,4 +1,4 @@
-import type { PersonFeedItem, PersonStatus } from '../../../shared/types/person'
+import type { PersonStatus } from '../../../shared/types/person'
 import type { StatusTone } from '../../../shared/ui/StatusBadge'
 
 const NAME_FIELDS = ['name', 'fullName'] as const
@@ -31,8 +31,4 @@ export function personStatusTone(status: PersonStatus): StatusTone {
     default:
       return 'info'
   }
-}
-
-export function personDisplayName(person: Pick<PersonFeedItem, 'snapshot' | 'sourcePersonId'>, fallback: string): string {
-  return formatPersonName(person.snapshot) ?? fallback
 }

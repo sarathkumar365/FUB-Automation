@@ -9,7 +9,7 @@
     "lint": "eslint .",
     "lint:tokens": "node scripts/check-hex.mjs",
     "deadcode": "knip",
-    "check": "npm run lint && npm run lint:tokens && npm run build && npm run test",
+    "check": "npm run lint && npm run lint:tokens && npm run deadcode && npm run build && npm run test",
     "preview": "vite preview",
     "test": "vitest run",
     "test:watch": "vitest",

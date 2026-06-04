@@ -31,7 +31,7 @@ export { Select } from './select'
 export { DateInput } from './DateInput'
 
 // --- Primitives: Radix wrappers ---
-export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './Popover'
+export { Popover, PopoverAnchor, PopoverContent } from './Popover'
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
 
 // --- Primitives: specialized ---
