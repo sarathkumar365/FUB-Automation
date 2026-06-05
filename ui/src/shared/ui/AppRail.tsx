@@ -3,7 +3,7 @@ import { NavLink, useLocation } from 'react-router-dom'
 import { LogoutButton } from '../../modules/auth/ui/LogoutButton'
 import { appNavItems, navItemIsActive, routes, type AppNavKey } from '../constants/routes'
 import { uiText } from '../constants/uiText'
-import { ActivityIcon, LogoMarkIcon, PhoneIcon, UsersIcon, WorkflowIcon } from './icons'
+import { ActivityIcon, LogoMarkIcon, PhoneIcon, SettingsIcon, UsersIcon, WorkflowIcon } from './icons'
 import { ThemeToggle } from './ThemeToggle'
 
 const NAV_ICONS: Record<AppNavKey, ComponentType<SVGProps<SVGSVGElement>>> = {
@@ -11,6 +11,7 @@ const NAV_ICONS: Record<AppNavKey, ComponentType<SVGProps<SVGSVGElement>>> = {
   processedCalls: PhoneIcon,
   persons: UsersIcon,
   workflows: WorkflowIcon,
+  settings: SettingsIcon,
 }
 
 export function AppRail() {

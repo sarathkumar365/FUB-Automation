@@ -23,6 +23,7 @@ export const uiText = {
       processedCalls: 'Processed Calls',
       persons: 'Persons',
       workflows: 'Workflows',
+      settings: 'Settings',
     },
   },
   authShell: {
@@ -456,7 +457,6 @@ export const uiText = {
     toggleOn: 'On',
     toggleOff: 'Off',
     hoursUnit: 'h',
-    timezones: ['America/Toronto', 'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles', 'UTC'],
     sections: {
       hours: {
         title: 'Business hours',

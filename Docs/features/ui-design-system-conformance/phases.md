@@ -10,11 +10,11 @@ in either order. **Every phase that adds code lands its own test (Decision F).**
 |---|-------|--------|
 | A1 | Foundation — `modules/settings/lib` (schema, sections metadata, **projection — real fields only, no mock**) + projection test | ✅ Complete ([narrative](./phase-a1-implementation.md)) |
 | A2 | Platform seam — `settingsPort` (getConfig) + `httpSettingsAdapter` (real GET only) + container + queryKeys | ✅ Complete ([narrative](./phase-a2-implementation.md)) |
-| A3 | Data hook — `useSettingsConfigQuery` | ⬜ Not started |
-| A4 | Primitive + icons — `Toggle` (**wraps `@radix-ui/react-switch`**), `SettingsIcon`, `RefreshIcon` (+ barrel) + Toggle test | ⬜ Not started |
-| A5 | UI — `SettingRow`, `ManagedWebhooksCard`, `SettingsPage` (controlled-by-query, "not available" rows, coming-soon gate) + page test | ⬜ Not started |
-| A6 | Wire-in — routes, router, rail `NAV_ICONS`, `uiText` (incl. `comingSoon` + "not available") + routing test | ⬜ Not started |
-| A7 | Gate — `npm run check`, browser-verify | ⬜ Not started |
+| A3 | Data hook — `useSettingsConfigQuery` | ✅ Complete ([narrative](./phase-a3-implementation.md)) |
+| A4 | Primitive + icons — `Toggle` (**wraps `@radix-ui/react-switch`**), `SettingsIcon`, `RefreshIcon` (+ barrel) + Toggle test | ✅ Complete ([narrative](./phase-a4-implementation.md)) |
+| A5 | UI — `SettingRow`, `ManagedWebhooksCard`, `SettingsPage` (controlled-by-query, "not available" rows, coming-soon gate) + page test | ✅ Complete ([narrative](./phase-a5-implementation.md)) |
+| A6 | Wire-in — routes, router, rail `NAV_ICONS`, `uiText` (incl. `comingSoon` + "not available") | ✅ Complete ([narrative](./phase-a6-implementation.md)) |
+| A7 | Gate — `npm run check`, browser-verify | ✅ Complete (gate green + live browser verification — see A6 narrative) |
 
 ## Part B — Status screens
 
