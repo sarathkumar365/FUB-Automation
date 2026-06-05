@@ -20,13 +20,16 @@ The one primary-nav surface the design system specifies that the UI hasn't built
 **read-only** `GET /admin/settings/config`; there is no write API, no managed-webhooks endpoint, secrets are
 redacted, and only 1 of the design's 4 feature flags is exposed.
 
-**Scope decision — real read, editing "coming soon":**
+**Scope decision — real read, show only real data, editing "coming soon":**
 - **Read path is fully real**, wired through the existing central API layer
   (`HttpJsonClient` → `container.ts` `appPorts` → `useAppPorts`).
-- Editable controls render the real values, but **editing is not yet functional** — any change attempt or
-  Save/Sync click fires **"This editing feature is coming soon."** Nothing is persisted or faked as saved.
-- The write seam (`updateConfig` + the design's Save/Reset dirty bar) is documented as the drop-in for when
-  the backend `PUT` lands.
+- **Show only what the backend returns.** Fields the design shows but the endpoint doesn't expose (3 of 4
+  feature flags; managed-webhooks) render an explicit **"not available yet"** — **never fabricated values**
+  (one of those flags is the RD-006 engine-echo safety control; a guessed value would mislead).
+- **No local form state** — controls are controlled by the query data; a change attempt fires
+  **"This editing feature is coming soon."** and does not mutate. Nothing is persisted or faked.
+- The write seam (`updateConfig` + the design's Save/Reset dirty bar) is the documented drop-in for when the
+  backend `PUT` lands.
 
 ## Part B — Status screens
 
@@ -36,8 +39,10 @@ ghost-glyph watermark, brand lockup top-center, a mono console status strip), dr
 `FullPageStatus` shell**.
 
 **Scope decision:** extract the shared shell + content renderer (don't duplicate); ship Direction B + strip
-for standalone, calmer in-shell 404; `AppErrorFallback` stays **router-hook-free**; transform-only entrance
-motion guarded by `prefers-reduced-motion`.
+for standalone, calmer in-shell 404; **`SessionDisabledPage` renders full-page** (latest handoff — overrides
+`ui-0.1-plan.md`'s in-shell note); the lockup **reuses the centralized wordmark** (`uiText.authShell.wordmark`
+— no new "Automation Engine" literals, RD-005 rename pending); `AppErrorFallback` stays **router-hook-free**;
+transform-only entrance motion guarded by `prefers-reduced-motion`.
 
 ## Documents
 

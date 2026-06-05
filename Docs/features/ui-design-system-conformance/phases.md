@@ -1,33 +1,35 @@
 # Phases — UI Design-System Conformance
 
-Tracker for the active feature. See [`plan.md`](./plan.md) for detail, [`research.md`](./research.md) for
-findings. Two independent parts; build in either order.
+Tracker for the active feature. See [`plan.md`](./plan.md) for detail (incl. lifecycle diagrams + RD-impact),
+[`research.md`](./research.md) for findings + the review-resolved decisions A–F. Two independent parts; build
+in either order. **Every phase that adds code lands its own test (Decision F).**
 
 ## Part A — Settings page
 
 | # | Phase | Status |
 |---|-------|--------|
-| A1 | Foundation — `modules/settings/lib` (schema, sections metadata, projection) + unit test | ⬜ Not started |
-| A2 | Platform seam — `settingsPort` + `httpSettingsAdapter` (real GET + mock-fenced) + container + queryKeys | ⬜ Not started |
+| A1 | Foundation — `modules/settings/lib` (schema, sections metadata, **projection — real fields only, no mock**) + projection test | ⬜ Not started |
+| A2 | Platform seam — `settingsPort` (getConfig) + `httpSettingsAdapter` (real GET only) + container + queryKeys | ⬜ Not started |
 | A3 | Data hook — `useSettingsConfigQuery` | ⬜ Not started |
-| A4 | Primitive + icons — `Toggle`, `SettingsIcon`, `RefreshIcon` (+ barrel) | ⬜ Not started |
-| A5 | UI — `SettingRow`, `ManagedWebhooksCard`, `SettingsPage` (section-nav, coming-soon gate) | ⬜ Not started |
-| A6 | Wire-in — routes, router, rail `NAV_ICONS`, `uiText` (incl. `comingSoon`) | ⬜ Not started |
-| A7 | Tests + gates — projection + page specs, `npm run check`, browser-verify | ⬜ Not started |
+| A4 | Primitive + icons — `Toggle` (**wraps `@radix-ui/react-switch`**), `SettingsIcon`, `RefreshIcon` (+ barrel) + Toggle test | ⬜ Not started |
+| A5 | UI — `SettingRow`, `ManagedWebhooksCard`, `SettingsPage` (controlled-by-query, "not available" rows, coming-soon gate) + page test | ⬜ Not started |
+| A6 | Wire-in — routes, router, rail `NAV_ICONS`, `uiText` (incl. `comingSoon` + "not available") + routing test | ⬜ Not started |
+| A7 | Gate — `npm run check`, browser-verify | ⬜ Not started |
 
 ## Part B — Status screens
 
 | # | Phase | Status |
 |---|-------|--------|
-| B1 | Shared foundation — `FullPageStatus`, shared gradient (refactor `AuthShell`), `useRise`, glyphs | ⬜ Not started |
-| B2 | Content renderer — `StatusScreen` (Direction B + console strip) | ⬜ Not started |
-| B3 | `AppErrorFallback` (bad) + `ErrorDetails` (dev-only) + thread error through both boundaries | ⬜ Not started |
-| B4 | `NotFoundPage` (brand) — "404" watermark, real-path strip, standalone + in-shell | ⬜ Not started |
-| B5 | `SessionDisabledPage` (warn) — lock, helper, no primary | ⬜ Not started |
+| B1 | Shared foundation — `FullPageStatus` (own handoff gradient; **lockup via centralized wordmark**), `useRise`, glyphs + test | ⬜ Not started |
+| B2 | Content renderer — `StatusScreen` (Direction B + console strip) + test | ⬜ Not started |
+| B3 | `AppErrorFallback` (bad) + `ErrorDetails` (dev-only) + thread error through both boundaries + test (router-free) | ⬜ Not started |
+| B4 | `NotFoundPage` (brand) — "404" watermark, real-path strip, standalone + in-shell + test | ⬜ Not started |
+| B5 | `SessionDisabledPage` (warn) — lock, helper, no primary, **full-page (route moved out of `AppShell`)** + test | ⬜ Not started |
 | B6 | Copy — extend `uiText` (`appError` / `notFound` / `session`) | ⬜ Not started |
-| B7 | Tests + gates — `status-screens.test.tsx`, `npm run check`, browser-verify (light/dark/in-shell) | ⬜ Not started |
+| B7 | Gate — `npm run check`, browser-verify (light/dark/in-shell) | ⬜ Not started |
 
 **Status legend:** ⬜ Not started · 🟡 In progress · ✅ Complete
 
 When all phases are ✅, consolidate to the archived shape (README.md + plan.md + implementation-log.md) per
-`Docs/features/README.md` conventions.
+`Docs/features/README.md` conventions. Each `phase-<n>-implementation.md` must carry its own "Repo decisions
+impact" note.
