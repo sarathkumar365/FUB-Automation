@@ -14,3 +14,18 @@ body {
   background-color: var(--color-bg);
   color: var(--color-text);
 }
+
+/* Interactive elements show a pointer on hover. Native buttons/selects default
+   to the arrow cursor and Tailwind's preflight doesn't change that, so make it
+   global rather than per-component. Disabled controls keep the default cursor. */
+@layer base {
+  button:not(:disabled),
+  select:not(:disabled),
+  summary,
+  label[for],
+  [role='button']:not([aria-disabled='true']),
+  [role='switch']:not(:disabled),
+  [role='tab']:not([aria-disabled='true']) {
+    cursor: pointer;
+  }
+}
