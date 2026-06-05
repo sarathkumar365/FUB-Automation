@@ -33,4 +33,7 @@ export const queryKeys = {
   dashboard: {
     snapshot: () => ['dashboard', 'snapshot'] as const,
   },
+  settings: {
+    config: () => ['settings', 'config'] as const,
+  },
 }

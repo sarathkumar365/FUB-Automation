@@ -8,8 +8,8 @@ in either order. **Every phase that adds code lands its own test (Decision F).**
 
 | # | Phase | Status |
 |---|-------|--------|
-| A1 | Foundation — `modules/settings/lib` (schema, sections metadata, **projection — real fields only, no mock**) + projection test | ⬜ Not started |
-| A2 | Platform seam — `settingsPort` (getConfig) + `httpSettingsAdapter` (real GET only) + container + queryKeys | ⬜ Not started |
+| A1 | Foundation — `modules/settings/lib` (schema, sections metadata, **projection — real fields only, no mock**) + projection test | ✅ Complete ([narrative](./phase-a1-implementation.md)) |
+| A2 | Platform seam — `settingsPort` (getConfig) + `httpSettingsAdapter` (real GET only) + container + queryKeys | ✅ Complete ([narrative](./phase-a2-implementation.md)) |
 | A3 | Data hook — `useSettingsConfigQuery` | ⬜ Not started |
 | A4 | Primitive + icons — `Toggle` (**wraps `@radix-ui/react-switch`**), `SettingsIcon`, `RefreshIcon` (+ barrel) + Toggle test | ⬜ Not started |
 | A5 | UI — `SettingRow`, `ManagedWebhooksCard`, `SettingsPage` (controlled-by-query, "not available" rows, coming-soon gate) + page test | ⬜ Not started |
