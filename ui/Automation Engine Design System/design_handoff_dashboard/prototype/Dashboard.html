@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Automation Engine — Dashboard (source prototype)</title>
+<!-- ui_kit/styles.css loads the brand fonts + all design tokens, then colors_and_type.css -->
+<link rel="stylesheet" href="ui_kit/styles.css" />
+<link rel="stylesheet" href="dashboards.css" />
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" crossorigin="anonymous"></script>
+</head>
+<body>
+<div id="root"></div>
+<!-- shared kit (faithful recreation of the product's shared/ui + app shell) -->
+<script type="text/babel" src="ui_kit/icons.jsx"></script>
+<script type="text/babel" src="ui_kit/primitives.jsx"></script>
+<script type="text/babel" src="ui_kit/shell.jsx"></script>
+<script type="text/babel" src="ui_kit/data.jsx"></script>
+<!-- dashboard-specific -->
+<script type="text/babel" src="charts.jsx"></script>
+<script type="text/babel" src="dash-data.jsx"></script>
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="dashboard-app.jsx"></script>
+</body>
+</html>
