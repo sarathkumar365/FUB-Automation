@@ -1,6 +1,10 @@
 import { uiText } from '../../../shared/constants/uiText'
 import type { SettingsConfig } from './settingsSchemas'
 
+// Full IANA zone list (native, no dependency) so any backend-configured
+// timezone is always selectable/displayable — not a curated subset.
+const TIMEZONES = Intl.supportedValuesOf('timeZone')
+
 export type SettingValue = string | number | boolean
 
 export type SettingControl =
@@ -52,7 +56,7 @@ export const SETTINGS_SECTIONS: readonly SettingsSection[] = [
       {
         key: 'automation.business-hours.timezone',
         label: t.rows.timezone,
-        control: { kind: 'select', options: t.timezones },
+        control: { kind: 'select', options: TIMEZONES },
         backed: true,
         read: (c) => c.businessHours.timezone,
       },
