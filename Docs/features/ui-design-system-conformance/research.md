@@ -169,6 +169,12 @@ Decisions taken during the design review (apply to both parts):
 - **E. `Toggle` wraps `@radix-ui/react-switch`** — consistent with existing Radix wrappers; add the dep. *Accepted.*
 - **F. Test-with-each-phase** — every phase that adds code lands its own test (not deferred to the final phase).
   *Accepted.*
+- **G. Icons via `lucide-react`** — add `lucide-react` and source the **new** glyphs from it (status:
+  alert-triangle, compass, lock, chevron-left, chevron-down; settings: settings, refresh), rendered at the
+  handoff's stroke widths (and `1.8` for the rail icon to match neighbours). **Existing hand-rolled icons in
+  `icons.tsx` are left untouched** — lucide defaults to `strokeWidth 2` vs the repo's `1.8`, so a wholesale
+  migration would thicken every icon app-wide (out of scope; a future cleanup initiative). New glyphs are
+  added/re-exported through `icons.tsx` so call sites stay single-sourced. *Accepted (user, this review).*
 
 ## Tokens (both parts — all present, light + dark, in `ui/src/styles/tokens.css`)
 

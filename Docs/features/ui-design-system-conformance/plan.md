@@ -71,7 +71,8 @@ flowchart TB
   `queryKeys.settings.config`.
 - **A3 — Data hook:** `modules/settings/data/useSettingsConfigQuery.ts`.
 - **A4 — Primitive + icons:** `shared/ui/Toggle.tsx` (wrap `@radix-ui/react-switch`; add dep) + barrel;
-  `SettingsIcon` + `RefreshIcon` in `icons.tsx` + barrel. **+ Toggle unit test.**
+  `SettingsIcon` + `RefreshIcon` sourced from **`lucide-react`** (add dep) and re-exported via `icons.tsx`
+  at stroke `1.8`. **+ Toggle unit test.**
 - **A5 — UI (`modules/settings/ui`):** `SettingRow` (toggle/number/select/text + read-only secret status +
   "not available" rows), `ManagedWebhooksCard` (real-data table or "not available" empty state),
   `SettingsPage` (Panel "Configuration" section-nav; controls controlled-by-query; coming-soon gate).
@@ -90,7 +91,7 @@ flowchart TB
 `src/test/{settings-projection.test.ts,settings-page.test.tsx}`.
 **Edited:** `platform/container.ts`, `platform/query/queryKeys.ts`, `shared/constants/routes.ts`,
 `app/router.tsx`, `shared/ui/AppRail.tsx`, `shared/ui/icons.tsx`, `shared/ui/index.ts`,
-`shared/constants/uiText.ts`, `package.json` (`@radix-ui/react-switch`).
+`shared/constants/uiText.ts`, `package.json` (`@radix-ui/react-switch`, `lucide-react`).
 
 ---
 
@@ -107,8 +108,9 @@ flowchart TB
 
 ## Phases (B) — each adds its own test
 - **B1 — Shared foundation:** `src/app/status/FullPageStatus.tsx` (own handoff-value gradient; lockup via
-  centralized wordmark); `shared/lib/useRise.ts` (transform-only WAAPI + reduced-motion guard); glyphs in
-  `icons.tsx` + barrel. **+ FullPageStatus/useRise test.**
+  centralized wordmark); `shared/lib/useRise.ts` (transform-only WAAPI + reduced-motion guard); status glyphs
+  from **`lucide-react`** re-exported via `icons.tsx` (alert-triangle, compass, lock, chevron-left,
+  chevron-down) at the handoff stroke widths. **+ FullPageStatus/useRise test.**
 - **B2 — Content renderer:** `src/app/status/StatusScreen.tsx` (tone map, `PillEyebrow`, `StatusStrip`, quiet
   link, `Actions`, watermark). **+ renderer test.**
 - **B3 — `AppErrorFallback` + error threading:** rebuild as `({ error? })` (bad tone); Reload + plain `<a>`;
@@ -128,7 +130,7 @@ flowchart TB
 `src/test/status-screens.test.tsx`.
 **Edited:** `src/app/{AppErrorFallback,NotFoundPage,SessionDisabledPage,RouteErrorBoundary,AppErrorBoundary}.tsx`;
 `src/app/router.tsx` (pass `inShell`/error; move session-disabled out of `AppShell`); `shared/ui/icons.tsx` +
-`shared/ui/index.ts`; `shared/constants/uiText.ts`.
+`shared/ui/index.ts`; `shared/constants/uiText.ts`; `package.json` (`lucide-react`, if not already added in A4).
 
 ---
 
