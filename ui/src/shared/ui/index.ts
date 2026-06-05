@@ -44,6 +44,7 @@ export { JsonViewer, type JsonViewerProps } from './JsonViewer'
 export { LoadingState } from './LoadingState'
 export { PagePagination, type PagePaginationProps } from './PagePagination'
 export { StatusBadge, type StatusTone } from './StatusBadge'
+export { Toggle } from './Toggle'
 
 // --- Icons ---
 export {
@@ -57,9 +58,11 @@ export {
   NextIcon,
   PauseIcon,
   PhoneIcon,
+  RefreshIcon,
   ReplayIcon,
   ResetIcon,
   ResumeIcon,
+  SettingsIcon,
   SunIcon,
   UsersIcon,
   WorkflowIcon,

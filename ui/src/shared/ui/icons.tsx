@@ -1,7 +1,18 @@
+import { RefreshCw, Settings } from 'lucide-react'
 import type { SVGProps } from 'react'
 import { cn } from '../lib/cn'
 
 type IconProps = SVGProps<SVGSVGElement>
+
+// lucide glyphs (Decision G) normalised to the hand-rolled set: stroke 1.8,
+// decorative (aria-hidden), 16px default.
+export function SettingsIcon({ className, ...props }: IconProps) {
+  return <Settings aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
+}
+
+export function RefreshIcon({ className, ...props }: IconProps) {
+  return <RefreshCw aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
+}
 
 function SvgIcon({ className, children, ...props }: IconProps) {
   return (
