@@ -1,9 +1,9 @@
 # Plan + Research — Settings + Status Screens
 
-Design + research for the feature. Per-phase narrative is in [`implementation-log.md`](./implementation-log.md);
-entry point + final tracker in [`README.md`](./README.md). Frontend-only. **Part A = Settings page. Part B =
-Status screens.** Independent; build in either order. The review-resolved decisions A–G and the source-of-truth
-findings are in [§ Research / findings](#research--findings) at the end.
+Design + research for the feature. Specs/findings and the review-resolved decisions A–G are in the
+[Research](#research--settings--status-screens) section below (absorbed on archive); per-phase narrative is in
+[`implementation-log.md`](./implementation-log.md); entry point + tracker in [`README.md`](./README.md).
+Frontend-only. **Part A = Settings page. Part B = Status screens.** Independent; build in either order.
 
 ## Repo decisions impact
 
@@ -17,7 +17,7 @@ findings are in [§ Research / findings](#research--findings) at the end.
   and is **not** returned by the read endpoint; the page **must not fabricate** its value (shows "not
   available yet"), so it never misrepresents the echo-safety posture.
 
-(Each phase's entry in [`implementation-log.md`](./implementation-log.md) restates this impact note.)
+(Each phase's section in [`implementation-log.md`](./implementation-log.md) restates this impact note.)
 
 ## Lifecycle diagrams
 
@@ -153,23 +153,30 @@ Save/Reset dirty bar + "Settings saved" toast, switch controls to editable, and 
 
 ---
 
-# Research / findings
+## Research — Settings + Status Screens
 
-Consolidated findings that the plan above is built on. **Part A = Settings page. Part B = Status screens.**
+Consolidated findings. **Part A = Settings page. Part B = Status screens.**
+Decisions resolved during the design review are listed in [§ Review-resolved decisions](#review-resolved-decisions).
+
+---
 
 ## Part A — Settings page
 
 ### A1. Authoritative design spec
+
 **Source of truth = the design-system kit** (`ui/AGENTS.md`):
 `Automation Engine Design System/ui_kits/automation-engine/screens-settings.jsx` (+ `HANDOFF.md`).
+
 - **Layout:** four-region shell. Panel = "Configuration" section-nav (4 buttons; active pill
   `--color-brand-soft` bg + `--color-brand` text). Content = one card per active section, `max-width ~720px`.
   **No inspector.**
 - **Header:** title "Settings", subtitle "Platform configuration for this workspace."
 - **Sections:** Business hours · Feature flags · Connections · Managed webhooks (controls + copy per the kit).
-- Superseded: `ui/Docs/ui-product-design-proposal.md:202` (older 2-tab read-only variant) — the kit wins.
+
+> Superseded: `ui/Docs/ui-product-design-proposal.md:202` (older 2-tab read-only variant) — the kit wins.
 
 ### A2. Backend read contract (real, today)
+
 `GET /admin/settings/config` — `AdminSettingsController` → `AdminSettingsService` → `SettingsConfigResponse`.
 - Roles ADMIN/OPERATOR/VIEWER; 401 unauthenticated. **Read-only by design.** No POST/PUT/PATCH.
 - Shape (confirmed by `AdminSettingsControllerTest`): `businessHours{timezone,startHour,endHour,weekdaysOnly}`,
@@ -178,102 +185,155 @@ Consolidated findings that the plan above is built on. **Part A = Settings page.
 - **Secrets redacted:** `Redactable{present, value:"***"|null}`.
 
 ### A3. Design ↔ backend reconciliation — show only real data
-The page renders **only what the backend returns**; fields the design shows but the endpoint does **not**
-expose are surfaced as an explicit **"not available yet"** — **never fabricated**.
+
+The page renders **only what the backend actually returns**. Fields the design shows but the endpoint does
+**not** expose are surfaced as an explicit **"not available yet"** state — **never fabricated**. (This honors
+the UI rule *"do not invent UI-only backend behavior"* and avoids misrepresenting safety-relevant config.)
 
 | Design section | Backend reality | Treatment |
 |---|---|---|
 | **Business hours** (4 fields) | `businessHours{...}` — exact match | Real values, read-only display. |
 | **Connections** | `fubConnection{...}`, secrets redacted | Real values; secrets show **Configured / Not configured**. |
-| **Feature flags** (4) | Only `webhook.sources.enabled` returned | Backed flag shown (read-only); the other **3 → "not available yet"**. |
-| **Managed webhooks** | **No endpoint** | **"not available yet"** empty state — **no mock rows**. |
+| **Feature flags** (4) | Only `webhook.sources.enabled` returned | Backed flag shown (read-only); the other **3 → "not available yet"** (no fabricated value). |
+| **Managed webhooks** | **No endpoint** | Section shows a **"not available yet"** empty state — **no mock rows**. |
 | `fubRetry`, `callRules`, webhook body/heartbeat | Returned, not in the kit | Not shown. |
 
-**RD-006 note (engine-echo safety):** one unexposed flag is `engine.write.emit-events`, the engine-echo control
-governed by RD-006 (safe-by-default, platform-gated). The endpoint doesn't return it, so fabricating a value
-could tell an operator echo-emission is OFF when its real state is **unknown** — it renders "not available yet".
+**RD-006 note (engine-echo safety):** one unexposed flag is `engine.write.emit-events`, the engine-echo
+control governed by `RD-006` (safe-by-default, platform-gated). Because the endpoint doesn't return it,
+fabricating a value (e.g. `false`) could tell an operator echo-emission is OFF when its real state is
+**unknown**. It therefore renders "not available yet", never a guessed value.
 
 ### A4. Editing model — "coming soon", zero local state
-Editing is not functional this pass; the page holds **no local form state**. Controls are controlled by the
-query data; a change attempt fires `notify.info("This editing feature is coming soon.")` and does not mutate
-(snaps back to the query value). The write seam (`SettingsPort.updateConfig` + the Save/Reset dirty bar +
-mutation hook) is the documented drop-in for when the backend `PUT` lands.
 
-### A5. Conventions reused (Settings)
-- **Central API layer:** `httpJsonClient.ts`, `container.ts` (`appPorts`), `app/useAppPorts.ts`.
-- Module shape `modules/<feature>/{data,lib,ui}`; port/adapter/DI; `queryKeys.ts`; `useQuery` (mirror
-  `useDashboardSnapshotQuery`); `useShellRegionRegistration`; `uiText.ts`; `shared/ui` primitives; `useNotify`;
-  routing in `routes.ts` + `router.tsx` + `AppRail.tsx`.
-- **`Toggle` wraps `@radix-ui/react-switch`** (established Radix-wrapper pattern; a11y for free).
-- `SettingsIcon` (rail) + `RefreshIcon` ("Sync now") added to `icons.tsx`.
+Editing is **not functional** this pass. Per the UI rule *"keep server state in TanStack Query; avoid
+duplicating fetched data in local component state"*, the page holds **no local form state**:
+- Controls are **controlled by the query data** (`checked`/`value` come straight from `useSettingsConfigQuery`).
+- A change attempt fires `notify.info("This editing feature is coming soon.")` and **does not mutate** — the
+  control snaps back to the query value (nothing to persist, nothing to copy locally).
+- The write seam (`SettingsPort.updateConfig` + the design's Save/Reset dirty bar + a mutation hook) is the
+  documented drop-in for when the backend `PUT` lands.
+
+### A5. Conventions to reuse (Settings)
+
+- **Central API layer:** `platform/adapters/http/httpJsonClient.ts`, `platform/container.ts` (`appPorts`),
+  `app/useAppPorts.ts`.
+- Module shape `modules/<feature>/{data,lib,ui}`; port/adapter/DI; `queryKeys.ts`; `useQuery`
+  (mirror `useDashboardSnapshotQuery`); `useShellRegionRegistration`; `uiText.ts` (centralized copy);
+  `shared/ui` primitives (`PageHeader`, `PageCard`, `DataTable`, `StatusBadge`, `Button`, `Input`, `Select`);
+  `useNotify`; routing in `routes.ts` + `router.tsx` + `AppRail.tsx`.
+- **`Toggle` primitive — wrap `@radix-ui/react-switch`** (no switch dep yet; the repo already wraps Radix
+  `dialog`/`popover`/`tabs`, so a Radix wrapper is the established pattern and gives a11y for free). Add the
+  dep; export the wrapper from the barrel. On this page the Toggle is rendered controlled-by-query with its
+  change handler gated to the coming-soon notice.
+- Add `SettingsIcon` (rail) + `RefreshIcon` ("Sync now") to `icons.tsx`.
+
+---
 
 ## Part B — Status screens
 
 ### B1. Design handoff (source of truth)
-`ui/Automation Engine Design System/design_handoff_status_screens/`: `README.md` (spec),
-`reference/status-screens.jsx` (recreate, don't copy), `reference/status.css`
-(`.aestatus-root { isolation: isolate }` + motion is **JS-driven WAAPI**, never CSS opacity), `final.html` +
-`final-canvas.jsx` (gallery; confirms ship = all three `variant="B" strip`, in-shell 404 =
-`<NotFoundPage inShell />`, dark = `data-theme="dark"`). **Chosen direction: B + console strip.**
+
+`ui/Automation Engine Design System/design_handoff_status_screens/`:
+- `README.md` (spec). `reference/status-screens.jsx` (component reference — recreate, don't copy).
+- `reference/status.css` — `.aestatus-root { isolation: isolate }` + link/details hover; motion is
+  **JS-driven (WAAPI)**, never CSS opacity.
+- `reference/final.html` + `final-canvas.jsx` — gallery harness (reference only); confirms ship =
+  **all three `variant="B" strip`**, in-shell 404 = `<NotFoundPage inShell />`, dark = `data-theme="dark"`.
+
+**Chosen direction:** Direction **B + console strip**.
 
 ### B2. Shared shell — `FullPageStatus`
-1. Ambient brand gradient (handoff values — see § gradient caveat):
+
+1. **Ambient brand gradient** (handoff values — see § gradient caveat):
    `radial-gradient(760px 360px at 50% -14%, color-mix(in srgb, var(--color-brand) 13%, transparent), transparent 64%),`
    `radial-gradient(560px 300px at 86% 114%, color-mix(in srgb, var(--color-brand-2) 10%, transparent), transparent 60%), var(--color-bg)`
-2. Brand lockup pinned top-center: `LogoMarkIcon` + the **centralized wordmark** (`uiText.authShell.wordmark` /
-   `wordmarkSub`) — no new "Automation Engine" literals (RD-005 keeps the rename single-source).
-3. Centered content slot (`flex:1`, padding `104px 40px 56px`). Props `inShell` (gradient→transparent + drop
-   lockup, padding `32px`), `hideLockup`. Root sets **`isolation: isolate`**.
+2. **Brand lockup** pinned top-center: `LogoMarkIcon` + wordmark. **Reuse the existing centralized wordmark
+   strings** (`uiText.authShell.wordmark` / `wordmarkSub`) — do **not** introduce new "Automation Engine"
+   literals (`RD-005` renames the product to *Throughline*; keep the rename single-source).
+3. **Centered content slot** (`flex:1`, padding `104px 40px 56px`).
+- Props: `inShell` (gradient→transparent + drop lockup, padding `32px`), `hideLockup`.
+- Root sets **`isolation: isolate`**.
 
-**Tones (`TONES`):** `bad` → `--color-status-bad(-bg)` / eyebrow `ERROR`; `warn` → `--color-status-warn(-bg)` /
-`RESTRICTED`; `brand` → `--color-brand` / `--color-brand-soft` / `404 · NOT FOUND`.
+#### Tones (`TONES`)
+| tone | fg | bg | eyebrow |
+|---|---|---|---|
+| `bad` | `--color-status-bad` | `--color-status-bad-bg` | `ERROR` |
+| `warn` | `--color-status-warn` | `--color-status-warn-bg` | `RESTRICTED` |
+| `brand` | `--color-brand` | `--color-brand-soft` | `404 · NOT FOUND` |
 
 ### B3. Direction B body
-- **Ghost-glyph watermark** (`aria-hidden`, `translate(-50%,-56%)`, `tone.fg`, `opacity 0.07`): error →
-  alert-triangle (372, sw 1.1); session → lock; 404 → **"404" numerals** (`--font-ui` 800, 300px, `-.04em`).
+
+- **Ghost-glyph watermark** (`aria-hidden`, absolute, `translate(-50%,-56%)`, `tone.fg`, `opacity 0.07`):
+  error → alert-triangle (372, sw 1.1); session → lock; 404 → **"404" numerals** (`--font-ui` 800, 300px, `-.04em`).
 - **Foreground stack** (`max-width 560`): PillEyebrow → Title (`h1` 32/800/`-.025em`) → Body (15/1.55 muted,
   `42ch`) → optional Helper → **StatusStrip** (mono console strip) → Actions → optional Extra.
 
 ### B4. Per-page spec
+
 - **`AppErrorFallback`** (bad): alert-triangle; "Something went wrong"; strip `BOUNDARY · render error caught · 500`;
-  primary **Reload**, secondary **plain `<a href="/admin-ui">`**; dev-only `ErrorDetails`
-  (`error.message`+`error.stack`, `import.meta.env.DEV` only). **`({ error?: unknown })`, no router hooks.**
+  primary **Reload**, secondary **plain `<a href="/admin-ui">`** (not a router link); dev-only `ErrorDetails`
+  (`error.message`+`error.stack`, `import.meta.env.DEV` only). **Signature `({ error?: unknown })`, no router hooks.**
 - **`NotFoundPage`** (brand): compass + **"404" watermark**; "Page not found"; strip `GET <attempted path> · 404`
-  (real path via `useLocation`); primary router link → `/admin-ui`, secondary **Back** (conditional on history).
+  (real path via `useLocation`); primary router link → `/admin-ui`, secondary **Back** (`history.back()`).
   **Standalone + `inShell`.**
 - **`SessionDisabledPage`** (warn): lock; "Admin access is disabled"; helper emphasizing "workspace
   administrator"; strip `GUARD · admin-ui access disabled`; **no primary**, quiet **Return to sign in**.
-  **Renders full-page** (Decision D).
+  **Renders full-page** (see Decision D below).
 
-### B5. Reuse / new (Status screens)
+### B5. Current repo state + wiring (being replaced)
+
+- `src/app/AppErrorFallback.tsx` — plain `Button` + plain `<a>`; **no `error` prop / no `ErrorDetails`** yet;
+  already router-hook-free.
+- `src/app/NotFoundPage.tsx` — plain + a router `<Link>`; no in-shell variant.
+- `src/app/SessionDisabledPage.tsx` — currently renders **inside `AppShell`** (shell-region + `PageCard`).
+- Fallback consumers: `RouteErrorBoundary` (`useRouteError()`) + `AppErrorBoundary` (class, **outside**
+  RouterProvider) — **neither passes the error yet**; the rebuild threads it through for `ErrorDetails`.
+- `router.tsx`: top-level `*` (standalone 404) + in-shell `*` under `adminUi` (in-shell 404) both render
+  `<NotFoundPage />`; `session-disabled` is an `adminUi` child (inside the shell today).
+
+### B6. Reuse / new (Status screens)
+
 - **Reuse:** `LogoMarkIcon`, `Button` (`size="lg"`), the centralized wordmark, token names.
-- **Gradient caveat:** the status family uses its **own** constant with the handoff values; `AuthShell`'s
-  gradient is *similar but not identical* — **leave `AuthShell` untouched** (any unification is a separate change).
-- **New glyphs in `icons.tsx`:** alert-triangle, compass, lock, chevron-left, chevron-down.
+- **Gradient caveat:** the status family uses its **own** constant with the **handoff** values
+  (`760×360 / -14% / brand 13%` + a `var(--color-bg)` base). `AuthShell`'s gradient is *similar but not
+  identical* (`700×320 / -10% / brand 12%`, no base) — **leave `AuthShell` untouched**; any unification is a
+  separate, deliberate visual change.
+- **New glyphs in `shared/ui/icons.tsx`:** alert-triangle, compass, lock, chevron-left, chevron-down.
 - **New hook `useRise`:** transform-only WAAPI rise (`translateY(14px)→0`, 540ms, `cubic-bezier(.2,.7,.3,1)`),
   skip on `prefers-reduced-motion`; no opacity, no fill.
-- **Constraints:** `AppErrorFallback` + `FullPageStatus` router-hook-free; dev-only stack hidden in prod;
-  terminal states (no loading/data/forms); keyboard-accessible; ≥44px touch targets.
+
+### B7. Constraints
+
+- `AppErrorFallback` + `FullPageStatus` **router-hook-free**; dev-only error stack hidden in prod; terminal
+  states (no loading/data/forms); keyboard-accessible; ≥44px touch targets.
+
+---
 
 ## Review-resolved decisions
-- **A. Wordmark single-source** — status/auth lockups render `uiText.authShell.wordmark` / `wordmarkSub`; no new
-  product-name literals (RD-005 rename pending). *Accepted.*
+
+Decisions taken during the design review (apply to both parts):
+
+- **A. Wordmark single-source** — status/auth lockups render the existing `uiText.authShell.wordmark` /
+  `wordmarkSub`; no new product-name literals (RD-005 rename pending). *Accepted.*
 - **B. No fabricated data** — Settings shows only backend-returned values; unexposed flags + managed-webhooks
   render "not available yet". *Accepted.* (RD-006 safety + "don't invent UI-only behavior".)
 - **C. Zero local form state** — Settings controls are controlled by the query data; interaction fires the
   coming-soon notice and does not mutate. *Accepted.*
-- **D. `SessionDisabledPage` is full-page** — the latest handoff wins over `ui-0.1-plan.md`'s in-shell note; the
-  route renders outside `AppShell`. *Accepted (user, design review).*
+- **D. `SessionDisabledPage` is full-page** — the latest handoff wins over `ui-0.1-plan.md`'s in-shell note;
+  the route renders outside `AppShell`. *Accepted (user, this review).*
 - **E. `Toggle` wraps `@radix-ui/react-switch`** — consistent with existing Radix wrappers; add the dep. *Accepted.*
-- **F. Test-with-each-phase** — every phase that adds code lands its own test. *Accepted.*
+- **F. Test-with-each-phase** — every phase that adds code lands its own test (not deferred to the final phase).
+  *Accepted.*
 - **G. Icons via `lucide-react`** — add `lucide-react` and source the **new** glyphs from it (status:
-  alert-triangle, compass, lock, chevron-left, chevron-down; settings: settings, refresh) at the handoff stroke
-  widths (and `1.8` for the rail icon). **Existing hand-rolled icons left untouched** (lucide defaults to stroke
-  2 vs the repo's 1.8 — a wholesale migration would thicken every icon app-wide; out of scope). New glyphs are
-  re-exported through `icons.tsx` so call sites stay single-sourced. *Accepted (user, design review).*
+  alert-triangle, compass, lock, chevron-left, chevron-down; settings: settings, refresh), rendered at the
+  handoff's stroke widths (and `1.8` for the rail icon to match neighbours). **Existing hand-rolled icons in
+  `icons.tsx` are left untouched** — lucide defaults to `strokeWidth 2` vs the repo's `1.8`, so a wholesale
+  migration would thicken every icon app-wide (out of scope; a future cleanup initiative). New glyphs are
+  added/re-exported through `icons.tsx` so call sites stay single-sourced. *Accepted (user, this review).*
 
-## Tokens (both parts — all present, light + dark, in `ui/src/styles/tokens.css`)
+### Tokens (both parts — all present, light + dark, in `ui/src/styles/tokens.css`)
+
 `--color-bg`, `--color-brand`, `--color-brand-2`, `--color-brand-soft`, `--color-status-bad(-bg)`,
 `--color-status-warn(-bg)`, `--color-status-ok(-bg)`, `--color-surface(-alt)`, `--color-border`,
-`--color-text(-muted)`, `--color-live`, `--radius-sm/md/pill`, `--shadow-subtle/hover/float`, `--font-ui`,
-`--font-mono`. **Never hard-code hex** (`lint:tokens`).
+`--color-text(-muted)`, `--color-live`, `--radius-sm/md/pill`, `--shadow-subtle/hover/float`,
+`--font-ui`, `--font-mono`. **Never hard-code hex** (`lint:tokens`).
