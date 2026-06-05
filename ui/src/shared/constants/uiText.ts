@@ -65,8 +65,14 @@ export const uiText = {
     backToSignIn: 'Back to sign in',
   },
   session: {
-    disabledMessage: 'Session guard is enabled and admin UI access is currently disabled.',
-    disabledPanelNote: 'Enable admin UI access to restore full workspace controls.',
+    eyebrow: 'Restricted',
+    title: 'Admin access is disabled',
+    body: 'Session guard is enabled and admin UI access is currently turned off. Enable admin UI access to restore the workspace.',
+    helperLead: 'No action needed here — ask a ',
+    helperEmphasis: 'workspace administrator',
+    helperTail: ' to re-enable admin UI access.',
+    strip: 'GUARD · admin-ui access disabled',
+    returnToSignIn: 'Return to sign in',
   },
   landing: {
     kicker: 'AUTOMATION ENGINE',

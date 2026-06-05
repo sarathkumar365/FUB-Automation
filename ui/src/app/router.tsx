@@ -29,14 +29,17 @@ export function createAppRouter() {
       errorElement: <RouteErrorBoundary />,
     },
     {
+      // Full-page (outside AppShell): the session guard turns off all console
+      // access, so there is no shell chrome to show.
+      path: routes.sessionDisabled,
+      element: <SessionDisabledPage />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
       path: routes.adminUi,
       element: <AppShell />,
       errorElement: <RouteErrorBoundary />,
       children: [
-        {
-          path: 'session-disabled',
-          element: <SessionDisabledPage />,
-        },
         {
           path: 'login',
           element: <LoginPage />,

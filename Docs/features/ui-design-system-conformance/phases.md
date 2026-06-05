@@ -24,9 +24,9 @@ in either order. **Every phase that adds code lands its own test (Decision F).**
 | B2 | Content renderer — `StatusScreen` (Direction B + console strip) + test | ✅ Complete ([narrative](./phase-b2-implementation.md)) |
 | B3 | `AppErrorFallback` (bad) + `ErrorDetails` (dev-only) + thread error through both boundaries + test (router-free) | ✅ Complete ([narrative](./phase-b3-implementation.md)) |
 | B4 | `NotFoundPage` (brand) — "404" watermark, real-path strip, standalone + in-shell + test | ✅ Complete ([narrative](./phase-b4-implementation.md)) |
-| B5 | `SessionDisabledPage` (warn) — lock, helper, no primary, **full-page (route moved out of `AppShell`)** + test | ⬜ Not started |
-| B6 | Copy — extend `uiText` (`appError` / `notFound` / `session`) | ⬜ Not started |
-| B7 | Gate — `npm run check`, browser-verify (light/dark/in-shell) | ⬜ Not started |
+| B5 | `SessionDisabledPage` (warn) — lock, helper, no primary, **full-page (route moved out of `AppShell`)** + test | ✅ Complete ([narrative](./phase-b5-implementation.md)) |
+| B6 | Copy — extend `uiText` (`appError` / `notFound` / `session`) | ✅ Complete (landed across B3/B4/B5; all status copy centralized in `uiText`) |
+| B7 | Gate — `npm run check`, browser-verify (light/dark/in-shell) | ✅ Complete (gate green — 394 tests; family browser-swept light/dark + in-shell, no console errors) |
 
 **Status legend:** ⬜ Not started · 🟡 In progress · ✅ Complete
 
