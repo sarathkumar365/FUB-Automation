@@ -1,17 +1,39 @@
-import { RefreshCw, Settings } from 'lucide-react'
+import { AlertTriangle, ChevronDown, ChevronLeft, Compass, Lock, RefreshCw, Settings } from 'lucide-react'
 import type { SVGProps } from 'react'
 import { cn } from '../lib/cn'
 
 type IconProps = SVGProps<SVGSVGElement>
 
 // lucide glyphs (Decision G) normalised to the hand-rolled set: stroke 1.8,
-// decorative (aria-hidden), 16px default.
+// decorative (aria-hidden), 16px default. Callers override strokeWidth/size as needed.
+// Kept as explicit components (not a factory) because react-refresh requires
+// each exported component to be a literal function.
 export function SettingsIcon({ className, ...props }: IconProps) {
   return <Settings aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
 }
 
 export function RefreshIcon({ className, ...props }: IconProps) {
   return <RefreshCw aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
+}
+
+export function AlertTriangleIcon({ className, ...props }: IconProps) {
+  return <AlertTriangle aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
+}
+
+export function CompassIcon({ className, ...props }: IconProps) {
+  return <Compass aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
+}
+
+export function LockIcon({ className, ...props }: IconProps) {
+  return <Lock aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
+}
+
+export function ChevronLeftIcon({ className, ...props }: IconProps) {
+  return <ChevronLeft aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
+}
+
+export function ChevronDownIcon({ className, ...props }: IconProps) {
+  return <ChevronDown aria-hidden="true" strokeWidth={1.8} className={cn('h-4 w-4', className)} {...props} />
 }
 
 function SvgIcon({ className, children, ...props }: IconProps) {

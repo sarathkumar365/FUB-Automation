@@ -20,7 +20,7 @@ in either order. **Every phase that adds code lands its own test (Decision F).**
 
 | # | Phase | Status |
 |---|-------|--------|
-| B1 | Shared foundation — `FullPageStatus` (own handoff gradient; **lockup via centralized wordmark**), `useRise`, glyphs + test | ⬜ Not started |
+| B1 | Shared foundation — `FullPageStatus` (own handoff gradient; **lockup via centralized wordmark**), `useRise`, glyphs + test | ✅ Complete ([narrative](./phase-b1-implementation.md)) |
 | B2 | Content renderer — `StatusScreen` (Direction B + console strip) + test | ⬜ Not started |
 | B3 | `AppErrorFallback` (bad) + `ErrorDetails` (dev-only) + thread error through both boundaries + test (router-free) | ⬜ Not started |
 | B4 | `NotFoundPage` (brand) — "404" watermark, real-path strip, standalone + in-shell + test | ⬜ Not started |

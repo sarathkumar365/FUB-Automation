@@ -16,6 +16,7 @@
 
 // --- Primitives: layout shells ---
 export { AppContentFrame } from './AppContentFrame'
+export { BrandLockup } from './BrandLockup'
 export { AppPanel } from './AppPanel'
 export { AppRail } from './AppRail'
 export { InspectorPanel } from './InspectorPanel'
@@ -49,9 +50,14 @@ export { Toggle } from './Toggle'
 // --- Icons ---
 export {
   ActivityIcon,
+  AlertTriangleIcon,
   ApplyIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
   CloseIcon,
+  CompassIcon,
   FilterIcon,
+  LockIcon,
   LogoMarkIcon,
   LogoutIcon,
   MoonIcon,
