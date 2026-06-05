@@ -14,7 +14,6 @@ export type Theme = 'light' | 'dark'
 
 const STORAGE_KEY = 'ae-theme'
 
-/** Apply a theme to the document and persist the choice. */
 export function applyTheme(theme: Theme): void {
   if (typeof document !== 'undefined') {
     document.documentElement.dataset.theme = theme
