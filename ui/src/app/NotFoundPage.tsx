@@ -1,19 +1,45 @@
-import { Link } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { routes } from '../shared/constants/routes'
 import { uiText } from '../shared/constants/uiText'
+import { ChevronLeftIcon, CompassIcon } from '../shared/ui'
+import { FullPageStatus } from './status/FullPageStatus'
+import { StatusScreen, type StatusContent } from './status/StatusScreen'
 
-/** Catch-all 404 for unmatched routes (top-level and inside the admin shell). */
-export function NotFoundPage() {
+/**
+ * Catch-all 404. Standalone (full gradient) for unknown top-level URLs, or
+ * `inShell` (calm, no gradient/lockup) for an unknown `/admin-ui/*` path that
+ * renders inside the four-region shell.
+ */
+export function NotFoundPage({ inShell = false }: { inShell?: boolean }) {
+  const location = useLocation()
+  const navigate = useNavigate()
+  const t = uiText.notFound
+
+  // Only offer "Back" when there's somewhere to go — a direct landing (typed
+  // URL / fresh tab) has no in-app history, so the button would be a no-op.
+  const canGoBack = window.history.length > 1
+
+  const content: StatusContent = {
+    tone: 'brand',
+    glyph: CompassIcon,
+    eyebrow: t.eyebrow,
+    title: t.title,
+    body: t.message,
+    meta: `GET ${location.pathname} · 404`,
+    watermark: (
+      <div className="font-extrabold leading-none tracking-[-0.04em]" style={{ fontSize: 300 }}>
+        404
+      </div>
+    ),
+    primary: { label: t.backToDashboard, onClick: () => navigate(routes.dashboard) },
+    secondary: canGoBack
+      ? { label: t.back, icon: <ChevronLeftIcon className="h-4 w-4" />, onClick: () => navigate(-1) }
+      : undefined,
+  }
+
   return (
-    <div className="flex min-h-[60vh] w-full flex-col items-center justify-center gap-3 px-4 text-center">
-      <p className="text-[11px] font-semibold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
-        {uiText.notFound.eyebrow}
-      </p>
-      <h1 className="text-xl font-semibold text-[var(--color-text)]">{uiText.notFound.title}</h1>
-      <p className="max-w-md text-sm text-[var(--color-text-muted)]">{uiText.notFound.message}</p>
-      <Link to={routes.dashboard} className="mt-2 text-sm font-semibold text-[var(--color-brand)]">
-        {uiText.notFound.backToDashboard}
-      </Link>
-    </div>
+    <FullPageStatus inShell={inShell}>
+      <StatusScreen {...content} />
+    </FullPageStatus>
   )
 }

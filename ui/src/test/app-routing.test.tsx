@@ -56,6 +56,8 @@ describe('App routing and shell', () => {
 
     expect(await screen.findByRole('heading', { name: uiText.notFound.title })).toBeInTheDocument()
     expect(screen.getByText(uiText.notFound.message)).toBeInTheDocument()
+    // The console strip surfaces the real attempted path.
+    expect(screen.getByText(/admin-ui\/does-not-exist/)).toBeInTheDocument()
   })
 
   it('renders the 404 page for an unknown top-level path', async () => {

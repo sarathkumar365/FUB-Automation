@@ -106,7 +106,7 @@ export function createAppRouter() {
         {
           // Unknown /admin-ui/* path — 404 inside the shell.
           path: '*',
-          element: <NotFoundPage />,
+          element: <NotFoundPage inShell />,
         },
       ],
     },

@@ -22,8 +22,8 @@ in either order. **Every phase that adds code lands its own test (Decision F).**
 |---|-------|--------|
 | B1 | Shared foundation — `FullPageStatus` (own handoff gradient; **lockup via centralized wordmark**), `useRise`, glyphs + test | ✅ Complete ([narrative](./phase-b1-implementation.md)) |
 | B2 | Content renderer — `StatusScreen` (Direction B + console strip) + test | ✅ Complete ([narrative](./phase-b2-implementation.md)) |
-| B3 | `AppErrorFallback` (bad) + `ErrorDetails` (dev-only) + thread error through both boundaries + test (router-free) | ⬜ Not started |
-| B4 | `NotFoundPage` (brand) — "404" watermark, real-path strip, standalone + in-shell + test | ⬜ Not started |
+| B3 | `AppErrorFallback` (bad) + `ErrorDetails` (dev-only) + thread error through both boundaries + test (router-free) | ✅ Complete ([narrative](./phase-b3-implementation.md)) |
+| B4 | `NotFoundPage` (brand) — "404" watermark, real-path strip, standalone + in-shell + test | ✅ Complete ([narrative](./phase-b4-implementation.md)) |
 | B5 | `SessionDisabledPage` (warn) — lock, helper, no primary, **full-page (route moved out of `AppShell`)** + test | ⬜ Not started |
 | B6 | Copy — extend `uiText` (`appError` / `notFound` / `session`) | ⬜ Not started |
 | B7 | Gate — `npm run check`, browser-verify (light/dark/in-shell) | ⬜ Not started |
