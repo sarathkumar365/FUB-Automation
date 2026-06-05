@@ -1,0 +1,10 @@
+/* Full-page status family — helpers.
+   Entrance motion is driven in JS (Web Animations API, see useRise) so the
+   resting state is always the visible CSS base — a throttled/background iframe
+   can never freeze content at opacity:0. */
+
+.aestatus-root { isolation: isolate; }
+.aestatus-link { transition: color .12s ease; }
+.aestatus-link:hover { color: var(--color-text); }
+.aestatus-details-btn { transition: color .12s ease; }
+.aestatus-details-btn:hover { color: var(--color-text); }
