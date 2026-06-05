@@ -1,8 +1,8 @@
 # UI Design-System Conformance — Settings + Status Screens
 
-> **Status:** Planned — research complete, implementation not started.
+> **Status:** ✅ Complete (archived) — all phases shipped on `feature/ui-design-system-conformance`.
 > **Scope:** Frontend-only this pass. No backend changes.
-> **Branch:** `feature/ui-design-system-conformance`
+> **Gate:** `npm run check` green — 394 tests; status family browser-verified light/dark + in-shell.
 
 One pass that brings two design-system surfaces into the admin UI:
 
@@ -46,10 +46,27 @@ transform-only entrance motion guarded by `prefers-reduced-motion`.
 
 ## Documents
 
-- [`research.md`](./research.md) — findings for both parts (design specs, the Settings design↔backend
-  reconciliation, the read contract, current repo state + wiring, what to reuse).
-- [`plan.md`](./plan.md) — architecture + phased implementation + file lists + verification, for both parts.
-- [`phases.md`](./phases.md) — combined phase tracker (Part A + Part B).
+- [`plan.md`](./plan.md) — design + research: architecture, lifecycle diagrams, file lists, verification, and
+  the consolidated findings + review-resolved decisions A–G.
+- [`implementation-log.md`](./implementation-log.md) — append-only, one dated section per shipped phase.
+
+## Phase tracker (all shipped)
+
+| # | Phase | Test |
+|---|-------|------|
+| **A1** | Settings foundation lib (schema, projection, sections) | `settings-projection` |
+| **A2** | Platform seam — `settingsPort` + `httpSettingsAdapter` + DI + queryKeys | `settings-adapter` |
+| **A3** | Data hook — `useSettingsConfigQuery` | `settings-hooks` |
+| **A4** | `Toggle` (Radix switch) + lucide `Settings`/`Refresh` icons | `settings-primitives` |
+| **A5** | UI — `SettingRow`, `ManagedWebhooksCard`, `SettingsPage` (coming-soon gate) | `settings-page` |
+| **A6/A7** | Wire-in (route/rail/nav) + live browser verification | (routing) |
+| **B1** | Shared foundation — `FullPageStatus`, `useRise`, status glyphs | `status-foundation` |
+| **B2** | Content renderer — `StatusScreen` (Direction B + console strip) | `status-screen` |
+| **B3** | `AppErrorFallback` + `ErrorDetails` + error threading (router-free) | `app-error-boundary` |
+| **B4** | `NotFoundPage` — "404" watermark, real-path strip, standalone + in-shell | `app-routing` |
+| **B5** | `SessionDisabledPage` (warn) — full-page, route out of `AppShell` | `session-disabled` |
+| **B6** | Copy — `uiText` (`appError`/`notFound`/`session`) centralized | (in page tests) |
+| **B7** | Gate + browser-verify (light/dark/in-shell) | — |
 
 ## Out of scope (future backend work)
 
