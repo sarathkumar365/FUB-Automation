@@ -6,11 +6,11 @@ import { AppErrorFallback } from './AppErrorFallback'
  * inside the route tree; this guards everything around it (providers, router
  * mount) so an unexpected throw renders the branded fallback, not a white page.
  */
-export class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean }> {
-  state = { hasError: false }
+export class AppErrorBoundary extends Component<{ children: ReactNode }, { hasError: boolean; error: unknown }> {
+  state = { hasError: false, error: undefined as unknown }
 
-  static getDerivedStateFromError() {
-    return { hasError: true }
+  static getDerivedStateFromError(error: unknown) {
+    return { hasError: true, error }
   }
 
   componentDidCatch(error: Error, info: ErrorInfo) {
@@ -20,6 +20,6 @@ export class AppErrorBoundary extends Component<{ children: ReactNode }, { hasEr
   }
 
   render() {
-    return this.state.hasError ? <AppErrorFallback /> : this.props.children
+    return this.state.hasError ? <AppErrorFallback error={this.state.error} /> : this.props.children
   }
 }

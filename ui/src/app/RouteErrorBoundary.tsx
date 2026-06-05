@@ -10,5 +10,5 @@ export function RouteErrorBoundary() {
   if (import.meta.env.DEV) {
     console.error('Route error:', error)
   }
-  return <AppErrorFallback />
+  return <AppErrorFallback error={error} />
 }

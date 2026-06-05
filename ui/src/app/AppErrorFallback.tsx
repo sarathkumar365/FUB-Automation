@@ -1,32 +1,33 @@
 import { routes } from '../shared/constants/routes'
 import { uiText } from '../shared/constants/uiText'
-import { Button } from '../shared/ui'
+import { AlertTriangleIcon } from '../shared/ui'
+import { ErrorDetails } from './status/ErrorDetails'
+import { FullPageStatus } from './status/FullPageStatus'
+import { StatusScreen, type StatusContent } from './status/StatusScreen'
 
 /**
- * Shared full-page error UI, used by both the route-level error boundary
- * (router errorElement) and the top-level class ErrorBoundary so the two
- * failure paths render identically.
+ * Full-page error UI, shared by the router `errorElement` and the top-level
+ * class boundary. Dependency-light — NO router hooks — so it renders correctly
+ * from the class boundary that sits outside RouterProvider (hence the plain
+ * `<a>` to the dashboard, not a react-router Link).
  */
-export function AppErrorFallback() {
+export function AppErrorFallback({ error }: { error?: unknown }) {
+  const t = uiText.appError
+  const content: StatusContent = {
+    tone: 'bad',
+    glyph: AlertTriangleIcon,
+    eyebrow: t.eyebrow,
+    title: t.title,
+    body: t.message,
+    meta: t.strip,
+    primary: { label: t.reload, onClick: () => window.location.reload() },
+    secondary: { label: t.backToDashboard, href: routes.dashboard },
+    extra: import.meta.env.DEV ? <ErrorDetails error={error} /> : null,
+  }
+
   return (
-    <div
-      className="flex min-h-screen w-full flex-col items-center justify-center gap-3 px-4 text-center"
-      style={{ background: 'var(--color-bg)' }}
-    >
-      <h1 className="text-xl font-semibold text-[var(--color-text)]">{uiText.appError.title}</h1>
-      <p className="max-w-md text-sm text-[var(--color-text-muted)]">{uiText.appError.message}</p>
-      <div className="mt-2 flex items-center gap-3">
-        <Button type="button" onClick={() => window.location.reload()}>
-          {uiText.appError.reload}
-        </Button>
-        {/* Plain anchor (not react-router Link): this fallback also renders from
-            the top-level class boundary, which sits OUTSIDE RouterProvider — a
-            Link there throws (no router context). A full navigation is correct
-            here anyway, since the app has already errored. */}
-        <a href={routes.dashboard} className="text-sm font-semibold text-[var(--color-brand)]">
-          {uiText.appError.backToDashboard}
-        </a>
-      </div>
-    </div>
+    <FullPageStatus>
+      <StatusScreen {...content} />
+    </FullPageStatus>
   )
 }

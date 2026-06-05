@@ -513,16 +513,24 @@ export const uiText = {
     retry: 'Retry',
   },
   notFound: {
-    eyebrow: '404',
+    eyebrow: '404 · Not found',
     title: 'Page not found',
     message: 'The page you are looking for does not exist or has moved.',
+    back: 'Back',
     backToDashboard: 'Go to dashboard',
   },
   appError: {
+    eyebrow: 'Error',
     title: 'Something went wrong',
     message: 'The console hit an unexpected error. Reloading usually fixes it.',
+    strip: 'BOUNDARY · render error caught · 500',
     reload: 'Reload',
     backToDashboard: 'Go to dashboard',
+    details: {
+      label: 'Error details',
+      devOnly: 'dev only',
+      empty: 'No error details available.',
+    },
   },
   common: {
     paginationPrevious: 'Previous',
