@@ -14,6 +14,7 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-004-admin-auth-uses-jwt-bearer.md` — Status: Accepted
 - `RD-005-product-name-throughline.md` — Status: Provisional (pending trademark/domain clearance)
 - `RD-006-engine-echo-exclusion-safe-by-default.md` — Status: Accepted (enforcement in domain-events Phase 4d)
+- `RD-007-profile-enrichment-inferred-kind.md` — Status: Accepted (person-profile-enrichment feature)
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`
