@@ -1,4 +1,4 @@
-# RD-007: Extract the workflow engine as a standalone open-source library ("Inline")
+# RD-007: Extract the workflow engine as a standalone open-source library
 
 ## Status
 Proposed — intent and boundary locked; several sub-decisions pending (see [Open decisions](#open-decisions)). Promote to Accepted once Group 0 in [`phases.md`](../features/engine-extraction/phases.md) is closed and the in-place decoupling (Group 2) lands green.
@@ -18,23 +18,33 @@ We want to showcase this as an open-source artifact: a domain-agnostic, embeddab
 Extract the engine into a separate open-source repository.
 
 **Locked:**
-- **Name:** `Inline` — thesis-word naming (the engine runs *inline* with the host app, not as a separate cluster/orchestrator process). This is the **engine library** name, distinct from RD-005's **product** brand "Throughline"; the two intentionally differ (one is an internal product, the other a public library).
+- **Name:** open — shortlist below (2026-06-10, replaces the earlier "Inline" pick). All five are collision-checked against the dev ecosystem; the differentiating semantic territory is *"embeds in your app and endures"* (the flow/temporal/orchestrate field is saturated by Temporal, Cadence, Conductor, Airflow, Prefect). The library name stays distinct from RD-005's **product** brand "Throughline".
+  | Name | Tagline | Rationale |
+  |---|---|---|
+  | **Tenon** ← recommended | The workflow engine that joins into your app. | Joinery: a tenon fits *into* the mortise of another piece — no nails, no scaffolding. States the positioning (embedded, no cluster) in one craftsman's word. Clean JVM namespace; behaves perfectly as `io.github.<handle>:tenon`. |
+  | **Mainspring** (runner-up) | Wind it once. It keeps your workflows moving. | The coiled power source inside a watch — stored energy driving discrete movement over long spans. Best durability story; 10 letters is a mouthful in a groupId. |
+  | **Wend** | Workflows that wend — pause, sleep, resume, finish. | Real verb: make your way along a path, steadily. 4 letters, fully clean in software, gifts a docs verb ("wend a workflow"). |
+  | **Sinew** | The connective tissue of your application. | Connects and transmits force *inside* the body — unseen strength. Two tiny unrelated collisions (R docs pkg, config-patterns repo). |
+  | **Gradus** | Every process, one step at a time. | Latin for *step* (the engine's atomic unit); *Gradus ad Parnassum* lineage. Namespace essentially empty. |
+
+  Rejected for collisions: Weft (AI-orchestration language), Norn (monome norns, async runtime), Cadence (Uber's workflow engine), Axon/Loom/Helm/Struts (owned in JVM/infra), Inline (earlier pick — generic, un-searchable, no semantic edge over the shortlist).
 - **License:** Apache 2.0 (matches Spring/Jackson ecosystem expectations; explicit patent grant).
 - **v0.1.0 scope:** Spring Boot 4.0.3 / Java 21, JPA + Flyway + scheduled worker, shipped as-is.
-- **v0.2.0 roadmap:** split `inline-core` (pure-Java SPI + execution, persistence behind a `RunStore` port) from `inline-spring` (Boot starter), enabling Quarkus/Micronaut/plain-JVM hosts.
+- **v0.2.0 roadmap:** split `<name>-core` (pure-Java SPI + execution, persistence behind a `RunStore` port) from `<name>-spring` (Boot starter), enabling Quarkus/Micronaut/plain-JVM hosts.
 - **Public entry point:** `WorkflowExecutionManager.plan(WorkflowPlanRequest)`. Triggers (webhook routers, crons, etc.) are the host's responsibility, not the engine's.
 - **Decoupling mechanism:** two SPIs — `RunContextContributor` (host fills `person`/`now`/etc. into run scope) and `GraphValidationRule` (host plugs domain-specific save-time validation). Introduced **in-place in this repo first**, proven by the existing test suite, then copied out.
 
 ## Consequences
-- The FUB app becomes the first *consumer* of `inline-engine` (migration is a separate, later effort — out of scope here).
+- The FUB app becomes the first *consumer* of the extracted engine (migration is a separate, later effort — out of scope here).
 - Steps and triggers stay private; a curated set of 5 generic steps ship as OSS examples.
 - The engine's schema drops its 2 FK constraints to business tables; correlation columns become opaque ids.
 - Maintaining a clean public boundary becomes an ongoing constraint on the FUB app (a feature, not a cost).
 
 ## Open decisions
 Tracked as Group 0 in [`phases.md`](../features/engine-extraction/phases.md):
-- GitHub handle/org for the Maven namespace (`io.github.<handle>.inline.*`) vs. a purchased domain.
-- Single `inline-engine` artifact vs. early `-core`/`-spring` split for v0.1.
+- Final name pick from the shortlist above (Group 0.0).
+- GitHub handle/org for the Maven namespace (`io.github.<handle>.<name>.*`) vs. a purchased domain.
+- Single `<name>-engine` artifact vs. early `-core`/`-spring` split for v0.1.
 - `domain_event_id` column: keep as opaque correlation id, or drop from the OSS schema.
 - Trigger-validation seam: reuse `GraphValidationRule`, or a dedicated `TriggerValidator` hook.
 - Repo visibility (public day 1 vs. private until polished).
