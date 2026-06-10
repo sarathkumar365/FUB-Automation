@@ -3,6 +3,7 @@ package com.fuba.automation_engine.service.workflow.steps;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -18,6 +19,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SlackNotifyWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.UTILITY;
+    }
 
     public static final String FAILED = "FAILED";
     public static final String WEBHOOK_URL_MISSING = "WEBHOOK_URL_MISSING";

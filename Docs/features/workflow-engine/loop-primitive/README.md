@@ -39,7 +39,7 @@ Rationale captured in RD-009.
 
 | Phase | Scope | Status |
 |---|---|---|
-| 0 | Step-type categories (CONTROL/UTILITY/BUSINESS + CI boundary test, [RD-010](../../../repo-decisions/RD-010-step-type-categories.md)) | NOT STARTED |
+| 0 | Step-type categories (CONTROL/UTILITY/BUSINESS + CI boundary test, [RD-010](../../../repo-decisions/RD-010-step-type-categories.md)) | ✅ COMPLETED ([notes](phase-0-implementation.md)) |
 | 1 | Graph contract + validator (nested body, modes, `maxIterations`, id rules) | NOT STARTED |
 | 2 | Engine substrate (suffix-aware lookup, wake-hook, idempotent lap stamping) | NOT STARTED |
 | 3 | Foreman v1: `until`/`while` (lap lifecycle, failure-catch, lean outputs) | NOT STARTED |

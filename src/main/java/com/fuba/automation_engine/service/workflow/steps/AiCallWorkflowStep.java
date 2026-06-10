@@ -1,6 +1,7 @@
 package com.fuba.automation_engine.service.workflow.steps;
 
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -20,6 +21,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class AiCallWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.BUSINESS;
+    }
 
     static final String COMPLETED = "completed";
     static final String FAILED = "failed";

@@ -9,6 +9,7 @@ import com.fuba.automation_engine.service.FollowUpBossClient;
 import com.fuba.automation_engine.service.fub.FubCallHelper;
 import com.fuba.automation_engine.service.model.CallEvidence;
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -25,6 +26,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class WaitAndCheckCommunicationWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.BUSINESS;
+    }
 
     static final String SOURCE_LEAD_ID_MISSING = "SOURCE_LEAD_ID_MISSING";
     static final String SOURCE_LEAD_ID_INVALID = "SOURCE_LEAD_ID_INVALID";

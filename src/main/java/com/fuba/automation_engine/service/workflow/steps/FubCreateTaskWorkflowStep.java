@@ -7,6 +7,7 @@ import com.fuba.automation_engine.service.fub.FubCallHelper;
 import com.fuba.automation_engine.service.model.CreateTaskCommand;
 import com.fuba.automation_engine.service.model.CreatedTask;
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -22,6 +23,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class FubCreateTaskWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.BUSINESS;
+    }
 
     public static final String SUCCESS = "SUCCESS";
     public static final String FAILED = "FAILED";

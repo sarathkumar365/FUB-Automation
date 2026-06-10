@@ -110,6 +110,7 @@ public class AdminWorkflowController {
                         st.id(),
                         st.displayName(),
                         st.description(),
+                        st.category().name(),
                         st.configSchema(),
                         st.declaredResultCodes(),
                         retryPolicyMap(st.defaultRetryPolicy())))

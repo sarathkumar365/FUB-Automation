@@ -7,6 +7,7 @@ public record StepTypeCatalogEntry(
         String id,
         String displayName,
         String description,
+        String category,
         Map<String, Object> configSchema,
         Set<String> declaredResultCodes,
         Map<String, Object> defaultRetryPolicy) {

@@ -22,6 +22,7 @@ class WorkflowGraphValidatorTest {
             @Override public String id() { return "wait_and_check_claim"; }
             @Override public String displayName() { return "Check Claim"; }
             @Override public String description() { return "Test step"; }
+            @Override public StepCategory category() { return StepCategory.BUSINESS; }
             @Override public Map<String, Object> configSchema() { return Map.of("type", "object"); }
             @Override public Set<String> declaredResultCodes() { return Set.of("CLAIMED", "NOT_CLAIMED"); }
             @Override public StepExecutionResult execute(StepExecutionContext context) { return StepExecutionResult.success("CLAIMED"); }
