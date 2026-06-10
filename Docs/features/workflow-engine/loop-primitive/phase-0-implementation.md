@@ -35,3 +35,18 @@
   collaborators) rather than imports — fields are what reflection can see and DI is
   the repo's only dependency vector for steps. Static utility imports would not be
   caught; acceptable for now, noted for the extraction work.
+- Two known limitations of `StepCategoryBoundaryTest` (surfaced by the 2026-06-10
+  stress-test cross-check): (1) the kernel rule is package-prefix-based, so a
+  CONTROL step depending on a *business-purpose class that lives inside*
+  `service.workflow.*` would pass silently — the boundary is package-shaped, not
+  category-aware; (2) instantiation passes null collaborators to the
+  fewest-arg constructor — a future step adding constructor validation breaks the
+  test for an unrelated reason (the test's error message says how to fix).
+
+## Repo decisions impact
+
+- **RD-010** — implemented by this phase (taxonomy + enforcement).
+- **RD-007** — strengthened: the step boundary is now executable in CI
+  (CONTROL/UTILITY cannot grow host imports undetected).
+- **RD-009** — prerequisite satisfied: `loop` lands pre-tagged CONTROL.
+- New decisions needed: none.

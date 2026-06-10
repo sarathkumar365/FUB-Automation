@@ -1,9 +1,10 @@
 # Loop Primitive — First-Class `loop` Control Step
 
-> **Status:** Planned (design complete 2026-06-10). No code yet.
-> **Entry point** for the loop-primitive feature. Plan: [plan.md](plan.md).
+> **Status:** Design complete + stress-tested (2026-06-10, plan rev 2). Phase 0 shipped; Phases 1–6 not started.
+> **Entry point** for the loop-primitive feature. Plan: [plan.md](plan.md) · Tracker: [phases.md](phases.md) · Research: [research.md](research.md).
 > Binding architecture decision: [RD-009](../../../repo-decisions/RD-009-loop-primitive-foreman-cloned-rows.md).
 > Step reference (capabilities, config, deferred items): [../steps/loop.md](../steps/loop.md).
+> Adversarial review: [stress-test audit](../../../audits/loop-primitive-stress-test-2026-06-10.md) — 24 attack iterations; architecture held, plan amended (rev 2).
 
 ## Why
 
@@ -32,21 +33,17 @@ Rationale captured in RD-009.
 | 8 | Step compatibility | Any step type, current & future — enforced by registry-wide conformance test |
 | 9 | Lap failure | Foreman catches it — author routes via `LOOP_FAILED`; run survives |
 | 10 | Outputs | Lean: lap count, exit reason, last lap's outputs (+ `item`/`index` in forEach scope) |
-| 11 | Nesting | Allowed from day one |
+| 11 | Nesting | ~~Allowed from day one~~ → **Deferred from v1** (revised 2026-06-10 after stress-test finding B4/D1.6 + estimate evidence; schema stays instance-keyed so enabling later is validator-only) |
 | 12 | Concurrency | Sequential-only v1; parallel deferred (+2–3 wks later, no rework — see loop.md) |
-| 13 | Lap-row ↔ loop relation | **Both**: `#N` id suffix (uniqueness/idempotency guard) **+** explicit `parent_loop_node_id` & `lap_number` columns (indexed relation for lap-end check, foreman queries, admin UI) — decided 2026-06-10 |
+| 13 | Lap-row ↔ loop relation | **Both**: `#N` id suffix (uniqueness backstop) **+** explicit **`parent_loop_step_id` FK (foreman instance row)** & `lap_number` columns — re-keyed from node-id to instance 2026-06-10 (stress-test B4: node-id collides across outer laps) |
+| 14 | Supersede × loop | **Configurable `onSupersede: RESTART \| KEEP`** (default RESTART = today's engine behavior made explicit); MVP = RESTART + `loop.supersede.restarts` churn metric; carry-budget deferred — decided 2026-06-10 (stress-test C1) |
+| 15 | v1 authoring surface | **JSON-only** (builder's flat-list model can't render nested bodies; 1–2 wks deferred); run-detail lap *viewing* in scope (Phase 6) — decided 2026-06-10 |
 
 ## Phase tracker
 
-| Phase | Scope | Status |
-|---|---|---|
-| 0 | Step-type categories (CONTROL/UTILITY/BUSINESS + CI boundary test, [RD-010](../../../repo-decisions/RD-010-step-type-categories.md)) | ✅ COMPLETED ([notes](phase-0-implementation.md)) |
-| 1 | Graph contract + validator (nested body, modes, `maxIterations`, id rules) | NOT STARTED |
-| 2 | Engine substrate (suffix-aware lookup, wake-hook, idempotent lap stamping) | NOT STARTED |
-| 3 | Foreman v1: `until`/`while` (lap lifecycle, failure-catch, lean outputs) | NOT STARTED |
-| 4 | `forEach` sequential (items expression, `item`/`index` scope, empty list) | NOT STARTED |
-| 5 | Nesting + conformance + scenario suite (S1–S17 design-review matrix) | NOT STARTED |
-| 6 | Observability + docs (admin lap grouping, step reference) | NOT STARTED |
+Moved to **[phases.md](phases.md)** (live tracker, per repo convention).
+Summary: Phase 0 ✅; Phases 1–6 (+5.5 metrics) not started; re-baselined
+~20–27 dev-days with nesting + builder deferred.
 
 ## Acceptance scenario
 
@@ -57,7 +54,11 @@ escalate to task-or-pond.* See
 
 ## Explicit non-goals (v1)
 
+- **Nested loops** — deferred 2026-06-10 (decision #11 rev); validator rejects; instance-keyed schema makes later enablement validator-only
 - Parallel laps (`concurrency > 1`) — deferred, design is forward-compatible
+- **Builder UI authoring** — JSON-only v1 (decision #15)
 - `break` / `continue` from inside a body — deferred result-code convention
+- Carry lap budget across supersede restarts — deferred pending `loop.supersede.restarts` metric evidence
 - Child-run-per-lap execution — deferred (only if isolation/scale demands it)
 - Waiting on external events between laps (`wait_for_event`) — separate feature
+- Bounded step-execution executor — pre-existing engine work, tracked separately

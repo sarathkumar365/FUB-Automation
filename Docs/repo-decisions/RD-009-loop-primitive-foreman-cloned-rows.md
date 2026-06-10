@@ -1,9 +1,14 @@
 # RD-009: Loops are a first-class control step — foreman-driven, inline cloned lap rows
 
 ## Status
-Accepted (2026-06-10). Implementation planned in
+Accepted (2026-06-10). **Amended same day (rev 2)** after the adversarial
+stress-test ([audit](../audits/loop-primitive-stress-test-2026-06-10.md)):
+relation column re-keyed to the foreman **instance** (`parent_loop_step_id` FK,
+not the loop node id — node-id collides across outer laps); **nesting deferred
+from v1**; supersede×loop made configurable (`onSupersede`, default RESTART).
+Implementation planned in
 [`Docs/features/workflow-engine/loop-primitive/`](../features/workflow-engine/loop-primitive/);
-no code yet.
+Phase 0 shipped, engine code not started.
 
 ## Context
 The engine is a cycle-free DAG executor: the validator rejects cycles, runs
@@ -43,9 +48,12 @@ sheet in the [feature README](../features/workflow-engine/loop-primitive/README.
    (`call#2`, nested `call#2#5`). The static graph stays cycle-free; the
    `UNIQUE(run_id, node_id)` constraint doubles as the double-stamp idempotency guard.
    Lap rows additionally carry explicit relation columns
-   (`parent_loop_node_id`, `lap_number`) so loop membership is an indexed database
-   fact, not string parsing — the lap-end check, foreman queries, and admin grouping
-   query the relation directly; the suffix exists solely for uniqueness/idempotency.
+   (**`parent_loop_step_id`** — FK to the foreman's own row, i.e. the loop
+   *instance*, not the loop node id — and `lap_number`) so loop membership is an
+   indexed database fact, not string parsing — the lap-end check, foreman queries,
+   and admin grouping query the relation directly; the suffix exists solely as the
+   uniqueness/idempotency backstop. (Rev 2: instance-keyed, because node-id keying
+   collides across outer laps once nesting exists — stress-test finding B4.)
 3. **A foreman drives the loop**: the loop node's own row stays alive (non-terminal)
    across the loop, holding all bookkeeping in its durable `step_state`. The engine
    core gains only a small generic wake-hook ("body lap reached a dead end → set the
@@ -61,9 +69,12 @@ sheet in the [feature README](../features/workflow-engine/loop-primitive/README.
    on the `WorkflowStepType` contract; a registry-wide conformance test proves every
    registered step type (current and future) executes inside a body.
 
-v1 scope: modes `while`/`until`/`forEach`, sequential laps, lap-failure catch, lean
-outputs, nesting allowed. Deferred (not rejected): parallel laps, `break`/`continue`,
-collected lap history, child-run-per-lap. The deferred ledger lives in
+v1 scope (rev 2): modes `while`/`until`/`forEach`, sequential laps, lap-failure
+catch, lean outputs, configurable supersede behavior (`onSupersede`), kill-switch.
+Deferred (not rejected): **nesting** (validator rejects in v1; instance-keyed
+schema makes later enablement validator-only), parallel laps, builder-UI
+authoring (v1 is JSON-only), `break`/`continue`, collected lap history,
+carry-budget-across-supersede, child-run-per-lap. The deferred ledger lives in
 [`steps/loop.md`](../features/workflow-engine/steps/loop.md).
 
 ## Consequences
