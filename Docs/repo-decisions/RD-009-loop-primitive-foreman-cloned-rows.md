@@ -42,6 +42,10 @@ sheet in the [feature README](../features/workflow-engine/loop-primitive/README.
 2. **Each lap stamps fresh step rows inline in the same run** with lap-suffixed ids
    (`call#2`, nested `call#2#5`). The static graph stays cycle-free; the
    `UNIQUE(run_id, node_id)` constraint doubles as the double-stamp idempotency guard.
+   Lap rows additionally carry explicit relation columns
+   (`parent_loop_node_id`, `lap_number`) so loop membership is an indexed database
+   fact, not string parsing — the lap-end check, foreman queries, and admin grouping
+   query the relation directly; the suffix exists solely for uniqueness/idempotency.
 3. **A foreman drives the loop**: the loop node's own row stays alive (non-terminal)
    across the loop, holding all bookkeeping in its durable `step_state`. The engine
    core gains only a small generic wake-hook ("body lap reached a dead end → set the

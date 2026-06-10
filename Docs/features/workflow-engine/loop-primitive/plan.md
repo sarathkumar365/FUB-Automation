@@ -63,13 +63,20 @@ in CI; zero behavior change.
 
 ### Phase 2 — Engine substrate
 **Scope**
+- **Migration: lap-relation columns** on `workflow_run_steps` —
+  `parent_loop_node_id` (nullable, 128) + `lap_number` (nullable int), stamped at
+  lap materialization; NULL for all non-loop rows. Index
+  `(run_id, parent_loop_node_id, lap_number, status)` for the lap-end check.
+  The `#N` suffix remains the uniqueness/idempotency guard; the columns are the
+  queryable relation (decision sheet #13).
 - Suffix-aware node resolution: `call#2` (and nested `call#2#5`) resolves to its body
   node definition; descent into nested bodies. No-op for normal ids. Applied at the
   `findNodeInGraph` boundary so `applyTransition` / `resolveStepDueAt` inherit it.
-- Wake-hook: when a step completes and is a body member whose lap has reached a dead
-  end (no runnable/pending body rows for that lap), set the owning foreman's
-  `due_at = now`. Generic, ~small, in the transition path; carries lap-tail result
-  summary into foreman-readable state.
+- Wake-hook: when a body-member step completes with no onward transition, run the
+  lap-end check — `COUNT(*)` of non-finished rows for
+  `(run_id, parent_loop_node_id, lap_number)` — and if zero, set the owning
+  foreman's `due_at = now`. Handles branching bodies (lap may end at different
+  nodes per lap) and fan-out bodies (lap ends only when ALL paths are done).
 - Idempotent lap stamping helper: insert body rows for lap N in one transaction;
   on UNIQUE violation treat as already-stamped (swallow, mirroring the
   `WorkflowExecutionManager` idempotency-conflict pattern).

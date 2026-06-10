@@ -34,6 +34,7 @@ Rationale captured in RD-009.
 | 10 | Outputs | Lean: lap count, exit reason, last lap's outputs (+ `item`/`index` in forEach scope) |
 | 11 | Nesting | Allowed from day one |
 | 12 | Concurrency | Sequential-only v1; parallel deferred (+2–3 wks later, no rework — see loop.md) |
+| 13 | Lap-row ↔ loop relation | **Both**: `#N` id suffix (uniqueness/idempotency guard) **+** explicit `parent_loop_node_id` & `lap_number` columns (indexed relation for lap-end check, foreman queries, admin UI) — decided 2026-06-10 |
 
 ## Phase tracker
 
