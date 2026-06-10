@@ -38,9 +38,10 @@ Canonical per-step reference docs for the workflow engine.
 
 ## Index
 
-| Step ID | Doc | Status |
-|---|---|---|
-| `branch_on_field` | [branch-on-field.md](./branch-on-field.md) | ✅ Reference |
+| Step ID | Category ([RD-010](../../../repo-decisions/RD-010-step-type-categories.md)) | Doc | Status |
+|---|---|---|---|
+| `branch_on_field` | CONTROL | [branch-on-field.md](./branch-on-field.md) | ✅ Reference |
+| `loop` | CONTROL | [loop.md](./loop.md) | 📝 Planned — contract written ahead of code ([loop-primitive](../loop-primitive/)) |
 
 (Add other step types here as their reference docs land. Steps without an
 entry here currently have no dedicated reference — see
