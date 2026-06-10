@@ -110,14 +110,39 @@ failure both routes, app-restart mid-lap and mid-sleep recovery.
   by `maxIterations` (validator + runtime).
 **Done signal:** forEach e2e incl. empty list, item scope visibility, restart mid-list.
 
-### Phase 5 — Nesting + conformance
+### Phase 5 — Nesting + conformance + scenario suite
 **Scope**
 - Foreman-in-foreman tests: double suffixes, inner-loop failure routing to outer lap,
   restart inside nested laps.
 - Registry-wide conformance test: every registered step type executes inside a loop
   body (auto-generated minimal body per type) — the "any step, including future
   steps" invariant. New step types fail CI if they break in a body.
-**Done signal:** conformance suite green and wired into CI.
+- **Scenario suite** — every behavior pinned in the 2026-06-10 design review becomes
+  a named test (per-phase tests cover units; this suite proves the *agreed semantics*
+  end-to-end). Matrix:
+
+| # | Scenario (design Q&A) | Test proves |
+|---|---|---|
+| S1 | Lazy lap materialization | Only lap N's rows exist after N laps — never pre-stamped to `maxIterations` |
+| S2 | Foreman is the only brain | Body steps carry zero loop logic; same step class behaves identically inside and outside a loop |
+| S3 | Poke wakes the foreman | Lap's last step completes → foreman `due_at = now` in the same transaction → claimed next tick |
+| S4 | Fallback alarm self-heals | Poke artificially suppressed → foreman still wakes at fallback interval, inspects lap, recovers (no infinite hang) |
+| S5 | Early fallback wake is harmless | Foreman wakes while lap legitimately in flight → sees live rows, rolls over, re-sleeps; nothing cancelled, no duplicate lap |
+| S6 | Lap-end with branching body | Lap ends at a *different* dead-end node on different laps (branch path varies) — poke still fires exactly once per lap |
+| S7 | Lap-end with fan-out body | Body fans into 2 parallel paths → one path finishing does NOT end the lap; poke fires only when zero unfinished rows remain for (run, loop, lap) |
+| S8 | Relation columns are authoritative | Lap-end check and foreman queries hit `(run_id, parent_loop_node_id, lap_number)` — correct with multiple loops in ONE run and many concurrent looping runs |
+| S9 | Double-stamp idempotency | Forced duplicate lap-stamp (simulated transition re-run / stale recovery) → UNIQUE violation swallowed, exactly one lap N exists |
+| S10 | Crash mid-lap / mid-sleep / mid-stamp | Kill-and-restart at each point → loop resumes correctly from DB state (no lost lap, no double lap) |
+| S11 | Run not finalized while foreman sleeps | All lap rows terminal + foreman sleeping → `checkRunCompletion` does NOT complete the run |
+| S12 | Exhaustion exact | Never-true condition + `maxIterations: 3` → exactly 3 laps, exit `EXHAUSTED`, zero extra rows |
+| S13 | Early exit | Condition met on lap 2 of 10 → exit `SUCCEEDED`, lap 3 never stamped |
+| S14 | Lap failure both routes | Body step permanently fails → `onLapFailure: CONTINUE` runs next lap; `EXIT` routes `LOOP_FAILED`; run survives both |
+| S15 | Lap-local scope | `steps.<bodyId>` inside lap N resolves to lap N's clone; foreman condition sees `lastLap` of N, not N-1 |
+| S16 | Cancel/supersede mid-loop | Run cancelled between laps → foreman + pending lap rows swept (SKIPPED), no orphans |
+| S17 | `ZERO_LAPS` paths | `while` false at start / empty `forEach` list → body never stamped, exit `ZERO_LAPS` |
+
+**Done signal:** conformance + scenario suites green and wired into CI; every row
+above maps to ≥1 named test.
 
 ### Phase 6 — Observability + docs
 **Scope**

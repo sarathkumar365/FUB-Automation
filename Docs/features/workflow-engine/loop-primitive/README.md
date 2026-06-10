@@ -45,7 +45,7 @@ Rationale captured in RD-009.
 | 2 | Engine substrate (suffix-aware lookup, wake-hook, idempotent lap stamping) | NOT STARTED |
 | 3 | Foreman v1: `until`/`while` (lap lifecycle, failure-catch, lean outputs) | NOT STARTED |
 | 4 | `forEach` sequential (items expression, `item`/`index` scope, empty list) | NOT STARTED |
-| 5 | Nesting + registry-wide conformance suite | NOT STARTED |
+| 5 | Nesting + conformance + scenario suite (S1–S17 design-review matrix) | NOT STARTED |
 | 6 | Observability + docs (admin lap grouping, step reference) | NOT STARTED |
 
 ## Acceptance scenario
