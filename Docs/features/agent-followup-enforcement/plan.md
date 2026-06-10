@@ -645,6 +645,14 @@ None of #21, #22, #23, #24, or #25 would have surfaced in unit tests — they're
 
 Implication: tooling to make live-run inspection faster (linked `webhook_event_id`, a "runs for this lead in last X" CLI, FUB-cross-check helpers, etc.) compounds. Worth budgeting time for it explicitly.
 
+#### 10. The trigger can be *correct* and the product behavior still wrong — when the lead isn't a lead
+
+On 2026-06-05 run 229 fired on `person.created` for "Gordon Bartozzi Agent" (person 20827) and nudged + queued reassignment. The filter was satisfied — at trigger time the FUB snapshot read `stage=Lead`, `tags=[]`, so `person.kind = 'LEAD'` was genuinely true. The person was actually a real-estate agent; the agent stage + `Realtor` tags only arrived ~6 min later on a re-sync, and an operator canceled the run. No engine bug — the data the trigger saw was right; the *person* was misclassified upstream.
+
+This is a different failure class from #21–#24 (which are about timing of *call/assignment* events). Here the **identity** of the entity is wrong at trigger time, and FUB's two-phase create (bare "Lead" → enriched agent moments later) guarantees a `person.created` trigger races the enrichment. Manual reclassification (Google/call → set stage + tag) is the team's current workaround.
+
+Durable fix is not in this workflow at all — it's the platform [person-profile-enrichment](../person-profile-enrichment/README.md) feature: infer an evidence-backed industry-professional classification on ingest that this workflow can gate on (`person.profile.isIndustryProfessional`), recommended via a future `profile.enriched` trigger with a fallback timeout. Tracked as [known-issue #34](../../engineering-reference/known-issues.md).
+
 #### 10. The workflow is "working" today, but not for the reasons we designed it to
 
 If you stripped out the 5-min buffer and the new lookback anchor, runs 159 and 160 on 05-11 would have posted false nudge notes. Both fired for reasons unrelated to the workflow's stated purpose ("nudge agents who fail to call assigned leads") and only the engineering safety net made them harmless.
