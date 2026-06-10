@@ -716,6 +716,14 @@ Lead 20235's three reassignments at 12:09:21, 12:09:26, 12:09:30 — all to user
 
 This is the strongest single argument for shipping Layer 3 first: it's a "one in-flight run per `(workflow_key, source_lead_id)` at a time" guarantee that the platform currently lacks.
 
+#### 19. The trigger can be *correct* and the product behavior still wrong — when the lead isn't a lead
+
+On 2026-06-05 run 229 fired on `person.created` for "Gordon Bartozzi Agent" (person 20827) and nudged + queued reassignment. The filter was satisfied — at trigger time the FUB snapshot read `stage=Lead`, `tags=[]`, so `person.kind = 'LEAD'` was genuinely true. The person was actually a real-estate agent; the agent stage + `Realtor` tags only arrived ~6 min later on a re-sync, and an operator canceled the run. No engine bug — the data the trigger saw was right; the *person* was misclassified upstream.
+
+This is a different failure class from #20–#24 (timing of *call/assignment* events). Here the **identity** of the entity is wrong at trigger time, and FUB's two-phase create (bare "Lead" → enriched agent moments later) guarantees a `person.created` trigger races the enrichment. Manual reclassification (Google/call → set stage + tag) is the team's current workaround.
+
+Durable fix is not in this workflow at all — it's the platform [person-profile-enrichment](../person-profile-enrichment/README.md) feature: infer an evidence-backed industry-professional classification on ingest that this workflow can gate on (`person.profile.isIndustryProfessional`), recommended via a future `profile.enriched` trigger with a fallback timeout. Tracked as [known-issue #34](../../engineering-reference/known-issues.md).
+
 ---
 
 ### Short version

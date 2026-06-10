@@ -4,6 +4,24 @@ A freeform scratchpad for product ideas, future directions, and "would be nice" 
 
 ---
 
+## ✅ PROMOTED — Idea: AI Person Profile Enrichment (industry-professional detection)
+
+**Date:** 2026-06-09 · **Status:** Promoted to [features/person-profile-enrichment](../features/person-profile-enrichment/README.md) (design approved, building v1)
+
+**The problem:**
+People enter from FUB as default stage `Lead`; realtors / mortgage agents / lenders are identified **manually, minutes-to-hours later** (a teammate Google-searches or calls them, then edits the stage + tags). Workflows that fire on `person.created` therefore act on industry professionals that still look like leads. Canonical failure: `agent_followup_enforcement` run 229 nudged and nearly reassigned the agent "Gordon Bartozzi Agent" because the agent signal didn't exist yet at trigger time. Compounded by `mapStageToKind` only exact-matching `"agent"`/`"realtor"`, so even the enriched stage `"Real Estate or Mortgage Agent"` resolves to `kind=UNKNOWN`. ([known-issue #34](../engineering-reference/known-issues.md))
+
+**What it adds:**
+An async, pluggable enrichment pipeline (v1 = web-search-grounded LLM classifier) that, on ingest, infers whether a person is an industry professional — with cited evidence — stores it as a `profile` on `persons` (separate `inferredKind`, **not** overwriting `kind`), exposes `person.profile.*` to workflows, auto-stamps it confidence-banded, and provides a human review/override surface. No FUB writes; registry-free and geography-agnostic (multi-region); `HUMAN > AUTO > UNKNOWN` precedence.
+
+**Removes the manual work:** the Google-search/call-to-vet-then-reclassify loop the team does by hand today.
+
+**First consumer (post-v1):** gate `agent_followup_enforcement` on `person.profile.isIndustryProfessional` (recommended via a future `profile.enriched` event with a fallback timeout) — the durable fix for the Gordon class of misfires.
+
+**Decision:** [RD-008](../repo-decisions/RD-008-profile-enrichment-inferred-kind.md). **Plan/phases:** [plan.md](../features/person-profile-enrichment/plan.md) · [phases.md](../features/person-profile-enrichment/phases.md).
+
+---
+
 ## Idea: Stale-assignment guard for follow-up workflows
 
 **Date:** 2026-05-08
