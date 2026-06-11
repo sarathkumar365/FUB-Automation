@@ -1,6 +1,6 @@
 # Loop Primitive — First-Class `loop` Control Step
 
-> **Status:** Design complete + stress-tested (2026-06-10, plan rev 2). Phase 0 shipped; Phases 1–6 not started.
+> **Status: ⏸️ SHELVED (2026-06-10)** — designed, stress-tested, deliberately parked. The MVP's loop is single-step and ships via Path A (self-rescheduling `wait_and_check_communication`, zero engine change). **Resume when the first multi-step-body or forEach use case is real — START AT [resume-briefing.md](resume-briefing.md)**, which holds every trap, unknown, and proposed fix (incl. 2 known bugs in plan rev 2). Phase 0 (step categories) shipped and stays live regardless.
 > **Entry point** for the loop-primitive feature. Plan: [plan.md](plan.md) · Tracker: [phases.md](phases.md) · Research: [research.md](research.md).
 > Binding architecture decision: [RD-009](../../../repo-decisions/RD-009-loop-primitive-foreman-cloned-rows.md).
 > Step reference (capabilities, config, deferred items): [../steps/loop.md](../steps/loop.md).

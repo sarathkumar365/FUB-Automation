@@ -1,10 +1,12 @@
 # `loop` — Reference
 
-> **Status: PLANNED — not yet implemented.** Contract defined by
-> [loop-primitive/plan.md](../loop-primitive/plan.md) (normative contract +
-> concurrency appendix are binding). Rev 2 (2026-06-10) after the
+> **Status: ⏸️ SHELVED — not implemented.** Designed, stress-tested, and
+> deliberately parked 2026-06-10 (single-step retry loops are covered by
+> `wait_and_check_communication`'s built-in retry — Path A). On resume, read
+> [loop-primitive/resume-briefing.md](../loop-primitive/resume-briefing.md)
+> FIRST — this contract has known items to patch (e.g. the config sketch's
+> body and `onSupersede` placement). Rev 2 (2026-06-10) after the
 > [stress-test audit](../../../audits/loop-primitive-stress-test-2026-06-10.md).
-> Each phase updates its sections here before closing (drift-guard).
 
 Control-flow step. Repeats a **nested body sub-graph** — any steps, any number
 of them — until a condition is met, a list is consumed, or a configurable lap

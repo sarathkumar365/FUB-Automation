@@ -1,7 +1,8 @@
 # Loop Primitive — Phase Tracker
 
-> Live tracker (source of truth). Plan: [plan.md](plan.md). Decision sheet:
-> [README.md](README.md).
+> **⏸️ SHELVED 2026-06-10** — resume via [resume-briefing.md](resume-briefing.md)
+> (apply its rev 3 patch list to plan.md before building Phase 1).
+> Plan: [plan.md](plan.md). Decision sheet: [README.md](README.md).
 
 | Phase | Scope | Status |
 |---|---|---|
