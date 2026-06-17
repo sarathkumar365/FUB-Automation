@@ -7,8 +7,6 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
-import com.fuba.automation_engine.service.BusinessHoursService;
-import com.fuba.automation_engine.service.person.PersonSnapshotResolver;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
 import java.time.Clock;
 import java.time.Instant;
@@ -44,12 +42,6 @@ class WorkflowRetryDispatchTest {
     @Mock
     private ExpressionEvaluator expressionEvaluator;
 
-    @Mock
-    private PersonSnapshotResolver personSnapshotResolver;
-
-    @Mock
-    private BusinessHoursService businessHoursService;
-
     private Clock fixedClock;
 
     @BeforeEach
@@ -66,7 +58,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_503", "Service unavailable"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, personSnapshotResolver, businessHoursService, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(), fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 0);
@@ -92,7 +84,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_503", "Service unavailable"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, personSnapshotResolver, businessHoursService, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(), fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 2);
@@ -116,7 +108,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.failure("PERM_400", "Bad request"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, personSnapshotResolver, businessHoursService, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(), fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 0);
@@ -141,7 +133,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_CAP", "Retry me"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, personSnapshotResolver, businessHoursService, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(), fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 5);
@@ -165,7 +157,7 @@ class WorkflowRetryDispatchTest {
                 StepExecutionResult.transientFailure("TEMP_OVERRIDE", "Retry with override"));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, personSnapshotResolver, businessHoursService, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(), fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(
@@ -195,7 +187,7 @@ class WorkflowRetryDispatchTest {
                         "startedAt", "2026-01-01T12:00:00Z")));
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, personSnapshotResolver, businessHoursService, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(), fixedClock);
 
         WorkflowRunEntity run = buildRun();
         WorkflowRunStepEntity step = buildStep(Map.of(), 0);
@@ -257,7 +249,7 @@ class WorkflowRetryDispatchTest {
         };
         WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
         WorkflowStepExecutionService service = new WorkflowStepExecutionService(
-                runRepository, stepRepository, stepRegistry, expressionEvaluator, personSnapshotResolver, businessHoursService, fixedClock);
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(), fixedClock);
 
         WorkflowRunEntity run = buildRun();
         run.setWorkflowGraphSnapshot(Map.of(
@@ -277,6 +269,84 @@ class WorkflowRetryDispatchTest {
 
         assertEquals("CA123", observedState.get().get("callSid"));
         assertEquals("2026-01-01T12:00:00Z", observedState.get().get("startedAt"));
+    }
+
+    @Test
+    void runContextContributorInvokedOncePerStepAndFillsScope() {
+        java.util.concurrent.atomic.AtomicInteger calls = new java.util.concurrent.atomic.AtomicInteger();
+        AtomicReference<Map<String, Object>> observedPerson = new AtomicReference<>();
+        com.fuba.automation_engine.service.workflow.spi.RunContextContributor personContributor =
+                new com.fuba.automation_engine.service.workflow.spi.RunContextContributor() {
+                    @Override
+                    public String key() {
+                        return "person";
+                    }
+
+                    @Override
+                    public Map<String, Object> contribute(
+                            com.fuba.automation_engine.service.workflow.spi.RunContextRequest request) {
+                        calls.incrementAndGet();
+                        return Map.of("firstName", "Ada");
+                    }
+                };
+        WorkflowStepType stepType = new WorkflowStepType() {
+            @Override
+            public String id() {
+                return "test_step";
+            }
+
+            @Override
+            public String displayName() {
+                return "test";
+            }
+
+            @Override
+            public String description() {
+                return "test";
+            }
+
+            @Override
+            public Map<String, Object> configSchema() {
+                return Map.of();
+            }
+
+            @Override
+            public Set<String> declaredResultCodes() {
+                return Set.of("DONE");
+            }
+
+            @Override
+            public RetryPolicy defaultRetryPolicy() {
+                return RetryPolicy.NO_RETRY;
+            }
+
+            @Override
+            public StepExecutionResult execute(StepExecutionContext context) {
+                observedPerson.set(context.runContext().person());
+                return StepExecutionResult.success("DONE");
+            }
+        };
+        WorkflowStepRegistry stepRegistry = new WorkflowStepRegistry(List.of(stepType));
+        WorkflowStepExecutionService service = new WorkflowStepExecutionService(
+                runRepository, stepRepository, stepRegistry, expressionEvaluator, List.of(personContributor), fixedClock);
+
+        WorkflowRunEntity run = buildRun();
+        run.setWorkflowGraphSnapshot(Map.of(
+                "entryNode", "n1",
+                "nodes", List.of(Map.of(
+                        "id", "n1",
+                        "type", "test_step",
+                        "transitions", Map.of("DONE", Map.of("terminal", "COMPLETED"))))));
+        WorkflowRunStepEntity step = buildStep(Map.of(), 0);
+
+        when(stepRepository.findById(step.getId())).thenReturn(Optional.of(step));
+        when(runRepository.findById(run.getId())).thenReturn(Optional.of(run));
+        when(stepRepository.findByRunId(run.getId())).thenReturn(List.of(step));
+
+        service.executeClaimedStep(claimedRow(step));
+
+        assertEquals(1, calls.get());
+        assertEquals("Ada", observedPerson.get().get("firstName"));
     }
 
     private WorkflowRunEntity buildRun() {

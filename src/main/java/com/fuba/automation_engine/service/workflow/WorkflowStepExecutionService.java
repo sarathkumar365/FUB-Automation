@@ -7,10 +7,10 @@ import com.fuba.automation_engine.persistence.entity.WorkflowRunStepStatus;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepClaimRepository;
 import com.fuba.automation_engine.persistence.repository.WorkflowRunStepRepository;
-import com.fuba.automation_engine.service.BusinessHoursService;
-import com.fuba.automation_engine.service.person.PersonSnapshotResolver;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionScope;
+import com.fuba.automation_engine.service.workflow.spi.RunContextContributor;
+import com.fuba.automation_engine.service.workflow.spi.RunContextRequest;
 import java.time.Duration;
 import java.time.Clock;
 import java.time.OffsetDateTime;
@@ -44,8 +44,7 @@ public class WorkflowStepExecutionService {
     private final WorkflowRunStepRepository stepRepository;
     private final WorkflowStepRegistry stepRegistry;
     private final ExpressionEvaluator expressionEvaluator;
-    private final PersonSnapshotResolver personSnapshotResolver;
-    private final BusinessHoursService businessHoursService;
+    private final List<RunContextContributor> runContextContributors;
     private final Clock clock;
 
     public WorkflowStepExecutionService(
@@ -53,16 +52,22 @@ public class WorkflowStepExecutionService {
             WorkflowRunStepRepository stepRepository,
             WorkflowStepRegistry stepRegistry,
             ExpressionEvaluator expressionEvaluator,
-            PersonSnapshotResolver personSnapshotResolver,
-            BusinessHoursService businessHoursService,
+            List<RunContextContributor> runContextContributors,
             Clock clock) {
         this.runRepository = runRepository;
         this.stepRepository = stepRepository;
         this.stepRegistry = stepRegistry;
         this.expressionEvaluator = expressionEvaluator;
-        this.personSnapshotResolver = personSnapshotResolver;
-        this.businessHoursService = businessHoursService;
+        this.runContextContributors = List.copyOf(runContextContributors);
         this.clock = clock;
+
+        Set<String> keys = new HashSet<>();
+        for (RunContextContributor contributor : this.runContextContributors) {
+            if (!keys.add(contributor.key())) {
+                throw new IllegalStateException(
+                        "Duplicate RunContextContributor key: " + contributor.key());
+            }
+        }
     }
 
     @Transactional
@@ -224,29 +229,28 @@ public class WorkflowStepExecutionService {
                 run.getCreatedAt(),
                 run.getWebhookEventId());
 
-        // PER-STEP EAGER: resolve person snapshot once per step. The snapshot is
-        // auto-refreshed by webhook ingestion, so re-reading per step picks up
-        // any in-flight changes (e.g. the person was reassigned during a wait
-        // step). Single indexed lookup; no caching needed.
-        // WOULD-BE-NICE: if we find performance issues, we could consider a short-lived in-memory cache here keyed by sourcePersonId.
-        // OR make it lazy and only resolve when {{ person }} is actually referenced in expressions, but that adds complexity and edge cases (e.g. step outputs referencing {{ person }} fields).
-        Map<String, Object> person = personSnapshotResolver.resolve(run.getSourcePersonId());
-
-        // PER-STEP EAGER: resolve business-hours flags at step time so
-        // long-running workflows that cross the daytime/off-hours boundary
-        // see the updated value at the next step (instead of a stale value
-        // captured when the run started).
+        // PER-STEP EAGER: contributors run once per step so host-supplied blocks
+        // (person snapshot, time-of-day flags) reflect the latest state at step
+        // time rather than a value captured when the run started.
         java.time.Instant nowInstant = clock.instant();
-        Map<String, Object> now = Map.of(
-                "isDaytime", businessHoursService.isDaytime(nowInstant),
-                "hourLocal", businessHoursService.hourLocal(nowInstant));
+        RunContextRequest contributorRequest = new RunContextRequest(
+                run.getId(),
+                run.getWorkflowKey(),
+                run.getSourcePersonId(),
+                run.getWebhookEventId() != null ? String.valueOf(run.getWebhookEventId()) : null,
+                nowInstant);
+        Map<String, Map<String, Object>> contributed = new LinkedHashMap<>();
+        for (RunContextContributor contributor : runContextContributors) {
+            Map<String, Object> block = contributor.contribute(contributorRequest);
+            contributed.put(contributor.key(), block != null ? block : Map.of());
+        }
 
         return new RunContext(
                 metadata,
                 run.getTriggerPayload() != null ? run.getTriggerPayload() : Map.of(),
                 run.getSourcePersonId(),
-                person,
-                now,
+                contributed.getOrDefault("person", Map.of()),
+                contributed.getOrDefault("now", Map.of()),
                 stepOutputs);
     }
 

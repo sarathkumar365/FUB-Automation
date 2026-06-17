@@ -40,12 +40,6 @@ class WorkflowStepExecutionServiceTest {
     @Mock
     private ExpressionEvaluator expressionEvaluator;
 
-    @Mock
-    private com.fuba.automation_engine.service.person.PersonSnapshotResolver personSnapshotResolver;
-
-    @Mock
-    private com.fuba.automation_engine.service.BusinessHoursService businessHoursService;
-
     private WorkflowStepExecutionService service;
 
     @BeforeEach
@@ -55,9 +49,34 @@ class WorkflowStepExecutionServiceTest {
                 stepRepository,
                 stepRegistry,
                 expressionEvaluator,
-                personSnapshotResolver,
-                businessHoursService,
+                List.of(),
                 Clock.fixed(Instant.parse("2026-04-15T12:00:00Z"), ZoneOffset.UTC));
+    }
+
+    @Test
+    void constructorRejectsDuplicateContributorKeys() {
+        com.fuba.automation_engine.service.workflow.spi.RunContextContributor a = stubContributor("dup");
+        com.fuba.automation_engine.service.workflow.spi.RunContextContributor b = stubContributor("dup");
+        org.junit.jupiter.api.Assertions.assertThrows(IllegalStateException.class, () ->
+                new WorkflowStepExecutionService(
+                        runRepository, stepRepository, stepRegistry, expressionEvaluator,
+                        List.of(a, b),
+                        Clock.fixed(Instant.parse("2026-04-15T12:00:00Z"), ZoneOffset.UTC)));
+    }
+
+    private static com.fuba.automation_engine.service.workflow.spi.RunContextContributor stubContributor(String key) {
+        return new com.fuba.automation_engine.service.workflow.spi.RunContextContributor() {
+            @Override
+            public String key() {
+                return key;
+            }
+
+            @Override
+            public java.util.Map<String, Object> contribute(
+                    com.fuba.automation_engine.service.workflow.spi.RunContextRequest request) {
+                return java.util.Map.of();
+            }
+        };
     }
 
     @Test
