@@ -27,7 +27,7 @@ class WorkflowGraphValidatorTest {
             @Override public StepExecutionResult execute(StepExecutionContext context) { return StepExecutionResult.success("CLAIMED"); }
         };
         WorkflowStepRegistry registry = new WorkflowStepRegistry(List.of(delayStep, checkStep));
-        validator = new WorkflowGraphValidator(registry);
+        validator = new WorkflowGraphValidator(registry, List.of());
     }
 
     @Test
