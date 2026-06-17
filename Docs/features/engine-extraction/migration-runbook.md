@@ -299,6 +299,12 @@ The rest of `trigger/` + `config/WorkflowTriggerRouter*` already sit in host-nam
 
 ### 2e. `sourcePersonId → subjectId` rename (must land in v0.1 — G6)
 
+> ⚠️ **SPECIAL ATTENTION — this is NOT a cosmetic rename.** `subjectId` is the engine's **identity key for two core mechanics**, so a missed or inconsistent site silently changes run semantics (not a compile error):
+> - **Idempotency** — folded into the dedup hash in `WorkflowExecutionManager.buildIdempotencyKey` (`joiner.add(normalize(request.sourcePersonId()))`). Drop or diverge it and per-subject dedup breaks — especially the no-`eventId` fallback path, where it's the *only* discriminator (all triggerless runs would collapse into one).
+> - **Supersession** — `RunSupersedePolicy`'s identity is `(workflow_key, source_person_id)`; it queries `findByWorkflowKeyAndSourcePersonIdAndStatus(...)`. The derived-finder name, the property, and the `@Column` must rename **in lockstep** or supersession silently no-ops / mis-scopes.
+>
+> **Rename ALL sites in one commit** (list below), and **verify with the behavioural tests, not just the compiler**: keep `WorkflowParityTest`, `RunSupersedePolicyTest`, and the idempotency-dedup tests green — they're the only thing that catches a semantic regression here. The field is also **nullable/optional** (supersede no-ops on null, idempotency uses empty string) — preserve that; don't make it required.
+
 - `RunContext`: `sourcePersonId → subjectId`, `person → subject`, `RunMetadata.webhookEventId → triggerEventId`; fix `{@link PersonSnapshotResolver}`/`BusinessHoursService` javadoc to plain prose (G14).
 - `StepExecutionContext`: `sourcePersonId → subjectId` (both constructors).
 - `WorkflowPlanRequest`: generalize `webhookEventId`/`domainEventId`/`sourcePersonId → subjectId` + `triggerEventId` (keep a back-compat ctor defaulting nulls).
