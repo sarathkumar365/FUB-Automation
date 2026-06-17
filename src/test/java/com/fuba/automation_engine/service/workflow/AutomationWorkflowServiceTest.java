@@ -3,7 +3,7 @@ package com.fuba.automation_engine.service.workflow;
 import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
-import com.fuba.automation_engine.service.workflow.trigger.DomainEventTriggerValidator;
+import com.fuba.automation_engine.service.workflow.spi.TriggerValidator;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -34,13 +34,13 @@ class AutomationWorkflowServiceTest {
     private AutomationWorkflowService service;
 
     @Mock
-    private DomainEventTriggerValidator domainEventTriggerValidator;
+    private TriggerValidator triggerValidator;
 
     @Test
     void createShouldPersistTrimmedWorkflowKey() {
         when(graphValidator.validate(any())).thenReturn(GraphValidationResult.success());
         when(workflowRepository.findMaxVersionNumberByKey("WF_TRIM")).thenReturn(Optional.empty());
-        when(domainEventTriggerValidator.validate(any())).thenReturn(List.of());
+        when(triggerValidator.validate(any())).thenReturn(List.of());
         when(workflowRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
         AutomationWorkflowService.CreateResult result =
@@ -186,7 +186,7 @@ class AutomationWorkflowServiceTest {
 
         when(workflowRepository.findFirstByKeyOrderByVersionNumberDesc("WF")).thenReturn(Optional.of(latest));
         when(graphValidator.validate(any())).thenReturn(GraphValidationResult.success());
-        when(domainEventTriggerValidator.validate(any())).thenReturn(List.of());
+        when(triggerValidator.validate(any())).thenReturn(List.of());
         when(workflowRepository.findMaxVersionNumberByKey("WF")).thenReturn(Optional.of(1));
         when(workflowRepository.saveAndFlush(any())).thenAnswer(invocation -> invocation.getArgument(0));
 
