@@ -194,3 +194,23 @@ client/aicall/AiCallServiceHttpClientAdapter.java ← implements the host aicall
 | `ui/**` | OUT | the React admin UI is not part of either deliverable |
 
 → The 4 engine DDL fragments are spread across V10/V11/V16/V23 **and** entangled with host V21. They **cannot be copied verbatim** — they consolidate into one hand-authored `V1__engine_schema.sql` at the engine's own Flyway location. See runbook **Phase 2f** + **G5**.
+
+---
+
+## Schema column audit (verified 2026-06-17)
+
+Full column-by-column classification of the 3 engine tables (from the JPA entities = current shape after V11/V16/V21/V23). **Zero `@ManyToOne`/`@OneToMany`/`@JoinColumn`** in any entity → no object-graph coupling. The only internal FKs are `workflow_runs.workflow_id → automation_workflows` and `workflow_run_steps.run_id → workflow_runs` (keep). Verdict: after dropping the 2 business FKs and renaming the 3 FUB-named scalars, the schema is 100% engine-generic — **no business-typed columns anywhere**.
+
+**`automation_workflows` (10 cols) — all engine-generic.** `id`, `key`, `name`, `description`, `trigger`(JSONB, opaque), `graph`(JSONB, opaque), `status`, `version_number`, `version`, `created_at`, `updated_at`. No business col, no FK.
+
+**`workflow_run_steps` (19 cols) — all engine-generic.** `id`, `run_id`(internal FK), `node_id`, `step_type`(opaque registry key), `status`, `due_at`, `depends_on_node_ids`, `pending_dependency_count`, `config_snapshot`, `resolved_config`, `result_code`, `outputs`, `step_state`, `error_message`, `retry_count`, `stale_recovery_count`, `created_at`, `updated_at`. No business col, no business FK.
+
+**`workflow_runs` (16 cols) — 13 generic + 3 to rename + 2 FKs to drop.**
+| Column | Verdict |
+|---|---|
+| `id`, `workflow_id`(internal FK), `workflow_key`, `workflow_version`, `workflow_graph_snapshot`, `trigger_payload`, `source`, `event_id`, `status`, `reason_code`, `idempotency_key`, `created_at`, `updated_at` | engine-generic (`source`/`event_id` = opaque correlation labels; JSONB opaque) |
+| `webhook_event_id` BIGINT | FUB-named loose scalar; FK S1 → **drop FK, rename `trigger_ref_id`** |
+| `domain_event_id` BIGINT | FUB-named loose scalar; FK S2 → **drop FK, keep opaque** |
+| `source_person_id` VARCHAR | FUB-named loose scalar, **no FK** → **rename `source_entity_id`** |
+
+**Residue total:** 2 droppable FK constraints + 3 column renames (loose scalars, no behaviour change) + opaque JSONB carriers (`trigger`/`graph`/`*_snapshot`/`trigger_payload`/`config_*`/`outputs`/`step_state`) whose *content* may be host-shaped but whose *columns* the engine never interprets. Nothing else is business.
