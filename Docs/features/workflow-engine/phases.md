@@ -1,5 +1,7 @@
 # Workflow Engine Rebuild — Phases
 
+> **Status: COMPLETE.** All waves below are `COMPLETED` and the Operator UI track is `COMPLETED`. Deferred backlog (out of rebuild scope): Wave 4b builder UI, run/step retry controls.
+
 ## Wave Status
 - Wave 1: `COMPLETED`
 - Wave 2: `COMPLETED` (stabilization scope delivered; status backfilled after Waves 3/4)

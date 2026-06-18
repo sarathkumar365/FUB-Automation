@@ -84,7 +84,7 @@ carry-budget-across-supersede, child-run-per-lap. The deferred ledger lives in
   enforces.
 - `materializeSteps` no longer materializes every graph node (body nodes materialize
   per lap) — the first deliberate exception to plan-time-only row creation.
-- The engine-extraction boundary ([RD-007](RD-007-engine-as-standalone-library.md))
-  applies: the loop primitive is kernel code and must not add host-glue coupling.
+- The engine/host boundary applies: the loop primitive is kernel code and must
+  not add host-glue coupling.
 - Parallel laps, when needed, are an additive follow-up on this same model (foreman
   stamps K laps and joins) — no rework expected; this is the explicit forward path.

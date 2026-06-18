@@ -176,7 +176,7 @@ See [phase-0-implementation.md](phase-0-implementation.md).
   mode-dependent mandatory exit wiring; reject `steps.` in `condition`/`items`;
   numeric-only `delayMinutes` inside bodies; `maxIterations` 1..ceiling;
   total-materialized-rows ceiling; route body-config host validation through the
-  existing person-field check without deepening the RD-007 leak.
+  existing person-field check without deepening the engine/host leak.
 **Done signal:** contract doc section reviewed; validator accept/reject test
 matrix green; zero runtime change.
 
@@ -264,8 +264,8 @@ endpoints are 401'd by current config); counters/gauges:
 
 ### Phase 6 — Observability UI + docs
 **Scope:** run-detail lap **grouping client-side** from `parent_loop_step_id` /
-`lap_number` already on the step DTO (avoids enlarging the RD-007 L1 leak; the
-DTO relocation happens in engine-extraction, not here); finalize loop.md against
+`lap_number` already on the step DTO (avoids enlarging the engine/host DTO
+boundary; DTO relocation is out of scope here); finalize loop.md against
 shipped behavior; update `create-workflow-json` skill with loop authoring rules;
 lifecycle section in `how-the-engine-works.md`.
 **Done signal:** MVP acceptance scenario authored + run end-to-end; run-detail
@@ -315,7 +315,7 @@ time after 3. The Phase 1 contract is the review gate for everything after it.
 - [RD-009](../../../repo-decisions/RD-009-loop-primitive-foreman-cloned-rows.md) — loop architecture (amended rev 2: instance FK, nesting deferral).
 - [RD-010](../../../repo-decisions/RD-010-step-type-categories.md) — step categories (Phase 0, shipped).
 - [RD-006](../../../repo-decisions/RD-006-engine-echo-exclusion-safe-by-default.md) — echo gating applies unchanged (verified by audit C2).
-- [RD-007](../../../repo-decisions/RD-007-engine-as-standalone-library.md) — loop is kernel code; Phase 6 must not enlarge the L1 leak.
+- Engine/host boundary — loop is kernel code; Phase 6 must not enlarge the L1 leak.
 - [Stress-test audit 2026-06-10](../../../audits/loop-primitive-stress-test-2026-06-10.md) — source of rev 2 amendments.
 - Related pre-existing work (not loop-owned): FUB client timeouts; retention
   strategy; run-detail pagination; bounded executor.

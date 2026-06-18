@@ -102,4 +102,4 @@ One PR-sized unit; each step compiles green independently.
 
 - [RD-006](../../repo-decisions/RD-006-engine-echo-exclusion-safe-by-default.md) — echo gate stays top-level, per-trigger (C4)
 - No new RD needed: additive config shape, no architectural boundary moved
-  (helper lives in the existing trigger package; RD-007 kernel boundary untouched)
+  (helper lives in the existing trigger package; engine/host kernel boundary untouched)

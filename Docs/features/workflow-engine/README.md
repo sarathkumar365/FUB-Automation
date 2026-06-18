@@ -1,6 +1,8 @@
 # Workflow Engine Rebuild — Documentation Index
 
-The workflow engine is being rebuilt in tracked **waves**. Each wave has its own folder under `waves/` containing all phased implementation notes for that wave.
+> **Status: COMPLETE.** The rebuild shipped — Waves 1–5 and the Operator UI track are all `COMPLETED` (see [phases.md](phases.md)). The legacy policy engine has been removed (Wave 5). Two items remain as explicit **deferred backlog**, out of the rebuild scope: Wave 4b (builder UI) and run/step retry controls. The loop primitive is tracked separately under [loop-primitive/](loop-primitive/).
+
+The workflow engine was rebuilt in tracked **waves**. Each wave has its own folder under `waves/` containing all phased implementation notes for that wave.
 
 ## Sample Workflow - consists 2 section. A Trigger & Steps
 

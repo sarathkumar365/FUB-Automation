@@ -1,5 +1,7 @@
 # FUB Webhook Reactivation
 
+> **Status: COMPLETE.** Phase 1 shipped — `scripts/fub-webhook-reactivate.sh` plus `FubWebhookReactivationScriptTest`. Details in the implementation log below.
+
 Single-doc feature (one phase): a manual operational recovery script for re-enabling FUB webhooks auto-disabled during local dev. Research context, plan, phase tracker, and the implementation log are all below.
 
 ---

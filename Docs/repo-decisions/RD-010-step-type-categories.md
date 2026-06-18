@@ -7,8 +7,9 @@ Accepted (2026-06-10). Implementation rides the loop-primitive feature as
 ## Context
 The step catalog is growing along two distinct lines: engine primitives (delay,
 branch, the planned loop) and business/vendor actions (fub_*, ai_call). The
-distinction already exists implicitly in two binding places — [RD-007](RD-007-engine-as-standalone-library.md)
-declares FUB steps "host glue, OUT" of the extractable kernel, and the loop design
+distinction already exists implicitly in two binding places — the engine extraction
+(shipped as the standalone `camshaft-engine` repo) declared FUB steps "host glue, OUT"
+of the extractable kernel, and the loop design
 ([RD-009](RD-009-loop-primitive-foreman-cloned-rows.md)) introduces a "control
 family" — but nothing in code records or enforces it. Nothing today stops a control
 step from growing a FUB import and silently poisoning the extraction boundary.
@@ -22,7 +23,7 @@ Every `WorkflowStepType` declares a **category** (enum `StepCategory`, exposed v
   (vendor-backed is acceptable — e.g. Slack — as long as it is domain-neutral).
 - **BUSINESS** — domain/vendor-specific actions tied to this host application.
 
-**Extraction mapping (RD-007):** CONTROL + UTILITY ship with the engine library;
+**Extraction mapping:** CONTROL + UTILITY ship with the engine library;
 BUSINESS stays in the host.
 
 **Enforcement:** an architecture test in CI asserts that CONTROL and UTILITY step
@@ -44,5 +45,5 @@ generic capability).
 - New step types must declare a category at creation; the catalog endpoint and step
   reference docs (`steps/README.md` index) display it.
 - Moving a step's category is a reviewed decision (update this RD), not a drive-by edit.
-- The ArchUnit-style boundary test becomes the executable form of RD-007's step
-  boundary; extraction work inherits it.
+- The ArchUnit-style boundary test becomes the executable form of the engine/host
+  step boundary; extraction work inherits it.

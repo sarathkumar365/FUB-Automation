@@ -10,8 +10,8 @@
 > **multi-step group** (e.g. send SMS → wait → check, as one repeated unit), or
 > a real `forEach` need.
 > **What's NOT wasted:** Phase 0 (step categories + CI boundary test) shipped
-> and serves engine-extraction regardless. All design decisions, traps, and
-> fixes below are bought knowledge.
+> and serves the engine/host boundary regardless. All design decisions, traps,
+> and fixes below are bought knowledge.
 
 ## State of the work when shelved
 

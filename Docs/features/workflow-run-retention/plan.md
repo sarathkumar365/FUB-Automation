@@ -124,12 +124,12 @@ are idempotent, and batched candidate selection means two concurrent instances w
 work, not corrupt data — but no `SKIP LOCKED`/leader-election is added until multi-instance
 deployment is a real thing (YAGNI, consistent with the rest of the engine).
 
-### Engine-extraction note (RD-007)
+### Engine/host boundary note
 
 The run/step purge half is kernel-shaped (touches only kernel tables `workflow_runs` /
 `workflow_run_steps`); the webhook half is host glue (`webhook_events` is a host table).
-The repository keeps the two concerns in separate methods so the kernel half can lift
-cleanly into the extracted library later.
+The repository keeps the two concerns in separate methods so the kernel half stays
+free of host coupling.
 
 ## Lifecycle diagram
 
