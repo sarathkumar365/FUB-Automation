@@ -1,7 +1,8 @@
 # Multi-Event Triggers — Implementation Plan
 
-> Single-phase (small, additive, no schema change). Status: PLANNED, not approved.
-> Code grounding verified 2026-06-11 against `feature/multi-event-triggers` (= dev).
+> Status: APPROVED 2026-06-18 — building in 4 phases (tracker: [phases.md](phases.md)).
+> Additive, no schema change, no migration. Code paths re-verified 2026-06-18 against
+> `dev` (post engine-seams `TriggerValidator` SPI merge).
 
 ## Contract (binding)
 
@@ -25,14 +26,33 @@
 | C7 | An entry whose filter **errors at runtime** counts as non-match (WARN log), remaining entries still evaluated | one bad entry must not veto its siblings; mirrors the router's existing per-workflow error tolerance |
 | C8 | The expression scope is built **once per (event, workflow)** and shared across entries | scope build resolves the person snapshot (DB read) — per-entry rebuilds would multiply reads for zero benefit |
 
+## Lifecycle (runtime trigger path)
+
+```mermaid
+flowchart TB
+    A["DomainEvent committed<br/>service/event/DomainEventEmitter"] --> B["WorkflowTriggerRouter.route()<br/>trigger/WorkflowTriggerRouter.java"]
+    B --> C{"ParsedTrigger.from(trigger)<br/>.subscribesTo(event.kind)?<br/>trigger/ParsedTrigger.java"}
+    C -- no --> X["skip workflow"]
+    C -- yes --> D{"EngineEchoGate.shouldExclude?<br/>service/event/EngineEchoGate.java"}
+    D -- engine echo --> X
+    D -- pass --> E["DomainEventTriggerType.matches()<br/>trigger/DomainEventTriggerType.java"]
+    E --> F["entries() + build scope ONCE (C8)<br/>DomainEventScopeBuilder.build"]
+    F --> G{"any entry: kind==event.kind AND filter truthy?<br/>per-entry try/catch (C7), first match wins"}
+    G -- none --> X
+    G -- match --> H["WorkflowExecutionManager.plan(request)<br/>service/workflow/WorkflowExecutionManager.java"]
+    H --> I["workflow_runs row + supersede by workflow_key+person"]
+```
+
+**Save path (validation):** `AutomationWorkflowService.validate` → `DomainEventTriggerValidator.validate(trigger)` (the host `TriggerValidator` SPI impl) → `ParsedTrigger.shapeErrors()` (C1–C4) + per-entry `validateEntry` (C5).
+
 ## Code changes (verified integration points)
 
 | # | Change | Where | Notes |
 |---|---|---|---|
-| 1 | **Shared trigger-shape helper** — parse a trigger map into `List<TriggerEntry(on, filter)>` (flat shape → single-entry list) + `subscribesTo(trigger, kind)` | new package-private class in `service/workflow/trigger/` | single source of shape truth; both runtime call sites use it so they cannot drift |
-| 2 | `matches(event, config)` iterates entries: kind match → lazy-build scope once (C8) → evaluate entry filter (C7 per-entry catch) | `DomainEventTriggerType.java:47-62` (current single-string logic at :51-54 replaced) | public behavior for flat triggers byte-for-byte identical |
-| 3 | Router pre-check uses the helper instead of `String.valueOf(trigger.get("on")).equals(...)` | `WorkflowTriggerRouter.java:84-90` | keeps the cheap pre-filter before the echo gate; echo gate itself untouched (kind-agnostic, top-level) |
-| 4 | Validator: shape rules C1–C4; refactor the existing body (:67-127) into `validateEntry(on, filter, errors)`; flat path calls it once, `anyOf` path per entry | `DomainEventTriggerValidator.java` | the per-kind scope checks (:120-127) move into `validateEntry` unchanged — C5 falls out of the refactor |
+| 1 | **`ParsedTrigger` (record) — single shape authority.** `from(Map)` → `List<TriggerEntry(on, filter)>` (flat → 1 entry, `anyOf` → N) + `subscribesTo(kind)` + `shapeErrors()` (pure C1–C4). | new package-private records `ParsedTrigger`/`TriggerEntry` in `service/workflow/trigger/` | one parser used by **all three** readers (router, matcher, validator) so shape can't drift; infra-bound checks stay in the services |
+| 2 | `matches()` iterates `entries()`: kind match → lazy-build scope **once** (C8) → per-entry filter eval in a **per-entry try/catch** (C7). First match wins. | `DomainEventTriggerType.java:46-61` (single-string read at :50-54 replaced) | flat behaviour byte-for-byte identical |
+| 3 | Router: replace **both** the null-`on` skip (`:81`) **and** the kind equality (`:85`) with `ParsedTrigger.subscribesTo(event.kind)`. ⚠️ `:81` would otherwise drop `anyOf` (no top-level `on`). | `WorkflowTriggerRouter.java:81,85` | echo gate (`:89`) + whole-trigger try/catch (`:97`) untouched |
+| 4 | Validator: prepend `shapeErrors()` (C1–C4); refactor body into `validateEntry(on, filter, errors)`; flat calls once, `anyOf` per entry; per-kind scope checks move in unchanged (C5). | `DomainEventTriggerValidator.java:65-131` | SPI call-sites (`AutomationWorkflowService:284,346`) unchanged — engine SPI stays `Map`-based |
 | 5 | Admin catalog: trigger-shape doc string gains the `anyOf` form | `AdminWorkflowController.getTriggerTypes()` | string-level |
 | 6 | `create-workflow-json` skill: document `anyOf` + when to use it | `.claude/skills/create-workflow-json/SKILL.md` | authoring guidance |
 
@@ -62,15 +82,14 @@ form-based trigger editing for `anyOf` is an explicit non-goal).
 - R2 supersede across entry paths: created-assigned run in flight → reassignment event → same-key new run supersedes the old (the correctness bonus, proven)
 - R3 echo-gated event (`origin=ENGINE`, no opt-in) skipped before any entry evaluation
 
-## Order of work
+## Order of work (4 phases — tracker: [phases.md](phases.md))
 
-1. Helper + trigger-type change + unit tests (T1–T4)
-2. Validator refactor + unit tests (V1–V7)
-3. Router change + integration tests (R1–R3)
-4. Docstrings + skill update
-5. Full suite green (`./mvnw clean test` — repo policy)
+Strict order; each phase compiles green and is reviewable alone.
 
-One PR-sized unit; each step compiles green independently.
+1. **Phase 1 — shape authority + matcher.** `ParsedTrigger`/`TriggerEntry` records; `matches()` iterates entries (C6–C8). Tests T1–T4 + `ParsedTriggerTest`. *Dormant* (anyOf not yet saveable/routable).
+2. **Phase 2 — validator.** Shape rules C1–C4 + per-entry `validateEntry` (C5). Tests V1–V7. (anyOf saveable+matchable; **router still skips it → needs Phase 3**.)
+3. **Phase 3 — router + integration.** `ParsedTrigger.subscribesTo` at `:81`/`:85`. Tests R1–R3 (Rita repro + supersede). anyOf live end-to-end.
+4. **Phase 4 — catalog/docs + MVP repoint.** `getTriggerTypes()` + skill docs; repoint `agent_followup_enforcement_mvp` to `anyOf` (admin API + `mvp-wf.workflow.json`) + Rita verify; confirm admin-UI renders anyOf.
 
 ## Risks & detection
 
@@ -86,9 +105,8 @@ One PR-sized unit; each step compiles green independently.
 - AND-composition of events, debounce/correlation across events (different feature)
 - Per-entry `reactToEngineEvents` (C4)
 - UI form-based authoring of `anyOf` (JSON authoring; builder follow-up if ever needed)
-- Updating `agent_followup_enforcement_mvp`'s trigger — **separate follow-up step
-  after merge** (admin API, new version, Rita-replay verification), deliberately
-  not bundled with the engine change
+- *(The `agent_followup_enforcement_mvp` trigger repoint is now **in scope** as Phase 4 —
+  moved out of non-goals after the 2026-06-18 plan approval.)*
 
 ## Validation criteria (feature-level)
 
