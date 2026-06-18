@@ -116,6 +116,30 @@ class WorkflowTriggerRouterTest {
         verify(executionManager, times(0)).plan(any(WorkflowPlanRequest.class));
     }
 
+    @Test
+    void shouldRouteAnyOfTriggerSubscribedToEventKind() {
+        AutomationWorkflowRepository repository = mock(AutomationWorkflowRepository.class);
+        WorkflowExecutionManager executionManager = mock(WorkflowExecutionManager.class);
+        DomainEventTriggerType triggerType = mock(DomainEventTriggerType.class);
+        when(triggerType.matches(any(DomainEvent.class), any())).thenReturn(true);
+        when(triggerType.extractEntities(any(DomainEvent.class))).thenReturn(List.of(new EntityRef("person", "1")));
+        when(executionManager.plan(any(WorkflowPlanRequest.class)))
+                .thenReturn(new WorkflowPlanningResult(WorkflowPlanningResult.PlanningStatus.PLANNED, 1L, null));
+
+        AutomationWorkflowEntity anyOfWf = workflow(1L, "WF_ANYOF", Map.of("anyOf", List.of(
+                Map.of("on", "person.created"),
+                Map.of("on", KIND))));
+        when(repository.findByStatus(WorkflowStatus.ACTIVE)).thenReturn(List.of(anyOfWf));
+
+        WorkflowTriggerRouter router = router(repository, triggerType, new EngineEchoGate(false),
+                executionManager, new WorkflowTriggerRouterProperties());
+
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(event(KIND, false));
+
+        assertEquals(1, summary.matchedWorkflowCount());
+        assertEquals(1, summary.plannedCount());
+    }
+
     private WorkflowTriggerRouter router(
             AutomationWorkflowRepository repository,
             DomainEventTriggerType triggerType,

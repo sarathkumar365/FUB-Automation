@@ -6,7 +6,7 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 |---|---|---|
 | 1 | Shape authority + matcher | ✅ Done |
 | 2 | Validator | ✅ Done |
-| 3 | Router + integration | ☐ Not started |
+| 3 | Router + integration | ✅ Done |
 | 4 | Catalog/docs + MVP repoint | ☐ Not started |
 
 ## Phase definitions
@@ -33,7 +33,9 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 - `WorkflowTriggerRouter.route()`: replace `:81` null-`on` skip + `:85` kind equality with `ParsedTrigger.from(trigger)` → skip if no entries; `subscribesTo(event.eventKind())`. Echo gate (`:89`) + `matches()` try/catch (`:97`) untouched.
 - Tests: `WorkflowTriggerRouterTest` / `WorkflowTriggerRouterIntegrationTest` R1–R3; `person-21007-*` replay fixture for R2 (supersede across entry paths).
 - Done: anyOf live end-to-end; `./mvnw clean test` green.
+- R2 (supersede across entry paths): covered by existing key-scoping tests, not a separate test (see implementation notes).
 - Repo decisions impact: No.
+- Implementation notes: [phase-3-implementation.md](phase-3-implementation.md)
 
 ### Phase 4 — Catalog/docs + MVP repoint
 - `AdminWorkflowController.getTriggerTypes()`: document the `anyOf` shape.
