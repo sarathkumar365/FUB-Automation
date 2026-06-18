@@ -311,6 +311,11 @@ class WorkflowRetryDispatchTest {
             }
 
             @Override
+            public StepCategory category() {
+                return StepCategory.BUSINESS;
+            }
+
+            @Override
             public Map<String, Object> configSchema() {
                 return Map.of();
             }
