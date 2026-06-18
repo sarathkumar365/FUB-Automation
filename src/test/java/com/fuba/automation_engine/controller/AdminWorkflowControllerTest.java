@@ -528,7 +528,35 @@ class AdminWorkflowControllerTest {
                         .content(requestJson))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.valid").value(false))
-                .andExpect(jsonPath("$.errors", hasItem("trigger.on is required (domain-event trigger: { on, filter })")));
+                .andExpect(jsonPath("$.errors", hasItem("trigger must declare one of 'on' or 'anyOf'")));
+    }
+
+    @Test
+    void shouldAcceptAnyOfTriggerOnValidate() throws Exception {
+        String requestJson = """
+                {
+                  "graph": {
+                    "schemaVersion": 1,
+                    "entryNode": "d1",
+                    "nodes": [
+                      { "id": "d1", "type": "delay", "config": { "delayMinutes": 0 },
+                        "transitions": { "DONE": { "terminal": "COMPLETED" } } }
+                    ]
+                  },
+                  "trigger": {
+                    "anyOf": [
+                      { "on": "person.created", "filter": "person.kind = 'LEAD'" },
+                      { "on": "person.state_changed", "filter": "change.assignedUserId.changed" }
+                    ]
+                  }
+                }
+                """;
+
+        mockMvc.perform(post("/admin/workflows/validate")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(requestJson))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valid").value(true));
     }
 
     @Test

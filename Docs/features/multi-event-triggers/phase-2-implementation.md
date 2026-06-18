@@ -49,3 +49,18 @@ No — local feature concern (host trigger glue); no boundary moved, no RD.
 
 - `service/workflow/trigger/DomainEventTriggerValidator.java`
 - test `DomainEventTriggerValidatorTest.java`
+
+## Follow-up fix (2026-06-18)
+
+A second save-time reader was missed. `AutomationWorkflowService.validate()` and
+`validateTrigger()` pre-guarded on `trigger.get("on")` *before* delegating to the SPI
+validator, so an `anyOf` trigger was rejected with `trigger.on is required (...)` at
+save/update — surfaced as a UI error when repointing the MVP workflow. This is exactly the
+multi-reader drift the helper was meant to prevent; the recon for Phase 2 caught the SPI
+call-sites but not the adjacent inline guards. Fixed by dropping both pre-guards so they
+delegate to the SPI validator (which handles `on` / `anyOf` / missing). Regression test:
+`AdminWorkflowControllerTest#shouldAcceptAnyOfTriggerOnValidate`; the unknown-trigger
+assertion now expects the C1 message.
+
+- `service/workflow/AutomationWorkflowService.java`
+- test `AdminWorkflowControllerTest.java`
