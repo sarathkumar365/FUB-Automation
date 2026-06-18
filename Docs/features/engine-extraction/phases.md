@@ -16,8 +16,9 @@
 ## Group 0 — Finalize decisions (blocks everything; ~1 sitting)
 Status: `NOT STARTED`
 
-- [ ] **0.1** Lock GitHub handle/org for namespace → `io.github.<handle>.inline.*` (or buy a domain for `io.inline` / `dev.inline`).
-- [ ] **0.2** Module shape for v0.1: single `inline-engine` artifact (recommended) vs. early `-core`/`-spring` split (deferred to v0.2).
+- [ ] **0.0** Pick the name from the RD-007 shortlist: **Tenon** (recommended), Mainspring, Wend, Sinew, Gradus (collision-checked 2026-06-10; replaces `Inline`). `<name>` below = the winner.
+- [ ] **0.1** Lock GitHub handle/org for namespace → `io.github.<handle>.<name>.*` (or buy a domain for `io.<name>` / `<name>.dev`).
+- [ ] **0.2** Module shape for v0.1: single `<name>-engine` artifact (recommended) vs. early `-core`/`-spring` split (deferred to v0.2).
 - [ ] **0.3** `domain_event_id` column fate in OSS schema: keep as opaque correlation `BIGINT`, or drop entirely. *Recommend: rename `webhook_event_id`→generic, drop `domain_event_id`.*
 - [x] **0.4** Trigger-validation seam → **dedicated `TriggerValidator` SPI** (resolved 2026-06-16; trigger validation is workflow-scoped, won't fold into the per-node `GraphValidationRule`). `DomainEventTriggerValidator` re-plugs by implementing it. See [`phase-1-contributor-spi.md`](./phase-1-contributor-spi.md).
 - [ ] **0.5** Repo name + visibility (public from day 1 vs. private until polished).
@@ -58,10 +59,10 @@ Status: `NOT STARTED`
 ## Group 4 — New OSS project scaffolding (~half day, parallel with Group 2)
 Status: `NOT STARTED`
 
-- [ ] **4.1** Create GitHub repo (`inline` / `inline-engine`); branch protection.
-- [ ] **4.2** Maven skeleton: `pom.xml` (group `io.github.<handle>`, artifact `inline-engine`, Boot 4.0.3, Java 21, deps from Group 1), `.gitignore`, `.mvn` wrapper.
+- [ ] **4.1** Create GitHub repo (`<name>` / `<name>-engine`); branch protection.
+- [ ] **4.2** Maven skeleton: `pom.xml` (group `io.github.<handle>`, artifact `<name>-engine`, Boot 4.0.3, Java 21, deps from Group 1), `.gitignore`, `.mvn` wrapper.
 - [ ] **4.3** `LICENSE` (Apache 2.0) + per-file header policy.
-- [ ] **4.4** Layout: `inline-engine/` (library) + `examples/` (runnable Boot app) + `docs/`.
+- [ ] **4.4** Layout: `<name>-engine/` (library) + `examples/` (runnable Boot app) + `docs/`.
 - [ ] **4.5** CI: GitHub Actions build + test (Postgres service container / Testcontainers).
 - [ ] **4.6** `docker-compose.yml` (Postgres) for the example app + local dev.
 - [ ] **4.7** **Spring Boot auto-configuration** (the task that makes it a real library). Today there is **no auto-config** — the engine only works via the host's component scan. Add: an `@AutoConfiguration` class registering the engine beans, `@EntityScan`/`@EnableJpaRepositories` for the engine's entities + repos, a `META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports` entry, and default `@ConditionalOnMissingBean` beans for `Clock` and `ObjectMapper`. Goal: a consumer adds the jar + a datasource and the engine just works.
@@ -111,7 +112,7 @@ Once Groups 0–6 are done and Group 3 has proven a standalone compile, the lift
 ```
 phase-1-contributor-spi.md   ← detailed SPI design (if 2.1/2.3 need more than the in-place refactor)
 phase-2-module-split.md      ← physically move clean code into the Group 4 scaffold;
-                                wholesale package rename com.fuba.automation_engine.* → io.github.<handle>.inline.*
+                                wholesale package rename com.fuba.automation_engine.* → io.github.<handle>.<name>.*
                                 (large mechanical import rewrite across every moved file)
 phase-3-examples-readme.md   ← example steps, sample workflow JSON, README, docker-compose
 ```

@@ -1,6 +1,7 @@
 package com.fuba.automation_engine.service.workflow.steps;
 
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -17,6 +18,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class HttpRequestWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.UTILITY;
+    }
 
     public static final String FAILED = "FAILED";
     public static final String METHOD_MISSING = "METHOD_MISSING";

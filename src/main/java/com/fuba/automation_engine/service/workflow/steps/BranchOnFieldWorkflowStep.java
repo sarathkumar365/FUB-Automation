@@ -1,5 +1,6 @@
 package com.fuba.automation_engine.service.workflow.steps;
 
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -18,6 +19,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class BranchOnFieldWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.CONTROL;
+    }
 
     public static final String EXPRESSION_MISSING = "EXPRESSION_MISSING";
     public static final String EXPRESSION_EVAL_ERROR = "EXPRESSION_EVAL_ERROR";

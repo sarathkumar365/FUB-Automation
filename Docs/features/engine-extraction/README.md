@@ -123,10 +123,10 @@ The bulk of the remaining work is **packaging, not refactoring**: new Maven modu
 
 ## Decisions locked
 
-- **Name:** `Inline` (thesis: runs inline with the host app, not as a separate cluster). Maven artifact likely `inline-engine`; namespace `io.github.<handle>.inline.*` to start.
+- **Name:** open — shortlist of 5 in [RD-007](../../repo-decisions/RD-007-engine-as-standalone-library.md): **Tenon** (recommended), Mainspring, Wend, Sinew, Gradus; collision-checked 2026-06-10. Replaces the earlier `Inline` pick. Maven artifact `<name>` or `<name>-engine`; namespace `io.github.<handle>.<name>.*` to start.
 - **License:** Apache 2.0.
 - **v0.1.0:** Spring Boot only (JPA + scheduled worker), shipped as-is.
-- **v0.2.0 (roadmap):** split `inline-core` (pure-Java SPI + execution, persistence behind a `RunStore` interface) from `inline-spring` (Boot starter), enabling Quarkus/Micronaut/plain-JVM hosts.
+- **v0.2.0 (roadmap):** split `<name>-core` (pure-Java SPI + execution, persistence behind a `RunStore` interface) from `<name>-spring` (Boot starter), enabling Quarkus/Micronaut/plain-JVM hosts.
 
 ## Out of scope
 

@@ -28,6 +28,7 @@ class WorkflowGraphValidatorFieldReferenceTest {
         @Override public String id() { return "any_config_step"; }
         @Override public String displayName() { return "Any-config step (test)"; }
         @Override public String description() { return "Test step that accepts any config shape."; }
+        @Override public StepCategory category() { return StepCategory.BUSINESS; }
         @Override public Map<String, Object> configSchema() { return Map.of("type", "object"); }
         @Override public Set<String> declaredResultCodes() { return Set.of("DONE"); }
         @Override public StepExecutionResult execute(StepExecutionContext context) { return StepExecutionResult.success("DONE"); }

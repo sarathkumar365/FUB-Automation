@@ -8,6 +8,7 @@ import com.fuba.automation_engine.service.fub.FubCallHelper;
 import com.fuba.automation_engine.service.model.CreateNoteCommand;
 import com.fuba.automation_engine.service.model.CreatedNote;
 import com.fuba.automation_engine.service.workflow.RetryPolicy;
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -45,6 +46,11 @@ import org.springframework.stereotype.Component;
  */
 @Component
 public class FubCreateNoteWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.BUSINESS;
+    }
 
     public static final String SUCCESS = "SUCCESS";
     public static final String FAILED = "FAILED";

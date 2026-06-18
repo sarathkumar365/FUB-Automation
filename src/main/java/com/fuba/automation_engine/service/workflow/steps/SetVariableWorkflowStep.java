@@ -1,5 +1,6 @@
 package com.fuba.automation_engine.service.workflow.steps;
 
+import com.fuba.automation_engine.service.workflow.StepCategory;
 import com.fuba.automation_engine.service.workflow.StepExecutionContext;
 import com.fuba.automation_engine.service.workflow.StepExecutionResult;
 import com.fuba.automation_engine.service.workflow.WorkflowStepType;
@@ -10,6 +11,11 @@ import org.springframework.stereotype.Component;
 
 @Component
 public class SetVariableWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.UTILITY;
+    }
 
     static final String VARIABLE_NAME_MISSING = "VARIABLE_NAME_MISSING";
 
