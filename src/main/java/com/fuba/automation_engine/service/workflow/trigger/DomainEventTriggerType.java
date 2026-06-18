@@ -7,23 +7,23 @@ import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluato
 import com.fuba.automation_engine.service.workflow.expression.ExpressionScope;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 /**
- * Trigger that fires on domain events. Deliberately standalone — it does NOT
- * implement the webhook-shaped {@link WorkflowTriggerType}, which is deleted in
- * Phase 4d along with the rest of the webhook trigger path. Config shape:
- * {@code { "on": "<event_kind>", "filter": "<JSONata>" }}.
- *
- * <p>Built in 4b but not yet wired to the dispatcher — that happens in 4d.
+ * Trigger that fires on domain events. Reads both the flat
+ * {@code { "on": "<kind>", "filter": "<JSONata>" }} and the
+ * {@code { "anyOf": [ { "on": ..., "filter": ... }, ... ] }} shapes through
+ * {@link ParsedTrigger}; the workflow fires if any entry matches.
  */
 @Component
 public class DomainEventTriggerType {
 
+    private static final Logger log = LoggerFactory.getLogger(DomainEventTriggerType.class);
+
     public static final String TRIGGER_TYPE_ID = "domain_event";
 
-    private static final String CONFIG_ON = "on";
-    private static final String CONFIG_FILTER = "filter";
     private static final String ENTITY_TYPE_PERSON = "person";
 
     private final PersonSnapshotResolver personSnapshotResolver;
@@ -47,17 +47,31 @@ public class DomainEventTriggerType {
         if (event == null || config == null) {
             return false;
         }
-        String on = asString(config.get(CONFIG_ON));
-        if (on == null || !on.equals(event.eventKind())) {
-            return false;
+        ParsedTrigger parsed = ParsedTrigger.from(config);
+        Map<String, Object> scope = null;
+        for (TriggerEntry entry : parsed.entries()) {
+            if (entry.on() == null || !entry.on().equals(event.eventKind())) {
+                continue;
+            }
+            String filter = entry.filter();
+            if (filter == null || filter.isBlank()) {
+                return true; // kind matched and no further predicate
+            }
+            if (scope == null) {
+                scope = scopeBuilder.build(event, resolvePerson(event));
+            }
+            try {
+                Object result = expressionEvaluator.evaluatePredicate(filter, new ExpressionScope(scope));
+                if (isTruthy(result)) {
+                    return true;
+                }
+            } catch (RuntimeException ex) {
+                // a failing filter is a non-match, not a veto on the sibling entries
+                log.warn("Trigger filter errored; treating entry as non-match eventId={} kind={} on={}",
+                        event.id(), event.eventKind(), entry.on(), ex);
+            }
         }
-        String filter = asString(config.get(CONFIG_FILTER));
-        if (filter == null || filter.isBlank()) {
-            return true; // kind matched and no further predicate
-        }
-        Map<String, Object> scope = scopeBuilder.build(event, resolvePerson(event));
-        Object result = expressionEvaluator.evaluatePredicate(filter, new ExpressionScope(scope));
-        return isTruthy(result);
+        return false;
     }
 
     public List<EntityRef> extractEntities(DomainEvent event) {
@@ -72,13 +86,6 @@ public class DomainEventTriggerType {
             return personSnapshotResolver.resolve(event.entityId());
         }
         return Map.of();
-    }
-
-    private String asString(Object value) {
-        if (value == null) {
-            return null;
-        }
-        return String.valueOf(value).trim();
     }
 
     private boolean isTruthy(Object value) {

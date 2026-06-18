@@ -4,7 +4,7 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 
 | Phase | Title | Status |
 |---|---|---|
-| 1 | Shape authority + matcher | ☐ Not started |
+| 1 | Shape authority + matcher | ◐ Implemented — in review |
 | 2 | Validator | ☐ Not started |
 | 3 | Router + integration | ☐ Not started |
 | 4 | Catalog/docs + MVP repoint | ☐ Not started |
@@ -18,6 +18,7 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 - Tests: `ParsedTriggerTest` (shape parse); `DomainEventTriggerTypeTest` T1–T4.
 - Done: unit green; flat behaviour identical. anyOf dormant (not yet saveable/routable).
 - Repo decisions impact: No.
+- Implementation notes: [phase-1-implementation.md](phase-1-implementation.md)
 
 ### Phase 2 — Validator
 - `DomainEventTriggerValidator.validate()`: prepend `ParsedTrigger.shapeErrors()` (C1–C4); refactor body into `validateEntry(on, filter, errors)`; flat once, anyOf per entry; per-kind scope checks unchanged (C5). `reactToEngineEvents` stays top-level.
