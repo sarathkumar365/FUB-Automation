@@ -181,4 +181,17 @@ class DomainEventTriggerValidatorTest {
                 Map.of("on", "person.state_changed", "filter", "change.assignedUserId.changed"))));
         assertTrue(good.isEmpty(), () -> "expected valid, got " + good);
     }
+
+    @Test
+    void mvpAnyOfTriggerIsValid() {
+        List<String> errors = validator.validate(Map.of(
+                "anyOf", List.of(
+                        Map.of("on", "person.created",
+                                "filter", "person.kind = 'LEAD' and $boolean(person.assignedUserId)"),
+                        Map.of("on", "person.state_changed",
+                                "filter", "person.kind = 'LEAD' and change.assignedUserId.changed "
+                                        + "and $boolean(change.assignedUserId.new)")),
+                "reactToEngineEvents", false));
+        assertTrue(errors.isEmpty(), () -> "expected valid MVP trigger, got " + errors);
+    }
 }

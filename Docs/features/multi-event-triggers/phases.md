@@ -7,7 +7,7 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 | 1 | Shape authority + matcher | ✅ Done |
 | 2 | Validator | ✅ Done |
 | 3 | Router + integration | ✅ Done |
-| 4 | Catalog/docs + MVP repoint | ☐ Not started |
+| 4 | Catalog/docs + MVP repoint | ◐ Code done — live repoint pending |
 
 ## Phase definitions
 
@@ -43,4 +43,6 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 - Repoint `agent_followup_enforcement_mvp` trigger to `anyOf` (admin API new version + `mvp-wf.workflow.json`); verify the Rita repro/replay.
 - Confirm the admin UI renders an `anyOf` trigger (JSON passthrough — verify, don't assume).
 - Done: catalog shows `anyOf`; MVP fires for created-assigned + reassigned; suite green.
+- Remaining (operational): POST the repointed workflow, Rita-replay verify, confirm admin-UI render.
 - Repo decisions impact: No.
+- Implementation notes: [phase-4-implementation.md](phase-4-implementation.md)

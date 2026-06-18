@@ -404,6 +404,7 @@ class AdminWorkflowControllerTest {
         mockMvc.perform(get("/admin/workflows/trigger-types"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.shape").exists())
+                .andExpect(jsonPath("$.anyOfShape").exists())
                 .andExpect(jsonPath("$.eventKinds", hasItems("person.state_changed", "person.created")));
     }
 
