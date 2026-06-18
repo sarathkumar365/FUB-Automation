@@ -36,7 +36,8 @@ class WorkflowGraphValidatorFieldReferenceTest {
     @BeforeEach
     void setUp() {
         WorkflowStepRegistry registry = new WorkflowStepRegistry(List.of(new DelayWorkflowStep(), ANY_CONFIG_STEP));
-        validator = new WorkflowGraphValidator(registry);
+        validator = new WorkflowGraphValidator(registry,
+                List.of(new com.fuba.automation_engine.service.workflow.rule.PersonFieldGraphValidationRule()));
     }
 
     @Test

@@ -4,7 +4,7 @@ import com.fuba.automation_engine.persistence.entity.AutomationWorkflowEntity;
 import com.fuba.automation_engine.persistence.entity.WorkflowStatus;
 import com.fuba.automation_engine.persistence.repository.AutomationWorkflowRepository;
 import com.fuba.automation_engine.service.support.KeyNormalizationHelper;
-import com.fuba.automation_engine.service.workflow.trigger.DomainEventTriggerValidator;
+import com.fuba.automation_engine.service.workflow.spi.TriggerValidator;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -24,17 +24,17 @@ public class AutomationWorkflowService {
     private final AutomationWorkflowRepository workflowRepository;
     private final WorkflowGraphValidator graphValidator;
     private final WorkflowStepRegistry stepRegistry;
-    private final DomainEventTriggerValidator domainEventTriggerValidator;
+    private final TriggerValidator triggerValidator;
 
     public AutomationWorkflowService(
             AutomationWorkflowRepository workflowRepository,
             WorkflowGraphValidator graphValidator,
             WorkflowStepRegistry stepRegistry,
-            DomainEventTriggerValidator domainEventTriggerValidator) {
+            TriggerValidator triggerValidator) {
         this.workflowRepository = workflowRepository;
         this.graphValidator = graphValidator;
         this.stepRegistry = stepRegistry;
-        this.domainEventTriggerValidator = domainEventTriggerValidator;
+        this.triggerValidator = triggerValidator;
     }
 
     public CreateResult create(
@@ -281,7 +281,7 @@ public class AutomationWorkflowService {
         if (trigger == null || trigger.isEmpty()) {
             errors.add("trigger is required");
         } else if (trigger.get("on") != null) {
-            errors.addAll(domainEventTriggerValidator.validate(trigger));
+            errors.addAll(triggerValidator.validate(trigger));
         } else {
             errors.add("trigger.on is required (domain-event trigger: { on, filter })");
         }
@@ -343,7 +343,7 @@ public class AutomationWorkflowService {
         if (trigger.get("on") == null) {
             return "trigger.on is required (domain-event trigger: { on, filter })";
         }
-        List<String> errors = domainEventTriggerValidator.validate(trigger);
+        List<String> errors = triggerValidator.validate(trigger);
         return errors.isEmpty() ? null : String.join("; ", errors);
     }
 

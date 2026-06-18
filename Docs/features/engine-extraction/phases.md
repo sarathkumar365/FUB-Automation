@@ -19,7 +19,7 @@ Status: `NOT STARTED`
 - [ ] **0.1** Lock GitHub handle/org for namespace → `io.github.<handle>.inline.*` (or buy a domain for `io.inline` / `dev.inline`).
 - [ ] **0.2** Module shape for v0.1: single `inline-engine` artifact (recommended) vs. early `-core`/`-spring` split (deferred to v0.2).
 - [ ] **0.3** `domain_event_id` column fate in OSS schema: keep as opaque correlation `BIGINT`, or drop entirely. *Recommend: rename `webhook_event_id`→generic, drop `domain_event_id`.*
-- [ ] **0.4** Trigger-validation seam: fold host trigger validation into the `GraphValidationRule` SPI, or a dedicated `TriggerValidator` hook. (Affects how `DomainEventTriggerValidator` re-plugs.)
+- [x] **0.4** Trigger-validation seam → **dedicated `TriggerValidator` SPI** (resolved 2026-06-16; trigger validation is workflow-scoped, won't fold into the per-node `GraphValidationRule`). `DomainEventTriggerValidator` re-plugs by implementing it. See [`phase-1-contributor-spi.md`](./phase-1-contributor-spi.md).
 - [ ] **0.5** Repo name + visibility (public from day 1 vs. private until polished).
 
 → When settled, record in [`RD-007`](../../repo-decisions/RD-007-engine-as-standalone-library.md).
@@ -35,7 +35,7 @@ Status: `NOT STARTED`
 - [ ] **1.4** Pin Spring Boot 4.0.3 / Java 21 as the engine baseline.
 
 ## Group 2 — In-place decoupling refactors (in THIS repo, tests green; ~1–1.5 days)
-Status: `NOT STARTED`
+Status: `NOT STARTED` · **Design:** [`phase-1-contributor-spi.md`](./phase-1-contributor-spi.md) (4th leak `AutomationWorkflowService→DomainEventTriggerValidator` added; 3 SPIs, 3 commits).
 
 > Each task: change → run full suite → commit. No code moves yet.
 

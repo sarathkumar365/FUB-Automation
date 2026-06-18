@@ -3,6 +3,7 @@ package com.fuba.automation_engine.service.workflow.trigger;
 import com.fuba.automation_engine.service.person.PersonDiffComputer;
 import com.fuba.automation_engine.service.person.PersonUpsertService;
 import com.fuba.automation_engine.service.workflow.expression.ExpressionEvaluator;
+import com.fuba.automation_engine.service.workflow.spi.TriggerValidator;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -33,7 +34,7 @@ import org.springframework.stereotype.Component;
  * field-checked — a documented gap (known-issue #30) until a consumer exists.
  */
 @Component
-public class DomainEventTriggerValidator {
+public class DomainEventTriggerValidator implements TriggerValidator {
 
     private static final String PERSON_CREATED = PersonUpsertService.EVENT_KIND_PERSON_CREATED;
     private static final String PERSON_STATE_CHANGED = PersonUpsertService.EVENT_KIND_PERSON_STATE_CHANGED;
