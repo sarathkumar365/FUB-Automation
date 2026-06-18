@@ -36,17 +36,23 @@ for f in src/main/java/com/fuba/automation_engine/service/workflow/steps/*.java;
 done
 ```
 
-### 2. Enumerate available trigger types
+### 2. Enumerate available trigger event kinds
+
+Triggers are domain-event subscriptions, not typed `trigger.type` objects. There is one trigger implementation (`DomainEventTriggerType`, id `domain_event`); the workflow JSON never names it — you author `on` / `anyOf` directly. What varies per workflow is the **event kind** you subscribe to.
 
 ```bash
-ls src/main/java/com/fuba/automation_engine/service/workflow/trigger/*.java
+# Source of truth for valid `on` kinds + the trigger shape:
+cat src/main/java/com/fuba/automation_engine/service/workflow/trigger/DomainEventTriggerValidator.java
+# Or at runtime:
+curl -s localhost:8080/admin/workflows/trigger-types
 ```
 
-Read each `WorkflowTriggerType` impl. Extract:
+From `DomainEventTriggerValidator` extract:
 
-- `TRIGGER_TYPE_ID` / `id()` — value for `trigger.type`
-- `configSchema()` — required keys (e.g. `eventDomain`, `eventAction`, `filter`)
-- The `matches()` method to understand the exact filter scope — variables available inside the JSONata filter are usually narrower than step-execution scope
+- `knownEventKinds()` — the valid `on` values (currently `person.created`, `person.state_changed`, `call.created`, `note.created`, `note.updated`, `note.deleted`)
+- `validateEntry()` — the field-reference rules the filter must obey (which `change.*` / `current.*` / `person.*` fields are legal for a given kind), so a draft filter passes save-time validation
+
+Read `ParsedTrigger.java` for the exact `on` vs `anyOf` shape rules, and `DomainEventScopeBuilder.java` for the variables available inside a filter (see step 3).
 
 ### 3. Inspect ExpressionScope for available template variables
 
@@ -54,7 +60,14 @@ Read each `WorkflowTriggerType` impl. Extract:
 cat src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java
 ```
 
-Look at top-level keys exposed (`event`, `lead`, `now`, `steps`, `sourceLeadId`, etc.). Step configs reference these via `{{ ... }}` JSONata templates. Trigger filter scope is separate and narrower — verify per trigger.
+Look at top-level keys exposed (`event`, `lead`, `now`, `steps`, `sourceLeadId`, etc.). Step configs reference these via `{{ ... }}` JSONata templates. **Trigger filter scope is separate and narrower** — it is built by `DomainEventScopeBuilder`, not `ExpressionScope`. Inside a trigger `filter` the available variables are:
+
+- `event.*` — `event.kind`, `event.id`, `event.entityType`, `event.entityId`, `event.payload.*`, and `event.origin` (`"ENGINE"` or `"EXTERNAL"`, always present)
+- `current.*` — captured person snapshot fields (`person.created` carries the full snapshot; `person.state_changed` carries only the changed fields)
+- `change.*` — per-field deltas, `person.state_changed` only: `change.<field>.changed` / `.old` / `.new`
+- `person.*` — the captured person snapshot
+
+There is no `lead.*` in trigger scope.
 
 ### 4. Optional: inspect existing workflows in the local DB
 
@@ -64,7 +77,7 @@ PGPASSWORD=sarathkumar psql -U sarathkumar -h localhost -d automation_engine -c 
    FROM automation_workflows WHERE status = 'ACTIVE' ORDER BY id;"
 ```
 
-Prefer `ACTIVE` rows. Archived rows may use stale enum values (e.g. domain `ASSIGNMENT` was renamed to `LEAD` in V18). DB connection details: `src/main/resources/application.properties` under `spring.datasource.*`.
+Prefer `ACTIVE` rows. Archived rows may use the old webhook-era trigger shape (`{ "type", "config", "eventDomain", "eventAction" }`) that the domain-event migration removed — do not copy their `trigger` JSON. DB connection details: `src/main/resources/application.properties` under `spring.datasource.*`.
 
 ### 5. Verify the request DTO shape
 
@@ -85,8 +98,8 @@ The top-level fields go to `CreateWorkflowRequest`. The `graph` object has its o
   "description": "What this workflow does and when it fires",
   "status": "ACTIVE",
   "trigger": {
-    "type": "<trigger.id() from discovery>",
-    "config": {}
+    "on": "<eventKind from /admin/workflows/trigger-types>",
+    "filter": "<JSONata predicate, optional>"
   },
   "graph": {
     "schemaVersion": 1,
@@ -106,6 +119,15 @@ The top-level fields go to `CreateWorkflowRequest`. The `graph` object has its o
 }
 ```
 
+### Trigger shapes
+
+The trigger is a domain-event subscription (the older `{ "type", "config" }` form is gone):
+
+- **Single kind:** `{ "on": "<eventKind>", "filter": "<JSONata?>", "reactToEngineEvents": <bool?> }`
+- **Multiple kinds (additive `anyOf`):** `{ "anyOf": [ { "on": "<kind>", "filter": "<JSONata?>" }, ... ], "reactToEngineEvents": <bool?> }` — fires if any entry matches. Use when one workflow must react to more than one event kind (e.g. a lead assigned at creation *or* reassigned later); it keeps a single `workflow_key` so run-supersede dedupes across both entry paths. Rules: exactly one of `on` / `anyOf`; no duplicate kinds across entries; `reactToEngineEvents` is top-level only; each entry's filter is validated against its own kind.
+
+Discover valid `on` kinds from `GET /admin/workflows/trigger-types`.
+
 ### Transition value formats
 
 - `["next_node_id"]` — array of one or more node IDs to advance to
@@ -117,9 +139,9 @@ There is no bare `"END"` keyword. Always use one of the two forms above.
 
 - Every result code must be handled. For each node, check `declaredResultCodes()` and ensure every code appears as a key in `transitions` (or document why one is intentionally omitted).
 - Templates use `{{ expression }}` with JSONata syntax. Reference only variables that `ExpressionScope` exposes.
-- Trigger filter scope is narrower than step scope. As of last check, `FubWebhookTriggerType` filter scope only contains `event.payload` — NOT `lead.*` (see known-issues #17). To gate on `lead.*`, add a `branch_on_field` node at the entry rather than a trigger filter.
+- Trigger filter scope is narrower than step scope (see step 3 — it's `event.*` / `current.*` / `change.*` / `person.*`, no `lead.*`). `change.*` is only valid when `on` is `person.state_changed`; `current.*` only for `person.created` / `person.state_changed`. The validator rejects a filter that references a field the event kind cannot carry (a silent-no-fire guard), so check `DomainEventTriggerValidator.validateEntry()` before drafting a filter.
 - Operator constants are inlined as literals (no `config.*` namespace exists — Phase 4 dropped). Use `__PLACEHOLDER__` markers (e.g. `__ISA_USER_ID__`) for values the user hasn't supplied; document each placeholder in the response.
-- Match enum casing exactly. `eventDomain: "LEAD"`, `eventAction: "UPDATED"` — uppercase, matches `NormalizedDomain` / `NormalizedAction`.
+- Match the `on` event kind exactly against `knownEventKinds()` (e.g. `person.state_changed`) — lowercase, dot-separated. There is no `eventDomain` / `eventAction` pair anymore; those were the deleted webhook-era fields.
 - For `branch_on_field`, the JSONata expression result is `String.valueOf()`'d, looked up in `resultMapping`, and the mapped value becomes the result code. Keys in `resultMapping` are strings like `"true"` / `"false"` / `"42"`.
 
 ## Workflow
@@ -133,7 +155,7 @@ There is no bare `"END"` keyword. Always use one of the two forms above.
    - Every node `config` key is declared in that step's `configSchema()`
    - Every `transitions` key matches a `declaredResultCodes()` entry (or is a dynamic code from `resultMapping` for `branch_on_field`)
    - Every `transitions` value is either an array of valid node IDs or a `{ "terminal": "..." }` object
-   - The `trigger.type` matches a discovered trigger ID
+   - The trigger declares exactly one of `on` / `anyOf`, every `on` value is in `knownEventKinds()`, and any `filter` only references variables legal for that kind (per `DomainEventTriggerValidator`)
    - All `{{ }}` templates reference variables present in `ExpressionScope`
    - The top-level shape matches `CreateWorkflowRequest`
 6. Present the JSON in a code block, plus a short summary of each node and any placeholders to fill in.
@@ -149,7 +171,8 @@ There is no bare `"END"` keyword. Always use one of the two forms above.
 
 - Inventing a step type because it "makes sense" — the engine rejects unknown types at validation.
 - Copying a result code from another codebase or a hallucination — only use codes from `declaredResultCodes()`.
-- Using `lead.*` in a trigger `filter` (unsupported — known-issues #17). Use a `branch_on_field` entry node instead.
-- Putting JSONata in trigger config keys other than `filter` (`eventDomain` / `eventAction` are literal-match, not expressions).
+- Using `lead.*` in a trigger `filter` — trigger scope has no `lead.*`. Use `current.*` / `change.*` / `person.*` / `event.*` (step 3), or gate on lead state with a `branch_on_field` entry node.
+- Referencing a field the event kind can't carry (e.g. `change.*` on `person.created`) — the validator rejects it at save time as a silent-no-fire guard.
+- Reaching for `eventDomain` / `eventAction` / a `trigger.type` wrapper — those are the deleted webhook-era fields; the trigger is just `{ on, filter }` or `{ anyOf: [...] }`.
 - Using bare `"END"` as a transition value — use `{ "terminal": "COMPLETED" }`.
 - Forgetting that `key` must be unique per `ACTIVE` workflow (DB enforces it).

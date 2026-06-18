@@ -280,10 +280,8 @@ public class AutomationWorkflowService {
 
         if (trigger == null || trigger.isEmpty()) {
             errors.add("trigger is required");
-        } else if (trigger.get("on") != null) {
-            errors.addAll(triggerValidator.validate(trigger));
         } else {
-            errors.add("trigger.on is required (domain-event trigger: { on, filter })");
+            errors.addAll(triggerValidator.validate(trigger));
         }
 
         Object nodesObj = graph != null ? graph.get("nodes") : null;
@@ -339,9 +337,6 @@ public class AutomationWorkflowService {
     private String validateTrigger(Map<String, Object> trigger) {
         if (trigger == null) {
             return null;
-        }
-        if (trigger.get("on") == null) {
-            return "trigger.on is required (domain-event trigger: { on, filter })";
         }
         List<String> errors = triggerValidator.validate(trigger);
         return errors.isEmpty() ? null : String.join("; ", errors);

@@ -1,7 +1,7 @@
 # Multi-Event Triggers (`anyOf`)
 
-> **Status:** PLANNED (2026-06-11) — plan written, not approved for build yet.
-> Single-phase feature. Plan: [plan.md](plan.md).
+> **Status:** APPROVED 2026-06-18 — building in 4 phases.
+> Design + contract: [plan.md](plan.md). Tracker: [phases.md](phases.md).
 
 ## Why
 
@@ -38,5 +38,5 @@ across the two entry paths — impossible with two separate workflows.
 
 ## First consumer
 
-`agent_followup_enforcement_mvp` — trigger updated to the `anyOf` example above
-after the feature ships (separate, admin-API step; not part of this change).
+`agent_followup_enforcement_mvp` — its trigger is repointed to the `anyOf` example
+above in **Phase 4** of this feature (admin-API new version + Rita-repro verification).

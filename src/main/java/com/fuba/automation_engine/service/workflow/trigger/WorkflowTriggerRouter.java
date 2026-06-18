@@ -31,7 +31,6 @@ import org.springframework.stereotype.Service;
 public class WorkflowTriggerRouter implements DomainEventListener {
 
     private static final Logger log = LoggerFactory.getLogger(WorkflowTriggerRouter.class);
-    private static final String TRIGGER_ON_KEY = "on";
 
     private final AutomationWorkflowRepository workflowRepository;
     private final DomainEventTriggerType domainEventTriggerType;
@@ -78,11 +77,7 @@ public class WorkflowTriggerRouter implements DomainEventListener {
 
         for (AutomationWorkflowEntity workflow : activeWorkflows) {
             Map<String, Object> trigger = workflow.getTrigger();
-            if (trigger == null || trigger.get(TRIGGER_ON_KEY) == null) {
-                skippedCount++;
-                continue;
-            }
-            if (!String.valueOf(trigger.get(TRIGGER_ON_KEY)).trim().equals(event.eventKind())) {
+            if (!ParsedTrigger.from(trigger).subscribesTo(event.eventKind())) {
                 skippedCount++;
                 continue;
             }

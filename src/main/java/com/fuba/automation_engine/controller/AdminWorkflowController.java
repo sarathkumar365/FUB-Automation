@@ -122,6 +122,7 @@ public class AdminWorkflowController {
     public ResponseEntity<?> getTriggerTypes() {
         return ResponseEntity.ok(Map.of(
                 "shape", "{ \"on\": <eventKind>, \"filter\": <JSONata>, \"reactToEngineEvents\": <bool> }",
+                "anyOfShape", "{ \"anyOf\": [ { \"on\": <eventKind>, \"filter\": <JSONata> }, ... ], \"reactToEngineEvents\": <bool> }",
                 "eventKinds", new TreeSet<>(DomainEventTriggerValidator.knownEventKinds())));
     }
 

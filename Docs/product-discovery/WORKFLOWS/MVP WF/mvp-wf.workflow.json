@@ -4,8 +4,11 @@
   "description": "When an agent self-assigns a lead, wait a grace period and check communication. No call attempt -> lead back to pond. Conversational -> done. Non-conversational -> follow-up task under the same agent, re-check at task date, then save or pond. Retry loop (N attempts) intentionally omitted in this MVP cut.",
   "status": "ACTIVE",
   "trigger": {
-    "on": "person.state_changed",
-    "filter": "person.kind = 'LEAD' and change.assignedUserId.changed and $boolean(change.assignedUserId.new)"
+    "anyOf": [
+      { "on": "person.created", "filter": "person.kind = 'LEAD' and $boolean(person.assignedUserId)" },
+      { "on": "person.state_changed", "filter": "person.kind = 'LEAD' and change.assignedUserId.changed and $boolean(change.assignedUserId.new)" }
+    ],
+    "reactToEngineEvents": false
   },
   "graph": {
     "schemaVersion": 1,

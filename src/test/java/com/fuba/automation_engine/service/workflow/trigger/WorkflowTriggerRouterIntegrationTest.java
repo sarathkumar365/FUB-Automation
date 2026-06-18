@@ -177,6 +177,25 @@ class WorkflowTriggerRouterIntegrationTest {
         assertEquals(WorkflowRunStatus.PENDING, runRepository.findById(x2.runId()).orElseThrow().getStatus());
     }
 
+    @Test
+    void anyOfWorkflowRoutesFromBothCreatedAndStateChanged() {
+        seedWorkflow("WF_ANYOF", WorkflowStatus.ACTIVE, mvpAnyOfTrigger());
+
+        assertEquals(1, router.route(createdAssignedEvent(21007)).plannedCount());        // born assigned (Facebook)
+        assertEquals(1, router.route(reassignmentEvent(21008)).plannedCount());            // assigned later
+        assertEquals(0, router.route(stateChangeWithoutAssignment(21009)).plannedCount()); // not an assignment
+    }
+
+    @Test
+    void anyOfEngineEchoSkippedBeforeMatching() {
+        seedWorkflow("WF_ECHO_ANYOF", WorkflowStatus.ACTIVE, mvpAnyOfTrigger());
+
+        WorkflowTriggerRouter.RoutingSummary summary = router.route(engineCausedReassignment(21010));
+
+        assertEquals(0, summary.matchedWorkflowCount());
+        assertEquals(0, summary.plannedCount());
+    }
+
     private WorkflowPlanRequest planRequest(String workflowKey, String personId, String eventId, List<String> changedFields) {
         Map<String, Object> payload = Map.of("changed_fields", changedFields);
         return new WorkflowPlanRequest(workflowKey, "FUB", eventId, null, personId, payload, null);
@@ -220,6 +239,41 @@ class WorkflowTriggerRouterIntegrationTest {
         ObjectNode payload = objectMapper.createObjectNode();
         payload.put("channel", channel);
         payload.set("changed_fields", objectMapper.valueToTree(List.of("assignedUserId")));
+        return new DomainEvent(null, "person.state_changed", "FUB", null, "person", String.valueOf(entityId), payload);
+    }
+
+    private Map<String, Object> mvpAnyOfTrigger() {
+        return Map.of("anyOf", List.of(
+                Map.of("on", "person.created", "filter", "$boolean(event.payload.assignedUserId)"),
+                Map.of("on", "person.state_changed", "filter", "change.assignedUserId.changed")));
+    }
+
+    private DomainEvent createdAssignedEvent(long entityId) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.put("assignedUserId", 10);
+        return new DomainEvent(null, "person.created", "FUB", null, "person", String.valueOf(entityId), payload);
+    }
+
+    private DomainEvent reassignmentEvent(long entityId) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.set("changed_fields", objectMapper.valueToTree(List.of("assignedUserId")));
+        payload.set("previous", objectMapper.createObjectNode().put("assignedUserId", 10));
+        payload.set("current", objectMapper.createObjectNode().put("assignedUserId", 11));
+        return new DomainEvent(null, "person.state_changed", "FUB", null, "person", String.valueOf(entityId), payload);
+    }
+
+    private DomainEvent stateChangeWithoutAssignment(long entityId) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.set("changed_fields", objectMapper.valueToTree(List.of("stage")));
+        payload.set("previous", objectMapper.createObjectNode().put("stage", "Lead"));
+        payload.set("current", objectMapper.createObjectNode().put("stage", "Customer"));
+        return new DomainEvent(null, "person.state_changed", "FUB", null, "person", String.valueOf(entityId), payload);
+    }
+
+    private DomainEvent engineCausedReassignment(long entityId) {
+        ObjectNode payload = objectMapper.createObjectNode();
+        payload.set("changed_fields", objectMapper.valueToTree(List.of("assignedUserId")));
+        payload.put("source", "ENGINE");
         return new DomainEvent(null, "person.state_changed", "FUB", null, "person", String.valueOf(entityId), payload);
     }
 }
