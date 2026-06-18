@@ -15,8 +15,11 @@ import java.util.regex.Pattern;
 import org.springframework.stereotype.Component;
 
 /**
- * Save-time validation for domain-event triggers
- * ({@code { "on": <eventKind>, "filter": <JSONata>, "reactToEngineEvents": <bool> }}).
+ * Save-time validation for domain-event triggers — the flat
+ * {@code { "on": <kind>, "filter": <JSONata>, "reactToEngineEvents": <bool> }}
+ * shape and the {@code { "anyOf": [ { "on": ..., "filter": ... }, ... ] }} shape.
+ * {@link ParsedTrigger} checks the shape; each entry's kind and filter are then
+ * validated against that kind.
  *
  * <p>Closes the silent-no-fire bug: a filter that references a field the event
  * kind does not carry can never be true, so the workflow looks healthy but
@@ -26,8 +29,8 @@ import org.springframework.stereotype.Component;
  * metadata.
  *
  * <p>Engine-echo exclusion is platform-enforced and safe-by-default
- * ({@code RD-006}), so there is no echo predicate to validate or warn about —
- * the only check on {@code reactToEngineEvents} is that it is a boolean.
+ * ({@code RD-006}), so there is no echo predicate to validate — the only
+ * top-level check on {@code reactToEngineEvents} is that it is a boolean.
  *
  * <p>Append kinds ({@code call.created}, {@code note.*}) have no declared field
  * schema (raw FUB payload), so their {@code event.payload.*} references are not
@@ -63,10 +66,21 @@ public class DomainEventTriggerValidator implements TriggerValidator {
 
     /** Returns validation errors; empty means valid. */
     public List<String> validate(Map<String, Object> trigger) {
-        List<String> errors = new ArrayList<>();
+        ParsedTrigger parsed = ParsedTrigger.from(trigger);
+        List<String> errors = new ArrayList<>(parsed.shapeErrors());
 
-        Object onObj = trigger.get("on");
-        String on = onObj instanceof String s ? s.trim() : null;
+        Object reactObj = trigger != null ? trigger.get("reactToEngineEvents") : null;
+        if (reactObj != null && !(reactObj instanceof Boolean)) {
+            errors.add("trigger.reactToEngineEvents must be a boolean");
+        }
+
+        for (TriggerEntry entry : parsed.entries()) {
+            validateEntry(entry.on(), entry.filter(), errors);
+        }
+        return errors;
+    }
+
+    private void validateEntry(String on, String filter, List<String> errors) {
         if (on == null || on.isEmpty()) {
             errors.add("trigger.on is required for a domain-event trigger");
         } else if (!KNOWN_EVENT_KINDS.contains(on)) {
@@ -74,22 +88,16 @@ public class DomainEventTriggerValidator implements TriggerValidator {
                     + ". Known: " + new TreeSet<>(KNOWN_EVENT_KINDS));
         }
 
-        Object reactObj = trigger.get("reactToEngineEvents");
-        if (reactObj != null && !(reactObj instanceof Boolean)) {
-            errors.add("trigger.reactToEngineEvents must be a boolean");
+        if (filter == null) {
+            return; // kind-only entry; nothing more to check
         }
-
-        Object filterObj = trigger.get("filter");
-        if (filterObj == null) {
-            return errors; // kind-only trigger; nothing more to check
-        }
-        if (!(filterObj instanceof String filter) || filter.isBlank()) {
+        if (filter.isBlank()) {
             errors.add("trigger.filter must be a non-empty string when present");
-            return errors;
+            return;
         }
         if (!expressionEvaluator.isValidExpression(filter)) {
             errors.add("trigger.filter is not a valid JSONata expression");
-            return errors; // can't reliably field-check an unparseable filter
+            return; // can't reliably field-check an unparseable filter
         }
 
         Set<String> changeRefs = extract(CHANGE_REF, filter);
@@ -126,8 +134,6 @@ public class DomainEventTriggerValidator implements TriggerValidator {
             errors.add("trigger.filter uses current.* but on=" + on
                     + " — current.* is only available for person.created / person.state_changed.");
         }
-
-        return errors;
     }
 
     private Set<String> extract(Pattern pattern, String s) {

@@ -4,8 +4,8 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 
 | Phase | Title | Status |
 |---|---|---|
-| 1 | Shape authority + matcher | ◐ Implemented — in review |
-| 2 | Validator | ☐ Not started |
+| 1 | Shape authority + matcher | ✅ Done |
+| 2 | Validator | ✅ Done |
 | 3 | Router + integration | ☐ Not started |
 | 4 | Catalog/docs + MVP repoint | ☐ Not started |
 
@@ -27,6 +27,7 @@ Status tracker for the `anyOf` trigger feature. Design + contract: [plan.md](pla
 - Done: validator green; flat validates identically.
 - Dependency: anyOf still not routable until Phase 3.
 - Repo decisions impact: No.
+- Implementation notes: [phase-2-implementation.md](phase-2-implementation.md)
 
 ### Phase 3 — Router + integration
 - `WorkflowTriggerRouter.route()`: replace `:81` null-`on` skip + `:85` kind equality with `ParsedTrigger.from(trigger)` → skip if no entries; `subscribesTo(event.eventKind())`. Echo gate (`:89`) + `matches()` try/catch (`:97`) untouched.

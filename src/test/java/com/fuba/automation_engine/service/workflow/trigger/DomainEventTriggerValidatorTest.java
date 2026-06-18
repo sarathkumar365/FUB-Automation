@@ -39,9 +39,9 @@ class DomainEventTriggerValidatorTest {
     }
 
     @Test
-    void missingOnRefused() {
+    void triggerWithNeitherOnNorAnyOfRefused() {
         assertTrue(hasError(validator.validate(Map.of("filter", "person.kind = 'LEAD'")),
-                "trigger.on is required"));
+                "must declare one of 'on' or 'anyOf'"));
     }
 
     @Test
@@ -118,5 +118,67 @@ class DomainEventTriggerValidatorTest {
                 "filter", "event.payload.durationSec > 60"));
         assertTrue(errors.isEmpty(), () -> "expected valid (unvalidated payload), got " + errors);
         assertFalse(hasError(errors, "durationSec"));
+    }
+
+    // --- anyOf ---
+
+    @Test
+    void anyOfWithTwoValidEntriesAccepted() {
+        List<String> errors = validator.validate(Map.of("anyOf", List.of(
+                Map.of("on", "person.created", "filter", "person.kind = 'LEAD'"),
+                Map.of("on", "person.state_changed", "filter", "change.assignedUserId.changed"))));
+        assertTrue(errors.isEmpty(), () -> "expected valid, got " + errors);
+    }
+
+    @Test
+    void triggerWithBothOnAndAnyOfRefused() {
+        List<String> errors = validator.validate(Map.of(
+                "on", "person.created",
+                "anyOf", List.of(Map.of("on", "person.state_changed"))));
+        assertTrue(hasError(errors, "exactly one of 'on' or 'anyOf'"));
+    }
+
+    @Test
+    void emptyAnyOfRefused() {
+        assertTrue(hasError(validator.validate(Map.of("anyOf", List.of())),
+                "anyOf must be a non-empty array"));
+    }
+
+    @Test
+    void anyOfEntryMissingOnRefused() {
+        assertTrue(hasError(validator.validate(Map.of("anyOf", List.of(Map.of("filter", "person.kind = 'LEAD'")))),
+                "on is required"));
+    }
+
+    @Test
+    void anyOfEntryUnknownKindRefused() {
+        assertTrue(hasError(validator.validate(Map.of("anyOf", List.of(Map.of("on", "person.exploded")))),
+                "unknown event kind"));
+    }
+
+    @Test
+    void anyOfDuplicateKindsRefused() {
+        List<String> errors = validator.validate(Map.of("anyOf", List.of(
+                Map.of("on", "person.created", "filter", "person.kind = 'LEAD'"),
+                Map.of("on", "person.created", "filter", "person.kind = 'AGENT'"))));
+        assertTrue(hasError(errors, "duplicate kind"));
+    }
+
+    @Test
+    void reactToEngineEventsInsideEntryRefused() {
+        List<String> errors = validator.validate(Map.of("anyOf", List.of(
+                Map.of("on", "person.created", "reactToEngineEvents", false))));
+        assertTrue(hasError(errors, "reactToEngineEvents is not allowed"));
+    }
+
+    @Test
+    void anyOfEntryFilterCheckedAgainstItsOwnKind() {
+        List<String> bad = validator.validate(Map.of("anyOf", List.of(
+                Map.of("on", "person.created", "filter", "change.assignedUserId.changed"))));
+        assertTrue(hasError(bad, "change.* is only available for person.state_changed"));
+
+        List<String> good = validator.validate(Map.of("anyOf", List.of(
+                Map.of("on", "person.state_changed", "filter", "change.assignedUserId.changed"))));
+        assertTrue(good.isEmpty(), () -> "expected valid, got " + good);
     }
 }
