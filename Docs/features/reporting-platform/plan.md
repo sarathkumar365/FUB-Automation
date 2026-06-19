@@ -16,19 +16,20 @@ A reporting platform where **adding a new report is a provider + DTO, not a proj
 and where the first build delivers the accountability MVP and the redesigned dashboard's
 metrics over data we already hold — no new capture infra.
 
-**MVP (the thing we build now):** track that every assigned lead gets called. If a lead
-is assigned to an agent and the agent hasn't called it → show it **red**. The sincerity /
-accountability board.
+**The accountability board (the headline report):** track that every assigned lead gets
+called. If a lead is assigned to an agent and the agent hasn't called it → show it **red**.
+The sincerity / accountability board. *(Build order: dashboard metrics are built first by
+owner preference; this board is the second slice — see "Order of work".)*
 
 ## Scope
 
 ### In (this pass)
 - **Foundation:** research/findings consolidated, RD-012 (Proposed), this plan + phase
   tracker, the "how to add a report" recipe (in RD-012).
-- **Accountability MVP (direct slice):** assigned → called, red/green, grouped by agent.
+- **Dashboard metrics (direct slice — built first):** the existing-data capabilities the
+  redesigned dashboard needs (see [dashboard-reporting-needs.md](./dashboard-reporting-needs.md)).
   One controller, direct SQL, a DTO — **no framework.**
-- **Dashboard metrics (direct slice):** the existing-data capabilities the redesigned
-  dashboard needs (see [dashboard-reporting-needs.md](./dashboard-reporting-needs.md)).
+- **Accountability MVP (direct slice):** assigned → called, red/green, grouped by agent.
   Second plain slice, same style.
 - **Extracted framework:** `ReportProvider`, `ReportRegistry` (auto-discovery), the
   `ReportingQuery` port + deterministic-SQL adapter, the shared `definitions` module, the
@@ -87,10 +88,10 @@ open-failures worklist, recent runs, live readout. Deeper funnel stages (appoint
 deals) are deferred to the mirror and slot in as a later provider.
 
 ## Order of work & dependencies
-Phase 0 (docs) → **Phase 1 (accountability MVP — direct slice; contains the null-rate
-gate)** → **Phase 2 (dashboard metrics — direct slice)** → **Phase 3 (extract the
-framework from Phases 1–2 + ratify RD-012).** Phases 1 and 2 are independent of each other;
-Phase 3 depends on both existing.
+Phase 0 (docs) → **Phase 1 (dashboard metrics — direct slice)** → **Phase 2 (accountability
+MVP — direct slice; contains the null-rate gate)** → **Phase 3 (extract the framework from
+Phases 1–2 + ratify RD-012).** Phases 1 and 2 are independent of each other (dashboard goes
+first by owner preference, not dependency); Phase 3 depends on both existing.
 
 This is the **rule of three**: don't abstract until you have ≥2 real, *different*
 implementations to abstract *from*. The accountability worklist and the dashboard
@@ -126,12 +127,12 @@ extracted framework.
   resolve the method-granularity question then, with two real call-sites in hand.
 
 ## Validation criteria
-- Phase 1: red/green board renders per agent; the null-rate gate result is recorded; an
-  agent with a known call shows green (no false red on attributable calls). Plain slice —
-  no framework yet.
-- Phase 2: the redesigned dashboard's existing-data panels are backed by real endpoints;
-  the funnel matches the accountability numbers (same "called"/"assigned" logic, no
-  divergence). Second plain slice.
+- Phase 1: the redesigned dashboard's existing-data panels are backed by real endpoints.
+  Plain slice — no framework yet. Establishes the shared "called"/"assigned" logic the
+  accountability slice will reuse.
+- Phase 2: red/green board renders per agent; the null-rate gate result is recorded; an
+  agent with a known call shows green (no false red on attributable calls). Reuses Phase-1's
+  funnel logic (same "called"/"assigned", no divergence). Second plain slice.
 - Phase 3: the framework is extracted; **both slices behave identically after moving onto
   it** (pure refactor, tests unchanged); adding a *third* hypothetical report would now be a
   provider + DTO. RD-012 ratified → Accepted.
@@ -143,8 +144,9 @@ extracted framework.
 
 ## Decisions
 - **Sequencing — extract, don't pre-build (owner-approved 2026-06-19 stress-test):** build
-  the accountability MVP and dashboard as direct vertical slices first; extract RD-012's
-  framework from them on the rule of three. RD-012 stays Proposed until Phase 3.
+  the dashboard and accountability MVP as direct vertical slices first; extract RD-012's
+  framework from them on the rule of three. RD-012 stays Proposed until Phase 3. **Build
+  order: dashboard first, accountability second (owner preference 2026-06-19).**
 - Architecture target, provider/port model, generic-controller-by-default, deferred
   mirror/Vanna: **RD-012**.
 - Accountability "called" = any outbound call (attempt counts); coverage vs. attribution

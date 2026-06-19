@@ -12,10 +12,11 @@ consume the resulting endpoints.
 A 2026-06-19 stress-test flagged that committing this contract up front locks in the
 abstraction at the moment of least information — in particular the `ReportingQuery` method
 granularity (below) and whether one `ReportProvider` shape unifies worklists vs. aggregates
-are unanswerable from zero reports. So the build order is: **Phase 1** accountability MVP
-and **Phase 2** dashboard as plain, direct vertical slices (own controller + SQL + DTO, no
-shared abstraction), then **Phase 3** extracts this framework *from* those two working,
-deliberately-different slices and proves it by moving them onto it with no behavior change.
+are unanswerable from zero reports. So the build order is: **Phase 1** dashboard metrics
+and **Phase 2** accountability MVP as plain, direct vertical slices (own controller + SQL +
+DTO, no shared abstraction), then **Phase 3** extracts this framework *from* those two
+working, deliberately-different slices and proves it by moving them onto it with no behavior
+change.
 If the two slices turn out to share little worth abstracting, the correct outcome is to
 shrink or drop this RD — not to force the seam.
 
