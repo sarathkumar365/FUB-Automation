@@ -2,15 +2,15 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { type PropsWithChildren } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { PortsContext } from '../app/portsContextValue'
-import { useActivateWorkflowMutation } from '../modules/workflows/data/useActivateWorkflowMutation'
-import { useArchiveWorkflowMutation } from '../modules/workflows/data/useArchiveWorkflowMutation'
-import { useDeactivateWorkflowMutation } from '../modules/workflows/data/useDeactivateWorkflowMutation'
-import { useRollbackWorkflowMutation } from '../modules/workflows/data/useRollbackWorkflowMutation'
-import { useUpdateWorkflowMutation } from '../modules/workflows/data/useUpdateWorkflowMutation'
-import { useValidateWorkflowMutation } from '../modules/workflows/data/useValidateWorkflowMutation'
-import { queryKeys } from '../platform/query/queryKeys'
-import type { AppPorts } from '../platform/container'
+import { PortsContext } from '@app/portsContextValue'
+import { useActivateWorkflowMutation } from '@modules/workflows/data/useActivateWorkflowMutation'
+import { useArchiveWorkflowMutation } from '@modules/workflows/data/useArchiveWorkflowMutation'
+import { useDeactivateWorkflowMutation } from '@modules/workflows/data/useDeactivateWorkflowMutation'
+import { useRollbackWorkflowMutation } from '@modules/workflows/data/useRollbackWorkflowMutation'
+import { useUpdateWorkflowMutation } from '@modules/workflows/data/useUpdateWorkflowMutation'
+import { useValidateWorkflowMutation } from '@modules/workflows/data/useValidateWorkflowMutation'
+import { queryKeys } from '@platform/query/queryKeys'
+import type { AppPorts } from '@platform/container'
 
 function createPortsMocks() {
   return {
@@ -169,7 +169,7 @@ describe('workflow mutation hooks', () => {
     await deactivateHook.result.current.mutateAsync()
     await archiveHook.result.current.mutateAsync()
 
-    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['workflows', 'list'] }))
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: queryKeys.workflows.lists() }))
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.workflows.detail('wf_a') }),
     )

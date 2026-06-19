@@ -1,7 +1,7 @@
-import { formatDateTime } from '../../../shared/lib/date'
-import { uiText } from '../../../shared/constants/uiText'
-import { Button } from '../../../shared/ui/button'
-import type { WorkflowVersionSummary } from '../lib/workflowSchemas'
+import { formatDateTime } from '@shared/lib/date'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
+import type { WorkflowVersionSummary } from '@platform/contracts/workflowSchemas'
 import { formatWorkflowStatus } from '../lib/workflowsDisplay'
 
 type WorkflowVersionListProps = {

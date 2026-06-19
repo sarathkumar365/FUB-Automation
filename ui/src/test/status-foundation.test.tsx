@@ -1,9 +1,9 @@
 import { render, renderHook, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { FullPageStatus } from '../app/status/FullPageStatus'
-import { useRise } from '../shared/lib/useRise'
-import { uiText } from '../shared/constants/uiText'
-import { AlertTriangleIcon, ChevronDownIcon, ChevronLeftIcon, CompassIcon, LockIcon } from '../shared/ui'
+import { FullPageStatus } from '@app/status/FullPageStatus'
+import { useRise } from '@shared/lib/useRise'
+import { uiText } from '@shared/constants/uiText'
+import { AlertTriangleIcon, ChevronDownIcon, ChevronLeftIcon, CompassIcon, LockIcon } from '@shared/ui'
 
 describe('FullPageStatus', () => {
   it('renders the brand lockup and children by default', () => {

@@ -73,10 +73,10 @@ If a piece of a feature starts looking generic, promote it — feature → recip
 
 ```ts
 // Via barrel (preferred for multi-import):
-import { Badge, Button, Tabs, TabsContent } from '@/shared/ui'
+import { Badge, Button, Tabs, TabsContent } from '@shared/ui'
 
 // Via explicit path (fine too):
-import { Badge } from '@/shared/ui/badge'
+import { Badge } from '@shared/ui/badge'
 ```
 
 There is no hard rule. Pick whichever reads better at the call site.

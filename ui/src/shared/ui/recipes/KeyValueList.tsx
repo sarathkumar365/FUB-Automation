@@ -20,6 +20,7 @@
  *   - `emptyState` — optional ReactNode rendered when `items` is empty.
  */
 import type { ReactNode } from 'react'
+import { uiText } from '../../constants/uiText'
 import { cn } from '../../lib/cn'
 import { FieldRow } from './FieldRow'
 
@@ -39,7 +40,7 @@ export interface KeyValueListProps {
 
 function renderValue(value: ReactNode): ReactNode {
   if (value === null || value === undefined) return '—'
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'boolean') return value ? uiText.common.yes : uiText.common.no
   return value
 }
 

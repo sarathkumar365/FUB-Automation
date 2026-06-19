@@ -2,12 +2,12 @@ import type { ReactElement } from 'react'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { LogoutButton } from '../modules/auth/ui/LogoutButton'
+import { LogoutButton } from '@modules/auth/ui/LogoutButton'
 import {
   __resetTokenStoreCacheForTests,
   getToken,
   setToken,
-} from '../modules/auth/state/tokenStore'
+} from '@modules/auth/state/tokenStore'
 
 function renderWithToken(ui: ReactElement, initialPath = '/admin-ui/persons') {
   return render(

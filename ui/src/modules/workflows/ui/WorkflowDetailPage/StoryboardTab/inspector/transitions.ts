@@ -10,7 +10,7 @@
 import {
   isFanoutTransition,
   isTerminalTransition,
-} from '../../../../../workflows-builder/state/runtimeContract'
+} from '@modules/workflows-builder/state/runtimeContract'
 
 export interface TransitionRowData {
   resultCode: string

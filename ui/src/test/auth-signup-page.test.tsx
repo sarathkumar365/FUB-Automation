@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
-import { SignupPage } from '../modules/auth/ui/SignupPage'
-import { uiText } from '../shared/constants/uiText'
+import { SignupPage } from '@modules/auth/ui/SignupPage'
+import { uiText } from '@shared/constants/uiText'
 
 function renderSignup() {
   return render(

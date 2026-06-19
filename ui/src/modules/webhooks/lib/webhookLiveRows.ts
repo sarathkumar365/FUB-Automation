@@ -1,6 +1,6 @@
-import type { WebhookFeedItem, WebhookStreamEvent } from '../../../shared/types/webhook'
+import type { WebhookFeedItem, WebhookStreamEvent } from '@shared/types/webhook'
 import type { WebhookPageSearchState } from './webhookSearchParams'
-import { uiText } from '../../../shared/constants/uiText'
+import { uiText } from '@shared/constants/uiText'
 
 export function mergeWebhookRows(incoming: WebhookFeedItem[], existing: WebhookFeedItem[]): WebhookFeedItem[] {
   const byId = new Map<number, WebhookFeedItem>()

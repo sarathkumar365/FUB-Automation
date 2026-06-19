@@ -1,5 +1,5 @@
-import type { StatusTone } from '../../../shared/ui/StatusBadge'
-import type { WorkflowRunStatus, WorkflowRunStepStatus } from '../../workflows/lib/workflowSchemas'
+import type { StatusTone } from '@shared/ui/StatusBadge'
+import type { WorkflowRunStatus, WorkflowRunStepStatus } from '@platform/contracts/workflowSchemas'
 
 const RUN_STATUS_TONES: Record<WorkflowRunStatus, StatusTone> = {
   PENDING: 'warning',

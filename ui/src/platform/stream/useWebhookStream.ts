@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { z } from 'zod'
-import { useAppPorts } from '../../app/useAppPorts'
-import type { WebhookEventStatus, WebhookSource, WebhookStreamEvent, WebhookStreamFilters } from '../../shared/types/webhook'
+import { useAppPorts } from '@app/useAppPorts'
+import type { WebhookEventStatus, WebhookSource, WebhookStreamEvent, WebhookStreamFilters } from '@shared/types/webhook'
 
 export type StreamConnectionState = 'connecting' | 'open' | 'error'
 

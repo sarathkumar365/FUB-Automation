@@ -1,4 +1,4 @@
-import type { ProcessedCallStatus } from '../../../platform/ports/processedCallsPort'
+import type { ProcessedCallStatus } from '@platform/ports/processedCallsPort'
 
 const PROCESSED_CALL_DATE_TIME_FORMATTER = new Intl.DateTimeFormat('en-US', {
   month: 'short',

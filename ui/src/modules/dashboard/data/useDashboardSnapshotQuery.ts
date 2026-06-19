@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
-import { queryKeys } from '../../../platform/query/queryKeys'
+import { useAppPorts } from '@app/useAppPorts'
+import { queryKeys } from '@platform/query/queryKeys'
 import { buildDashboardSnapshot, RECENT_WEBHOOK_WINDOW } from '../lib/dashboardSnapshot'
 
 export function useDashboardSnapshotQuery() {

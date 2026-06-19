@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { uiText } from '../../../shared/constants/uiText'
-import { Button } from '../../../shared/ui/button'
-import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
+import { ConfirmDialog } from '@shared/ui/ConfirmDialog'
 
 type WorkflowActionsProps = {
   canEdit: boolean

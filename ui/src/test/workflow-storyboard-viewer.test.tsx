@@ -2,10 +2,10 @@ import { render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
 import {
   graphToStoryboard,
-} from '../modules/workflows-builder/model/graphAdapters'
-import { layoutStoryboard, SCENE_WIDTH } from '../modules/workflows-builder/model/layoutEngine'
-import { StoryboardViewer } from '../modules/workflows-builder/surfaces/storyboard/StoryboardViewer'
-import type { Graph } from '../modules/workflows-builder/state/runtimeContract'
+} from '@modules/workflows-builder/model/graphAdapters'
+import { layoutStoryboard, SCENE_WIDTH } from '@modules/workflows-builder/model/layoutEngine'
+import { StoryboardViewer } from '@modules/workflows-builder/surfaces/storyboard/StoryboardViewer'
+import type { Graph } from '@modules/workflows-builder/state/runtimeContract'
 
 const graph: Graph = {
   schemaVersion: 1,

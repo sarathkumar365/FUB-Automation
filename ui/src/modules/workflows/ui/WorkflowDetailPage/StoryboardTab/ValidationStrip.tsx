@@ -7,9 +7,9 @@
  * 40px strip; expanding an invalid state reveals the full issue list inline.
  */
 import { useState } from 'react'
-import { uiText } from '../../../../../shared/constants/uiText'
-import { Button } from '../../../../../shared/ui/button'
-import type { ValidationViewState } from '../lib/useWorkflowDetailActions'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
+import type { ValidationViewState } from '../useWorkflowDetailActions'
 
 export interface ValidationStripProps {
   state: ValidationViewState

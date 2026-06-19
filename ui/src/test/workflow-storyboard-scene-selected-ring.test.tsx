@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { SceneLayout } from '../modules/workflows-builder/model/layoutEngine'
-import type { StoryboardScene } from '../modules/workflows-builder/model/graphAdapters'
-import { Scene } from '../modules/workflows-builder/surfaces/storyboard/Scene'
+import type { SceneLayout } from '@modules/workflows-builder/model/layoutEngine'
+import type { StoryboardScene } from '@modules/workflows-builder/model/graphAdapters'
+import { Scene } from '@modules/workflows-builder/surfaces/storyboard/Scene'
 
 /** Minimal scene + layout fixtures. The card is rendered inside a
  *  <foreignObject>, so we wrap it in an SVG in the test like the real

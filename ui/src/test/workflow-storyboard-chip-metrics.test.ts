@@ -3,7 +3,7 @@ import {
   CHIP_CHAR_WIDTH,
   CHIP_PADDING_X,
   estimateChipWidth,
-} from '../modules/workflows-builder/surfaces/storyboard/chipMetrics'
+} from '@modules/workflows-builder/surfaces/storyboard/chipMetrics'
 
 describe('estimateChipWidth', () => {
   it('is monotonic non-decreasing in text length', () => {

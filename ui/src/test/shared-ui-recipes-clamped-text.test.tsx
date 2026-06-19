@@ -1,6 +1,6 @@
 import { act, fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { ClampedText } from '../shared/ui/recipes/ClampedText'
+import { ClampedText } from '@shared/ui/recipes/ClampedText'
 
 /** In jsdom, `scrollHeight` and `clientHeight` are both 0 by default. To
  *  test the overflow-detection branch we stub them. */

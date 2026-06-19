@@ -1,11 +1,11 @@
 import { act, renderHook } from '@testing-library/react'
 import type { ReactNode } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { PortsContext } from '../app/portsContextValue'
-import type { AppPorts } from '../platform/container'
-import type { WebhookStreamCallbacks } from '../platform/ports/webhookStreamPort'
-import { useWebhookStream } from '../platform/stream/useWebhookStream'
-import type { WebhookStreamFilters } from '../shared/types/webhook'
+import { PortsContext } from '@app/portsContextValue'
+import type { AppPorts } from '@platform/container'
+import type { WebhookStreamCallbacks } from '@platform/ports/webhookStreamPort'
+import { useWebhookStream } from '@platform/stream/useWebhookStream'
+import type { WebhookStreamFilters } from '@shared/types/webhook'
 
 type StreamCall = {
   filters: WebhookStreamFilters

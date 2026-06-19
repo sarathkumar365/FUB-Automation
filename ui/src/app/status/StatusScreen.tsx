@@ -1,6 +1,6 @@
 import type { ComponentType, ReactNode, SVGProps } from 'react'
-import { useRise } from '../../shared/lib/useRise'
-import { Button } from '../../shared/ui'
+import { useRise } from '@shared/lib/useRise'
+import { Button } from '@shared/ui'
 
 type Tone = 'bad' | 'warn' | 'brand'
 

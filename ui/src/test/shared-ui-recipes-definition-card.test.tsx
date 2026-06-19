@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Badge } from '../shared/ui/badge'
-import { DefinitionCard } from '../shared/ui/recipes/DefinitionCard'
+import { Badge } from '@shared/ui/badge'
+import { DefinitionCard } from '@shared/ui/recipes/DefinitionCard'
 
 describe('DefinitionCard recipe', () => {
   it('renders the title in a heading element', () => {

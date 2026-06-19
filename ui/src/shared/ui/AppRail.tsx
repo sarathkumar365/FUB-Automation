@@ -1,8 +1,8 @@
-import type { ComponentType, SVGProps } from 'react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LogoutButton } from '../../modules/auth/ui/LogoutButton'
 import { appNavItems, navItemIsActive, routes, type AppNavKey } from '../constants/routes'
 import { uiText } from '../constants/uiText'
+import { cn } from '../lib/cn'
 import { ActivityIcon, LogoMarkIcon, PhoneIcon, SettingsIcon, UsersIcon, WorkflowIcon } from './icons'
 import { ThemeToggle } from './ThemeToggle'
 
@@ -14,7 +14,11 @@ const NAV_ICONS: Record<AppNavKey, ComponentType<SVGProps<SVGSVGElement>>> = {
   settings: SettingsIcon,
 }
 
-export function AppRail() {
+type AppRailProps = {
+  logout?: ReactNode
+}
+
+export function AppRail({ logout }: AppRailProps) {
   const location = useLocation()
   return (
     <aside
@@ -40,12 +44,12 @@ export function AppRail() {
               title={uiText.app.nav[item.key]}
               aria-label={uiText.app.nav[item.key]}
               aria-current={active ? 'page' : undefined}
-              className={[
+              className={cn(
                 'flex h-10 w-10 items-center justify-center rounded-md transition-colors',
                 active
                   ? 'bg-[var(--color-brand)] text-white'
                   : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-              ].join(' ')}
+              )}
             >
               <Icon className="h-[18px] w-[18px]" />
             </NavLink>
@@ -55,7 +59,7 @@ export function AppRail() {
       </div>
       <div className="flex w-full flex-col items-center gap-2">
         <ThemeToggle />
-        <LogoutButton variant="rail" />
+        {logout}
       </div>
     </aside>
   )

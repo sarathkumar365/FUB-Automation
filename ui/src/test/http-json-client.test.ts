@@ -4,13 +4,13 @@ import {
   ADMIN_UNAUTHORIZED_EVENT,
   HttpJsonClient,
   HttpRequestError,
-} from '../platform/adapters/http/httpJsonClient'
+} from '@platform/adapters/http/httpJsonClient'
 import {
   __resetTokenStoreCacheForTests,
   clearToken,
   getToken,
   setToken,
-} from '../modules/auth/state/tokenStore'
+} from '@modules/auth/state/tokenStore'
 
 const mockFetch = vi.fn()
 

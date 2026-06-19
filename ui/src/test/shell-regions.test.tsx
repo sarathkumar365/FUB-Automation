@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import App from '../app/App'
-import { routes } from '../shared/constants/routes'
-import { uiText } from '../shared/constants/uiText'
+import App from '@app/App'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
 import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('Option 1 shell regions', () => {

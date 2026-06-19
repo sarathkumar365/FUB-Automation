@@ -545,6 +545,8 @@ export const uiText = {
     jsonCopied: 'Copied',
     showMore: 'Show more',
     showLess: 'Show less',
+    yes: 'Yes',
+    no: 'No',
   },
   filters: {
     apply: 'Apply',

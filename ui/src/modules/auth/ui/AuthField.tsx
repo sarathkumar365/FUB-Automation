@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode } from 'react'
-import { Input } from '../../../shared/ui/input'
+import { Input } from '@shared/ui/input'
 
 /**
  * Auth-screen field + error helpers, shared by LoginPage and SignupPage so the

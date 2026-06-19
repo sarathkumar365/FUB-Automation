@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
-import { queryKeys } from '../../../platform/query/queryKeys'
+import { useAppPorts } from '@app/useAppPorts'
+import { queryKeys } from '@platform/query/queryKeys'
 
 const FIVE_MINUTES = 5 * 60 * 1000
 

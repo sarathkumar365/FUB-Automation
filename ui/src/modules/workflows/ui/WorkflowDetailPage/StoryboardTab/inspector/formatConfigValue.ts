@@ -28,7 +28,7 @@
  * recipe-layer default and the inspector-layer dispatcher share one
  * source of truth.
  */
-import { FIELD_ROW_LONG_THRESHOLD } from '../../../../../../shared/ui/recipes/FieldRow'
+import { FIELD_ROW_LONG_THRESHOLD } from '@shared/ui/recipes/FieldRow'
 
 export type FormatConfigValueResult =
   | { kind: 'empty' }

@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
+import { useAppPorts } from '@app/useAppPorts'
 import { invalidateWorkflowMutationQueries } from './workflowMutationInvalidation'
 
 export function useArchiveWorkflowMutation(key: string | undefined) {

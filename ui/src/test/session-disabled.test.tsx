@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { SessionDisabledPage } from '../app/SessionDisabledPage'
-import { routes } from '../shared/constants/routes'
-import { uiText } from '../shared/constants/uiText'
+import { SessionDisabledPage } from '@app/SessionDisabledPage'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
 
 describe('SessionDisabledPage', () => {
   it('renders the warn status screen with title, body, strip and helper', () => {

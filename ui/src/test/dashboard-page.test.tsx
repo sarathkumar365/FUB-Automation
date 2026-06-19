@@ -2,11 +2,11 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { fireEvent, render, screen } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
-import { PortsContext } from '../app/portsContextValue'
-import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
-import type { AppPorts } from '../platform/container'
-import { uiText } from '../shared/constants/uiText'
+import { ShellRegionsProvider } from '@app/ShellRegionsProvider'
+import { PortsContext } from '@app/portsContextValue'
+import { DashboardPage } from '@modules/dashboard/ui/DashboardPage'
+import type { AppPorts } from '@platform/container'
+import { uiText } from '@shared/constants/uiText'
 
 function renderDashboardPage(overrides?: {
   listWorkflows?: AppPorts['workflowPort']['listWorkflows']

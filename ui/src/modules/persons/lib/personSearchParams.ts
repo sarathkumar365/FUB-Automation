@@ -1,4 +1,4 @@
-import type { PersonStatus } from '../../../shared/types/person'
+import type { PersonStatus } from '@shared/types/person'
 
 const PERSON_STATUS_VALUES: PersonStatus[] = ['ACTIVE', 'ARCHIVED', 'MERGED']
 

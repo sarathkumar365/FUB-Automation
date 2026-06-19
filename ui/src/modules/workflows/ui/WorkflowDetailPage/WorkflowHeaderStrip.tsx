@@ -11,10 +11,10 @@
  */
 import { Link } from 'react-router-dom'
 import { readTriggerType } from '../../lib/readTriggerType'
-import { routes } from '../../../../shared/constants/routes'
-import { uiText } from '../../../../shared/constants/uiText'
-import { Badge } from '../../../../shared/ui/badge'
-import { StatusBadge } from '../../../../shared/ui/StatusBadge'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { Badge } from '@shared/ui/badge'
+import { StatusBadge } from '@shared/ui/StatusBadge'
 import {
   canActivateWorkflow,
   canArchiveWorkflow,
@@ -24,7 +24,7 @@ import {
   formatWorkflowStatus,
   getWorkflowStatusTone,
 } from '../../lib/workflowsDisplay'
-import type { WorkflowResponse } from '../../lib/workflowSchemas'
+import type { WorkflowResponse } from '@platform/contracts/workflowSchemas'
 import { WorkflowActions } from '../WorkflowActions'
 
 export interface WorkflowHeaderStripProps {

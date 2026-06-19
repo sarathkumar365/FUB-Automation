@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest'
 import type { ZodType } from 'zod'
-import type { HttpJsonClient } from '../platform/adapters/http/httpJsonClient'
-import { HttpSettingsAdapter } from '../platform/adapters/http/httpSettingsAdapter'
+import type { HttpJsonClient } from '@platform/adapters/http/httpJsonClient'
+import { HttpSettingsAdapter } from '@platform/adapters/http/httpSettingsAdapter'
 
 function sampleResponse() {
   return {

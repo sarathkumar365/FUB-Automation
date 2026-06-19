@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
-import { queryKeys } from '../../../platform/query/queryKeys'
-import type { PersonSummaryFilters } from '../../../shared/types/person'
+import { useAppPorts } from '@app/useAppPorts'
+import { queryKeys } from '@platform/query/queryKeys'
+import type { PersonSummaryFilters } from '@shared/types/person'
 
 export function usePersonSummaryQuery(sourcePersonId: string | undefined, filters: PersonSummaryFilters) {
   const { personsPort } = useAppPorts()

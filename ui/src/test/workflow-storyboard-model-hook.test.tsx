@@ -1,7 +1,7 @@
 import { renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { useStoryboardModel } from '../modules/workflows-builder/surfaces/storyboard/useStoryboardModel'
-import type { Graph } from '../modules/workflows-builder/state/runtimeContract'
+import { useStoryboardModel } from '@modules/workflows-builder/surfaces/storyboard/useStoryboardModel'
+import type { Graph } from '@modules/workflows-builder/state/runtimeContract'
 
 const graph: Graph = {
   schemaVersion: 1,

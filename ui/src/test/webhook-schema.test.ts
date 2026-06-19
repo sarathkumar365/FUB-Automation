@@ -1,4 +1,4 @@
-import { webhookDetailSchema } from '../platform/adapters/http/webhookSchemas'
+import { webhookDetailSchema } from '@platform/adapters/http/webhookSchemas'
 import { describe, expect, it } from 'vitest'
 
 describe('webhookDetailSchema', () => {

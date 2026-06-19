@@ -6,14 +6,14 @@ import {
   formatWorkflowRunStepStatus,
   getWorkflowRunStatusTone,
   getWorkflowRunStepStatusTone,
-} from '../modules/workflow-runs/lib/workflowRunsDisplay'
+} from '@modules/workflow-runs/lib/workflowRunsDisplay'
 import {
   DEFAULT_WORKFLOW_RUNS_PAGE,
   DEFAULT_WORKFLOW_RUNS_SIZE,
   createWorkflowRunsSearchParamsFromState,
   parseWorkflowRunsSearchParams,
   toWorkflowRunsDraftFilters,
-} from '../modules/workflow-runs/lib/workflowRunsSearchParams'
+} from '@modules/workflow-runs/lib/workflowRunsSearchParams'
 
 describe('workflow runs display helpers', () => {
   it('maps run statuses and tones', () => {

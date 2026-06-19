@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
-import { queryKeys } from '../../../platform/query/queryKeys'
+import { useAppPorts } from '@app/useAppPorts'
+import { queryKeys } from '@platform/query/queryKeys'
 
 export function useWebhookDetailQuery(selectedId: number | undefined) {
   const { adminWebhookPort } = useAppPorts()

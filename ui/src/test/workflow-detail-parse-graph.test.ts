@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { parseWorkflowGraph } from '../modules/workflows/ui/WorkflowDetailPage/lib/parseWorkflowGraph'
+import { parseWorkflowGraph } from '@modules/workflows/ui/WorkflowDetailPage/lib/parseWorkflowGraph'
 
 describe('parseWorkflowGraph', () => {
   it('returns ok with a parsed graph for a valid payload', () => {

@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react'
-import { BrandLockup } from '../../../shared/ui/BrandLockup'
+import { BrandLockup } from '@shared/ui/BrandLockup'
 
 /**
  * Shared auth-screen layout (login + signup). A calm centered card on an

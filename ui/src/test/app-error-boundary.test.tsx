@@ -1,8 +1,8 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { AppErrorBoundary } from '../app/AppErrorBoundary'
-import { routes } from '../shared/constants/routes'
-import { uiText } from '../shared/constants/uiText'
+import { AppErrorBoundary } from '@app/AppErrorBoundary'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
 
 function Boom(): never {
   throw new Error('boom-detail')

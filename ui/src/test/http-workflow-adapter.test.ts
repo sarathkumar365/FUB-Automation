@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { HttpJsonClient } from '../platform/adapters/http/httpJsonClient'
-import { HttpWorkflowAdapter } from '../platform/adapters/http/httpWorkflowAdapter'
-import { HttpWorkflowRunAdapter } from '../platform/adapters/http/httpWorkflowRunAdapter'
+import { HttpJsonClient } from '@platform/adapters/http/httpJsonClient'
+import { HttpWorkflowAdapter } from '@platform/adapters/http/httpWorkflowAdapter'
+import { HttpWorkflowRunAdapter } from '@platform/adapters/http/httpWorkflowRunAdapter'
 
 const mockFetch = vi.fn()
 

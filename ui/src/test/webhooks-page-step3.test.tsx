@@ -3,12 +3,12 @@ import { act, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
-import { PortsContext } from '../app/portsContextValue'
-import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
-import type { AppPorts } from '../platform/container'
-import type { WebhookStreamCallbacks } from '../platform/ports/webhookStreamPort'
-import { uiText } from '../shared/constants/uiText'
+import { ShellRegionsProvider } from '@app/ShellRegionsProvider'
+import { PortsContext } from '@app/portsContextValue'
+import { WebhooksPage } from '@modules/webhooks/ui/WebhooksPage'
+import type { AppPorts } from '@platform/container'
+import type { WebhookStreamCallbacks } from '@platform/ports/webhookStreamPort'
+import { uiText } from '@shared/constants/uiText'
 
 function renderWebhooksPageStep3(initialPath = '/admin-ui/webhooks') {
   window.history.pushState({}, '', initialPath)

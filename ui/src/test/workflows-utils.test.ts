@@ -7,7 +7,7 @@ import {
   canValidateWorkflow,
   formatWorkflowStatus,
   getWorkflowStatusTone,
-} from '../modules/workflows/lib/workflowsDisplay'
+} from '@modules/workflows/lib/workflowsDisplay'
 import {
   DEFAULT_WORKFLOW_DETAIL_RUNS_PAGE,
   DEFAULT_WORKFLOW_DETAIL_RUNS_SIZE,
@@ -19,7 +19,7 @@ import {
   parseWorkflowsSearchParams,
   toWorkflowDetailRunsDraftFilters,
   toWorkflowsDraftFilters,
-} from '../modules/workflows/lib/workflowsSearchParams'
+} from '@modules/workflows/lib/workflowsSearchParams'
 
 describe('workflow display helpers', () => {
   it('maps workflow statuses to user-facing labels and tones', () => {

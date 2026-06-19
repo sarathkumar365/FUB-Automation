@@ -15,15 +15,15 @@
  * on popover positioning concerns.
  */
 import type { CSSProperties } from 'react'
-import { uiText } from '../../../../../shared/constants/uiText'
-import { Button } from '../../../../../shared/ui/button'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
-} from '../../../../../shared/ui/Popover'
-import type { SceneLayout } from '../../../../workflows-builder/model/layoutEngine'
-import type { Graph, GraphNode } from '../../../../workflows-builder/state/runtimeContract'
+} from '@shared/ui/Popover'
+import type { SceneLayout } from '@modules/workflows-builder/model/layoutEngine'
+import type { Graph, GraphNode } from '@modules/workflows-builder/state/runtimeContract'
 import {
   INSPECTOR_PADDING_X,
   INSPECTOR_PADDING_Y,

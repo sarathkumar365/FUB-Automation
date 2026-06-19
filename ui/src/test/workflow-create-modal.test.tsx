@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { WorkflowCreateModal } from '../modules/workflows/ui/WorkflowCreateModal'
+import { WorkflowCreateModal } from '@modules/workflows/ui/WorkflowCreateModal'
 
 describe('workflow create modal', () => {
   it('shows JSON validation errors and blocks submit', async () => {

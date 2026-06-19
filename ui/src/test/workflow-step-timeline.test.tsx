@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { WorkflowStepTimeline } from '../modules/workflow-runs/ui/WorkflowStepTimeline'
+import { WorkflowStepTimeline } from '@modules/workflow-runs/ui/WorkflowStepTimeline'
 
 describe('workflow step timeline', () => {
   it('renders step metadata and expandable details', () => {

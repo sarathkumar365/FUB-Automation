@@ -1,5 +1,5 @@
-import type { WorkflowRunPageResponse, WorkflowRunSummary, WorkflowPageResponse } from '../../workflows/lib/workflowSchemas'
-import type { WebhookFeedPage } from '../../../shared/types/webhook'
+import type { WorkflowRunPageResponse, WorkflowRunSummary, WorkflowPageResponse } from '@platform/contracts/workflowSchemas'
+import type { WebhookFeedPage } from '@shared/types/webhook'
 
 /**
  * The dashboard's recent-webhook window. The feed is cursor-based (no total),

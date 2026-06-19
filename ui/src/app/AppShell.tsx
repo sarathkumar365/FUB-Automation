@@ -1,13 +1,13 @@
 import { useState } from 'react'
 import { Outlet } from 'react-router-dom'
-import { LogoutButton } from '../modules/auth/ui/LogoutButton'
-import { uiText } from '../shared/constants/uiText'
-import { AppContentFrame } from '../shared/ui/AppContentFrame'
-import { AppPanel } from '../shared/ui/AppPanel'
-import { AppRail } from '../shared/ui/AppRail'
-import { PanelNav } from '../shared/ui/PanelNav'
-import { Button } from '../shared/ui/button'
-import { InspectorPanel } from '../shared/ui/InspectorPanel'
+import { LogoutButton } from '@modules/auth/ui/LogoutButton'
+import { uiText } from '@shared/constants/uiText'
+import { AppContentFrame } from '@shared/ui/AppContentFrame'
+import { AppPanel } from '@shared/ui/AppPanel'
+import { AppRail } from '@shared/ui/AppRail'
+import { PanelNav } from '@shared/ui/PanelNav'
+import { Button } from '@shared/ui/button'
+import { InspectorPanel } from '@shared/ui/InspectorPanel'
 import { ShellRegionsProvider } from './ShellRegionsProvider'
 import { useShellRegions } from './useShellRegions'
 
@@ -29,7 +29,7 @@ function ShellLayout() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] lg:h-screen lg:overflow-hidden">
       <div className="flex min-h-screen w-full lg:h-full">
-        <AppRail />
+        <AppRail logout={<LogoutButton variant="rail" />} />
 
         {hasDesktopPanel ? (
           <AppPanel title={panelContent?.title} className="hidden lg:block">

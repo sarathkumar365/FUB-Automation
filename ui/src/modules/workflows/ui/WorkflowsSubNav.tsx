@@ -25,8 +25,8 @@
  * Tab key; no arrow-key tablist behaviour.
  */
 import { NavLink } from 'react-router-dom'
-import { routes } from '../../../shared/constants/routes'
-import { uiText } from '../../../shared/constants/uiText'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
 
 type SubNavTab = { to: string; label: string }
 

@@ -1,8 +1,8 @@
 import { act, render, screen } from '@testing-library/react'
 import { fireEvent } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { NotifyProvider } from '../shared/notifications/NotifyProvider'
-import { useNotify } from '../shared/notifications/useNotify'
+import { NotifyProvider } from '@shared/notifications/NotifyProvider'
+import { useNotify } from '@shared/notifications/useNotify'
 
 function NotifyHarness() {
   const notify = useNotify()

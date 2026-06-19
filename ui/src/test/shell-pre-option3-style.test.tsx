@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import App from '../app/App'
-import { uiText } from '../shared/constants/uiText'
+import App from '@app/App'
+import { uiText } from '@shared/constants/uiText'
 
 describe('pre-Option 3 shell style', () => {
   it('uses the standard light rail surface and no mesh classes', async () => {

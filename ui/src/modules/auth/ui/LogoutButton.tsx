@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { routes } from '../../../shared/constants/routes'
-import { uiText } from '../../../shared/constants/uiText'
-import { LogoutIcon } from '../../../shared/ui/icons'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { LogoutIcon } from '@shared/ui/icons'
 import { clearToken, getToken } from '../state/tokenStore'
 
 type LogoutButtonProps = {

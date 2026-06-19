@@ -3,7 +3,7 @@ import {
   formatConfigValue,
   isTemplating,
   isUrlShaped,
-} from '../modules/workflows/ui/WorkflowDetailPage/StoryboardTab/inspector/formatConfigValue'
+} from '@modules/workflows/ui/WorkflowDetailPage/StoryboardTab/inspector/formatConfigValue'
 
 describe('formatConfigValue kind dispatch (D4.1-a / D4.2-b / D4.4-a / D4.5-c)', () => {
   it('classifies null/undefined as empty', () => {

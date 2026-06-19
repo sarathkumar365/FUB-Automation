@@ -1,4 +1,4 @@
-import type { ProcessedCallStatus } from '../../../platform/ports/processedCallsPort'
+import type { ProcessedCallStatus } from '@platform/ports/processedCallsPort'
 
 const STATUS_VALUES: ProcessedCallStatus[] = ['RECEIVED', 'PROCESSING', 'SKIPPED', 'TASK_CREATED', 'FAILED']
 

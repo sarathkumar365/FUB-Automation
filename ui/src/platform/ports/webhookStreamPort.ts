@@ -1,4 +1,4 @@
-import type { WebhookStreamFilters } from '../../shared/types/webhook'
+import type { WebhookStreamFilters } from '@shared/types/webhook'
 
 export type WebhookStreamEventName = 'webhook.received' | 'heartbeat'
 

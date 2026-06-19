@@ -2,10 +2,10 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { type PropsWithChildren } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { PortsContext } from '../app/portsContextValue'
-import { useDashboardSnapshotQuery } from '../modules/dashboard/data/useDashboardSnapshotQuery'
-import { queryKeys } from '../platform/query/queryKeys'
-import type { AppPorts } from '../platform/container'
+import { PortsContext } from '@app/portsContextValue'
+import { useDashboardSnapshotQuery } from '@modules/dashboard/data/useDashboardSnapshotQuery'
+import { queryKeys } from '@platform/query/queryKeys'
+import type { AppPorts } from '@platform/container'
 
 function createWrapper(queryClient: QueryClient) {
   const listWorkflows = vi.fn(async () => ({

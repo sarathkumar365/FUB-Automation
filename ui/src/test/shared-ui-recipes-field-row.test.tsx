@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { FIELD_ROW_LONG_THRESHOLD, FieldRow } from '../shared/ui/recipes/FieldRow'
+import { FIELD_ROW_LONG_THRESHOLD, FieldRow } from '@shared/ui/recipes/FieldRow'
 
 function isInlineGrid(el: HTMLElement): boolean {
   return el.className.includes('grid-cols-')

@@ -1,28 +1,25 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
-import type { CreateWorkflowCommand } from '../../../platform/ports/workflowPort'
-import { uiText } from '../../../shared/constants/uiText'
-import { routes } from '../../../shared/constants/routes'
-import { useNotify } from '../../../shared/notifications/useNotify'
-import { Button } from '../../../shared/ui/button'
-import { DataTable, type ColumnDef } from '../../../shared/ui/DataTable'
-import { ErrorState } from '../../../shared/ui/ErrorState'
-import { FilterBar } from '../../../shared/ui/FilterBar'
-import { LoadingState } from '../../../shared/ui/LoadingState'
-import { PageCard } from '../../../shared/ui/PageCard'
-import { PageHeader } from '../../../shared/ui/PageHeader'
-import { PagePagination } from '../../../shared/ui/PagePagination'
-import { Select } from '../../../shared/ui/select'
-import { StatusBadge } from '../../../shared/ui/StatusBadge'
-import type { WorkflowResponse, WorkflowStatus } from '../lib/workflowSchemas'
-import { formatWorkflowStatus, getWorkflowStatusTone } from '../lib/workflowsDisplay'
+import { useShellRegionRegistration } from '@app/useShellRegionRegistration'
+import type { CreateWorkflowCommand } from '@platform/ports/workflowPort'
+import { uiText } from '@shared/constants/uiText'
+import { routes } from '@shared/constants/routes'
+import { useNotify } from '@shared/notifications/useNotify'
+import { Button } from '@shared/ui/button'
+import { DataTable } from '@shared/ui/DataTable'
+import { ErrorState } from '@shared/ui/ErrorState'
+import { FilterBar } from '@shared/ui/FilterBar'
+import { LoadingState } from '@shared/ui/LoadingState'
+import { PageCard } from '@shared/ui/PageCard'
+import { PageHeader } from '@shared/ui/PageHeader'
+import { PagePagination } from '@shared/ui/PagePagination'
+import { Select } from '@shared/ui/select'
+import type { WorkflowResponse, WorkflowStatus } from '@platform/contracts/workflowSchemas'
+import { formatWorkflowStatus } from '../lib/workflowsDisplay'
 import {
   createWorkflowsSearchParamsFromState,
   parseWorkflowsSearchParams,
-  toWorkflowsDraftFilters,
   type WorkflowsFilterDraft,
-  type WorkflowsPageSearchState,
 } from '../lib/workflowsSearchParams'
 import { useWorkflowsQuery } from '../data/useWorkflowsQuery'
 import { useCreateWorkflowMutation } from '../data/useCreateWorkflowMutation'
@@ -30,6 +27,8 @@ import { useStepTypesQuery } from '../data/useStepTypesQuery'
 import { useTriggerTypesQuery } from '../data/useTriggerTypesQuery'
 import { WorkflowCreateModal } from './WorkflowCreateModal'
 import { WorkflowsSubNav } from './WorkflowsSubNav'
+import { useWorkflowsFilters } from './useWorkflowsFilters'
+import { workflowColumns } from './workflowsColumns'
 
 const WORKFLOW_STATUS_OPTIONS: WorkflowStatus[] = ['DRAFT', 'ACTIVE', 'INACTIVE', 'ARCHIVED']
 
@@ -47,12 +46,7 @@ export function WorkflowsPage() {
     page: searchState.page,
     size: searchState.size,
   })
-  const filterDraftKey = useMemo(() => searchState.status ?? 'ALL', [searchState.status])
-  const [draftFilterState, setDraftFilterState] = useState<{ key: string; value: WorkflowsFilterDraft }>(() => ({
-    key: filterDraftKey,
-    value: toWorkflowsDraftFilters(searchState),
-  }))
-  const draftFilters = draftFilterState.key === filterDraftKey ? draftFilterState.value : toWorkflowsDraftFilters(searchState)
+  const { draftFilters, setStatus, apply, reset } = useWorkflowsFilters(searchState, setSearchParams)
   const rows = useMemo(() => listQuery.data?.items ?? [], [listQuery.data?.items])
   const stepTypeNames = useMemo(
     () =>
@@ -67,37 +61,6 @@ export function WorkflowsPage() {
         .slice()
         .sort((left, right) => left.localeCompare(right)),
     [triggerTypesQuery.data],
-  )
-
-  const columns = useMemo<ColumnDef<WorkflowResponse>[]>(
-    () => [
-      {
-        key: 'key',
-        header: uiText.workflows.keyHeader,
-        render: (row) => <span className="font-mono text-xs">{row.key}</span>,
-      },
-      {
-        key: 'name',
-        header: uiText.workflows.nameHeader,
-        render: (row) => row.name,
-      },
-      {
-        key: 'status',
-        header: uiText.workflows.statusHeader,
-        render: (row) => <StatusBadge label={formatWorkflowStatus(row.status)} tone={getWorkflowStatusTone(row.status)} />,
-      },
-      {
-        key: 'version',
-        header: uiText.workflows.versionHeader,
-        render: (row) => row.versionNumber ?? '-',
-      },
-      {
-        key: 'created',
-        header: uiText.workflows.createdHeader,
-        render: () => uiText.workflows.createdAtUnknown,
-      },
-    ],
-    [],
   )
 
   const panelRegion = useMemo(
@@ -144,29 +107,6 @@ export function WorkflowsPage() {
     panel: panelRegion,
     inspector: inspectorRegion,
   })
-
-  const handleApply = () => {
-    const nextState: WorkflowsPageSearchState = {
-      status: draftFilters.status === 'ALL' ? undefined : draftFilters.status,
-      page: 0,
-      size: searchState.size,
-      selectedKey: undefined,
-    }
-    setSearchParams(createWorkflowsSearchParamsFromState(nextState))
-  }
-
-  const handleReset = () => {
-    setDraftFilterState({
-      key: filterDraftKey,
-      value: { status: 'ALL' },
-    })
-    setSearchParams(
-      createWorkflowsSearchParamsFromState({
-        page: 0,
-        size: searchState.size,
-      }),
-    )
-  }
 
   const handlePageChange = (page: number) => {
     setSearchParams(
@@ -217,10 +157,10 @@ export function WorkflowsPage() {
       <FilterBar
         actions={
           <>
-            <Button type="button" size="sm" onClick={handleApply} aria-label={uiText.filters.apply}>
+            <Button type="button" size="sm" onClick={apply} aria-label={uiText.filters.apply}>
               {uiText.filters.apply}
             </Button>
-            <Button type="button" size="sm" variant="outline" onClick={handleReset} aria-label={uiText.filters.reset}>
+            <Button type="button" size="sm" variant="outline" onClick={reset} aria-label={uiText.filters.reset}>
               {uiText.filters.reset}
             </Button>
           </>
@@ -230,14 +170,7 @@ export function WorkflowsPage() {
           <Select
             aria-label={uiText.workflows.filterStatusLabel}
             value={draftFilters.status}
-            onChange={(event) =>
-              setDraftFilterState({
-                key: filterDraftKey,
-                value: {
-                  status: event.target.value as WorkflowsFilterDraft['status'],
-                },
-              })
-            }
+            onChange={(event) => setStatus(event.target.value as WorkflowsFilterDraft['status'])}
             className="w-[180px]"
           >
             <option value="ALL">{uiText.workflows.filterStatusAll}</option>
@@ -258,7 +191,7 @@ export function WorkflowsPage() {
         ) : (
           <>
             <DataTable
-              columns={columns}
+              columns={workflowColumns}
               rows={rows}
               getRowKey={(row) => row.key}
               onRowClick={handleSelectRow}

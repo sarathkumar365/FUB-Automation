@@ -1,7 +1,7 @@
 import { useLocation, useNavigate } from 'react-router-dom'
-import { routes } from '../shared/constants/routes'
-import { uiText } from '../shared/constants/uiText'
-import { ChevronLeftIcon, CompassIcon } from '../shared/ui'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { ChevronLeftIcon, CompassIcon } from '@shared/ui'
 import { FullPageStatus } from './status/FullPageStatus'
 import { StatusScreen, type StatusContent } from './status/StatusScreen'
 
