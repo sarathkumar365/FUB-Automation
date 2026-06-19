@@ -50,7 +50,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-03 — No code-splitting; builder + dagre always bundled
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 4 — Option C: lazy builder route + lazy detail StoryboardTab + prefetch)
 - **Severity:** MEDIUM (performance)
 - **Evidence:** No `React.lazy()` anywhere; `ui/src/app/router.tsx` imports every page eagerly, including
   `WorkflowBuilderPage` which pulls `@dagrejs/dagre`.
@@ -59,7 +59,11 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 - **Acceptance:** builder + dagre absent from the initial chunk (verify via `vite build` output); view-only
   routes (dashboard/webhooks/calls) load without them; `npm run check` green; a test asserts the lazy route
   renders behind Suspense.
-- **Note:** only worth doing if view-only users are a real load-time audience — confirm before P4.
+- **Measured result:** initial bundle 217 → 194.5 kB gzip (~22.5 kB / ~10% off graph-free routes); dagre lives
+  in an on-demand `StoryboardViewer` chunk (~17 kB gzip) shared by the builder + detail tab. Prefetch on
+  detail mount hides the flash on the (read-only) viewing path. Builder stays lazy — future-proofs the planned
+  interactive builder (its editor code will land in the lazy chunk, not the initial bundle). One justified
+  `react-refresh` disable on `router.tsx` (route table, not an HMR target).
 
 ---
 

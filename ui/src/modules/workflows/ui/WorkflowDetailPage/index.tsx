@@ -12,7 +12,7 @@
  * "ready" branch to a child component so `useWorkflowDetailActions` can
  * assume a non-null workflow.
  */
-import { useMemo } from 'react'
+import { lazy, Suspense, useEffect, useMemo } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
 import { useShellRegionRegistration } from '@app/useShellRegionRegistration'
 import { uiText } from '@shared/constants/uiText'
@@ -28,13 +28,21 @@ import { parseWorkflowDetailSearchParams } from '../../lib/workflowsSearchParams
 import { WorkflowEditModal } from '../WorkflowEditModal'
 import { WorkflowVersionList } from '../WorkflowVersionList'
 import { RunsTab } from './RunsTab'
-import { StoryboardTab } from './StoryboardTab'
 import { WorkflowHeaderStrip } from './WorkflowHeaderStrip'
 import { WorkflowTabs } from './WorkflowTabs'
 import { useWorkflowDetailActions } from './useWorkflowDetailActions'
 
+const importStoryboardTab = () => import('./StoryboardTab')
+const StoryboardTab = lazy(() => importStoryboardTab().then((m) => ({ default: m.StoryboardTab })))
+
 export function WorkflowDetailPage() {
   const { key } = useParams<{ key: string }>()
+
+  // Prefetch the storyboard chunk so the default tab renders without a load flash. A failed prefetch is
+  // ignored here — the lazy render path surfaces real chunk-load errors via Suspense + the route boundary.
+  useEffect(() => {
+    void importStoryboardTab().catch(() => {})
+  }, [])
 
   const detailQuery = useWorkflowDetailQuery(key)
   const versionsQuery = useWorkflowVersionsQuery(key)
@@ -134,13 +142,15 @@ function WorkflowDetailReady({
       {detailSearchState.tab === 'runs' ? (
         <RunsTab workflow={workflow} />
       ) : (
-        <StoryboardTab
-          workflow={workflow}
-          validationState={actions.validationState}
-          onValidate={() => void actions.onValidate()}
-          onDismissValidation={actions.dismissValidation}
-          isValidationPending={actions.validationState.mode === 'pending'}
-        />
+        <Suspense fallback={<LoadingState />}>
+          <StoryboardTab
+            workflow={workflow}
+            validationState={actions.validationState}
+            onValidate={() => void actions.onValidate()}
+            onDismissValidation={actions.dismissValidation}
+            isValidationPending={actions.validationState.mode === 'pending'}
+          />
+        </Suspense>
       )}
 
       {/*

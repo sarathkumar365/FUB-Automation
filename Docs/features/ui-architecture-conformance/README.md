@@ -1,6 +1,6 @@
 # UI Architecture Conformance
 
-> **Status:** 🟡 In progress — 11 / 13 findings resolved. **Phases 1–3 complete** (UAC-01/05/06/07/09/10, UAC-02/08 + RD-011, UAC-04/06-final/13 — boundaries now lint-enforced). Remaining: UAC-03 (Phase 4, code-split) + UAC-11/12 (Phase 5). UAC-13 discovered during Phase 3 and fixed.
+> **Status:** 🟡 In progress — 12 / 13 findings resolved. **Phases 1–4 complete** (UAC-01/05/06/07/09/10, UAC-02/08 + RD-011, UAC-04/06-final/13 lint-enforced, UAC-03 code-split). Remaining: **UAC-11 + UAC-12 (Phase 5)** — test backfill + decompose WorkflowsPage. UAC-13 discovered during Phase 3 and fixed.
 > **Goal:** Drive every finding from the [UI Architecture Audit (2026-06-18)](../../audits/ui-architecture-audit-2026-06-18.md)
 > to closure so the `ui/` module is fully aligned with the rules in `ui/AGENTS.md`,
 > `developer-rules.md`, and `src/shared/ui/README.md`.
@@ -24,7 +24,7 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
 |----|---------|----------|-------|--------|
 | **UAC-01** | No path aliases → 5–6 level `../` import chains (14 files under WorkflowDetailPage) | HIGH | P1 | ☑ Done |
 | **UAC-02** | `platform/` imports schemas from `modules/` (8 sites); inconsistent schema ownership | HIGH | P2 | ☑ Done |
-| **UAC-03** | No code-splitting — builder + `@dagrejs/dagre` in main bundle | MED | P4 | ☐ Open |
+| **UAC-03** | No code-splitting — builder + `@dagrejs/dagre` in main bundle | MED | P4 | ☑ Done |
 | **UAC-04** | No lint enforcement of module/layer boundaries | MED | P3 | ☑ Done |
 | **UAC-05** | Hardcoded query keys bypass `queryKeys` factory (3 files) | MED | P1 | ☑ Done |
 | **UAC-06** | `ui/AGENTS.md` module list stale (says 2 modules; there are 11) | MED | P1 | ☑ Done |

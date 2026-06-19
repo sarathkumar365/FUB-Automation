@@ -46,28 +46,24 @@ export default defineConfig([
     },
   },
   {
-    // platform must not import from modules (the auth token store is excepted per-line at its import)
     files: ['src/platform/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [NO_DEEP_RELATIVE, NO_MODULES] }],
     },
   },
   {
-    // ports must not import from adapters (and still must not import from modules)
     files: ['src/platform/ports/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [NO_DEEP_RELATIVE, NO_MODULES, NO_ADAPTERS] }],
     },
   },
   {
-    // platform/contracts is a zod-only leaf
     files: ['src/platform/contracts/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [NO_DEEP_RELATIVE, CONTRACTS_LEAF] }],
     },
   },
   {
-    // shared is a leaf — must not reach into app/modules/platform
     files: ['src/shared/**/*.{ts,tsx}'],
     rules: {
       'no-restricted-imports': ['error', { patterns: [NO_DEEP_RELATIVE, SHARED_LEAF] }],

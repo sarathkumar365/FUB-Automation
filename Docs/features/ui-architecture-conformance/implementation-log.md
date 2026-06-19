@@ -19,6 +19,52 @@ Format per entry:
 
 ---
 
+## Phase 4 code-review fixes + comment trim  (2026-06-18)
+
+Fresh-eyes review of the split found no crashes; two precision fixes applied, plus a comment cleanup:
+- **Prefetch unhandled rejection:** `void importStoryboardTab().catch(() => {})` — a failed prefetch is now
+  swallowed (the lazy render path still surfaces real chunk-load errors via Suspense + route boundary).
+- **`react-refresh` disable scope:** narrowed `router.tsx`'s file-level `/* eslint-disable */` to a
+  line-scoped `// eslint-disable-next-line` above the one lazy const (same line-scoped-over-file-wide principle
+  as the Phase-2/3 auth exception). Verified the rule fires on exactly that line.
+- **Comments trimmed:** removed narration (`// Lazy: … dagre …` in router + detail page) and the redundant
+  per-zone comments in `eslint.config.js` (they restated each rule's `message`). Kept the non-obvious-why
+  ones (prefetch one-liner; the eslint config's flat-config/dual-spelling block; the AppRail `logout` JSDoc).
+
+`npm run check` green — 396 tests.
+
+---
+
+## Phase 4 — UAC-03 code-split the workflow graph / dagre  (2026-06-18)
+
+Measured-first, then Option C (full split + prefetch), chosen because the storyboard is currently a viewer
+(common path → keep it flash-free) while a heavier interactive builder is planned (→ keep the builder route
+lazy so its future editor code never hits the initial bundle).
+
+### Changes
+- `app/router.tsx`: `WorkflowBuilderPage` is now `React.lazy` + `<Suspense fallback={<LoadingState/>}>` (both
+  builder routes). File-level `react-refresh/only-export-components` disable (route table, not an HMR target).
+- `WorkflowDetailPage/index.tsx`: `StoryboardTab` is `React.lazy` + `<Suspense>`; `RunsTab` + shell stay eager.
+  Added a mount-time prefetch (`useEffect` → `import('./StoryboardTab')`) running parallel to the detail query,
+  so the default (read-only) storyboard tab has its chunk ready — no loading flash.
+- Vite auto-emits the shared `StoryboardViewer` chunk (storyboard surface + `layoutEngine` + dagre).
+
+### Measured result (`vite build`, before → after)
+- initial `index.js`: **217 → 194.5 kB gzip** (~22.5 kB / ~10% off all graph-free routes).
+- on-demand chunks: `StoryboardViewer` ~17.3 kB gzip (dagre lives here), `StoryboardTab` ~3.5, builder ~3.3.
+
+### Validation
+- `npm run check` green — **396 tests**. The full-page `workflow-detail-page-actions` test renders *through*
+  the lazy tab (already used `await findBy…`) and passes. Storyboard *unit* tests import the surface directly
+  → unaffected. No test renders the builder route.
+- Confirmed dagre is absent from the initial chunk and present only in the on-demand `StoryboardViewer` chunk.
+
+### Notes
+- Builder lazy-split is forward-looking: the planned interactive builder's code will accrue in the lazy chunk.
+- Non-goal: general vendor chunking (React/router/query/radix/lucide still dominate main at 194 kB gzip).
+
+---
+
 ## Phase 3 code-review fixes — boundary-lint hardening (root-cause)  (2026-06-18)
 
 A fresh-eyes review found the boundary guard was *spelling-precise*, not *path-precise*: it caught the
