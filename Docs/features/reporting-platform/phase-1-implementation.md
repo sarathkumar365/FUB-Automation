@@ -51,8 +51,8 @@ DashboardSnapshotService.snapshot(window)         ← computes ONE window + "now
   `DashboardSnapshotDto` in one response. Admin-auth, same as the other `/admin/*` endpoints.
 - New `DashboardController` (controller layer). May be re-homed under the reporting
   namespace when the framework is extracted (Phase 3) — fine, it's one endpoint.
-- UI: `useDashboardSnapshotQuery` collapses from 4 calls to **1**, with a ~15s
-  `refetchInterval` (drives the events/min "live" feel; the pulse dot is CSS).
+- UI: `useDashboardSnapshotQuery` collapses from 4 calls to **1**. **No polling** — see
+  "Liveness & refresh" below.
 
 ## `DashboardSnapshotDto` (the shape)
 
@@ -143,12 +143,45 @@ FailureRow  { kind: "RUN" | "CALL", ref, workflowKey, reason, retries: int|null,
 
 ## Frontend
 
-- Collapse `useDashboardSnapshotQuery` to one call + `refetchInterval ~15s`.
+- Collapse `useDashboardSnapshotQuery` to one call — **no `refetchInterval`** (event-driven;
+  see "Liveness & refresh").
 - Expand the `DashboardSnapshot` TS type to mirror the DTO (Zod schema per repo convention).
 - Two new SVG chart components: **AreaChart** (throughput) and **Sparkbars** (funnel) —
   thin, token-driven, no chart lib (per handoff).
 - Recreate hero / funnel rail / recent-runs / needs-attention per the handoff, reusing
   existing `shared/ui/*` (Button, Badge, DataTable, ConfirmDialog, toast). Pulse dot = CSS.
+- A small **"updated {time}"** label (from `window.to`) so the point-in-time figures read
+  honestly under the always-pulsing dot.
+
+## Liveness & refresh (v1)
+
+**v1 does not poll.** The snapshot is refreshed by **events, not a timer**:
+
+- **on mount** — fetched when the dashboard opens;
+- **on window focus** — `refetchOnWindowFocus` (TanStack default, kept on) refetches when the
+  operator tabs back — exactly the "they check, then leave" usage, fresh whenever they look;
+- **on replay** — a successful call-replay invalidates the snapshot so counts drop.
+
+No `refetchInterval`. The **"live" feeling is the CSS pulse dot** (continuous, no data behind
+it), not the number's refresh rate. `events/min` (`throughput.perMin`) is a plain field in
+the snapshot, frozen at fetch time and refreshed on the same events — honest because of the
+"updated {time}" label.
+
+**`events/min` stays a field in the snapshot — not a separate endpoint.** It shares the
+snapshot's exact access pattern (same triggers, same cadence, same consumer), so it belongs
+in the one endpoint. A dedicated `/pulse` endpoint would, in the no-poll model, either return
+a value already in the snapshot (redundant) or be polled faster (the polling we rejected).
+
+**Going live later is a deferred, isolated change — no machinery built now.** The
+single-snapshot-object boundary behind one hook *is* the switch:
+- time-based liveness → add `refetchInterval` (one line);
+- true push → swap the hook's source to an SSE subscription emitting snapshots (UI unchanged;
+  the codebase already has SSE infra via `webhookStreamPort`);
+- independent fast pulse → *then* promote `perMin` to its own `GET /admin/dashboard/pulse`
+  and point a small fast hook at it (cheap precisely because it's already a discrete field).
+
+The trigger to do any of these is an **access-pattern divergence** (the pulse needing a
+different cadence than the snapshot) — which does not exist in v1.
 
 ## Order of work (sub-steps within Phase 1)
 
@@ -165,7 +198,9 @@ FailureRow  { kind: "RUN" | "CALL", ref, workflowKey, reason, retries: int|null,
   resume / idempotent side effects). Its own future mini-project.
 - The framework (`ReportProvider` etc.) — Phase 3.
 - Lead/accountability metrics — Phase 2.
-- True SSE-streamed events/min — poll is enough for v1.
+- Any time-based polling / live `events/min` — v1 is event-driven only (mount / focus /
+  replay). Polling, SSE, or a `/pulse` endpoint are deferred, isolated swaps (see "Liveness
+  & refresh").
 - Pre-computed/materialized aggregates — on-read is fine at this scale.
 
 ## Risks (with detection)
@@ -189,8 +224,9 @@ FailureRow  { kind: "RUN" | "CALL", ref, workflowKey, reason, retries: int|null,
 - Success rate matches `COMPLETED/(COMPLETED+FAILED)` on a seeded fixture.
 - Replaying a failed **call** lowers openFailures across hero + funnel after refetch;
   a failed **run** row is read-only (navigates, no fake action).
-- Dashboard renders the handoff design with real data; events/min shows a real value and
-  refreshes on poll.
+- Dashboard renders the handoff design with real data; `events/min` shows a real value;
+  the snapshot refreshes on mount / window-focus / replay (no timer), with an "updated
+  {time}" label and a continuous CSS pulse dot.
 
 ## Linked
 
