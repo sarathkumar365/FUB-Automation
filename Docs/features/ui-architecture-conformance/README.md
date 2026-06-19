@@ -48,7 +48,8 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
   separate RD needed; the rules are documented in `ui/AGENTS.md` and reference RD-011.
 
 ## Definition of done — met ✅
-1. All 13 findings ☑ Done (UAC-11's builder-page test deferred with recorded rationale — see registry).
+1. All 13 findings ☑ Done (UAC-11's builder-page test deferred with recorded rationale — now tracked as
+   [known-issue #35](../../engineering-reference/known-issues.md)).
 2. RD-011 written + Accepted; boundary enforcement shipped (no second RD required).
 3. `ui/AGENTS.md` refreshed to the real module set + the enforced conventions.
 4. `npm run check` green; no dead code (knip); token guard clean. (408 tests, solo run.)
@@ -209,7 +210,8 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
 - **Status:** ☑ Done (2026-06-18, Phase 5 — audit list was stale; PersonsPage + WorkflowsPage-filters
   backfilled. **WorkflowBuilderPage page-test deferred:** mounting it hangs the Vitest forks worker
   (~580s, no code-level open handle found); it's a thin read-only viewer whose render logic is already
-  covered by `workflow-storyboard-*` unit tests — revisit with the planned interactive builder.)
+  covered by `workflows-builder-pure.test.ts` (23 tests) — revisit with the planned interactive builder.
+  Now tracked as [known-issue #35](../../engineering-reference/known-issues.md).)
 - **Severity:** LOW (flat `src/test/` layout itself is fine at this scale — do NOT restructure)
 - **Evidence:** no dedicated tests for `WorkflowRunDetailPage`, `PersonsPage`, `ProcessedCallsPage`; some
   `workflows-builder` storyboard interaction paths untested.
