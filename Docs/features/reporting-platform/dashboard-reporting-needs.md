@@ -2,8 +2,9 @@
 
 > **Status: research only. No plan, no phases, nothing implemented.**
 > This is *one slice* of the reporting platform, not the feature itself. It captures
-> what reporting data the redesigned operations dashboard would need, derived purely
-> from analysing the existing design handoff. It commits us to nothing.
+> what reporting data the redesigned operations dashboard would need. Originally derived
+> from the design handoff; **backend sources now verified against the code (2026-06-19)** —
+> see "Verified backend ground truth" below. It commits us to nothing.
 
 ## Why this note exists
 
@@ -61,18 +62,53 @@ For the dashboard slice — **not** the full analytics platform:
   **on-read aggregation, no new schema** for this slice. (The "pre-computed
   summaries vs. dedicated schema" question only bites at larger scale.)
 - **Frontend:** AreaChart + Sparkbars SVG components, an expanded `DashboardSnapshot`
-  type, and the runs+calls worklist with run-replay.
+  type, the runs+calls open-failures worklist, and a run-status → design-badge mapping (the
+  run enum doesn't match the design's labels — see Decisions). Run-replay is a pending
+  decision (below); v1 likely ships calls-replayable with failed runs read-only.
 
 Key observation: **everything the design needs is derivable from data already
 stored** — pure aggregation, no new event capture. The funnel (capability D) is the
 only piece that crosses table boundaries and deserves a real design decision when we
 plan.
 
-## Open questions (deferred to planning)
+## Verified backend ground truth (2026-06-19)
+
+Confirmed against the code — the capability grades above are no longer design-only guesses:
+
+- **`workflow_runs`** — has `status`, `workflow_key` (de-normalized, no join), `created_at`,
+  `updated_at`. Status enum: `PENDING, BLOCKED, DUPLICATE_IGNORED, CANCELED, COMPLETED,
+  FAILED`. Windowed counts, success rate (`COMPLETED`/total), status breakdown, and recent
+  runs all computable. **No `started_at`** — duration = `updated_at − created_at`,
+  "completed" = `updated_at` (an approximation).
+- **`webhook_events`** (`received_at`) and **`events`** (`created_at`) — both carry the
+  timestamps for hourly bucketing. The operational funnel
+  `webhook_events → events → workflow_runs → FAILED` is countable per window.
+- **`processed_calls`** — `status` (FAILED), `failure_reason`, `retry_count`, `call_id`;
+  call-replay endpoint exists (`POST /admin/processed-calls/{id}/replay`).
+- **No aggregation exists today.** The current dashboard is four client-side list calls
+  stitched in `dashboardSnapshot.ts` with `systemHealth.mode='placeholder'`. Phase 1 builds
+  the first real aggregation endpoint.
+
+## Decisions to make (Phase 1)
+
+1. **Run-replay (the one real gap).** Workflow runs have **no** replay endpoint, no
+   `retry_count`, and **no resolved/handled flag** — a FAILED run is terminal, and "open
+   failures" for runs can only mean `status=FAILED` with no way to clear one. The design's
+   worklist gives runs a Replay button and recomputes the headline on replay (works for
+   calls, not runs). Options:
+   - **(b, recommended)** v1 worklist = **calls replayable, failed runs read-only** (their
+     "Replay" opens the run detail). Keeps the design intact; no new run infra.
+   - (a) build run-replay + a resolution flag — its own mini-project; defer.
+   - (c) worklist = calls only for v1.
+2. **Run status → design badge mapping** — enum (`COMPLETED/PENDING/FAILED/CANCELED/BLOCKED/
+   DUPLICATE_IGNORED`) vs. design labels (`Succeeded/Running/Canceled/Blocked`). Decide
+   `COMPLETED→Succeeded`, `PENDING→Running`, and where `DUPLICATE_IGNORED` lands.
+
+## Open questions (deferred)
 
 - On-read aggregation vs. pre-computed summaries — fine on-read for this slice; revisit at scale.
-- The funnel's three-table alignment (webhook events / domain events / workflow runs to one window).
-- Run-replay action + snapshot invalidation (mirror the existing call-replay path).
+- The funnel's three-table alignment to a single window (boundary handling across
+  `received_at` vs `created_at`).
 
 ## Source material
 

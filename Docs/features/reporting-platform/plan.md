@@ -82,10 +82,19 @@ evidence instead of guessing the contract up front. See "Order of work".
   called.
 
 ### Dashboard metrics — what fits existing data
-Buildable now: windowed counts, hourly time-series, period deltas, the funnel **leads →
-assigned → called** (which IS the accountability funnel — shared foundation), the
-open-failures worklist, recent runs, live readout. Deeper funnel stages (appointments/
-deals) are deferred to the mirror and slot in as a later provider.
+This dashboard is **operational pipeline health**, not lead accountability (per the design
+handoff, Direction A). Buildable now from existing tables: windowed run counts + success
+rate, period-over-period deltas, a 24-point hourly throughput series, and the **operational
+funnel `Ingested → Domain Events → Workflow Runs → Failed`** (over `webhook_events` →
+`events` → `workflow_runs`), plus the open-failures worklist (failed runs + calls) and
+recent runs. All on-read aggregation — **no new capture**. See
+[dashboard-reporting-needs.md](./dashboard-reporting-needs.md) for the capability-by-capability
+breakdown and the verified backend sources.
+
+> Note: this is the **operational** funnel, *not* the lead funnel (`leads → assigned →
+> called`) — that belongs to the Phase-2 accountability slice. The two slices touch
+> different tables and share little metric logic; that independence is exactly what makes
+> the Phase-3 extraction a real test of the abstraction.
 
 ## Order of work & dependencies
 Phase 0 (docs) → **Phase 1 (dashboard metrics — direct slice)** → **Phase 2 (accountability
@@ -113,9 +122,10 @@ extracted framework.
   parser + backfill from retained `raw_payload`.
 - **`outcome`/string drift** — not a v1 risk (outcome unused in the MVP); becomes relevant
   only when connected-vs-attempt is introduced.
-- **`person.created` ≠ intake** — affects "leads in today" counts on the dashboard. *Detect:*
-  spot-check against FUB `created`. *Mitigation:* label as first-seen, or snapshot FUB
-  `created` later.
+- **`person.created` ≠ intake** — first-seen-by-us, not true FUB intake. *Affects the
+  Phase-2 accountability slice, not this operational dashboard* (which has no lead-intake
+  panel). *Detect:* spot-check against FUB `created`. *Mitigation:* label as first-seen, or
+  snapshot FUB `created` later.
 - **Over-abstraction of the framework** — committing the registry/port/definitions contract
   before it's earned. *Mitigation (this plan's core sequencing):* the framework is
   **extracted in Phase 3 from two working slices**, never built first. *Detect:* if Phase 3
@@ -127,12 +137,13 @@ extracted framework.
   resolve the method-granularity question then, with two real call-sites in hand.
 
 ## Validation criteria
-- Phase 1: the redesigned dashboard's existing-data panels are backed by real endpoints.
-  Plain slice — no framework yet. Establishes the shared "called"/"assigned" logic the
-  accountability slice will reuse.
+- Phase 1: the redesigned dashboard's panels are backed by a real aggregation endpoint
+  (windowed run counts + success rate, 24-pt hourly throughput, the operational funnel,
+  open-failures worklist). Plain slice — no framework yet.
 - Phase 2: red/green board renders per agent; the null-rate gate result is recorded; an
-  agent with a known call shows green (no false red on attributable calls). Reuses Phase-1's
-  funnel logic (same "called"/"assigned", no divergence). Second plain slice.
+  agent with a known call shows green (no false red on attributable calls). Second plain
+  slice — a deliberately *different* shape from the dashboard (per-agent worklist vs.
+  operational aggregates), which is what makes the Phase-3 extraction meaningful.
 - Phase 3: the framework is extracted; **both slices behave identically after moving onto
   it** (pure refactor, tests unchanged); adding a *third* hypothetical report would now be a
   provider + DTO. RD-012 ratified → Accepted.
