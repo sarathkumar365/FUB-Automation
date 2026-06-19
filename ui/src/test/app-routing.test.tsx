@@ -30,7 +30,7 @@ describe('App routing and shell', () => {
 
     render(<App />)
 
-    expect(await screen.findByText('Automation Engine Admin')).toBeInTheDocument()
+    expect(await screen.findByText('Flux Admin')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: uiText.dashboard.title })).toBeInTheDocument()
     expect(await screen.findByText(uiText.dashboard.subtitle)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.railAriaLabel)).toBeInTheDocument()

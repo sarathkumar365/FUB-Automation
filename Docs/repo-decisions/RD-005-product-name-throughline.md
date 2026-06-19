@@ -1,7 +1,11 @@
 # RD-005: Product name is "Throughline"
 
 ## Status
-Provisional — pending trademark and domain clearance (see [Verification](#verification-pending-before-lock-in)). Once cleared, mark Accepted.
+**Superseded (2026-06-19).** The working title "Automation Engine" was renamed directly to **Flux** — across
+code, database, UI, and the `cortex` AI service — without adopting the **Throughline** proposal recorded below.
+This document is retained as the history of the naming exploration, not as the current direction.
+
+*Original status: Provisional — pending trademark and domain clearance (see [Verification](#verification-pending-before-lock-in)).*
 
 ## Context
 The repository ships under the working title "Automation Engine":
@@ -100,7 +104,7 @@ If 1–4 come back blocked, fall back in this order: **Threshold → Overture �
 
 ## Supersedes / Superseded By
 - Supersedes: implicit working title "Automation Engine."
-- Superseded by: none.
+- Superseded by: the **Flux** rename (2026-06-19) — "Automation Engine" → "Flux" across code, DB, and UI; the cortex AI service renamed alongside. Throughline did not proceed.
 
 ## See Also
 - Discovery + alternatives in full: `~/.claude/plans/act-as-a-product-staged-puffin.md` (planning artifact from the naming session).

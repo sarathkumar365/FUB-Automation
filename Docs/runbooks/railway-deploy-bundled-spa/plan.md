@@ -96,11 +96,11 @@ reloading `/admin-ui/persons/42` would hit Spring with no handler and return
 **New:**
 - `Dockerfile` — multi-stage build (cherry-picked from prior work).
 - `.dockerignore` — keeps `target/`, `node_modules/`, `.env`, `Docs/`, etc. out of build context.
-- `src/main/java/com/fuba/automation_engine/controller/AdminUiController.java` — `/admin-ui/**` catch-all (rewritten from prior brittle version).
-- `src/test/java/com/fuba/automation_engine/controller/AdminUiControllerTest.java` — pins the catch-all behaviour including for routes added by later features.
+- `src/main/java/com/flux/controller/AdminUiController.java` — `/admin-ui/**` catch-all (rewritten from prior brittle version).
+- `src/test/java/com/flux/controller/AdminUiControllerTest.java` — pins the catch-all behaviour including for routes added by later features.
 - `src/test/resources/static/index.html` — fixture for the forward target during tests.
 - `scripts/fub-webhook-sync.sh` — reusable script for upserting FUB webhook URLs after a deploy (cherry-picked from prior work).
-- `src/test/java/com/fuba/automation_engine/FubWebhookSyncScriptTest.java` — contract test for the sync script.
+- `src/test/java/com/flux/FubWebhookSyncScriptTest.java` — contract test for the sync script.
 
 **Modified:**
 - `Docs/runbooks/railway-deploy-bundled-spa/research.md` — context and constraints.
@@ -121,7 +121,7 @@ reloading `/admin-ui/persons/42` would hit Spring with no handler and return
 cd ui && npm test                   # expect: all green
 
 # 3. Local Docker build works (optional but recommended before pushing)
-docker build -t automation-engine:local .
+docker build -t flux:local .
 docker run --rm -p 8080:8080 \
   -e SPRING_PROFILES_ACTIVE=prod \
   -e JWT_SECRET="$(openssl rand -base64 48)" \
@@ -129,7 +129,7 @@ docker run --rm -p 8080:8080 \
   -e ADMIN_AUTH_PASSWORD=devpass \
   -e DB_URL=... -e DB_USER=... -e DB_PASS=... \
   -e FUB_BASE_URL=... -e FUB_API_KEY=... -e FUB_X_SYSTEM=... -e FUB_X_SYSTEM_KEY=... \
-  automation-engine:local
+  flux:local
 
 # 4. Smoke checks on the running container
 curl -i http://localhost:8080/health                                # expect 200

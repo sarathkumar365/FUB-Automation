@@ -1,6 +1,6 @@
 export const uiText = {
   app: {
-    title: 'Automation Engine Admin',
+    title: 'Flux Admin',
     shell: {
       railAriaLabel: 'Global navigation rail',
       panelAriaLabel: 'Section panel',
@@ -27,7 +27,7 @@ export const uiText = {
     },
   },
   authShell: {
-    wordmark: 'Automation Engine',
+    wordmark: 'Flux',
     wordmarkSub: 'Operations console',
   },
   login: {
@@ -75,7 +75,7 @@ export const uiText = {
     returnToSignIn: 'Return to sign in',
   },
   landing: {
-    kicker: 'AUTOMATION ENGINE',
+    kicker: 'FLUX',
     title: 'From call outcome to follow-up task — automated, auditable, reliable.',
     subtitle: 'Five stages. One pipeline. Every call outcome routed to the right action with a full audit trail.',
     workspaceAriaLabel: 'Landing workspace overview',

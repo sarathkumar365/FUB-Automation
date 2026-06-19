@@ -278,7 +278,7 @@ Note: `"COMM_NOT_FOUND": ["do_reassign", "notify_slack"]` — **parallel fan-out
 #### WorkflowStepType (the plugin contract)
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.Map;
 import java.util.Set;
@@ -318,7 +318,7 @@ public interface WorkflowStepType {
 #### StepExecutionContext (what a step receives)
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.Map;
 
@@ -342,7 +342,7 @@ public record StepExecutionContext(
 #### StepExecutionResult (what a step returns)
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.Map;
 
@@ -373,7 +373,7 @@ public record StepExecutionResult(
 #### WorkflowStepRegistry
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.List;
 import java.util.Map;
@@ -1240,7 +1240,7 @@ flowchart TB
 src/main/resources/db/migration/
   V{next}__create_workflow_engine.sql
 
-src/main/java/com/fuba/automation_engine/
+src/main/java/com/flux/
   service/workflow/
     WorkflowStepType.java                    ← plugin interface
     WorkflowStepRegistry.java                ← auto-discovers step types
@@ -1269,7 +1269,7 @@ src/main/java/com/fuba/automation_engine/
     WorkflowRunStepRepository.java
     WorkflowRunStepClaimRepository.java      ← JDBC, holds the claim query
 
-src/test/java/com/fuba/automation_engine/
+src/test/java/com/flux/
   service/workflow/
     WorkflowGraphValidatorTest.java
     WorkflowEngineSmokeTest.java             ← end-to-end: plan → worker → COMPLETED
@@ -1278,7 +1278,7 @@ src/test/java/com/fuba/automation_engine/
 ### Wave 2
 
 ```
-src/main/java/com/fuba/automation_engine/
+src/main/java/com/flux/
   service/workflow/
     RunContext.java                           ← trigger payload + prior outputs
     ExpressionEvaluator.java                 ← interface
@@ -1293,7 +1293,7 @@ src/main/java/com/fuba/automation_engine/
   service/fub/
     FubCallHelper.java                       ← extracted retry/transient helper (shared)
 
-src/test/java/com/fuba/automation_engine/
+src/test/java/com/flux/
   service/workflow/
     WorkflowParityTest.java                  ← old engine vs new, same scenarios
     ExpressionEvaluatorTest.java
@@ -1302,7 +1302,7 @@ src/test/java/com/fuba/automation_engine/
 ### Wave 3
 
 ```
-src/main/java/com/fuba/automation_engine/
+src/main/java/com/flux/
   service/workflow/
     WorkflowTriggerType.java                 ← trigger plugin interface
     WorkflowTriggerRegistry.java             ← auto-discovers trigger types
@@ -1332,7 +1332,7 @@ src/main/java/com/fuba/automation_engine/
       WorkflowRunDetailResponse.java
       StepTypeResponse.java
 
-src/test/java/com/fuba/automation_engine/
+src/test/java/com/flux/
   service/workflow/
     WorkflowTriggerRouterTest.java
   controller/

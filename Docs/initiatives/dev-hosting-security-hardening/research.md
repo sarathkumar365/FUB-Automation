@@ -4,7 +4,7 @@
 `dev-hosting-security-hardening`
 
 ## Goal
-The Automation Engine is going to be hosted on a public dev URL (Render free tier or similar) so that Follow Up Boss can deliver real webhooks to it. Today the app is wired only for local/tunnel showcase use. Before exposing it to the open internet — even as a dev environment — close the security gaps that an unauthenticated stranger can actually exploit, while explicitly accepting (and tracking) gaps that don't matter for a single-admin dev host.
+Flux is going to be hosted on a public dev URL (Render free tier or similar) so that Follow Up Boss can deliver real webhooks to it. Today the app is wired only for local/tunnel showcase use. Before exposing it to the open internet — even as a dev environment — close the security gaps that an unauthenticated stranger can actually exploit, while explicitly accepting (and tracking) gaps that don't matter for a single-admin dev host.
 
 ## Scope (in this feature)
 - **A1** — Authentication on `/admin/**`: DB-backed users + JWT bearer + role-based authorization (`ADMIN` / `OPERATOR` / `VIEWER`). Includes a small SPA login page and a token store.
@@ -15,7 +15,7 @@ The Automation Engine is going to be hosted on a public dev URL (Render free tie
 
 ## Out of scope (deferred — known issues)
 - **A2** — SSRF guard on workflow HTTP steps (`HttpRequestWorkflowStep`, `SlackNotifyWorkflowStep`).
-- **A4** — Bounded HTTP response reads in `WorkflowRestHttpClientAdapter` and `AiCallServiceHttpClientAdapter`.
+- **A4** — Bounded HTTP response reads in `WorkflowRestHttpClientAdapter` and `CortexHttpClientAdapter`.
 
 Both are tracked in `Docs/hosting-decision/dev/dev-hosting-security-checklist.md` under a new "Known issues — accepted for dev, revisit when…" section. Re-evaluate when:
 - A2: a non-trusted user gains workflow-edit rights (today only the seeded `ADMIN` operator has it).
@@ -51,7 +51,7 @@ None of `RD-001` (normalized lead-event contract), `RD-002` (event-catalog state
 - `spring.jpa.show-sql=true` is hard-coded in the base properties (PII-leaky).
 
 ### Body-size enforcement (A3)
-- `WebhookIngressController` reads `@RequestBody String rawBody` — Spring buffers the entire body before the in-app 1 MB cap at [WebhookIngressService.java:71](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java) fires.
+- `WebhookIngressController` reads `@RequestBody String rawBody` — Spring buffers the entire body before the in-app 1 MB cap at [WebhookIngressService.java:71](../../../src/main/java/com/flux/service/webhook/WebhookIngressService.java) fires.
 - No Tomcat-level `max-http-form-post-size` or `max-swallow-size` set.
 
 ### Build artifact (A6)
@@ -64,11 +64,11 @@ None of `RD-001` (normalized lead-event contract), `RD-002` (event-catalog state
 
 | Need | Reuse |
 |---|---|
-| `@ConfigurationProperties` style | [config/WebhookProperties.java](../../../src/main/java/com/fuba/automation_engine/config/WebhookProperties.java), [config/WorkflowStepHttpProperties.java](../../../src/main/java/com/fuba/automation_engine/config/WorkflowStepHttpProperties.java) — Lombok `@Getter @Setter` + `@ConfigurationProperties(prefix = "...")`, optional nested static classes. |
-| JPA entity + repository | [persistence/entity/WebhookEventEntity.java](../../../src/main/java/com/fuba/automation_engine/persistence/entity/WebhookEventEntity.java), [persistence/repository/WebhookEventRepository.java](../../../src/main/java/com/fuba/automation_engine/persistence/repository/WebhookEventRepository.java) — Lombok-style entity, `JpaRepository`, `@Query`-based custom finders. |
+| `@ConfigurationProperties` style | [config/WebhookProperties.java](../../../src/main/java/com/flux/config/WebhookProperties.java), [config/WorkflowStepHttpProperties.java](../../../src/main/java/com/flux/config/WorkflowStepHttpProperties.java) — Lombok `@Getter @Setter` + `@ConfigurationProperties(prefix = "...")`, optional nested static classes. |
+| JPA entity + repository | [persistence/entity/WebhookEventEntity.java](../../../src/main/java/com/flux/persistence/entity/WebhookEventEntity.java), [persistence/repository/WebhookEventRepository.java](../../../src/main/java/com/flux/persistence/repository/WebhookEventRepository.java) — Lombok-style entity, `JpaRepository`, `@Query`-based custom finders. |
 | Flyway migration | `src/main/resources/db/migration/V1..V15`. Next free is `V16__create_app_user_table.sql`. |
-| Controller test (admin) | [src/test/java/.../controller/AdminWorkflowControllerTest.java](../../../src/test/java/com/fuba/automation_engine/controller/AdminWorkflowControllerTest.java) — `@SpringBootTest` + `@AutoConfigureMockMvc` + `MockMvc`. |
-| Adapter test (HTTP) | [src/test/java/.../client/aicall/AiCallServiceHttpClientAdapterTest.java](../../../src/test/java/com/fuba/automation_engine/client/aicall/AiCallServiceHttpClientAdapterTest.java) — `com.sun.net.httpserver.HttpServer` for in-process upstreams. |
+| Controller test (admin) | [src/test/java/.../controller/AdminWorkflowControllerTest.java](../../../src/test/java/com/flux/controller/AdminWorkflowControllerTest.java) — `@SpringBootTest` + `@AutoConfigureMockMvc` + `MockMvc`. |
+| Adapter test (HTTP) | [src/test/java/.../client/aicall/CortexHttpClientAdapterTest.java](../../../src/test/java/com/flux/client/aicall/CortexHttpClientAdapterTest.java) — `com.sun.net.httpserver.HttpServer` for in-process upstreams. |
 | Frontend module | `ui/src/modules/dashboard`, `ui/src/modules/leads` — `ui/state` / `ui/queries` split, Vitest tests in `src/test`. |
 | Profile activation | [scripts/run-app.sh](../../../scripts/run-app.sh) already wires `local` / `prod` — no script change needed. |
 

@@ -1,22 +1,22 @@
 # UI Submodule Agent Guide
 
-This file defines how to work inside the `ui/` submodule for `automation-engine`.
+This file defines how to work inside the `ui/` submodule for `flux`.
 
 ## Context
 - Submodule purpose: build and maintain the internal admin UI for webhook visibility and replay workflows.
-- Parent module: `/Users/sarathkumar/Projects/2Creative/automation-engine`
+- Parent module: `/Users/sarathkumar/Projects/2Creative/flux`
 - Product priority:
 1. Scenario 1: call outcome -> task automation (primary)
 2. Scenario 2: intent/transcription -> task (future)
 
 ## Source of truth (read first)
-- Parent agreement: `/Users/sarathkumar/Projects/2Creative/automation-engine/AGENTS.md`
-- Structure/implementation rules: `/Users/sarathkumar/Projects/2Creative/automation-engine/developer-rules.md`
-- UI plan: `/Users/sarathkumar/Projects/2Creative/automation-engine/ui/docs/ui-0.1-plan.md`
-- **Design source of truth: `/Users/sarathkumar/Projects/2Creative/automation-engine/Automation Engine Design System/`** — brand foundations, tokens, component patterns, and a high-fidelity console UI kit. **Start with its `HANDOFF.md`** (context, where-everything-is, locked UX rules); `README.md` is the deep reference, `colors_and_type.css` the canonical tokens. These are design references to recreate with this module's patterns/primitives, not code to copy verbatim.
-- UI style decisions: `/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/ui-style-guide-v1.md`
-- Figma baseline: `/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/ui-figma-reference.md`
-- Tokens: `/Users/sarathkumar/Projects/2Creative/automation-engine/ui/src/styles/tokens.css`
+- Parent agreement: `/Users/sarathkumar/Projects/2Creative/flux/AGENTS.md`
+- Structure/implementation rules: `/Users/sarathkumar/Projects/2Creative/flux/developer-rules.md`
+- UI plan: `/Users/sarathkumar/Projects/2Creative/flux/ui/docs/ui-0.1-plan.md`
+- **Design source of truth: `/Users/sarathkumar/Projects/2Creative/flux/Flux Design System/`** — brand foundations, tokens, component patterns, and a high-fidelity console UI kit. **Start with its `HANDOFF.md`** (context, where-everything-is, locked UX rules); `README.md` is the deep reference, `colors_and_type.css` the canonical tokens. These are design references to recreate with this module's patterns/primitives, not code to copy verbatim.
+- UI style decisions: `/Users/sarathkumar/Projects/2Creative/flux/Docs/ui-style-guide-v1.md`
+- Figma baseline: `/Users/sarathkumar/Projects/2Creative/flux/Docs/ui-figma-reference.md`
+- Tokens: `/Users/sarathkumar/Projects/2Creative/flux/ui/src/styles/tokens.css`
 
 ## UI architecture decisions (locked for v0.1)
 - Keep `ui/` as a standalone frontend module.

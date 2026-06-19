@@ -323,7 +323,7 @@ Status: `DONE` — webhook_event_id populated end-to-end (known-issue #25 resolv
 **Goal:** Cheap groundwork that has no behaviour change but unblocks everything downstream.
 
 #### Deliverables
-- **Populate `workflow_runs.webhook_event_id` on every run** — the line at [WorkflowExecutionManager.java:~117](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java) already calls `run.setWebhookEventId(request.webhookEventId())`; trace the caller chain and ensure `request.webhookEventId()` is populated (resolves known-issue #25)
+- **Populate `workflow_runs.webhook_event_id` on every run** — the line at [WorkflowExecutionManager.java:~117](../../../src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java) already calls `run.setWebhookEventId(request.webhookEventId())`; trace the caller chain and ensure `request.webhookEventId()` is populated (resolves known-issue #25)
 - **Thread `webhookEventId` through `RunContext`** — already present per Wave 2; verify and tighten if needed
 - **Add `leads.previous_state` JSONB column** via Flyway migration; default `NULL`; populated by the diff layer in Phase 2
 - **Workflow-creation-time field-reference validator** — runs at `POST /admin/workflows` and `PUT /admin/workflows/{id}`; refuses to save workflows that reference fields not captured in `leads.lead_details` or `leads.previous_state`; covers `change.*`, `lead.*` references
@@ -416,7 +416,7 @@ The initial Pre-Phase-2 deliverable list covered the entity, repository, and cor
 - Exception: package `exception/lead/` → `exception/person/`; `InvalidLeadFeedQueryException` → `InvalidPersonFeedQueryException`
 - Admin UI: deep-link route `/admin-ui/leads/{id}` → `/admin-ui/persons/{id}` in `AdminUiController` + the SPA's fetch URLs and router config; the existing comment in `AdminUiController` referencing the old path
 - Tests: `AdminLeadsFlowTest` → `AdminPersonsFlowTest` (+ all `/admin/leads` MockMvc paths); `JdbcLeadFeedReadRepositoryTest` → `JdbcPersonFeedReadRepositoryTest`; `LeadScopedTopNRepositoryTest` → `PersonScopedTopNRepositoryTest`
-- Cosmetic: stale `leads.person_details` comment in [`PersonUpsertService.java:63`](../../../src/main/java/com/fuba/automation_engine/service/person/PersonUpsertService.java)
+- Cosmetic: stale `leads.person_details` comment in [`PersonUpsertService.java:63`](../../../src/main/java/com/flux/service/person/PersonUpsertService.java)
 
 **Workflow JSON sweep** (the one production workflow):
 - `agent_followup_enforcement.workflow.json`:
@@ -499,7 +499,7 @@ JPA mapping with `@JdbcTypeCode(SqlTypes.JSON)` for payload per project conventi
 Single method `dispatch(DomainEvent)`. Holds `List<DomainEventListener>`. No listeners registered in Phase 2. Modeled on the existing `WebhookDispatcher` pattern (no Spring `ApplicationEventPublisher` introduced). Invoked only from the after-commit hook in (4) — never directly from inside a write transaction.
 
 **5a. Per-person serialization of upserts** (correctness prerequisite for the collapse invariant):
-- The current `PersonUpsertService.upsertFubPerson` does `findBy → save` with no row lock. Webhooks process on a 2–4 thread async pool ([`WebhookAsyncConfig.java:17`](../../../src/main/java/com/fuba/automation_engine/config/WebhookAsyncConfig.java)), so a FUB burst of 3–4 `peopleUpdated` for the same person can run truly in parallel — every worker reads the same pre-burst state, every worker sees a non-empty diff, every worker emits. The headline collapse claim ("3 webhooks → 1 event") silently fails without a lock.
+- The current `PersonUpsertService.upsertFubPerson` does `findBy → save` with no row lock. Webhooks process on a 2–4 thread async pool ([`WebhookAsyncConfig.java:17`](../../../src/main/java/com/flux/config/WebhookAsyncConfig.java)), so a FUB burst of 3–4 `peopleUpdated` for the same person can run truly in parallel — every worker reads the same pre-burst state, every worker sees a non-empty diff, every worker emits. The headline collapse claim ("3 webhooks → 1 event") silently fails without a lock.
 - Add a `findBySourceSystemAndSourcePersonIdForUpdate(...)` method on `PersonRepository` annotated with `@Lock(LockModeType.PESSIMISTIC_WRITE)`. Use it in `upsertFubPerson` **at both call sites**: the primary finder AND the `DataIntegrityViolationException` recovery re-read. Different persons still process fully in parallel (row-level lock, not table-level).
 - For brand-new persons (no row to lock on yet) the existing `DataIntegrityViolationException` recovery path becomes correct only when the recovery re-read also uses the locking finder — otherwise concurrent losers of the unique-constraint race re-read without serializing and each emit independently. **Both call sites must use `findBy…ForUpdate`** for the collapse invariant to hold for brand-new persons.
 
@@ -775,13 +775,13 @@ Everything below is the detail of each box.
 
 ### Stage 1 — Ingress: webhook → `webhook_events`
 
-[`WebhookIngressService`](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java) verifies the signature, persists the raw webhook to the `webhook_events` table, dedupes replays, and hands off (async) to the processor. By the time we reach the processor the event is a **`NormalizedWebhookEvent`** — FUB's raw shape normalized into `{ sourceSystem, normalizedDomain (PERSON/CALL/NOTE/UNKNOWN), normalizedAction (CREATED/UPDATED/DELETED), payload, eventId, webhookEventId }`.
+[`WebhookIngressService`](../../../src/main/java/com/flux/service/webhook/WebhookIngressService.java) verifies the signature, persists the raw webhook to the `webhook_events` table, dedupes replays, and hands off (async) to the processor. By the time we reach the processor the event is a **`NormalizedWebhookEvent`** — FUB's raw shape normalized into `{ sourceSystem, normalizedDomain (PERSON/CALL/NOTE/UNKNOWN), normalizedAction (CREATED/UPDATED/DELETED), payload, eventId, webhookEventId }`.
 
 ---
 
 ### Stage 2 — Processor: the fork where both rails start
 
-[`WebhookEventProcessorService.process()`](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java:96) is where both rails launch, in order:
+[`WebhookEventProcessorService.process()`](../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java:96) is where both rails launch, in order:
 
 ```java
 switch (domain) {
@@ -803,10 +803,10 @@ Both happen on every webhook, today.
 
 ### Rail 2 — the domain-event rail (built, live, but dead-ends)
 
-Inside each domain handler, after the local upsert, [`DomainEventEmitter.emit()`](../../../src/main/java/com/fuba/automation_engine/service/event/DomainEventEmitter.java) does two things:
+Inside each domain handler, after the local upsert, [`DomainEventEmitter.emit()`](../../../src/main/java/com/flux/service/event/DomainEventEmitter.java) does two things:
 
 1. **INSERT a row into the `events` table** inside the same transaction as the state change (atomic).
-2. Register an **after-commit hook** that calls [`InMemoryDomainEventDispatcher.dispatch()`](../../../src/main/java/com/fuba/automation_engine/service/event/InMemoryDomainEventDispatcher.java) once the transaction commits.
+2. Register an **after-commit hook** that calls [`InMemoryDomainEventDispatcher.dispatch()`](../../../src/main/java/com/flux/service/event/InMemoryDomainEventDispatcher.java) once the transaction commits.
 
 ```mermaid
 flowchart LR
@@ -817,7 +817,7 @@ flowchart LR
     CHK -->|"no — after Phase 4d"| FANOUT[notify each DomainEventListener]
 ```
 
-The dispatcher holds a Spring-injected `List<DomainEventListener>`. **Today that list is empty** ([`InMemoryDomainEventDispatcher.java:41`](../../../src/main/java/com/fuba/automation_engine/service/event/InMemoryDomainEventDispatcher.java) — `if (listeners.isEmpty()) return`). So events are durably recorded and dispatched into the void.
+The dispatcher holds a Spring-injected `List<DomainEventListener>`. **Today that list is empty** ([`InMemoryDomainEventDispatcher.java:41`](../../../src/main/java/com/flux/service/event/InMemoryDomainEventDispatcher.java) — `if (listeners.isEmpty()) return`). So events are durably recorded and dispatched into the void.
 
 This is why the cutover order matters: **registering the first listener is what turns Rail 2 on — not any flag.** The `engine.write.emit-events` flag only governs whether the *engine's own writes* emit their own event (Phase 3 echo handling); it does **not** gate this webhook-driven emission.
 
@@ -827,7 +827,7 @@ This is why the cutover order matters: **registering the first listener is what 
 
 #### 3a. Routing: `WorkflowTriggerRouter.route(NormalizedWebhookEvent)`
 
-[`WorkflowTriggerRouter`](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/WorkflowTriggerRouter.java) is the heart of Rail 1:
+[`WorkflowTriggerRouter`](../../../src/main/java/com/flux/service/workflow/trigger/WorkflowTriggerRouter.java) is the heart of Rail 1:
 
 ```mermaid
 flowchart TD
@@ -849,17 +849,17 @@ Key facts:
 
 #### 3b. The trigger types
 
-The registry ([`WorkflowTriggerRegistry`](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/WorkflowTriggerRegistry.java)) maps `id → WorkflowTriggerType`. Today there is exactly one real type:
+The registry ([`WorkflowTriggerRegistry`](../../../src/main/java/com/flux/service/workflow/trigger/WorkflowTriggerRegistry.java)) maps `id → WorkflowTriggerType`. Today there is exactly one real type:
 
-[`FubWebhookTriggerType`](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java) (id `webhook_fub`):
+[`FubWebhookTriggerType`](../../../src/main/java/com/flux/service/workflow/trigger/FubWebhookTriggerType.java) (id `webhook_fub`):
 - `matches()` checks the config's `eventDomain` / `eventAction` patterns against the event's normalized domain/action (e.g. `PERSON` / `UPDATED`), then optionally evaluates a JSONata `filter`.
 - For the filter it builds a **tiny scope**: just `{ event: { payload } }` — the raw webhook payload, nothing else. No `person`, no `change`, no `current`.
 
-The [`WorkflowTriggerType`](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/WorkflowTriggerType.java) interface itself is webhook-shaped — `matches(TriggerMatchContext)` / `extractEntities(TriggerMatchContext)`. **This interface and `TriggerMatchContext` are what get deleted in Phase 4e.**
+The [`WorkflowTriggerType`](../../../src/main/java/com/flux/service/workflow/trigger/WorkflowTriggerType.java) interface itself is webhook-shaped — `matches(TriggerMatchContext)` / `extractEntities(TriggerMatchContext)`. **This interface and `TriggerMatchContext` are what get deleted in Phase 4e.**
 
 #### 3c. Planning a run: `WorkflowExecutionManager.plan`
 
-[`WorkflowExecutionManager.plan()`](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java:68) turns a match into rows:
+[`WorkflowExecutionManager.plan()`](../../../src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java:68) turns a match into rows:
 
 ```mermaid
 flowchart TD
@@ -877,7 +877,7 @@ flowchart TD
 
 #### 3d. Execution over time: `WorkflowExecutionDueWorker`
 
-Runs don't execute inline — a scheduled poller drives them. [`WorkflowExecutionDueWorker`](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionDueWorker.java) (`@Scheduled`, every `poll-interval-ms`, default 2s; gated by `workflow.worker.enabled`):
+Runs don't execute inline — a scheduled poller drives them. [`WorkflowExecutionDueWorker`](../../../src/main/java/com/flux/service/workflow/WorkflowExecutionDueWorker.java) (`@Scheduled`, every `poll-interval-ms`, default 2s; gated by `workflow.worker.enabled`):
 
 ```mermaid
 flowchart TD
@@ -897,14 +897,14 @@ flowchart TD
 
 #### 3e. Inside a step: the step-time scope + engine writes
 
-[`WorkflowStepExecutionService.executeClaimedStep`](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java) builds the **step-time scope** and runs the step:
+[`WorkflowStepExecutionService.executeClaimedStep`](../../../src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java) builds the **step-time scope** and runs the step:
 
-1. [`buildRunContext`](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java:211) gathers, **fresh per step**:
+1. [`buildRunContext`](../../../src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java:211) gathers, **fresh per step**:
    - `person` — the live local snapshot via `PersonSnapshotResolver` (re-read each step, so a reassignment mid-wait is seen)
    - `now` — daytime/hour flags via `BusinessHoursService`
    - `steps.<id>.outputs` — prior step outputs
    - `event.payload` — the **frozen trigger payload** captured at plan time
-2. [`ExpressionScope.from(runContext)`](../../../src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java) packs those into the bag JSONata reads. **Today's keys: `event.payload`, `sourcePersonId`, `person`, `now`, `steps`.**
+2. [`ExpressionScope.from(runContext)`](../../../src/main/java/com/flux/service/workflow/expression/ExpressionScope.java) packs those into the bag JSONata reads. **Today's keys: `event.payload`, `sourcePersonId`, `person`, `now`, `steps`.**
 3. Config templates (`{{ person.assignedUserId }}`, etc.) are resolved against that scope, then the step type executes.
 4. Steps that write to FUB (`fub_reassign`, `fub_move_to_pond`, `fub_add_tag`, `fub_create_note`) go through the **`EngineWriteCoordinator`** (Phase 3) — local-state-first / tracker-tagged so the echo webhook doesn't re-trigger.
 

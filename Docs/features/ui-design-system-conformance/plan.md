@@ -11,7 +11,7 @@ Frontend-only. **Part A = Settings page. Part B = Status screens.** Independent;
 - **RD-004 (admin auth = JWT bearer):** the Settings read (`GET /admin/settings/config`) and all guarded
   routes ride the existing JWT / `@PreAuthorize` layer — no parallel auth.
 - **RD-005 (product name → Throughline, Provisional):** the status/auth lockup renders the existing
-  centralized wordmark (`uiText.authShell.wordmark`); **no new "Automation Engine" literals**, so the pending
+  centralized wordmark (`uiText.authShell.wordmark`); **no new "Flux" literals**, so the pending
   rename stays single-source.
 - **RD-006 (engine-echo exclusion, safe-by-default):** the `engine.write.emit-events` flag is RD-006-governed
   and is **not** returned by the read endpoint; the page **must not fabricate** its value (shows "not
@@ -165,7 +165,7 @@ Decisions resolved during the design review are listed in [§ Review-resolved de
 ### A1. Authoritative design spec
 
 **Source of truth = the design-system kit** (`ui/AGENTS.md`):
-`Automation Engine Design System/ui_kits/automation-engine/screens-settings.jsx` (+ `HANDOFF.md`).
+`Flux Design System/ui_kits/flux/screens-settings.jsx` (+ `HANDOFF.md`).
 
 - **Layout:** four-region shell. Panel = "Configuration" section-nav (4 buttons; active pill
   `--color-brand-soft` bg + `--color-brand` text). Content = one card per active section, `max-width ~720px`.
@@ -233,7 +233,7 @@ duplicating fetched data in local component state"*, the page holds **no local f
 
 ### B1. Design handoff (source of truth)
 
-`ui/Automation Engine Design System/design_handoff_status_screens/`:
+`ui/Flux Design System/design_handoff_status_screens/`:
 - `README.md` (spec). `reference/status-screens.jsx` (component reference — recreate, don't copy).
 - `reference/status.css` — `.aestatus-root { isolation: isolate }` + link/details hover; motion is
   **JS-driven (WAAPI)**, never CSS opacity.
@@ -248,7 +248,7 @@ duplicating fetched data in local component state"*, the page holds **no local f
    `radial-gradient(760px 360px at 50% -14%, color-mix(in srgb, var(--color-brand) 13%, transparent), transparent 64%),`
    `radial-gradient(560px 300px at 86% 114%, color-mix(in srgb, var(--color-brand-2) 10%, transparent), transparent 60%), var(--color-bg)`
 2. **Brand lockup** pinned top-center: `LogoMarkIcon` + wordmark. **Reuse the existing centralized wordmark
-   strings** (`uiText.authShell.wordmark` / `wordmarkSub`) — do **not** introduce new "Automation Engine"
+   strings** (`uiText.authShell.wordmark` / `wordmarkSub`) — do **not** introduce new "Flux"
    literals (`RD-005` renames the product to *Throughline*; keep the rename single-source).
 3. **Centered content slot** (`flex:1`, padding `104px 40px 56px`).
 - Props: `inShell` (gradient→transparent + drop lockup, padding `32px`), `hideLockup`.

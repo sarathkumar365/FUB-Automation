@@ -23,10 +23,10 @@ Completed
   - `PolicyExecutionDueWorker` conditional updated to `matchIfMissing=false`.
 - Test suite realignment:
   - Added:
-    - `src/test/java/com/fuba/automation_engine/integration/PolicyTableDropMigrationPostgresRegressionTest.java`
-    - updated `src/test/java/com/fuba/automation_engine/service/policy/PolicyExecutionDueWorkerActivationTest.java`
+    - `src/test/java/com/flux/integration/PolicyTableDropMigrationPostgresRegressionTest.java`
+    - updated `src/test/java/com/flux/service/policy/PolicyExecutionDueWorkerActivationTest.java`
   - Kept:
-    - `src/test/java/com/fuba/automation_engine/integration/PolicyAdminApiCutoverIntegrationTest.java`
+    - `src/test/java/com/flux/integration/PolicyAdminApiCutoverIntegrationTest.java`
   - Removed legacy policy-runtime focused tests from active suite.
 
 ## Validation

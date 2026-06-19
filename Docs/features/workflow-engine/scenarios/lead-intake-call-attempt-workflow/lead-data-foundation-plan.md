@@ -13,8 +13,8 @@
 The data required to answer "did the lead and the agent talk?" exists in pieces across the system but is never joined:
 - [`leads`](../../../../../src/main/resources/db/migration/V14__create_leads_table.sql) table exists but has no entity, repository, or ingestion wiring.
 - [`processed_calls`](../../../../../src/main/resources/db/migration/V2__create_processed_calls.sql) persists processing status but drops the FUB `CallDetails` facts (person linkage, duration, outcome, direction, timestamps).
-- [`webhook_events`](../../../../../src/main/resources/db/migration/V1__create_webhook_events.sql) has a `source_lead_id` column that [`FubWebhookParser`](../../../../../src/main/java/com/fuba/automation_engine/service/webhook/parse/FubWebhookParser.java) currently hardcodes to `NULL` for assignment events.
-- [`FollowUpBossClient#checkPersonCommunication`](../../../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java) only reads `person.contacted > 0` — a blunt counter, not evidence of an actual agent conversation.
+- [`webhook_events`](../../../../../src/main/resources/db/migration/V1__create_webhook_events.sql) has a `source_lead_id` column that [`FubWebhookParser`](../../../../../src/main/java/com/flux/service/webhook/parse/FubWebhookParser.java) currently hardcodes to `NULL` for assignment events.
+- [`FollowUpBossClient#checkPersonCommunication`](../../../../../src/main/java/com/flux/client/fub/FubFollowUpBossClient.java) only reads `person.contacted > 0` — a blunt counter, not evidence of an actual agent conversation.
 
 Without a durable join between a lead and the calls associated with it, communication checks cannot be made reliably from local data.
 
@@ -33,13 +33,13 @@ Without a durable join between a lead and the calls associated with it, communic
 | Concern | State Today |
 |---|---|
 | `leads` table | Exists ([V14](../../../../../src/main/resources/db/migration/V14__create_leads_table.sql)). Orphan — no entity/repo/service. |
-| Lead ingestion | None. `peopleCreated`/`peopleUpdated` route to workflows only ([`WebhookEventProcessorService:141`](../../../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java#L141)). |
+| Lead ingestion | None. `peopleCreated`/`peopleUpdated` route to workflows only ([`WebhookEventProcessorService:141`](../../../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java#L141)). |
 | `webhook_events.source_lead_id` | Column present, populated as `NULL` by parser. |
 | Call persistence | `processed_calls` stores status, rule, task_id, retry, raw_payload. Drops `personId`, `duration`, `outcome`, `userId`. |
 | `CallDetails` DTO | Exposes `id, personId, duration, userId, outcome`. Missing `isIncoming` and timestamps. |
-| FUB client call fetch | [`FubFollowUpBossClient#getCallById`](../../../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java#L57) maps only the five fields above. |
+| FUB client call fetch | [`FubFollowUpBossClient#getCallById`](../../../../../src/main/java/com/flux/client/fub/FubFollowUpBossClient.java#L57) maps only the five fields above. |
 | Lead ↔ call join | Not possible in SQL; `personId` is ephemeral runtime state. |
-| Existing comm-check step | [`WaitAndCheckCommunicationWorkflowStep`](../../../../../src/main/java/com/fuba/automation_engine/service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.java) uses `checkPersonCommunication` (FUB read every tick). |
+| Existing comm-check step | [`WaitAndCheckCommunicationWorkflowStep`](../../../../../src/main/java/com/flux/service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.java) uses `checkPersonCommunication` (FUB read every tick). |
 | Attempt counter | None. `workflow_run_steps.retry_count` exists but isn't used for business attempts. |
 
 ## Target Shape
@@ -70,10 +70,10 @@ Make every FUB person/lead event leave a durable row in `leads` keyed by `(sourc
      - `lead_details` JSONB = minimal snapshot (name, stage, assignedUserId, claimed, tags, phones, emails) from the person payload.
      - Idempotent; updates `last_synced_at` and mutable fields; leaves `created_at` alone.
 3. **Wire into webhook processing**
-   - In [`WebhookEventProcessorService.processAssignmentDomainEvent`](../../../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java#L141), after workflow routing, call `LeadUpsertService` for `peopleCreated` / `peopleUpdated`.
+   - In [`WebhookEventProcessorService.processAssignmentDomainEvent`](../../../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java#L141), after workflow routing, call `LeadUpsertService` for `peopleCreated` / `peopleUpdated`.
    - Fetch person payload via existing FUB client path (add `getPersonById` usage if not already present for this case).
 4. **Parser fix**
-   - In [`FubWebhookParser:73`](../../../../../src/main/java/com/fuba/automation_engine/service/webhook/parse/FubWebhookParser.java#L73), populate `source_lead_id` from `resourceIds[0]` for assignment-domain events. Remove the TODO.
+   - In [`FubWebhookParser:73`](../../../../../src/main/java/com/flux/service/webhook/parse/FubWebhookParser.java#L73), populate `source_lead_id` from `resourceIds[0]` for assignment-domain events. Remove the TODO.
 
 ### Migrations
 - None. V14 schema is sufficient.
@@ -106,9 +106,9 @@ Persist the FUB `CallDetails` fields needed to answer "did a real conversation h
    - All columns nullable (backfill-free; historical rows stay untouched).
 2. **Extend `CallDetails` DTO**
    - Add `isIncoming` and `createdAt` (Instant) to the record.
-   - Extend the FUB JSON mapping in [`FubFollowUpBossClient#getCallById`](../../../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java#L57) to read `isIncoming` and `created`.
+   - Extend the FUB JSON mapping in [`FubFollowUpBossClient#getCallById`](../../../../../src/main/java/com/flux/client/fub/FubFollowUpBossClient.java#L57) to read `isIncoming` and `created`.
 3. **Persist on call processing**
-   - In [`WebhookEventProcessorService.processCallDomainEvent` (~line 179)](../../../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java#L179), when persisting the `ProcessedCallEntity`, populate the new fields from `CallDetails`. `source_lead_id = String.valueOf(callDetails.personId())`.
+   - In [`WebhookEventProcessorService.processCallDomainEvent` (~line 179)](../../../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java#L179), when persisting the `ProcessedCallEntity`, populate the new fields from `CallDetails`. `source_lead_id = String.valueOf(callDetails.personId())`.
    - If the matching `leads` row is absent: log a warning (`lead-missing-on-call`) and continue persisting the call facts. Lead-missing does not block call ledger writes.
 4. **No processing-ledger semantics change**
    - `status`, `rule_applied`, `task_id`, `retry_count`, `raw_payload` behave exactly as today.

@@ -9,4 +9,4 @@ Raw research material about Follow Up Boss — API samples, payload captures, an
 
 ## What does not go here
 - Our integration design → [`../features/`](../features/) (e.g. `fub-webhook-reactivation`)
-- Client implementation notes → code under `src/main/java/com/fuba/automation_engine/client/fub`
+- Client implementation notes → code under `src/main/java/com/flux/client/fub`

@@ -26,7 +26,7 @@ For code layout and implementation rules, see [../developer-rules.md](../develop
 
 | File | What it covers |
 |---|---|
-| `../Automation Engine Design System/` (repo root) | **UI design source of truth** — brand foundations, tokens, component patterns, console UI kit. Start with its `HANDOFF.md`. (See AGENTS.md.) |
+| `../Flux Design System/` (repo root) | **UI design source of truth** — brand foundations, tokens, component patterns, console UI kit. Start with its `HANDOFF.md`. (See AGENTS.md.) |
 | [ui-figma-reference.md](ui-figma-reference.md) | Supporting ref — Figma node references for UI work. |
 | [ui-style-guide-v1.md](ui-style-guide-v1.md) | Supporting ref — UI style guide v1. |
 

@@ -1,13 +1,13 @@
 # AI Call Java Integration — Research
 
 ## Purpose
-Track research and execution notes for Java integration with `ai-call-service` contract.
+Track research and execution notes for Java integration with `cortex` contract.
 
 ## Source of truth
 - `Docs/product-discovery/Call Agent/AI Call Agent - Java Integration Phased Plan.md`
-- `/Users/sarathkumar/Projects/2Creative/ai-call-service/docs/CONTRACT.md`
-- `/Users/sarathkumar/Projects/2Creative/ai-call-service/main.py`
-- `/Users/sarathkumar/Projects/2Creative/ai-call-service/tests/test_phase1_contract.py`
+- `/Users/sarathkumar/Projects/2Creative/cortex/docs/CONTRACT.md`
+- `/Users/sarathkumar/Projects/2Creative/cortex/main.py`
+- `/Users/sarathkumar/Projects/2Creative/cortex/tests/test_phase1_contract.py`
 
 ## Key implementation decisions
 - Keep `POST /call` and `GET /calls/{sid}` contract unchanged.

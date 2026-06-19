@@ -117,7 +117,7 @@ Java treats `status` as the primary routing field.
 ## Phase 0 — Pin the contract
 
 **What:** write the contract above into a shared markdown doc in the Python repo
-(`ai-call-service/docs/CONTRACT.md`). Both sides read from it.
+(`cortex/docs/CONTRACT.md`). Both sides read from it.
 
 **Exit criteria:**
 - Contract doc committed on Python side.
@@ -224,9 +224,9 @@ Polling cadence is fixed to `nextDueAt = now + 120s`.
   - Added `workflow_run_steps.step_state` (Flyway `V16__add_step_state_to_workflow_run_steps.sql` + entity mapping).
   - Added test coverage for reschedule behavior and step-state persistence.
 - Pass 2: `COMPLETED` (2026-04-21)
-  - Added typed call-service port (`AiCallServiceClient`) and HTTP adapter (`AiCallServiceHttpClientAdapter`).
+  - Added typed call-service port (`CortexClient`) and HTTP adapter (`CortexHttpClientAdapter`).
   - Added call-service DTOs for `POST /call` and `GET /calls/{sid}` payload mapping.
-  - Added `ai-call-service.*` config properties for base URL and timeouts.
+  - Added `cortex.*` config properties for base URL and timeouts.
   - Added adapter test coverage for success, terminal/in-progress mapping, HTTP error mapping, and network failure behavior.
 - Pass 3: `COMPLETED` (2026-04-21)
   - Added `AiCallWorkflowStep` (`id=ai_call`) with required `to` + `context` config schema.

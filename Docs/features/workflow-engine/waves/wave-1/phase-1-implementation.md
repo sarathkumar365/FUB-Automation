@@ -5,7 +5,7 @@ Completed
 
 ## Delivered
 - Workflow engine tables via:
-  - [V10__create_workflow_engine_tables.sql](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/resources/db/migration/V10__create_workflow_engine_tables.sql)
+  - [V10__create_workflow_engine_tables.sql](/Users/sarathkumar/Projects/2Creative/flux/src/main/resources/db/migration/V10__create_workflow_engine_tables.sql)
 - Core runtime modules under:
   - `service/workflow/*`
 - Admin workflow endpoints:

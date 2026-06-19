@@ -185,7 +185,7 @@ Last updated: 2026-04-09
 
 ---
 
-## Priority Matrix — What Your Automation Engine Can Solve
+## Priority Matrix — What Flux Can Solve
 
 | Gap | Can We Solve Via API? | Impact | Effort |
 |-----|----------------------|--------|--------|

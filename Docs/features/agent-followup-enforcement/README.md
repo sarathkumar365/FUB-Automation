@@ -20,11 +20,11 @@ Status: `DONE` (commit `4215b2d` on `feature/agent-followup-enforcement`)
 #### Deliverables
 - Rename `NormalizedDomain.ASSIGNMENT` → `NormalizedDomain.LEAD` (CRM-agnostic; matches our business-domain term, not any single CRM's API jargon)
 - Drop `NormalizedAction.ASSIGNED` (phantom value — no parser produces it; assignment is detected as a `LEAD.UPDATED` with field-diff inside the workflow)
-- Update [FubWebhookParser.java:133-149](../../../src/main/java/com/fuba/automation_engine/service/webhook/parse/FubWebhookParser.java) — `peopleCreated/peopleUpdated → LEAD.CREATED/UPDATED`
+- Update [FubWebhookParser.java:133-149](../../../src/main/java/com/flux/service/webhook/parse/FubWebhookParser.java) — `peopleCreated/peopleUpdated → LEAD.CREATED/UPDATED`
 - Flyway migration: `UPDATE webhook_events SET normalized_domain='LEAD' WHERE normalized_domain='ASSIGNMENT'`
 - Update all Java references (≈10 files): `WebhookEventEntity`, `WebhookFeedItemResponse`, `WebhookEventDetailResponse`, `JdbcWebhookFeedReadRepository`, `WebhookIngressService`, `AdminWebhookService`, `WebhookEventProcessorService`, `ProcessedCallAdminService`, parser, repository
 - Update tests (parser test, feed tests, contract tests)
-- Update [FubWebhookTriggerType.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java) docs/validation if it references the enum names
+- Update [FubWebhookTriggerType.java](../../../src/main/java/com/flux/service/workflow/trigger/FubWebhookTriggerType.java) docs/validation if it references the enum names
 
 #### Verification
 - All existing tests still pass after rename
@@ -49,21 +49,21 @@ Status: `DONE` (420 tests pass — adds `lead.*` resolved per step from the loca
 **Goal:** make the locally-stored lead snapshot (already populated by ingestion — `leads.lead_details` JSONB) readable in workflow expressions as `{{ lead.assignedUserId }}`, `{{ lead.assignedTo }}`, etc. No new step type, no new API call, no fetch. Ships first because every subsequent phase (notes, branching, the actual workflow) depends on this primitive.
 
 #### Why this is the right design (not a new fetch step)
-- The LEAD ingestion path **already calls `getPersonRawById`** and snapshots the result on every `peopleCreated/Updated` webhook ([WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java)). Re-fetching from a workflow step would duplicate work the system already did.
+- The LEAD ingestion path **already calls `getPersonRawById`** and snapshots the result on every `peopleCreated/Updated` webhook ([WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java)). Re-fetching from a workflow step would duplicate work the system already did.
 - Snapshot is **auto-refreshed**: any reassignment in FUB triggers another `peopleUpdated` webhook → `LeadUpsertService` re-snapshots. So `lead.*` reads always reflect the latest known state without a per-step API call.
 - For long-running workflows (3-min / 30-min waits), resolving `lead.*` **at each step's expression evaluation** (not frozen at trigger time) means later steps see any in-flight changes that arrived via webhook during the wait.
 - DB read is cheap: indexed lookup by `(source_system, source_lead_id)` returning one JSONB blob.
 
 #### Architectural choice — resolve at metadata-build time, not at scope-build time
-The `RunContext` is materialized per step in [WorkflowStepExecutionService.buildRunContext](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java) (line 203). That's where ingested data (step outputs, trigger payload, source IDs) is assembled today, so it's the natural insertion point for the lead snapshot too. `ExpressionScope.from(runContext)` stays a **pure mapper**: it just reads pre-resolved fields off `RunContext` and exposes them as scope keys. Any future namespace (Phase 3 `now`, Phase 4 `config`) follows the same pattern — resolved during `buildRunContext`, plucked into scope by `ExpressionScope`.
+The `RunContext` is materialized per step in [WorkflowStepExecutionService.buildRunContext](../../../src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java) (line 203). That's where ingested data (step outputs, trigger payload, source IDs) is assembled today, so it's the natural insertion point for the lead snapshot too. `ExpressionScope.from(runContext)` stays a **pure mapper**: it just reads pre-resolved fields off `RunContext` and exposes them as scope keys. Any future namespace (Phase 3 `now`, Phase 4 `config`) follows the same pattern — resolved during `buildRunContext`, plucked into scope by `ExpressionScope`.
 
 #### Deliverables
 - `LeadSnapshotResolver` service: given a `sourceLeadId`, returns `LeadEntity.lead_details` (`JsonNode`), or empty `ObjectNode` if not yet ingested. Uses existing `LeadRepository.findBySourceSystemAndSourceLeadId("FUB", sourceLeadId)`. Source system hardcoded to `"FUB"` for now — see [known-issues.md](../../engineering-reference/known-issues.md) #18.
   - **PER-STEP EAGER:** the resolver is called once per step, eagerly, inside `buildRunContext`. No caching; relies on the indexed lookup being cheap.
 - Add a `lead` field to `RunContext` (`JsonNode`).
-- Extend [WorkflowStepExecutionService.buildRunContext](../../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java:203) to call the resolver and stuff the result into `RunContext.lead`.
-- Extend [ExpressionScope.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java) to add a `lead` top-level key (`scope.put("lead", runContext.lead())`). No DB dep, no resolver injection here — pure mapping.
-- Trigger-filter scope ([FubWebhookTriggerType.java:79](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)) does **not** include `lead.*` for this phase — see [known-issues.md](../../engineering-reference/known-issues.md) #17 and the corresponding `Docs/product-discovery/ideas.md` entry.
+- Extend [WorkflowStepExecutionService.buildRunContext](../../../src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java:203) to call the resolver and stuff the result into `RunContext.lead`.
+- Extend [ExpressionScope.java](../../../src/main/java/com/flux/service/workflow/expression/ExpressionScope.java) to add a `lead` top-level key (`scope.put("lead", runContext.lead())`). No DB dep, no resolver injection here — pure mapping.
+- Trigger-filter scope ([FubWebhookTriggerType.java:79](../../../src/main/java/com/flux/service/workflow/trigger/FubWebhookTriggerType.java)) does **not** include `lead.*` for this phase — see [known-issues.md](../../engineering-reference/known-issues.md) #17 and the corresponding `Docs/product-discovery/ideas.md` entry.
 - Verify via a small JSONata test that `Jsonata.evaluate(map)` walks correctly into a `JsonNode` value when one of the map's values is a JsonNode (Q4). If it doesn't, convert via `objectMapper.convertValue(node, Map.class)` once when populating `RunContext.lead`.
 - Unit tests:
   - `LeadSnapshotResolverTest` — happy path, missing lead, source-system hardcoded
@@ -92,7 +92,7 @@ Status: `DONE` (434 tests pass — verified contract from research.md ships as a
 **Goal:** new workflow step that posts a FUB note with @mention support that renders as a clickable chip and triggers the standard mention notification. Ships after Phase 1 so the step's templates can naturally reference `{{ lead.assignedUserId }}` / `{{ lead.assignedTo }}`. Generic primitive — usable by any future workflow.
 
 #### Deliverables
-- `FubCreateNoteRequestDto` (incl. nested `Mentions(List<Long> user)` record) and `FubNoteResponseDto` in `src/main/java/com/fuba/automation_engine/client/fub/dto/`
+- `FubCreateNoteRequestDto` (incl. nested `Mentions(List<Long> user)` record) and `FubNoteResponseDto` in `src/main/java/com/flux/client/fub/dto/`
 - `FubFollowUpBossClient.createNote(CreateNoteCommand)` using `RetryPolicy.DEFAULT_FUB` — sends `body` (HTML), `isHtml=true`, `mentions.user[]`, optional `subject`
 - `FubCreateNoteWorkflowStep` registered in the workflow step registry, taking config `{ mentionUserIds, mentionUserNames, message, subject? }`
   - Workflow author passes both IDs and matching display names from the Phase 1 `lead.*` namespace: `mentionUserIds: ["{{ lead.assignedUserId }}"]`, `mentionUserNames: ["{{ lead.assignedTo }}"]`
@@ -124,7 +124,7 @@ Status: `DONE` (454 tests pass — adds `now.*` namespace and `GET /admin/settin
 #### Deliverables
 - `BusinessHoursProperties` (`automation.business-hours.timezone`, `.startHour`, `.endHour`, `.weekdaysOnly`) bound from `application.properties`
 - `BusinessHoursService.isDaytime(Instant)` and `.hourLocal(Instant)`
-- Extend `ExpressionScope` ([src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java:10-31](../../../src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java)) to inject a `now` map: `{ isDaytime: bool, hourLocal: int }` on every step evaluation, computed via the injected `Clock`
+- Extend `ExpressionScope` ([src/main/java/com/flux/service/workflow/expression/ExpressionScope.java:10-31](../../../src/main/java/com/flux/service/workflow/expression/ExpressionScope.java)) to inject a `now` map: `{ isDaytime: bool, hourLocal: int }` on every step evaluation, computed via the injected `Clock`
 - Default values in `application.properties` and `application-prod.properties`
 - Unit tests covering DST boundaries, weekend behavior, midnight wraparound, hour-edge cases (exactly `startHour` / `endHour`)
 
@@ -159,7 +159,7 @@ The idea is preserved as a future feature in [Docs/product-discovery/ideas.md](.
 
 #### Deliverables
 - Flyway migration: add `config JSONB` column to `automation_workflows` (nullable, default `'{}'`)
-- Add `config` field to `AutomationWorkflowEntity` ([src/main/java/com/fuba/automation_engine/persistence/entity/AutomationWorkflowEntity.java](../../../src/main/java/com/fuba/automation_engine/persistence/entity/AutomationWorkflowEntity.java))
+- Add `config` field to `AutomationWorkflowEntity` ([src/main/java/com/flux/persistence/entity/AutomationWorkflowEntity.java](../../../src/main/java/com/flux/persistence/entity/AutomationWorkflowEntity.java))
 - Plumb config through:
   - Admin DTO + `AdminWorkflowController` create/update endpoints accept `config`
   - `AutomationWorkflowService` stores it

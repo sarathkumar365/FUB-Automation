@@ -17,7 +17,7 @@ The harness must reproduce the documented bad behavior of the 05-08/05-11/05-12 
 
 ### What landed
 
-- `src/test/java/com/fuba/automation_engine/replay/`
+- `src/test/java/com/flux/replay/`
   - `ReplayFixture.java` — record types for fixture shape
   - `ReplayFixtureLoader.java` — classpath JSON loader
   - `ReplayHarnessFollowUpBossClient.java` — test FUB client (scriptable reads, recorded writes)

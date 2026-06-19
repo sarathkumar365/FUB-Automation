@@ -52,7 +52,7 @@ Objective: baseline cleanliness before Wave 3 changes.
 
 ## Phase 1: Retry Primitive (Engine Internal)
 ### 1A) Extend `StepExecutionResult`
-- File: `src/main/java/com/fuba/automation_engine/service/workflow/StepExecutionResult.java`
+- File: `src/main/java/com/flux/service/workflow/StepExecutionResult.java`
 - New record shape:
   - `boolean success`
   - `String resultCode`
@@ -66,7 +66,7 @@ Objective: baseline cleanliness before Wave 3 changes.
   - new `transientFailure(resultCode, errorMessage)` => `success=false`, `transientFailure=true`
 
 ### 1B) Per-node retry override parsing
-- File: `src/main/java/com/fuba/automation_engine/service/workflow/RetryPolicy.java`
+- File: `src/main/java/com/flux/service/workflow/RetryPolicy.java`
 - Add helper:
   - `RetryPolicy.fromMap(Map<String,Object> map, RetryPolicy fallback)`
 - Reads optional:
@@ -78,7 +78,7 @@ Objective: baseline cleanliness before Wave 3 changes.
 - Missing values inherit from fallback.
 
 ### 1C) Retry dispatch in execution service
-- File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java`
+- File: `src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java`
 - Keep `Clock` injection for deterministic due-at tests.
 - In non-success branch of `executeClaimedStep()`:
   - Resolve effective policy from `step.configSnapshot.retryPolicy` using `RetryPolicy.fromMap(...)`, fallback `stepType.defaultRetryPolicy()`.
@@ -101,7 +101,7 @@ Objective: baseline cleanliness before Wave 3 changes.
 - Permanent/validation failures remain `failure(...)`.
 
 ### 1E) Retry tests
-- New: `src/test/java/com/fuba/automation_engine/service/workflow/WorkflowRetryDispatchTest.java`
+- New: `src/test/java/com/flux/service/workflow/WorkflowRetryDispatchTest.java`
 - Scenarios:
   1. transient + retries available => requeued pending with dueAt and retryCount increment; run still pending
   2. transient + retries exhausted => step/run fail
@@ -120,7 +120,7 @@ Phase 1 gate:
 ## Phase 2: Trigger Plugin Infrastructure + Router
 ### 2A) Trigger contracts
 Add:
-- `src/main/java/com/fuba/automation_engine/service/workflow/trigger/TriggerMatchContext.java`
+- `src/main/java/com/flux/service/workflow/trigger/TriggerMatchContext.java`
   - `(source, eventType, normalizedDomain, normalizedAction, payload, triggerConfig)`
 - `.../EntityRef.java`
   - `(entityType, entityId)`
@@ -129,7 +129,7 @@ Add:
 
 ### 2B) `FubWebhookTriggerType`
 Add:
-- `src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java`
+- `src/main/java/com/flux/service/workflow/trigger/FubWebhookTriggerType.java`
 - `id = "webhook_fub"`
 - Config schema:
   - `eventDomain: string`
@@ -146,7 +146,7 @@ Add:
 
 ### 2C) `WorkflowTriggerRouter`
 Add:
-- `src/main/java/com/fuba/automation_engine/service/workflow/trigger/WorkflowTriggerRouter.java`
+- `src/main/java/com/flux/service/workflow/trigger/WorkflowTriggerRouter.java`
 - Inject:
   - `AutomationWorkflowRepository`
   - `List<WorkflowTriggerType>`
@@ -176,7 +176,7 @@ Add:
 
 ### 2D) Hook into webhook processor
 Modify:
-- `src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java`
+- `src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java`
 - Inject `WorkflowTriggerRouter`
 - In `process(event)`, after existing domain switch, invoke router in try/catch.
 - Routing failures must not break legacy policy flow.
@@ -207,12 +207,12 @@ Phase 2 gate:
 ## Phase 3: MVP Step Library
 ### 3A) `fub_add_tag` (log-only for Wave 3)
 Modify:
-- `src/main/java/com/fuba/automation_engine/service/FollowUpBossClient.java`
+- `src/main/java/com/flux/service/FollowUpBossClient.java`
   - add `ActionExecutionResult addTag(long personId, String tagName);`
-- `src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java`
+- `src/main/java/com/flux/client/fub/FubFollowUpBossClient.java`
   - implement as log-only simulation in Wave 3, consistent with current simulated reassign/move patterns
 - Add step:
-  - `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubAddTagWorkflowStep.java`
+  - `src/main/java/com/flux/service/workflow/steps/FubAddTagWorkflowStep.java`
   - id `fub_add_tag`
   - result codes `SUCCESS`, `FAILED`
   - default retry `RetryPolicy.DEFAULT_FUB`
@@ -269,7 +269,7 @@ Phase 3 gate:
 
 ## Phase 4: End-to-End Proof
 Add:
-- `src/test/java/com/fuba/automation_engine/service/workflow/WorkflowTriggerEndToEndTest.java`
+- `src/test/java/com/flux/service/workflow/WorkflowTriggerEndToEndTest.java`
 - Testcontainers + fixed clock + stub FUB client + HTTP mock for Slack
 - Seed ACTIVE workflow:
   - trigger type `webhook_fub`

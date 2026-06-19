@@ -28,7 +28,7 @@ For implementation details see [`Docs/initiatives/dev-hosting-security-hardening
 
 ### A6. `spring-boot-devtools` excluded from deployed jar ✅
 - **Status:** Verified in Phase 1.
-- **Evidence:** `./mvnw clean package -DskipTests` produces a 57 MB jar; `jar tf target/automation-engine-*.jar | grep -i devtools` returns empty. No `pom.xml` change needed. Re-run before each deploy.
+- **Evidence:** `./mvnw clean package -DskipTests` produces a 57 MB jar; `jar tf target/flux-*.jar | grep -i devtools` returns empty. No `pom.xml` change needed. Re-run before each deploy.
 
 ### A7. `spring.jpa.show-sql` disabled in deployed env ✅
 - **Status:** Done in `phase/dev-hosting-security-phase-1` (same `application-prod.properties` as A3).
@@ -54,7 +54,7 @@ These are real findings, deliberately deferred for a single-admin dev host. The 
 - **Revisit when:** any of (a) a non-trusted user is granted workflow-edit rights (OPERATOR/VIEWER promoted, second admin added, self-service registration introduced); (b) a workflow URL becomes derivable from end-user input; (c) audit logs would benefit from outbound-host visibility.
 
 ### A4. Bounded HTTP response reads (deferred)
-- **Files:** `client/http/WorkflowRestHttpClientAdapter.java:83`, `client/aicall/AiCallServiceHttpClientAdapter.java`.
+- **Files:** `client/http/WorkflowRestHttpClientAdapter.java:83`, `client/aicall/CortexHttpClientAdapter.java`.
 - **Risk shape:** `bodyStream.readAllBytes()` (and the AI-call adapter's `String` body materialization) has no ceiling. A buggy or malicious upstream returning multi-GB OOMs the JVM on a 512 MB instance.
 - **Proposed fix:** cap reads at e.g. 1 MB with a bounded reader; throw `WorkflowHttpClientException("response too large", false)` past that.
 - **Accepted because:** all current upstreams are trusted (Slack webhooks, FUB API, our own AI service). Realistic risk is a buggy upstream, not a malicious one.

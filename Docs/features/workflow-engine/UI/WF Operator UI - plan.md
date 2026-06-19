@@ -1,4 +1,4 @@
-# Automation Engine - Operator UI Plan
+# Flux - Operator UI Plan
 
 ## Context
 

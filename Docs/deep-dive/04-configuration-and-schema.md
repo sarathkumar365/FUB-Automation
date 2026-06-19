@@ -65,7 +65,7 @@ finalDelay = clamp(jitteredDelay, 0, maxDelayMs)
 
 | Property | Default |
 |----------|---------|
-| `spring.datasource.url` | `jdbc:postgresql://localhost:5432/automation_engine` |
+| `spring.datasource.url` | `jdbc:postgresql://localhost:5432/flux` |
 | `spring.datasource.hikari.maximum-pool-size` | `5` |
 | `spring.jpa.hibernate.ddl-auto` | `none` (Flyway manages schema) |
 

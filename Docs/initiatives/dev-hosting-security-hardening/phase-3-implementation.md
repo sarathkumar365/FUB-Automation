@@ -84,7 +84,7 @@ The webhook live feed (`GET /admin/webhooks/stream`) was returning 401 because t
 
 Two design options were on the table — short-lived "stream tickets" via a new `POST /admin/auth/stream-ticket` endpoint, or migrate the SSE consumer off native `EventSource`. Picked the second: dropped [`@microsoft/fetch-event-source`](https://github.com/Azure/fetch-event-source) into [`sseWebhookStreamAdapter.ts`](../../../ui/src/platform/adapters/sse/sseWebhookStreamAdapter.ts). The library is fetch-based, so it supports the same `Authorization` header path the rest of the SPA already uses. No new endpoint, no token in URLs, no edge-log leakage.
 
-Backend side: removed the temporary `?token=` query-param fallback that an interim fix had added to [`JwtAuthenticationFilter`](../../../src/main/java/com/fuba/automation_engine/config/security/JwtAuthenticationFilter.java). The filter is once again header-only, simpler, and one fewer auth surface to think about.
+Backend side: removed the temporary `?token=` query-param fallback that an interim fix had added to [`JwtAuthenticationFilter`](../../../src/main/java/com/flux/config/security/JwtAuthenticationFilter.java). The filter is once again header-only, simpler, and one fewer auth surface to think about.
 
 Tests:
 - `SecurityConfigTest`: pinned the new shape with `streamEndpointRejectsTokenInQueryParam` and `streamEndpointAcceptsTokenInAuthorizationHeader`.

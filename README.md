@@ -1,6 +1,6 @@
-# Automation Engine
+# Flux
 
-Automation Engine is a Follow Up Boss call automation project.
+Flux is a Follow Up Boss call automation project.
 
 It ingests webhook events, evaluates call outcomes, and creates follow-up tasks automatically.  
 This repository is built as a showcase of a production-style architecture (controller -> service -> port -> adapter -> repository), with a Spring Boot backend and a React admin UI.
@@ -166,7 +166,7 @@ The dev host runs on **Railway** as a single service that bundles the React SPA 
 | `SERVER_PORT` | yes | On Railway: `${{PORT}}`. Spring binds to the dynamic port the platform assigns. |
 | `JAVA_TOOL_OPTIONS` | yes (Railway) | `-Djava.net.preferIPv6Stack=true -Djava.net.preferIPv6Addresses=true`. Railway's internal network is IPv6-only; without these flags the JVM cannot reach the Postgres add-on. |
 | `JWT_SECRET` | yes (non-`local`) | HS256 signing key; ≥ 32 chars. Generate with `openssl rand -base64 48`. Blank fails startup outside `local`. |
-| `JWT_ISSUER` | optional | Default `automation-engine`. |
+| `JWT_ISSUER` | optional | Default `flux`. |
 | `JWT_EXPIRY` | optional | Default `8h`. ISO-8601 duration. |
 | `ADMIN_AUTH_USERNAME` | yes (first boot) | Used once to seed the initial ADMIN row in `app_user`. Subsequent rotations go through SQL or a future user-management UI. |
 | `ADMIN_AUTH_PASSWORD` | yes (first boot) | BCrypt-hashed before insert. The seeder is one-shot — it never modifies an existing user. |
@@ -183,7 +183,7 @@ The dev host runs on **Railway** as a single service that bundles the React SPA 
 ```bash
 # Confirm devtools is excluded from the packaged jar
 ./mvnw clean package -DskipTests
-jar tf target/automation-engine-*.jar | grep -i devtools   # expect empty
+jar tf target/flux-*.jar | grep -i devtools   # expect empty
 
 # Generate a long-lived JWT secret
 openssl rand -base64 48

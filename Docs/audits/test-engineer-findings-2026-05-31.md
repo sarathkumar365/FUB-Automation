@@ -15,7 +15,7 @@ run finalization), with the multi-path (fan-out / branch / join) machinery as th
   GREEN *characterization* test alongside it locks in the current (defective) behavior as an
   executable reproduction.
 - All new tests live in one class to amortize Spring/Testcontainers startup:
-  `src/test/java/com/fuba/automation_engine/service/workflow/WorkflowEngineBugHuntTest.java`.
+  `src/test/java/com/flux/service/workflow/WorkflowEngineBugHuntTest.java`.
 - `./mvnw clean test` was green before and after this work (the new failing assertions are
   `@Disabled`).
 
@@ -55,17 +55,17 @@ present in the 28-row known-issues table.
 ## BUG-01 — Conditional branch + join deadlocks the run (High) — confirms #13
 
 **Mechanism.**
-`WorkflowExecutionManager.buildPredecessorMap` ([WorkflowExecutionManager.java:174](../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java#L174))
+`WorkflowExecutionManager.buildPredecessorMap` ([WorkflowExecutionManager.java:174](../../src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java#L174))
 statically counts **every** incoming edge across **all** result codes of a node. A join node that
 is the target of two branch arms is therefore materialized with `pendingDependencyCount = 2`
-([WorkflowExecutionManager.java:164](../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java#L164)).
+([WorkflowExecutionManager.java:164](../../src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java#L164)).
 
 At runtime a `branch_on_field` entry takes exactly **one** arm, so
 `WorkflowStepExecutionService.activateNextNodes`
-([WorkflowStepExecutionService.java:354](../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java#L354))
+([WorkflowStepExecutionService.java:354](../../src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java#L354))
 decrements the join exactly **once** (2 → 1). The join never reaches 0, stays
 `WAITING_DEPENDENCY`, and the unselected branch also stays `WAITING_DEPENDENCY` forever.
-`checkRunCompletion` ([:394](../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java#L394))
+`checkRunCompletion` ([:394](../../src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java#L394))
 sees non-terminal steps and never finalizes; the worker has no claimable `PENDING` steps. The run
 hangs in `PENDING` indefinitely.
 
@@ -90,17 +90,17 @@ reachable work" sweep must finalize runs that can no longer progress.
 
 **Mechanism.**
 `JsonataExpressionEvaluator.evaluateExpression`
-([JsonataExpressionEvaluator.java:53](../../src/main/java/com/fuba/automation_engine/service/workflow/expression/JsonataExpressionEvaluator.java#L53))
+([JsonataExpressionEvaluator.java:53](../../src/main/java/com/flux/service/workflow/expression/JsonataExpressionEvaluator.java#L53))
 catches **all** exceptions and returns `null`. In a branch step,
 `BranchOnFieldWorkflowStep.executeExpressionMode`
-([BranchOnFieldWorkflowStep.java:129](../../src/main/java/com/fuba/automation_engine/service/workflow/steps/BranchOnFieldWorkflowStep.java#L129))
+([BranchOnFieldWorkflowStep.java:129](../../src/main/java/com/flux/service/workflow/steps/BranchOnFieldWorkflowStep.java#L129))
 stringifies that `null` to `"null"`, which is absent from `resultMapping`, so `routeResult`
-([:170](../../src/main/java/com/fuba/automation_engine/service/workflow/steps/BranchOnFieldWorkflowStep.java#L170))
+([:170](../../src/main/java/com/flux/service/workflow/steps/BranchOnFieldWorkflowStep.java#L170))
 falls through to `defaultResultCode` and reports **SUCCESS**.
 
 **Sharper observation (adds to #10):** because the evaluator never throws, the
 `catch (RuntimeException) → EXPRESSION_EVAL_ERROR` branch at
-[BranchOnFieldWorkflowStep.java:134-138](../../src/main/java/com/fuba/automation_engine/service/workflow/steps/BranchOnFieldWorkflowStep.java#L134)
+[BranchOnFieldWorkflowStep.java:134-138](../../src/main/java/com/flux/service/workflow/steps/BranchOnFieldWorkflowStep.java#L134)
 is **dead code** for malformed JSONata. A typo in a routing predicate can never surface as a
 failure — it always degrades to the default route.
 
@@ -115,7 +115,7 @@ failure — it always degrades to the default route.
 
 **Mechanism.**
 `applyTerminalTransition`
-([WorkflowStepExecutionService.java:332](../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java#L332))
+([WorkflowStepExecutionService.java:332](../../src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java#L332))
 finalizes the **whole run** and marks **every** remaining `WAITING_DEPENDENCY`/`PENDING` step
 `SKIPPED`. In a parallel fan-out where the branches have different delays, the branch that becomes
 due first hits its terminal and cancels the slower sibling **before it ever executes**.
@@ -143,7 +143,7 @@ not-yet-started independent branches.
 
 **Mechanism.**
 `buildIdempotencyKey`
-([WorkflowExecutionManager.java:228](../../src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java#L228))
+([WorkflowExecutionManager.java:228](../../src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java#L228))
 emits a literal `FALLBACK|NO_EVENT` segment when `eventId` is blank. Two genuinely distinct
 triggers for the same `(workflowKey, source, sourcePersonId)` with no eventId hash to the **same**
 idempotency key; the second returns `DUPLICATE_IGNORED` and never runs. `triggerPayload`

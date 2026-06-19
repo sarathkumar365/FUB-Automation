@@ -8,8 +8,8 @@ One pass that brings two design-system surfaces into the admin UI:
 
 | Part | Deliverable | Source design |
 |---|---|---|
-| **A** | **Settings page** — new primary-nav surface | `Automation Engine Design System/ui_kits/automation-engine/screens-settings.jsx` |
-| **B** | **Status screens** — rebuild Error · 404 · Session Disabled as one family | `Automation Engine Design System/design_handoff_status_screens/` |
+| **A** | **Settings page** — new primary-nav surface | `Flux Design System/ui_kits/flux/screens-settings.jsx` |
+| **B** | **Status screens** — rebuild Error · 404 · Session Disabled as one family | `Flux Design System/design_handoff_status_screens/` |
 
 Both follow the **design-system kit as the source of truth** (`ui/AGENTS.md`), reuse the existing tokens /
 primitives / central API layer, and are **token-only** (dark mode themes for free).
@@ -41,7 +41,7 @@ ghost-glyph watermark, brand lockup top-center, a mono console status strip), dr
 **Scope decision:** extract the shared shell + content renderer (don't duplicate); ship Direction B + strip
 for standalone, calmer in-shell 404; **`SessionDisabledPage` renders full-page** (latest handoff — overrides
 `ui-0.1-plan.md`'s in-shell note); the lockup **reuses the centralized wordmark** (`uiText.authShell.wordmark`
-— no new "Automation Engine" literals, RD-005 rename pending); `AppErrorFallback` stays **router-hook-free**;
+— no new "Flux" literals, RD-005 rename pending); `AppErrorFallback` stays **router-hook-free**;
 transform-only entrance motion guarded by `prefers-reduced-motion`.
 
 ## Documents

@@ -8,7 +8,7 @@
  *   - transitions are either a list of target node ids (fan-out) or a `{ terminal }` map
  *
  * Keep this file in sync with:
- *   src/main/java/com/fuba/automation_engine/service/workflow/WorkflowGraphValidator.java
+ *   src/main/java/com/flux/service/workflow/WorkflowGraphValidator.java
  *
  * All builder code MUST import node/edge/graph types from here. Any divergence
  * between this schema and the engine's runtime is a bug in the builder.
