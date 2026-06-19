@@ -9,7 +9,7 @@
 ## Why this note exists
 
 A high-fidelity redesign of the operator dashboard already exists as a prototype:
-`ui/Automation Engine Design System/design_handoff_dashboard/` (Direction A —
+`ui/Flux Design System/design_handoff_dashboard/` (Direction A —
 "Health headline"). Its README says to keep the data layer and replace the
 presentation — but the prototype's numbers are **all hard-coded mock data**. The
 design *assumes* a reporting layer that does not exist yet.
@@ -61,7 +61,9 @@ For the dashboard slice — **not** the full analytics platform:
   `COUNT` / `GROUP BY` / `date_trunc` over `webhook_events` + `workflow_runs` —
   **on-read aggregation, no new schema** for this slice. (The "pre-computed
   summaries vs. dedicated schema" question only bites at larger scale.)
-- **Frontend:** AreaChart + Sparkbars SVG components, an expanded `DashboardSnapshot`
+- **Frontend:** AreaChart + Sparkbars as **custom token-driven SVG** (a port of `charts.jsx`,
+  no chart library — [RD-013](../../repo-decisions/RD-013-reporting-charts-custom-vs-library.md);
+  a library, lean visx, is for the later analytical layer), an expanded `DashboardSnapshot`
   type, the runs+calls open-failures worklist, and a run-status → design-badge mapping (the
   run enum doesn't match the design's labels — see Decisions). Run-replay is a pending
   decision (below); v1 likely ships calls-replayable with failed runs read-only.
@@ -112,5 +114,5 @@ Confirmed against the code — the capability grades above are no longer design-
 
 ## Source material
 
-- Design: `ui/Automation Engine Design System/design_handoff_dashboard/` (README + `prototype/dashboard-app.jsx`, `prototype/dash-data.jsx`, `prototype/charts.jsx`)
+- Design: `ui/Flux Design System/design_handoff_dashboard/` (README + `prototype/dashboard-app.jsx`, `prototype/dash-data.jsx`, `prototype/charts.jsx`)
 - Current implementation: `ui/src/modules/dashboard/` (`DashboardPage.tsx`, `data/useDashboardSnapshotQuery.ts`, `lib/dashboardSnapshot.ts`)

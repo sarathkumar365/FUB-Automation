@@ -162,6 +162,9 @@ extracted framework.
   mirror/Vanna: **RD-012**.
 - Accountability "called" = any outbound call (attempt counts); coverage vs. attribution
   layering: this plan, owner-approved 2026-06-19.
+- **Charting (RD-013):** design-primitive charts (dashboard line + sparkbars) are custom
+  token-driven SVG, no library; a chart library (lean visx) is introduced at the first
+  chart-heavy/analytical consumer — not the dashboard.
 - Open (resolve at Phase 3, with two call-sites in hand): `ReportingQuery` method
   granularity — see RD-012 Consequences.
 

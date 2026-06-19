@@ -117,6 +117,18 @@ phases.md / RD-012). The rest are **tracked as known limits, deliberately not ye
   worse than none (false accusations). A golden-dataset / reconcile-against-FUB check should
   accompany the accountability slice.
 
+## Charting — custom for primitives, library for analytics (RD-013)
+
+Reporting charts split in two. **Decorative design-primitives** (the dashboard throughput
+line, funnel sparkbars — no axes, scales, or interactivity) are **custom token-driven SVG,
+no library** — a port of the handoff's `charts.jsx`. The later **analytical layer**
+(axes / multi-series / interactivity; the ad-hoc / Vanna views) adopts a **library, chosen at
+that point** from real requirements — **lean visx** (composes with the custom charts and the
+token system; the custom charts port into it, not throwaway). Avoid batteries-included
+declarative libs (Recharts/Tremor). **Don't pick the library off the dashboard** — it's an
+atypical decorative consumer; evidence-first, per RD-012. See
+[RD-013](../../repo-decisions/RD-013-reporting-charts-custom-vs-library.md).
+
 ## Open questions (parked — design detail)
 
 - **Does FUB's task webhook + incremental pull carry a trustworthy completion flag/state?**

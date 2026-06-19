@@ -6,7 +6,7 @@
 > [RD-012](../../repo-decisions/RD-012-reporting-platform-architecture.md)). These
 > aggregators are dashboard-local and must NOT be generalised here.
 >
-> Design: `ui/Automation Engine Design System/design_handoff_dashboard/` (Direction A).
+> Design: `ui/Flux Design System/design_handoff_dashboard/` (Direction A).
 > Data sources verified in [dashboard-reporting-needs.md](./dashboard-reporting-needs.md)
 > "Verified backend ground truth". Plan: [plan.md](./plan.md) (Phase 1).
 
@@ -171,7 +171,13 @@ Pinned so UI and BE agree before integration:
   see "Liveness & refresh").
 - Expand the `DashboardSnapshot` TS type to mirror the DTO (Zod schema per repo convention).
 - Two new SVG chart components: **AreaChart** (throughput) and **Sparkbars** (funnel) —
-  thin, token-driven, no chart lib (per handoff).
+  thin, token-driven, **custom (no chart lib)** per [RD-013](../../repo-decisions/RD-013-reporting-charts-custom-vs-library.md).
+  These are a **port** of `charts.jsx` (`AreaChart` + `Sparkbars`; the other 3 primitives
+  feed other design directions — skip them), JSX→TSX, inline-styles→tokens. Keep `smoothPath`
+  (Catmull-Rom), `useId()` for unique gradient ids, `preserveAspectRatio="none"` +
+  `vectorEffect="non-scaling-stroke"`, and guard the all-zero/flat series. Dashboard-local for
+  now; promote to `shared/ui` on a second consumer. A chart **library** (lean visx) is for the
+  later analytical layer, not this dashboard — see RD-013.
 - Recreate hero / funnel rail / recent-runs / needs-attention per the handoff, reusing
   existing `shared/ui/*` (Button, Badge, DataTable, ConfirmDialog, toast). Pulse dot = CSS.
 - A small **"updated {time}"** label (from `window.to`) so the point-in-time figures read

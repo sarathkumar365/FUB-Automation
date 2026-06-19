@@ -19,6 +19,7 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-010-step-type-categories.md` — Status: Accepted (implementation = loop-primitive Phase 0)
 - `RD-011-ui-schema-ownership.md` — Status: Accepted (ui/ only; implementation = ui-architecture-conformance Phase 2)
 - `RD-012-reporting-platform-architecture.md` — Status: Proposed (extract & ratify on reporting-platform Phase 3, rule of three)
+- `RD-013-reporting-charts-custom-vs-library.md` — Status: Accepted (custom SVG for design-primitives; library — lean visx — at the analytical layer)
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`
