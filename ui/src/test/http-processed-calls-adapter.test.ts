@@ -1,5 +1,5 @@
-import { HttpJsonClient, HttpRequestError } from '../platform/adapters/http/httpJsonClient'
-import { HttpProcessedCallsAdapter } from '../platform/adapters/http/httpProcessedCallsAdapter'
+import { HttpJsonClient, HttpRequestError } from '@platform/adapters/http/httpJsonClient'
+import { HttpProcessedCallsAdapter } from '@platform/adapters/http/httpProcessedCallsAdapter'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFetch = vi.fn()

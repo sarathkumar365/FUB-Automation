@@ -12,11 +12,11 @@
  * side so the card never clips off the canvas edges.
  */
 import { useMemo } from 'react'
-import { uiText } from '../../../../../shared/constants/uiText'
-import { ErrorState } from '../../../../../shared/ui/ErrorState'
-import { StoryboardViewer } from '../../../../workflows-builder/surfaces/storyboard/StoryboardViewer'
-import { useStoryboardModel } from '../../../../workflows-builder/surfaces/storyboard/useStoryboardModel'
-import type { Graph } from '../../../../workflows-builder/state/runtimeContract'
+import { uiText } from '@shared/constants/uiText'
+import { ErrorState } from '@shared/ui/ErrorState'
+import { StoryboardViewer } from '@modules/workflows-builder/surfaces/storyboard/StoryboardViewer'
+import { useStoryboardModel } from '@modules/workflows-builder/surfaces/storyboard/useStoryboardModel'
+import type { Graph } from '@modules/workflows-builder/state/runtimeContract'
 import type { WorkflowResponse } from '../../../lib/workflowSchemas'
 import { parseWorkflowGraph } from '../lib/parseWorkflowGraph'
 import type { ValidationViewState } from '../useWorkflowDetailActions'

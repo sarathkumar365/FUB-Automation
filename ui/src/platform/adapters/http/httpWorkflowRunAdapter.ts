@@ -1,7 +1,7 @@
 import {
   workflowRunDetailResponseSchema,
   workflowRunPageResponseSchema,
-} from '../../../modules/workflows/lib/workflowSchemas'
+} from '@modules/workflows/lib/workflowSchemas'
 import type { WorkflowRunListFilters, WorkflowRunPort } from '../../ports/workflowRunPort'
 import { HttpJsonClient } from './httpJsonClient'
 import { toQueryString } from './queryParams'

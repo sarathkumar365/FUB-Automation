@@ -1,4 +1,4 @@
-import { uiText } from '../../../shared/constants/uiText'
+import { uiText } from '@shared/constants/uiText'
 import type { SettingsConfig } from './settingsSchemas'
 
 // Full IANA zone list (native, no dependency) so any backend-configured

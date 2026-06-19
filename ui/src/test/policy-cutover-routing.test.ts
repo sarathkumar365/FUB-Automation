@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import type { RouteObject } from 'react-router-dom'
-import { createAppRouter } from '../app/router'
-import { appNavItems, panelNavItems, routes } from '../shared/constants/routes'
+import { createAppRouter } from '@app/router'
+import { appNavItems, panelNavItems, routes } from '@shared/constants/routes'
 
 function collectPaths(route: RouteObject): string[] {
   const directPath = route.path ? [route.path] : []

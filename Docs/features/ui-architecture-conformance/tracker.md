@@ -8,7 +8,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-01 — No path aliases → deep relative-import chains
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 1 — layered aliases, thorough cross-layer sweep, lint backstop)
 - **Severity:** HIGH (maintainability)
 - **Rule violated:** "Prefer modular design… extract reusable logic"; general maintainability. No alias config
   exists, so refactors are brittle.

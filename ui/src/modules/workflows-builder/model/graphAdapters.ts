@@ -15,7 +15,7 @@ import {
   type Graph,
   type GraphNode,
 } from '../state/runtimeContract'
-import { readTriggerType } from '../../workflows/lib/readTriggerType'
+import { readTriggerType } from '@modules/workflows/lib/readTriggerType'
 
 export type SceneKind = 'trigger' | 'step'
 

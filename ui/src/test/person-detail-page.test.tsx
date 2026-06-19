@@ -3,12 +3,12 @@ import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
-import { PortsContext } from '../app/portsContextValue'
-import { PersonDetailPage } from '../modules/persons/ui/PersonDetailPage'
-import type { AppPorts } from '../platform/container'
-import type { PersonSummary } from '../shared/types/person'
-import { NotifyProvider } from '../shared/notifications/NotifyProvider'
+import { ShellRegionsProvider } from '@app/ShellRegionsProvider'
+import { PortsContext } from '@app/portsContextValue'
+import { PersonDetailPage } from '@modules/persons/ui/PersonDetailPage'
+import type { AppPorts } from '@platform/container'
+import type { PersonSummary } from '@shared/types/person'
+import { NotifyProvider } from '@shared/notifications/NotifyProvider'
 
 function buildSummary(overrides: Partial<PersonSummary> = {}): PersonSummary {
   return {

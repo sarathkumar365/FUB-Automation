@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { KeyValueList } from '../shared/ui/recipes/KeyValueList'
+import { KeyValueList } from '@shared/ui/recipes/KeyValueList'
 
 describe('KeyValueList recipe', () => {
   it('renders a dl in grid variant (default)', () => {

@@ -1,5 +1,5 @@
-import { HttpJsonClient } from '../platform/adapters/http/httpJsonClient'
-import { HttpPersonsAdapter } from '../platform/adapters/http/httpPersonsAdapter'
+import { HttpJsonClient } from '@platform/adapters/http/httpJsonClient'
+import { HttpPersonsAdapter } from '@platform/adapters/http/httpPersonsAdapter'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFetch = vi.fn()

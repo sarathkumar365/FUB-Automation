@@ -1,4 +1,4 @@
-import type { WebhookEventDetail, WebhookFeedPage, WebhookListFilters, WebhookStreamFilters } from '../../shared/types/webhook'
+import type { WebhookEventDetail, WebhookFeedPage, WebhookListFilters, WebhookStreamFilters } from '@shared/types/webhook'
 
 export interface AdminWebhookPort {
   listWebhooks(filters: WebhookListFilters): Promise<WebhookFeedPage>

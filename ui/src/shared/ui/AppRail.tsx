@@ -1,6 +1,6 @@
 import type { ComponentType, SVGProps } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LogoutButton } from '../../modules/auth/ui/LogoutButton'
+import { LogoutButton } from '@modules/auth/ui/LogoutButton'
 import { appNavItems, navItemIsActive, routes, type AppNavKey } from '../constants/routes'
 import { uiText } from '../constants/uiText'
 import { cn } from '../lib/cn'

@@ -3,7 +3,7 @@ import {
   resolveTerminalKind,
   terminalGlyphPrefix,
   tokensForKind,
-} from '../modules/workflows-builder/surfaces/storyboard/terminalKind'
+} from '@modules/workflows-builder/surfaces/storyboard/terminalKind'
 
 describe('resolveTerminalKind (D6.4-a)', () => {
   it('matches the four first-class kinds exactly', () => {

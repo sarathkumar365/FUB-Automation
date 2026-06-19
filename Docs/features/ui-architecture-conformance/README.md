@@ -1,6 +1,6 @@
 # UI Architecture Conformance
 
-> **Status:** 🟡 In progress — 5 / 12 findings resolved (Phase 1: UAC-05/06/07/09/10 done; UAC-01 remaining).
+> **Status:** 🟡 In progress — 6 / 12 findings resolved. **Phase 1 complete** (UAC-01/05/06/07/09/10). Next: Phase 2 (schema ownership, decision-gated).
 > **Goal:** Drive every finding from the [UI Architecture Audit (2026-06-18)](../../audits/ui-architecture-audit-2026-06-18.md)
 > to closure so the `ui/` module is fully aligned with the rules in `ui/AGENTS.md`,
 > `developer-rules.md`, and `src/shared/ui/README.md`.
@@ -22,7 +22,7 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
 
 | ID | Finding | Severity | Phase | Status |
 |----|---------|----------|-------|--------|
-| **UAC-01** | No path aliases → 5–6 level `../` import chains (14 files under WorkflowDetailPage) | HIGH | P1 | ☐ Open |
+| **UAC-01** | No path aliases → 5–6 level `../` import chains (14 files under WorkflowDetailPage) | HIGH | P1 | ☑ Done |
 | **UAC-02** | `platform/` imports schemas from `modules/` (8 sites); inconsistent schema ownership | HIGH | P2 | ☐ Open |
 | **UAC-03** | No code-splitting — builder + `@dagrejs/dagre` in main bundle | MED | P4 | ☐ Open |
 | **UAC-04** | No lint enforcement of module/layer boundaries | MED | P3 | ☐ Open |

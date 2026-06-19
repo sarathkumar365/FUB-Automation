@@ -11,10 +11,10 @@
  */
 import { Link } from 'react-router-dom'
 import { readTriggerType } from '../../lib/readTriggerType'
-import { routes } from '../../../../shared/constants/routes'
-import { uiText } from '../../../../shared/constants/uiText'
-import { Badge } from '../../../../shared/ui/badge'
-import { StatusBadge } from '../../../../shared/ui/StatusBadge'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { Badge } from '@shared/ui/badge'
+import { StatusBadge } from '@shared/ui/StatusBadge'
 import {
   canActivateWorkflow,
   canArchiveWorkflow,

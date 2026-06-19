@@ -1,5 +1,5 @@
 import type { PropsWithChildren } from 'react'
-import { BrandLockup } from '../../shared/ui/BrandLockup'
+import { BrandLockup } from '@shared/ui/BrandLockup'
 
 // Family signature gradient (handoff values — distinct from AuthShell's). Token
 // only, so it themes in dark mode.

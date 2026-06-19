@@ -1,12 +1,12 @@
 import { act, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Outlet, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { AuthGuard } from '../modules/auth/ui/AuthGuard'
+import { AuthGuard } from '@modules/auth/ui/AuthGuard'
 import {
   __resetTokenStoreCacheForTests,
   setToken,
-} from '../modules/auth/state/tokenStore'
-import { ADMIN_UNAUTHORIZED_EVENT } from '../platform/adapters/http/httpJsonClient'
+} from '@modules/auth/state/tokenStore'
+import { ADMIN_UNAUTHORIZED_EVENT } from '@platform/adapters/http/httpJsonClient'
 
 function renderApp(initialPath: string) {
   return render(

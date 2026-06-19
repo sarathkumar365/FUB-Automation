@@ -1,7 +1,7 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { WorkflowVersionList } from '../modules/workflows/ui/WorkflowVersionList'
+import { WorkflowVersionList } from '@modules/workflows/ui/WorkflowVersionList'
 
 const versions = [
   {

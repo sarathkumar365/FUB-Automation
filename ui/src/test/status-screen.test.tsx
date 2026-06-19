@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { StatusScreen, type StatusContent } from '../app/status/StatusScreen'
-import { AlertTriangleIcon } from '../shared/ui'
+import { StatusScreen, type StatusContent } from '@app/status/StatusScreen'
+import { AlertTriangleIcon } from '@shared/ui'
 
 function content(overrides?: Partial<StatusContent>): StatusContent {
   return {

@@ -9,8 +9,8 @@
  * content here.
  */
 import { useSearchParams } from 'react-router-dom'
-import { uiText } from '../../../../shared/constants/uiText'
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '../../../../shared/ui/Tabs'
+import { uiText } from '@shared/constants/uiText'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@shared/ui/Tabs'
 import {
   createWorkflowDetailSearchParamsFromState,
   parseWorkflowDetailSearchParams,

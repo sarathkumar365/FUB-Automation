@@ -1,7 +1,7 @@
 import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { describe, expect, it, vi } from 'vitest'
-import { WorkflowEditModal } from '../modules/workflows/ui/WorkflowEditModal'
+import { WorkflowEditModal } from '@modules/workflows/ui/WorkflowEditModal'
 
 const baseWorkflow = {
   id: 1,

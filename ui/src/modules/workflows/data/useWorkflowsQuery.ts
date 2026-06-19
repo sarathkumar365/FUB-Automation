@@ -1,7 +1,7 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
-import { queryKeys } from '../../../platform/query/queryKeys'
-import type { WorkflowListFilters } from '../../../platform/ports/workflowPort'
+import { useAppPorts } from '@app/useAppPorts'
+import { queryKeys } from '@platform/query/queryKeys'
+import type { WorkflowListFilters } from '@platform/ports/workflowPort'
 
 export function useWorkflowsQuery(filters: WorkflowListFilters) {
   const { workflowPort } = useAppPorts()

@@ -1,5 +1,5 @@
-import { Button, EmptyState, PageCard, RefreshIcon } from '../../../shared/ui'
-import { uiText } from '../../../shared/constants/uiText'
+import { Button, EmptyState, PageCard, RefreshIcon } from '@shared/ui'
+import { uiText } from '@shared/constants/uiText'
 
 // Managed-webhooks has no read endpoint yet — show the section + an explicit
 // "not available" state (no mock rows). "Sync now" defers to the coming-soon notice.

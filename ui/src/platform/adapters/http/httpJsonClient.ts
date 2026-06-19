@@ -1,5 +1,5 @@
 import type { ZodType } from 'zod'
-import { clearToken, getToken } from '../../../modules/auth/state/tokenStore'
+import { clearToken, getToken } from '@modules/auth/state/tokenStore'
 
 export class HttpRequestError extends Error {
   readonly status: number

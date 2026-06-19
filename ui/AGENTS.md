@@ -82,8 +82,16 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 2. `platform`: adapters, transport, query wiring, stream contracts
 3. `modules/*/data`: hooks and data orchestration
 4. `modules/*/lib`: pure helpers/transformers/schemas (no React)
-5. `modules/*/ui`: view components only
+5. `modules/*/ui`: view components, plus page-local hooks/helpers that are scoped to a single
+   page folder (e.g. `WorkflowDetailPage/useWorkflowDetailActions.ts`). Reusable hooks belong in `data/`,
+   not `ui/`.
 6. `shared`: reusable primitives, constants, helpers, and cross-module types
+- Import paths — use path aliases for cross-layer/cross-module imports; relative only within a folder/module:
+1. Aliases (`tsconfig.app.json` + `vite.config.ts`): `@app/*`, `@platform/*`, `@modules/*`, `@shared/*`,
+   `@styles/*` (and `@/*` → `src/*`). Prefer the layered aliases over `@/*`.
+2. Any import that crosses a top-level layer (`app`/`platform`/`modules`/`shared`/`styles`) or jumps to a
+   different module under `modules/` uses an alias. Keep `./` and intra-module relatives as relatives.
+3. Deep relative imports (4+ `../`) are banned by ESLint (`no-restricted-imports`); use an alias instead.
 - Prefer performant code by default:
 1. avoid unnecessary re-renders and derived-state duplication
 2. memoize expensive computation/selectors where relevant
@@ -161,5 +169,6 @@ Before adding or changing a component, work top-to-bottom:
 4. **Tokens, never hex.** All colors via `var(--…)` from `tokens.css`. No `#hex`/`rgba()` literals in `*.tsx`/feature `*.css` (enforced by `npm run lint:tokens`). New color → add a token. Anything token-driven also flips in dark mode (`:root[data-theme="dark"]`).
 5. **Copy via `uiText`.** No user-facing string literals in feature files; add a `uiText` key.
 6. **Export new shared primitives from the barrel** (`shared/ui/index.ts`).
-7. **No dead code.** If you remove a usage, remove the now-orphaned field/export/string. `npm run deadcode` (knip) catches these.
-8. **Validate.** `npm run check` (lint + lint:tokens + build + test) must pass; add/adjust tests for changed behavior. For observable UI, browser-verify via the preview.
+7. **Import via aliases.** Cross-layer/cross-module imports use `@shared`/`@modules`/`@platform`/`@app`/`@styles`; only intra-folder/intra-module stay relative. Deep relatives (4+ `../`) fail lint.
+8. **No dead code.** If you remove a usage, remove the now-orphaned field/export/string. `npm run deadcode` (knip) catches these.
+9. **Validate.** `npm run check` (lint + lint:tokens + build + test) must pass; add/adjust tests for changed behavior. For observable UI, browser-verify via the preview.

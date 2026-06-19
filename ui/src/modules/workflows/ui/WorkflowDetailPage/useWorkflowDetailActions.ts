@@ -7,8 +7,8 @@
  * scoped by workflow key so navigating to another workflow resets it.
  */
 import { useCallback, useState } from 'react'
-import { uiText } from '../../../../shared/constants/uiText'
-import { useNotify } from '../../../../shared/notifications/useNotify'
+import { uiText } from '@shared/constants/uiText'
+import { useNotify } from '@shared/notifications/useNotify'
 import { useActivateWorkflowMutation } from '../../data/useActivateWorkflowMutation'
 import { useArchiveWorkflowMutation } from '../../data/useArchiveWorkflowMutation'
 import { useDeactivateWorkflowMutation } from '../../data/useDeactivateWorkflowMutation'

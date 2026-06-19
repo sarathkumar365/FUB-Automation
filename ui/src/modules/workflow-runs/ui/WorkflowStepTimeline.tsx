@@ -1,11 +1,11 @@
 import type { ReactNode } from 'react'
-import { uiText } from '../../../shared/constants/uiText'
-import { formatDateTime } from '../../../shared/lib/date'
-import { JsonViewer } from '../../../shared/ui/JsonViewer'
-import { StatusBadge } from '../../../shared/ui/StatusBadge'
-import type { WorkflowRunStepDetail } from '../../workflows/lib/workflowSchemas'
-import { formatScene } from '../../workflows-builder/model/cardFormatters'
-import { getAccentTone } from '../../workflows-builder/surfaces/storyboard/accentTokens'
+import { uiText } from '@shared/constants/uiText'
+import { formatDateTime } from '@shared/lib/date'
+import { JsonViewer } from '@shared/ui/JsonViewer'
+import { StatusBadge } from '@shared/ui/StatusBadge'
+import type { WorkflowRunStepDetail } from '@modules/workflows/lib/workflowSchemas'
+import { formatScene } from '@modules/workflows-builder/model/cardFormatters'
+import { getAccentTone } from '@modules/workflows-builder/surfaces/storyboard/accentTokens'
 import { formatWorkflowRunStepStatus, getWorkflowRunStepStatusTone } from '../lib/workflowRunsDisplay'
 
 type WorkflowStepTimelineProps = {

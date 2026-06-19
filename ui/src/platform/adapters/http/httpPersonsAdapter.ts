@@ -1,5 +1,5 @@
 import type { PersonsPort } from '../../ports/personsPort'
-import type { PersonFeedPage, PersonListFilters, PersonSummary, PersonSummaryFilters } from '../../../shared/types/person'
+import type { PersonFeedPage, PersonListFilters, PersonSummary, PersonSummaryFilters } from '@shared/types/person'
 import { HttpJsonClient } from './httpJsonClient'
 import { toQueryString } from './queryParams'
 import { personFeedPageSchema, personSummarySchema } from './personSchemas'

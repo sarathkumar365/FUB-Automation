@@ -1,10 +1,10 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import { RoleGate } from '../modules/auth/ui/RoleGate'
+import { RoleGate } from '@modules/auth/ui/RoleGate'
 import {
   __resetTokenStoreCacheForTests,
   setToken,
-} from '../modules/auth/state/tokenStore'
+} from '@modules/auth/state/tokenStore'
 
 describe('RoleGate', () => {
   beforeEach(() => {

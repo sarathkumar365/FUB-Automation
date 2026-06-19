@@ -2,7 +2,7 @@ import type {
   WorkflowRunDetailResponse,
   WorkflowRunPageResponse,
   WorkflowRunStatus,
-} from '../../modules/workflows/lib/workflowSchemas'
+} from '@modules/workflows/lib/workflowSchemas'
 
 export type WorkflowRunListFilters = {
   status?: WorkflowRunStatus

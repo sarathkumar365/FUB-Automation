@@ -1,17 +1,17 @@
 import { describe, expect, it, beforeEach } from 'vitest'
-import { contentHash } from '../modules/workflows-builder/state/contentHash'
+import { contentHash } from '@modules/workflows-builder/state/contentHash'
 import {
   emptyGraph,
   graphSchema,
   isFanoutTransition,
   isTerminalTransition,
   type Graph,
-} from '../modules/workflows-builder/state/runtimeContract'
-import { graphToStoryboard } from '../modules/workflows-builder/model/graphAdapters'
-import { layoutStoryboard } from '../modules/workflows-builder/model/layoutEngine'
-import { formatScene, registeredStepTypes } from '../modules/workflows-builder/model/cardFormatters'
-import { resetBuilderStore, useBuilderStore } from '../modules/workflows-builder/state/builderStore'
-import { getActionLog, resetActionLog } from '../modules/workflows-builder/state/actionLog'
+} from '@modules/workflows-builder/state/runtimeContract'
+import { graphToStoryboard } from '@modules/workflows-builder/model/graphAdapters'
+import { layoutStoryboard } from '@modules/workflows-builder/model/layoutEngine'
+import { formatScene, registeredStepTypes } from '@modules/workflows-builder/model/cardFormatters'
+import { resetBuilderStore, useBuilderStore } from '@modules/workflows-builder/state/builderStore'
+import { getActionLog, resetActionLog } from '@modules/workflows-builder/state/actionLog'
 
 describe('contentHash', () => {
   it('is stable across key insertion order', () => {

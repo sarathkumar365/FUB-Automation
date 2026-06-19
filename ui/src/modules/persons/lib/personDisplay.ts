@@ -1,5 +1,5 @@
-import type { PersonStatus } from '../../../shared/types/person'
-import type { StatusTone } from '../../../shared/ui/StatusBadge'
+import type { PersonStatus } from '@shared/types/person'
+import type { StatusTone } from '@shared/ui/StatusBadge'
 
 const NAME_FIELDS = ['name', 'fullName'] as const
 

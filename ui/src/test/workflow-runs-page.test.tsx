@@ -3,12 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
-import { PortsContext } from '../app/portsContextValue'
-import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
-import type { AppPorts } from '../platform/container'
-import type { WorkflowRunListFilters } from '../platform/ports/workflowRunPort'
-import { uiText } from '../shared/constants/uiText'
+import { ShellRegionsProvider } from '@app/ShellRegionsProvider'
+import { PortsContext } from '@app/portsContextValue'
+import { WorkflowRunsPage } from '@modules/workflow-runs/ui/WorkflowRunsPage'
+import type { AppPorts } from '@platform/container'
+import type { WorkflowRunListFilters } from '@platform/ports/workflowRunPort'
+import { uiText } from '@shared/constants/uiText'
 
 function renderWorkflowRunsPage(initialPath = '/admin-ui/workflow-runs') {
   window.history.pushState({}, '', initialPath)

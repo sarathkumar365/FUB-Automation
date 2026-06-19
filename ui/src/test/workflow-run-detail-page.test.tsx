@@ -3,13 +3,14 @@ import { render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
-import { useShellRegions } from '../app/useShellRegions'
-import { PortsContext } from '../app/portsContextValue'
-import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
-import type { AppPorts } from '../platform/container'
-import { notifyContext } from '../shared/notifications/notifyContext'
-import { uiText } from '../shared/constants/uiText'
+import { ShellRegionsProvider } from '@app/ShellRegionsProvider'
+import { useShellRegions } from '@app/useShellRegions'
+import { PortsContext } from '@app/portsContextValue'
+import { WorkflowRunDetailPage } from '@modules/workflow-runs/ui/WorkflowRunDetailPage'
+import type { AppPorts } from '@platform/container'
+import { queryKeys } from '@platform/query/queryKeys'
+import { notifyContext } from '@shared/notifications/notifyContext'
+import { uiText } from '@shared/constants/uiText'
 
 function createWorkflowRunDetailPayload(
   status: 'PENDING' | 'BLOCKED' | 'FAILED' | 'COMPLETED' | 'CANCELED' = 'FAILED',
@@ -206,9 +207,9 @@ describe('workflow run detail page', () => {
     })
     expect(notifySuccess).toHaveBeenCalledWith('Workflow run canceled.')
     expect(notifyError).not.toHaveBeenCalled()
-    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['workflow-runs', 'detail', 44] }))
-    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['workflow-runs', 'list'] }))
-    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['workflow-runs', 'key', 'wf_a'] }))
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: queryKeys.workflowRuns.detail(44) }))
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: queryKeys.workflowRuns.lists() }))
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: queryKeys.workflowRuns.forKey('wf_a') }))
   })
 
   it('shows cancel error notification when mutation fails', async () => {

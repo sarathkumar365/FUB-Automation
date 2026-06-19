@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { WorkflowHeaderStrip } from '../modules/workflows/ui/WorkflowDetailPage/WorkflowHeaderStrip'
-import type { WorkflowResponse } from '../modules/workflows/lib/workflowSchemas'
+import { WorkflowHeaderStrip } from '@modules/workflows/ui/WorkflowDetailPage/WorkflowHeaderStrip'
+import type { WorkflowResponse } from '@modules/workflows/lib/workflowSchemas'
 
 const workflow: WorkflowResponse = {
   id: 1,

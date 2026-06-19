@@ -19,5 +19,19 @@ export default defineConfig([
       ecmaVersion: 2020,
       globals: globals.browser,
     },
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: ['../../../../**'],
+              message:
+                'Avoid deep relative imports (4+ levels). Use a path alias: @app, @platform, @modules, @shared, @styles.',
+            },
+          ],
+        },
+      ],
+    },
   },
 ])

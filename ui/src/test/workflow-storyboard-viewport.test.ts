@@ -1,11 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import type { StoryboardModel } from '../modules/workflows-builder/model/graphAdapters'
-import type { StoryboardLayout } from '../modules/workflows-builder/model/layoutEngine'
+import type { StoryboardModel } from '@modules/workflows-builder/model/graphAdapters'
+import type { StoryboardLayout } from '@modules/workflows-builder/model/layoutEngine'
 import {
   computeTerminalPlacements,
   computeViewportBox,
   estimateTerminalPillWidth,
-} from '../modules/workflows-builder/surfaces/storyboard/viewport'
+} from '@modules/workflows-builder/surfaces/storyboard/viewport'
 
 function makeLayout(
   scenes: Array<{ id: string; x: number; y: number }>,

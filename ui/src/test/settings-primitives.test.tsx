@@ -1,6 +1,6 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { RefreshIcon, SettingsIcon, Toggle } from '../shared/ui'
+import { RefreshIcon, SettingsIcon, Toggle } from '@shared/ui'
 
 describe('Toggle', () => {
   it('renders an accessible switch reflecting checked state and toggles', () => {

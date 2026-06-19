@@ -1,6 +1,6 @@
-import { routes } from '../shared/constants/routes'
-import { uiText } from '../shared/constants/uiText'
-import { LockIcon } from '../shared/ui'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { LockIcon } from '@shared/ui'
 import { FullPageStatus } from './status/FullPageStatus'
 import { StatusScreen, type StatusContent } from './status/StatusScreen'
 

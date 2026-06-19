@@ -1,6 +1,6 @@
 import type { KeyboardEvent } from 'react'
-import { Input, Select, Toggle } from '../../../shared/ui'
-import { uiText } from '../../../shared/constants/uiText'
+import { Input, Select, Toggle } from '@shared/ui'
+import { uiText } from '@shared/constants/uiText'
 import type { SettingsConfig } from '../lib/settingsSchemas'
 import type { SettingRowDef } from '../lib/settingsSections'
 

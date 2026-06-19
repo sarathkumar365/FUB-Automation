@@ -1,5 +1,5 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
+import { useAppPorts } from '@app/useAppPorts'
 import { invalidateCancelWorkflowRunQueries } from './workflowRunMutationInvalidation'
 
 export function useCancelWorkflowRunMutation(runId: number | undefined) {

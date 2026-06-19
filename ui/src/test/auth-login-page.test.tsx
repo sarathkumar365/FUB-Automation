@@ -1,14 +1,14 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react'
 import { MemoryRouter, Route, Routes } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { LoginPage } from '../modules/auth/ui/LoginPage'
-import { AuthClient } from '../modules/auth/data/authClient'
+import { LoginPage } from '@modules/auth/ui/LoginPage'
+import { AuthClient } from '@modules/auth/data/authClient'
 import {
   __resetTokenStoreCacheForTests,
   getToken,
   setToken,
-} from '../modules/auth/state/tokenStore'
-import { HttpRequestError } from '../platform/adapters/http/httpJsonClient'
+} from '@modules/auth/state/tokenStore'
+import { HttpRequestError } from '@platform/adapters/http/httpJsonClient'
 
 function renderLoginAt(initialPath: string, authClient: AuthClient) {
   return render(

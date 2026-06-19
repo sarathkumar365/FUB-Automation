@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildDashboardSnapshot } from '../modules/dashboard/lib/dashboardSnapshot'
+import { buildDashboardSnapshot } from '@modules/dashboard/lib/dashboardSnapshot'
 
 describe('dashboard snapshot mapper', () => {
   it('maps counts and trims recent lists to five items', () => {

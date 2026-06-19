@@ -1,9 +1,9 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it } from 'vitest'
-import { WorkflowsSubNav } from '../modules/workflows/ui/WorkflowsSubNav'
-import { routes } from '../shared/constants/routes'
-import { uiText } from '../shared/constants/uiText'
+import { WorkflowsSubNav } from '@modules/workflows/ui/WorkflowsSubNav'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
 
 function renderAt(path: string) {
   return render(

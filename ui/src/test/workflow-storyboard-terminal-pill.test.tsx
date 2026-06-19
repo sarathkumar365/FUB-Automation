@@ -1,8 +1,8 @@
 import { render } from '@testing-library/react'
 import type { ReactElement } from 'react'
 import { describe, expect, it } from 'vitest'
-import type { SceneLayout } from '../modules/workflows-builder/model/layoutEngine'
-import { TerminalPill } from '../modules/workflows-builder/surfaces/storyboard/TerminalPill'
+import type { SceneLayout } from '@modules/workflows-builder/model/layoutEngine'
+import { TerminalPill } from '@modules/workflows-builder/surfaces/storyboard/TerminalPill'
 
 const parent: SceneLayout = { id: 'p', x: 300, y: 200, width: 260, height: 110 }
 

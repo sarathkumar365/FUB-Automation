@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { formatWebhookEventType, formatWebhookReceivedAt } from '../shared/lib/webhookDisplay'
+import { formatWebhookEventType, formatWebhookReceivedAt } from '@shared/lib/webhookDisplay'
 
 describe('webhook display formatting', () => {
   it('formats event types to readable title text', () => {

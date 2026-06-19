@@ -1,5 +1,5 @@
-import type { PersonListFilters, PersonSummaryFilters } from '../../shared/types/person'
-import type { WebhookListFilters } from '../../shared/types/webhook'
+import type { PersonListFilters, PersonSummaryFilters } from '@shared/types/person'
+import type { WebhookListFilters } from '@shared/types/webhook'
 import type { ProcessedCallFilters } from '../ports/processedCallsPort'
 import type { WorkflowListFilters } from '../ports/workflowPort'
 import type { WorkflowRunListFilters } from '../ports/workflowRunPort'

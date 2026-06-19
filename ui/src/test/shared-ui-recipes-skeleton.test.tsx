@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Skeleton } from '../shared/ui/recipes/Skeleton'
+import { Skeleton } from '@shared/ui/recipes/Skeleton'
 
 describe('Skeleton recipe', () => {
   it('defaults to the line shape', () => {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { toProcessedCallsApiDateFilters } from '../modules/processed-calls/lib/processedCallDateFilters'
+import { toProcessedCallsApiDateFilters } from '@modules/processed-calls/lib/processedCallDateFilters'
 
 describe('toProcessedCallsApiDateFilters', () => {
   it('converts date-only filters to local offset datetime boundaries', () => {

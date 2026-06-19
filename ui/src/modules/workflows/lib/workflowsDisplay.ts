@@ -1,5 +1,5 @@
 import type { WorkflowStatus } from './workflowSchemas'
-import type { StatusTone } from '../../../shared/ui/StatusBadge'
+import type { StatusTone } from '@shared/ui/StatusBadge'
 
 const STATUS_TONES: Record<WorkflowStatus, StatusTone> = {
   DRAFT: 'warning',

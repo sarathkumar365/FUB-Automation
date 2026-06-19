@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { queryKeys } from '../platform/query/queryKeys'
+import { queryKeys } from '@platform/query/queryKeys'
 
 describe('queryKeys list prefixes', () => {
   it('list-prefix helpers are a strict prefix of their filtered counterparts', () => {

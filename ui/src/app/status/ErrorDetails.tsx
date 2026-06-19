@@ -1,6 +1,6 @@
 import { useState } from 'react'
-import { uiText } from '../../shared/constants/uiText'
-import { ChevronDownIcon } from '../../shared/ui'
+import { uiText } from '@shared/constants/uiText'
+import { ChevronDownIcon } from '@shared/ui'
 
 function formatError(error: unknown): string {
   if (error instanceof Error) return [error.message, error.stack].filter(Boolean).join('\n')

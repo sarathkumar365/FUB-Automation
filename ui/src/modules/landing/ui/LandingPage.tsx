@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { routes } from '../../../shared/constants/routes'
-import { uiText } from '../../../shared/constants/uiText'
-import { Button } from '../../../shared/ui/button'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
 import './LandingPage.css'
 
 const MILESTONES = [
