@@ -39,9 +39,13 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
    `webhooks`, `processed-calls`, `workflows`, `workflows-builder`, `workflow-runs`. Each splits into
    `data/` (hooks/queries), `lib/` (pure helpers/schemas), `ui/` (views). `workflows-builder` is expanded
    for its graph domain (`model/`, `state/` (Zustand), `surfaces/`, `observability/`); `auth` adds `state/`.
-4. `src/shared`: reusable types/utils/primitives
-   <!-- Layer/boundary conventions (schema ownership, cross-module import rules) are finalized in
-   Phase 3 of Docs/features/ui-architecture-conformance (UAC-02 / UAC-04). -->
+4. `src/shared`: reusable types/utils/primitives — a **leaf**: must not import from `app`/`modules`/`platform`.
+- **Boundary rules are ESLint-enforced** (`no-restricted-imports` zones in `eslint.config.js`, RD-011):
+1. `platform` must not import from `modules` — sole exception: the auth token store
+   (`httpJsonClient`/`sseWebhookStreamAdapter`), a cross-cutting transport concern.
+2. `ports` must not import from `adapters` (import contract types from `platform/contracts`).
+3. `platform/contracts` and `shared` are leaves (contracts: zod only; shared: no app/modules/platform).
+4. Deep relative imports (4+ `../`) are banned everywhere; use an alias.
 
 ## UX and style decisions (locked for v1)
 - Canonical stream baseline: Figma `node-id=23-2` in file key `svLM7vfwHvmdxjoNE1Sr3U`.

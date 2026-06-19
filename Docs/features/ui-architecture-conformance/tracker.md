@@ -64,7 +64,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-04 — No lint enforcement of module/layer boundaries
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 3 — built-in `no-restricted-imports` zones; all 5 smoke-tested)
 - **Severity:** MEDIUM
 - **Evidence:** `ui/eslint.config.js` has no `no-restricted-imports`/`eslint-plugin-import` boundary zones.
   Layering and "Zustand store stays inside workflows-builder" are honored by discipline only.
@@ -94,7 +94,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-06 — `ui/AGENTS.md` module list is stale
-- **Status:** ☑ Done (2026-06-18, Phase 1 — factual list refreshed; convention rules finalized in Phase 3)
+- **Status:** ☑ Done (2026-06-18, Phase 1 factual list + Phase 3 final — boundary rules documented as enforced)
 - **Severity:** MEDIUM (doc drift in the canonical conventions file)
 - **Evidence:** `ui/AGENTS.md:33-38` lists only `webhooks` + `processed-calls`. Actual modules (11): auth,
   dashboard, landing, persons, settings, webhooks, processed-calls, workflows, workflows-builder,
@@ -165,6 +165,17 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 - **Fix:** extract `useWorkflowsTableColumns` and a consolidated filter-state hook; keep the page as composition.
 - **Acceptance:** page materially smaller; behavior unchanged (existing selection/filter tests still pass);
   `npm run check` green.
+
+---
+
+## UAC-13 — `shared/ui/AppRail.tsx` imports `@modules/auth` (shared not a leaf)
+- **Status:** ☑ Done (2026-06-18, Phase 3 — discovered during boundary work; fixed)
+- **Severity:** LOW (layering smell; discovered after the original audit)
+- **Evidence:** `AppRail` (a `shared/ui` primitive) imported `@modules/auth/ui/LogoutButton` — the only
+  `shared → modules` edge, blocking the `shared`-is-leaf invariant.
+- **Fix:** inject the logout control as a prop — `AppRail` gains `logout?: ReactNode`; `app/AppShell.tsx`
+  (which already imports `LogoutButton`) passes `<LogoutButton variant="rail" />`. `shared` is now a clean
+  leaf, enforced by the Phase-3 `shared`-leaf lint zone. Behavior unchanged.
 
 ---
 

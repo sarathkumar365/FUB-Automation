@@ -2,6 +2,7 @@ import { fetchEventSource } from '@microsoft/fetch-event-source'
 import type { WebhookStreamCallbacks, WebhookStreamPort } from '../../ports/webhookStreamPort'
 import type { WebhookStreamFilters } from '@shared/types/webhook'
 import type { AdminWebhookPort } from '../../ports/adminWebhookPort'
+// eslint-disable-next-line no-restricted-imports -- sanctioned platform→modules exception: auth token store (RD-011)
 import { getToken } from '@modules/auth/state/tokenStore'
 
 /**

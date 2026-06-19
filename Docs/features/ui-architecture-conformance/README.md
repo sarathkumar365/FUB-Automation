@@ -1,6 +1,6 @@
 # UI Architecture Conformance
 
-> **Status:** 🟡 In progress — 8 / 12 findings resolved. **Phases 1–2 complete** (UAC-01/05/06/07/09/10 + UAC-02/08, RD-011). Next: Phase 3 (boundary lint, UAC-04) — decision-gated.
+> **Status:** 🟡 In progress — 11 / 13 findings resolved. **Phases 1–3 complete** (UAC-01/05/06/07/09/10, UAC-02/08 + RD-011, UAC-04/06-final/13 — boundaries now lint-enforced). Remaining: UAC-03 (Phase 4, code-split) + UAC-11/12 (Phase 5). UAC-13 discovered during Phase 3 and fixed.
 > **Goal:** Drive every finding from the [UI Architecture Audit (2026-06-18)](../../audits/ui-architecture-audit-2026-06-18.md)
 > to closure so the `ui/` module is fully aligned with the rules in `ui/AGENTS.md`,
 > `developer-rules.md`, and `src/shared/ui/README.md`.
@@ -25,7 +25,7 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
 | **UAC-01** | No path aliases → 5–6 level `../` import chains (14 files under WorkflowDetailPage) | HIGH | P1 | ☑ Done |
 | **UAC-02** | `platform/` imports schemas from `modules/` (8 sites); inconsistent schema ownership | HIGH | P2 | ☑ Done |
 | **UAC-03** | No code-splitting — builder + `@dagrejs/dagre` in main bundle | MED | P4 | ☐ Open |
-| **UAC-04** | No lint enforcement of module/layer boundaries | MED | P3 | ☐ Open |
+| **UAC-04** | No lint enforcement of module/layer boundaries | MED | P3 | ☑ Done |
 | **UAC-05** | Hardcoded query keys bypass `queryKeys` factory (3 files) | MED | P1 | ☑ Done |
 | **UAC-06** | `ui/AGENTS.md` module list stale (says 2 modules; there are 11) | MED | P1 | ☑ Done |
 | **UAC-07** | Misplaced hook `useWorkflowDetailActions.ts` in `lib/` | LOW | P1 | ☑ Done |
@@ -34,6 +34,7 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
 | **UAC-10** | `.join(' ')` instead of `cn()` (PanelNav, AppRail) | LOW | P1 | ☑ Done |
 | **UAC-11** | Test coverage gaps (run-detail, persons, processed-calls, storyboard) | LOW | P5 | ☐ Open |
 | **UAC-12** | `WorkflowsPage.tsx` ~366 LOC — extract column/filter hooks | LOW | P5 | ☐ Open |
+| **UAC-13** | `shared/ui/AppRail` imports `@modules/auth` (shared not a leaf) | LOW | P3 | ☑ Done |
 
 **Status legend:** ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix (record rationale in tracker.md)
 

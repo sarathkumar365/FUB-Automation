@@ -1,4 +1,5 @@
 import type { ZodType } from 'zod'
+// eslint-disable-next-line no-restricted-imports -- sanctioned platform→modules exception: auth token store (RD-011)
 import { clearToken, getToken } from '@modules/auth/state/tokenStore'
 
 export class HttpRequestError extends Error {

@@ -29,7 +29,7 @@ function ShellLayout() {
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] lg:h-screen lg:overflow-hidden">
       <div className="flex min-h-screen w-full lg:h-full">
-        <AppRail />
+        <AppRail logout={<LogoutButton variant="rail" />} />
 
         {hasDesktopPanel ? (
           <AppPanel title={panelContent?.title} className="hidden lg:block">

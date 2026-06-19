@@ -1,6 +1,5 @@
-import type { ComponentType, SVGProps } from 'react'
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LogoutButton } from '@modules/auth/ui/LogoutButton'
 import { appNavItems, navItemIsActive, routes, type AppNavKey } from '../constants/routes'
 import { uiText } from '../constants/uiText'
 import { cn } from '../lib/cn'
@@ -15,7 +14,11 @@ const NAV_ICONS: Record<AppNavKey, ComponentType<SVGProps<SVGSVGElement>>> = {
   settings: SettingsIcon,
 }
 
-export function AppRail() {
+type AppRailProps = {
+  logout?: ReactNode
+}
+
+export function AppRail({ logout }: AppRailProps) {
   const location = useLocation()
   return (
     <aside
@@ -56,7 +59,7 @@ export function AppRail() {
       </div>
       <div className="flex w-full flex-col items-center gap-2">
         <ThemeToggle />
-        <LogoutButton variant="rail" />
+        {logout}
       </div>
     </aside>
   )

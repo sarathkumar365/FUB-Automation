@@ -19,6 +19,59 @@ Format per entry:
 
 ---
 
+## Phase 3 code-review fixes — boundary-lint hardening (root-cause)  (2026-06-18)
+
+A fresh-eyes review found the boundary guard was *spelling-precise*, not *path-precise*: it caught the
+aliased import (`@modules/**`) but not a relative-spelled one (`../../../modules/...`, under the 4+ depth ban),
+and the auth exception was a file-wide `ignores` (broader than "token store only"). Both share one root cause
+— built-in `no-restricted-imports` matches the import *string* and can only exempt a whole file. Fixed at root
+without new deps:
+
+- **#1 (relative-spelling bypass):** each banned boundary now lists BOTH spellings — alias (`@modules/**`) and
+  relative (`**/modules/**`) — the only two ways to spell a static import into a directory. Done for
+  NO_MODULES, NO_ADAPTERS, CONTRACTS_LEAF, SHARED_LEAF.
+- **#2 (over-broad exception):** removed the platform zone's file-wide `ignores`; added a per-line
+  `// eslint-disable-next-line no-restricted-imports` at the exact auth-token import in `httpJsonClient.ts` +
+  `sseWebhookStreamAdapter.ts`. Exception now scoped to that one import; those files are otherwise fully
+  governed; the brittle path list is gone from the config.
+
+### Validation
+- Re-smoke-tested the closed gaps: a relative `../../../modules/...` import now errors; a non-auth `@modules`
+  import added to `httpJsonClient.ts` now errors (file no longer blanket-exempt); the real auth import lints
+  clean via the per-line disable.
+- `npm run check` green — **396 tests**. No false positives from the `**/<layer>/**` patterns on current code.
+
+---
+
+## Phase 3 — UAC-04 boundary lint + UAC-06 final + UAC-13 (AppRail/shared-leaf)  (2026-06-18)
+
+Converts the layering invariants from "true by discipline" to "enforced by CI." Built-in
+`no-restricted-imports` (no new deps). One source refactor (AppRail) to make `shared/` a true leaf.
+
+### Changes
+- **UAC-13 — AppRail fix:** `shared/ui/AppRail.tsx` no longer imports `@modules/auth/ui/LogoutButton`. Added
+  prop `logout?: ReactNode`; `app/AppShell.tsx` (already imports `LogoutButton`) passes
+  `<LogoutButton variant="rail" />`. `shared` is now a clean leaf. Behavior unchanged (same control, same slot).
+- **UAC-04 — lint zones** (`eslint.config.js`): shared pattern consts + 5 zones —
+  global (depth); `platform/**` minus the 2 auth files (+ no `@modules`); `platform/ports/**`
+  (+ no adapters); `platform/contracts/**` (zod-only leaf); `shared/**` (no app/modules/platform).
+- **UAC-06 final:** `ui/AGENTS.md` — removed the "finalized in Phase 3" marker; documented the enforced
+  boundaries (platform∌modules + auth exception; ports∌adapters; contracts/shared leaves; 4+ relative ban).
+
+### Validation
+- `npm run lint` green (**0 errors** — invariants already held after the AppRail fix).
+- **Smoke-tested all 5 zones:** temporary illegal imports each errored with the right message
+  (platform→@modules, ports→../adapters, contracts→@shared, shared→@modules); the ignored auth file
+  (`httpJsonClient`) lints clean. Probes removed.
+- `npm run check` green — **396 tests** (AppRail change covered by existing shell tests).
+
+### Notes / decisions
+- Built-in `no-restricted-imports` over `eslint-plugin-import` (zero deps; matches aliased specifiers).
+- Did NOT ban cross-module imports or `modules → @app` (not RD-011 invariants; the latter is legitimate
+  shell-hook usage). Other shell chrome (AppPanel/PanelNav/InspectorPanel) already import no modules — untouched.
+
+---
+
 ## Code-review fixes (fresh-eyes review of the branch)  (2026-06-18)
 
 A 7-angle code review found **no correctness bugs** (tsc 0, 396 tests, aliases resolve, queryKeys
