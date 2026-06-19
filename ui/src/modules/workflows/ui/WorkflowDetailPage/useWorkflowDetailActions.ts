@@ -15,7 +15,7 @@ import { useDeactivateWorkflowMutation } from '../../data/useDeactivateWorkflowM
 import { useRollbackWorkflowMutation } from '../../data/useRollbackWorkflowMutation'
 import { useUpdateWorkflowMutation } from '../../data/useUpdateWorkflowMutation'
 import { useValidateWorkflowMutation } from '../../data/useValidateWorkflowMutation'
-import type { WorkflowResponse } from '../../lib/workflowSchemas'
+import type { WorkflowResponse } from '@platform/contracts/workflowSchemas'
 
 export type ValidationViewState =
   | { mode: 'idle' }

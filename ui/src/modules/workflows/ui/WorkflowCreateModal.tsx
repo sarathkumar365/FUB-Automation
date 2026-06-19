@@ -5,7 +5,7 @@ import { uiText } from '@shared/constants/uiText'
 import { Button } from '@shared/ui/button'
 import { Input } from '@shared/ui/input'
 import { Select } from '@shared/ui/select'
-import type { WorkflowStatus } from '../lib/workflowSchemas'
+import type { WorkflowStatus } from '@platform/contracts/workflowSchemas'
 import { formatWorkflowStatus } from '../lib/workflowsDisplay'
 
 type WorkflowCreateModalProps = {

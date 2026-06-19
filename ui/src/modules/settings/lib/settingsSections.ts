@@ -1,5 +1,5 @@
 import { uiText } from '@shared/constants/uiText'
-import type { SettingsConfig } from './settingsSchemas'
+import type { SettingsConfig } from '@platform/contracts/settingsSchemas'
 
 // Full IANA zone list (native, no dependency) so any backend-configured
 // timezone is always selectable/displayable — not a curated subset.

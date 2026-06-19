@@ -1,6 +1,6 @@
 import type { QueryClient } from '@tanstack/react-query'
 import { queryKeys } from '@platform/query/queryKeys'
-import type { WorkflowRunDetailResponse } from '@modules/workflows/lib/workflowSchemas'
+import type { WorkflowRunDetailResponse } from '@platform/contracts/workflowSchemas'
 
 export async function invalidateCancelWorkflowRunQueries(
   queryClient: QueryClient,

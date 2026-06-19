@@ -1,8 +1,8 @@
-import { projectSettingsConfig } from '@modules/settings/lib/settingsProjection'
+import { projectSettingsConfig } from './settingsProjection'
 import {
   settingsConfigResponseSchema,
   type SettingsConfig,
-} from '@modules/settings/lib/settingsSchemas'
+} from '../../contracts/settingsSchemas'
 import type { SettingsPort } from '../../ports/settingsPort'
 import type { HttpJsonClient } from './httpJsonClient'
 

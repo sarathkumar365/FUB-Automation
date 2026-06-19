@@ -19,6 +19,86 @@ Format per entry:
 
 ---
 
+## Code-review fixes (fresh-eyes review of the branch)  (2026-06-18)
+
+A 7-angle code review found **no correctness bugs** (tsc 0, 396 tests, aliases resolve, queryKeys
+byte-identical, hook move correct, cn() no behavior change). Two cleanup items fixed:
+
+- **Hardcoded query key the UAC-05 migration missed** — `modules/workflow-runs/data/useWorkflowRunsForKeyQuery.ts:18`
+  had a `['workflow-runs','key','none',filters]` fallback bypassing the factory. Replaced with
+  `queryKeys.workflowRuns.listForKey(key || 'none', filters)` — byte-identical (used `||`, not `??`, to
+  preserve the empty-string-falsy behavior of the old `key ?` ternary). UAC-05 originally fixed 3 files;
+  this was a 4th site it didn't catch.
+- **Dead aliases removed** — `@/*` and `@styles/*` had zero importers (`styles/` is CSS-only). Dropped from
+  `tsconfig.app.json` + `vite.config.ts`; updated the eslint message, and AGENTS.md (alias list + pre-flight)
+  to the 4 live aliases `@app/@platform/@modules/@shared`, with the rationale (one alias per src dir holding
+  JS/TS modules; styles is CSS-only).
+
+`npm run check` green (396 tests). No behavior change.
+
+---
+
+## Phase 2 (part 2) — relocate shared schemas to `platform/contracts/`  (2026-06-18)
+
+Brutal self-eval of part 1 found a real wrinkle: putting the schemas in `platform/adapters/http/` made the 3
+ports import from `adapters/http` — a port→adapter dependency that **no other port has** (the 4 existing ports
+source types from `shared/types` or inline). Root cause: the existing `adapters/http` schemas are
+adapter-internal (imported only by their adapter), whereas workflow/settings schemas are imported across
+ports + modules + adapters. Co-locating them was a category error.
+
+### Changes
+- **`git mv`** `workflowSchemas.ts` + `settingsSchemas.ts` → new `platform/contracts/` (history preserved).
+  `settingsProjection.ts` **stays** in `adapters/http/` (it's transform logic, not a shape) and now imports
+  its types from `../../contracts/settingsSchemas`.
+- **Repointed 33 imports** (one-shot codemod, deleted): adapters → `../../contracts/*`; ports →
+  `../contracts/*` (now port→contract, not port→adapter); modules + tests → `@platform/contracts/*`
+  (resolves via the existing `@platform/*` alias — no new alias needed).
+- person/webhook/processedCall schemas **untouched** in `adapters/http/` — correctly adapter-internal.
+- **RD-011 updated** to the two-home model (contracts/ for app-wide contracts, adapters/http for
+  adapter-internal) with the rationale.
+
+### Validation
+- `grep`: ports no longer import from `adapters/http` at all; zero `@modules/` in platform except auth.
+- `npm run check` green — **396 tests**.
+
+---
+
+## Phase 2 (part 1) — UAC-02 + UAC-08 (schema ownership, RD-011 Option A)  (2026-06-18)
+
+Platform now owns the API validation boundary. `z.infer` (single-source) style kept — schema files moved, not
+duplicated.
+
+### Changes
+- **RD-011** — new `Docs/repo-decisions/RD-011-ui-schema-ownership.md` (Accepted: Option A, z.infer, home =
+  `platform/adapters/http/`; auth token import noted as standing exception). Added to RD index.
+- **Moved (git mv, history preserved)** into `platform/adapters/http/`:
+  `workflowSchemas.ts` (was `modules/workflows/lib/`), `settingsSchemas.ts` + `settingsProjection.ts`
+  (were `modules/settings/lib/`). Content unchanged (schema + `z.infer` type together).
+- **Repointed 34 imports** across ~29 files (one-shot codemod, since deleted):
+  - adapters (`httpWorkflowAdapter`, `httpWorkflowRunAdapter`, `httpSettingsAdapter`) → relative `./*`
+  - ports (`workflowPort`, `workflowRunPort`, `settingsPort`) → relative `../adapters/http/*`
+    (intra-platform convention, matching how adapters already import ports)
+  - feature modules + tests → `@platform/adapters/http/*`
+- **UAC-08:** `WorkflowRunSummary` & run types now single-owned at `platform/adapters/http/workflowSchemas`;
+  the dashboard's cross-module borrow from the `workflows` module is gone.
+
+### Tests
+- No new test needed (DRY — one `z.infer` definition, nothing to keep in sync). Existing adapter/hook/page
+  tests already exercise these schemas+types and stay green (the queryKeys/run tests were repointed in P1).
+
+### Validation
+- `grep`: zero `@modules/` imports inside `src/platform` except the documented auth exception
+  (`httpJsonClient`, `sseWebhookStreamAdapter`). All 5 HTTP schema files now in `platform/adapters/http/`.
+- `npm run check` green — lint + lint:tokens + knip + build + **396 tests**.
+
+### Notes / decisions
+- RD-011 records the owner choice of `z.infer` over the hand-written `shared/types` split (no duplication).
+- Accepted cosmetic wrinkle: modules import workflow/settings *types* from an `adapters/http` path (person/
+  webhook keep theirs in `shared/types`). Allowed (`modules → platform`); not worth duplicating types to fix.
+- Did NOT split `workflowSchemas` into workflow vs workflow-run files (out of scope).
+
+---
+
 ## Phase 1 (part 1) — UAC-05, 06, 07, 09, 10  (2026-06-18)
 
 The five small, non-decision-gated fixes. UAC-01 (alias sweep) lands separately next.

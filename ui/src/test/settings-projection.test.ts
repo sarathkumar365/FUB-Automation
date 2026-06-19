@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
-import { projectSettingsConfig } from '@modules/settings/lib/settingsProjection'
-import { settingsConfigResponseSchema } from '@modules/settings/lib/settingsSchemas'
+import { projectSettingsConfig } from '@platform/adapters/http/settingsProjection'
+import { settingsConfigResponseSchema } from '@platform/contracts/settingsSchemas'
 import { SETTINGS_SECTIONS, type FieldsSection } from '@modules/settings/lib/settingsSections'
 
 function sampleResponse() {

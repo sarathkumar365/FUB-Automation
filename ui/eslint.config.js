@@ -27,7 +27,7 @@ export default defineConfig([
             {
               group: ['../../../../**'],
               message:
-                'Avoid deep relative imports (4+ levels). Use a path alias: @app, @platform, @modules, @shared, @styles.',
+                'Avoid deep relative imports (4+ levels). Use a path alias: @app, @platform, @modules, @shared.',
             },
           ],
         },

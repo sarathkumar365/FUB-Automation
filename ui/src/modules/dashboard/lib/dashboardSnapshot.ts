@@ -1,4 +1,4 @@
-import type { WorkflowRunPageResponse, WorkflowRunSummary, WorkflowPageResponse } from '@modules/workflows/lib/workflowSchemas'
+import type { WorkflowRunPageResponse, WorkflowRunSummary, WorkflowPageResponse } from '@platform/contracts/workflowSchemas'
 import type { WebhookFeedPage } from '@shared/types/webhook'
 
 /**

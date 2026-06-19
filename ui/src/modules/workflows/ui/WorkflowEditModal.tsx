@@ -1,7 +1,7 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMemo, useState } from 'react'
 import type { UpdateWorkflowCommand } from '@platform/ports/workflowPort'
-import type { WorkflowResponse } from '../lib/workflowSchemas'
+import type { WorkflowResponse } from '@platform/contracts/workflowSchemas'
 import { uiText } from '@shared/constants/uiText'
 import { Button } from '@shared/ui/button'
 import { Input } from '@shared/ui/input'

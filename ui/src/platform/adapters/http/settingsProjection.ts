@@ -1,4 +1,4 @@
-import type { SettingsConfig, SettingsConfigResponse } from './settingsSchemas'
+import type { SettingsConfig, SettingsConfigResponse } from '../../contracts/settingsSchemas'
 
 // Secrets collapse to presence flags; nothing absent is invented.
 export function projectSettingsConfig(response: SettingsConfigResponse): SettingsConfig {

@@ -11,12 +11,10 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
       "@app/*": ["src/app/*"],
       "@platform/*": ["src/platform/*"],
       "@modules/*": ["src/modules/*"],
-      "@shared/*": ["src/shared/*"],
-      "@styles/*": ["src/styles/*"]
+      "@shared/*": ["src/shared/*"]
     },
     "allowImportingTsExtensions": true,
     "verbatimModuleSyntax": true,

@@ -7,7 +7,7 @@ import { useShellRegions } from '@app/useShellRegions'
 import { PortsContext } from '@app/portsContextValue'
 import { WorkflowsPage } from '@modules/workflows/ui/WorkflowsPage'
 import type { AppPorts } from '@platform/container'
-import type { StepTypeCatalogEntry, TriggerTypeCatalog } from '@modules/workflows/lib/workflowSchemas'
+import type { StepTypeCatalogEntry, TriggerTypeCatalog } from '@platform/contracts/workflowSchemas'
 import { uiText } from '@shared/constants/uiText'
 
 function PanelHost() {

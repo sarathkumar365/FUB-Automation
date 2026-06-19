@@ -6,7 +6,7 @@ import type {
   WorkflowResponse,
   WorkflowStatus,
   WorkflowVersionSummary,
-} from '@modules/workflows/lib/workflowSchemas'
+} from '../contracts/workflowSchemas'
 
 export type WorkflowListFilters = {
   status?: WorkflowStatus

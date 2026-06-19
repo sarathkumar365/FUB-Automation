@@ -6,7 +6,7 @@ import { useShellRegions } from '@app/useShellRegions'
 import { PortsContext } from '@app/portsContextValue'
 import { NotifyProvider } from '@shared/notifications/NotifyProvider'
 import { SettingsPage } from '@modules/settings/ui/SettingsPage'
-import type { SettingsConfig } from '@modules/settings/lib/settingsSchemas'
+import type { SettingsConfig } from '@platform/contracts/settingsSchemas'
 import type { AppPorts } from '@platform/container'
 import { uiText } from '@shared/constants/uiText'
 

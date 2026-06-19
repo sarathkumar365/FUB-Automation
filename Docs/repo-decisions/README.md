@@ -17,6 +17,7 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-008-profile-enrichment-inferred-kind.md` — Status: Accepted (person-profile-enrichment feature)
 - `RD-009-loop-primitive-foreman-cloned-rows.md` — Status: Accepted (implementation planned, loop-primitive feature)
 - `RD-010-step-type-categories.md` — Status: Accepted (implementation = loop-primitive Phase 0)
+- `RD-011-ui-schema-ownership.md` — Status: Accepted (ui/ only; implementation = ui-architecture-conformance Phase 2)
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`

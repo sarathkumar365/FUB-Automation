@@ -14,7 +14,7 @@ import { PageHeader } from '@shared/ui/PageHeader'
 import { PagePagination } from '@shared/ui/PagePagination'
 import { Select } from '@shared/ui/select'
 import { StatusBadge } from '@shared/ui/StatusBadge'
-import type { WorkflowRunSummary, WorkflowRunStatus } from '@modules/workflows/lib/workflowSchemas'
+import type { WorkflowRunSummary, WorkflowRunStatus } from '@platform/contracts/workflowSchemas'
 import { useWorkflowRunsQuery } from '../data/useWorkflowRunsQuery'
 import {
   createWorkflowRunsSearchParamsFromState,

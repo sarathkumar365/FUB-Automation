@@ -32,7 +32,9 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 4. `Inspector`: contextual details/actions
 - Keep module boundaries:
 1. `src/app`: app shell, router, providers
-2. `src/platform`: API adapters, Zod validation, query setup, SSE wrapper
+2. `src/platform`: API adapters, Zod validation, query setup, SSE wrapper. Zod schemas are platform-owned:
+   app-wide contracts (imported by ports + modules + adapters) live in `platform/contracts/`; adapter-internal
+   schemas (imported only by their adapter) stay in `platform/adapters/http/`. See RD-011.
 3. `src/modules/*`: feature modules — currently `auth`, `dashboard`, `landing`, `persons`, `settings`,
    `webhooks`, `processed-calls`, `workflows`, `workflows-builder`, `workflow-runs`. Each splits into
    `data/` (hooks/queries), `lib/` (pure helpers/schemas), `ui/` (views). `workflows-builder` is expanded
@@ -79,7 +81,15 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 - Prefer modular design for components, hooks, and methods. Extract reusable logic to helper files when duplicated or complex.
 - Follow strict UI structure and separation:
 1. `app`: route/shell/provider composition only
-2. `platform`: adapters, transport, query wiring, stream contracts
+2. `platform`: adapters, transport, query wiring, stream contracts. `platform/contracts/` holds app-wide Zod
+   schemas (+ their `z.infer` types); `platform/adapters/http/` holds adapter-internal schemas. Ports import
+   types from `contracts/`, never from `adapters/` (RD-011).
+   - **New schemas (the rule going forward):** single-source — one file with the Zod schema **and** its
+     `z.infer` type, in `platform/contracts/`. Import the type from there; do **not** hand-write a copy in
+     `shared/types`.
+   - **Legacy exceptions (do NOT copy, do NOT "tidy"):** `person`/`webhook` hand-write types in
+     `shared/types` with Zod separately; `processed-calls` declares types inline in its port. Left as-is on
+     purpose — see RD-011. They follow the layering rule; only the type-writing style differs.
 3. `modules/*/data`: hooks and data orchestration
 4. `modules/*/lib`: pure helpers/transformers/schemas (no React)
 5. `modules/*/ui`: view components, plus page-local hooks/helpers that are scoped to a single
@@ -87,10 +97,11 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
    not `ui/`.
 6. `shared`: reusable primitives, constants, helpers, and cross-module types
 - Import paths — use path aliases for cross-layer/cross-module imports; relative only within a folder/module:
-1. Aliases (`tsconfig.app.json` + `vite.config.ts`): `@app/*`, `@platform/*`, `@modules/*`, `@shared/*`,
-   `@styles/*` (and `@/*` → `src/*`). Prefer the layered aliases over `@/*`.
-2. Any import that crosses a top-level layer (`app`/`platform`/`modules`/`shared`/`styles`) or jumps to a
-   different module under `modules/` uses an alias. Keep `./` and intra-module relatives as relatives.
+1. Aliases (`tsconfig.app.json` + `vite.config.ts`): `@app/*`, `@platform/*`, `@modules/*`, `@shared/*` — one
+   per top-level src dir that holds JS/TS modules. (`styles/` is CSS-only, imported via CSS `@import`, so it
+   has no JS alias.)
+2. Any import that crosses a top-level layer (`app`/`platform`/`modules`/`shared`) or jumps to a different
+   module under `modules/` uses an alias. Keep `./` and intra-module relatives as relatives.
 3. Deep relative imports (4+ `../`) are banned by ESLint (`no-restricted-imports`); use an alias instead.
 - Prefer performant code by default:
 1. avoid unnecessary re-renders and derived-state duplication
@@ -169,6 +180,6 @@ Before adding or changing a component, work top-to-bottom:
 4. **Tokens, never hex.** All colors via `var(--…)` from `tokens.css`. No `#hex`/`rgba()` literals in `*.tsx`/feature `*.css` (enforced by `npm run lint:tokens`). New color → add a token. Anything token-driven also flips in dark mode (`:root[data-theme="dark"]`).
 5. **Copy via `uiText`.** No user-facing string literals in feature files; add a `uiText` key.
 6. **Export new shared primitives from the barrel** (`shared/ui/index.ts`).
-7. **Import via aliases.** Cross-layer/cross-module imports use `@shared`/`@modules`/`@platform`/`@app`/`@styles`; only intra-folder/intra-module stay relative. Deep relatives (4+ `../`) fail lint.
+7. **Import via aliases.** Cross-layer/cross-module imports use `@shared`/`@modules`/`@platform`/`@app`; only intra-folder/intra-module stay relative. Deep relatives (4+ `../`) fail lint.
 8. **No dead code.** If you remove a usage, remove the now-orphaned field/export/string. `npm run deadcode` (knip) catches these.
 9. **Validate.** `npm run check` (lint + lint:tokens + build + test) must pass; add/adjust tests for changed behavior. For observable UI, browser-verify via the preview.

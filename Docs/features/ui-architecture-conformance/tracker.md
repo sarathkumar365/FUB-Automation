@@ -26,7 +26,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-02 — `platform/` imports schemas/logic from `modules/` (dependency inversion + inconsistency)
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 2 — RD-011 Option A, z.infer; schemas in platform/contracts/, no port→adapter dep)
 - **Severity:** HIGH (coherence)
 - **Rule violated:** `ui/AGENTS.md` layer rule `modules → platform` (platform is the inner contract layer);
   "platform: adapters, transport, query wiring, stream contracts".
@@ -117,7 +117,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-08 — Cross-module type ownership blur
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 2 — run types now single-owned at platform/contracts/workflowSchemas)
 - **Severity:** LOW
 - **Evidence:** `ui/src/modules/dashboard/ui/DashboardPage.tsx:13` imports `WorkflowRunSummary` from
   `modules/workflows/lib/workflowSchemas`, though `workflow-runs` is the domain owner; run/summary types are

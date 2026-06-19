@@ -24,7 +24,7 @@ import {
   formatWorkflowStatus,
   getWorkflowStatusTone,
 } from '../../lib/workflowsDisplay'
-import type { WorkflowResponse } from '../../lib/workflowSchemas'
+import type { WorkflowResponse } from '@platform/contracts/workflowSchemas'
 import { WorkflowActions } from '../WorkflowActions'
 
 export interface WorkflowHeaderStripProps {

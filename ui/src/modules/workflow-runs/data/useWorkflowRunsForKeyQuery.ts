@@ -15,7 +15,7 @@ export function useWorkflowRunsForKeyQuery(
   const { workflowRunPort } = useAppPorts()
 
   return useQuery({
-    queryKey: key ? queryKeys.workflowRuns.listForKey(key, filters) : ['workflow-runs', 'key', 'none', filters],
+    queryKey: queryKeys.workflowRuns.listForKey(key || 'none', filters),
     queryFn: () => workflowRunPort.listWorkflowRunsForKey(key as string, filters),
     enabled: Boolean(key) && (options?.enabled ?? true),
   })

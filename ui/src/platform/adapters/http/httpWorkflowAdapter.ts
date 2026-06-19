@@ -5,7 +5,7 @@ import {
   workflowPageResponseSchema,
   workflowResponseSchema,
   workflowVersionSummarySchema,
-} from '@modules/workflows/lib/workflowSchemas'
+} from '../../contracts/workflowSchemas'
 import type {
   CreateWorkflowCommand,
   RollbackWorkflowCommand,

@@ -4,7 +4,7 @@ import type { PropsWithChildren } from 'react'
 import { describe, expect, it, vi } from 'vitest'
 import { PortsContext } from '@app/portsContextValue'
 import { useSettingsConfigQuery } from '@modules/settings/data/useSettingsConfigQuery'
-import type { SettingsConfig } from '@modules/settings/lib/settingsSchemas'
+import type { SettingsConfig } from '@platform/contracts/settingsSchemas'
 import type { AppPorts } from '@platform/container'
 
 function sampleConfig(): SettingsConfig {

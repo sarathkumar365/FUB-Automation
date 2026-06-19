@@ -12,8 +12,6 @@ export default defineConfig({
       { find: /^@platform\//, replacement: r('./src/platform/') },
       { find: /^@modules\//, replacement: r('./src/modules/') },
       { find: /^@shared\//, replacement: r('./src/shared/') },
-      { find: /^@styles\//, replacement: r('./src/styles/') },
-      { find: /^@\//, replacement: r('./src/') },
     ],
   },
   server: {

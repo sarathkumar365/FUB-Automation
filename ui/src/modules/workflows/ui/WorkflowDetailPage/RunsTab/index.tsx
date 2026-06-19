@@ -24,7 +24,7 @@ import {
   formatWorkflowRunStatus,
   getWorkflowRunStatusTone,
 } from '@modules/workflow-runs/lib/workflowRunsDisplay'
-import type { WorkflowResponse, WorkflowRunStatus, WorkflowRunSummary } from '../../../lib/workflowSchemas'
+import type { WorkflowResponse, WorkflowRunStatus, WorkflowRunSummary } from '@platform/contracts/workflowSchemas'
 import {
   createWorkflowDetailSearchParamsFromState,
   parseWorkflowDetailSearchParams,

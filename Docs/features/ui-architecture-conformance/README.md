@@ -1,6 +1,6 @@
 # UI Architecture Conformance
 
-> **Status:** 🟡 In progress — 6 / 12 findings resolved. **Phase 1 complete** (UAC-01/05/06/07/09/10). Next: Phase 2 (schema ownership, decision-gated).
+> **Status:** 🟡 In progress — 8 / 12 findings resolved. **Phases 1–2 complete** (UAC-01/05/06/07/09/10 + UAC-02/08, RD-011). Next: Phase 3 (boundary lint, UAC-04) — decision-gated.
 > **Goal:** Drive every finding from the [UI Architecture Audit (2026-06-18)](../../audits/ui-architecture-audit-2026-06-18.md)
 > to closure so the `ui/` module is fully aligned with the rules in `ui/AGENTS.md`,
 > `developer-rules.md`, and `src/shared/ui/README.md`.
@@ -23,13 +23,13 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
 | ID | Finding | Severity | Phase | Status |
 |----|---------|----------|-------|--------|
 | **UAC-01** | No path aliases → 5–6 level `../` import chains (14 files under WorkflowDetailPage) | HIGH | P1 | ☑ Done |
-| **UAC-02** | `platform/` imports schemas from `modules/` (8 sites); inconsistent schema ownership | HIGH | P2 | ☐ Open |
+| **UAC-02** | `platform/` imports schemas from `modules/` (8 sites); inconsistent schema ownership | HIGH | P2 | ☑ Done |
 | **UAC-03** | No code-splitting — builder + `@dagrejs/dagre` in main bundle | MED | P4 | ☐ Open |
 | **UAC-04** | No lint enforcement of module/layer boundaries | MED | P3 | ☐ Open |
 | **UAC-05** | Hardcoded query keys bypass `queryKeys` factory (3 files) | MED | P1 | ☑ Done |
 | **UAC-06** | `ui/AGENTS.md` module list stale (says 2 modules; there are 11) | MED | P1 | ☑ Done |
 | **UAC-07** | Misplaced hook `useWorkflowDetailActions.ts` in `lib/` | LOW | P1 | ☑ Done |
-| **UAC-08** | Cross-module type ownership blur (`WorkflowRunSummary`) | LOW | P2 | ☐ Open |
+| **UAC-08** | Cross-module type ownership blur (`WorkflowRunSummary`) | LOW | P2 | ☑ Done |
 | **UAC-09** | Recipes hardcode `"Yes"/"No"` (bypass `uiText`) | LOW | P1 | ☑ Done |
 | **UAC-10** | `.join(' ')` instead of `cn()` (PanelNav, AppRail) | LOW | P1 | ☑ Done |
 | **UAC-11** | Test coverage gaps (run-detail, persons, processed-calls, storyboard) | LOW | P5 | ☐ Open |
