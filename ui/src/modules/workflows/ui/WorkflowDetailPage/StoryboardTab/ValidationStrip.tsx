@@ -9,7 +9,7 @@
 import { useState } from 'react'
 import { uiText } from '../../../../../shared/constants/uiText'
 import { Button } from '../../../../../shared/ui/button'
-import type { ValidationViewState } from '../lib/useWorkflowDetailActions'
+import type { ValidationViewState } from '../useWorkflowDetailActions'
 
 export interface ValidationStripProps {
   state: ValidationViewState

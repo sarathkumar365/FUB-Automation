@@ -19,7 +19,7 @@ import { useStoryboardModel } from '../../../../workflows-builder/surfaces/story
 import type { Graph } from '../../../../workflows-builder/state/runtimeContract'
 import type { WorkflowResponse } from '../../../lib/workflowSchemas'
 import { parseWorkflowGraph } from '../lib/parseWorkflowGraph'
-import type { ValidationViewState } from '../lib/useWorkflowDetailActions'
+import type { ValidationViewState } from '../useWorkflowDetailActions'
 import { SceneInspectorPopover } from './SceneInspectorPopover'
 import { useSceneSelection } from './useSceneSelection'
 import { ValidationStrip } from './ValidationStrip'

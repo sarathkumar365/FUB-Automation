@@ -31,7 +31,7 @@ import { RunsTab } from './RunsTab'
 import { StoryboardTab } from './StoryboardTab'
 import { WorkflowHeaderStrip } from './WorkflowHeaderStrip'
 import { WorkflowTabs } from './WorkflowTabs'
-import { useWorkflowDetailActions } from './lib/useWorkflowDetailActions'
+import { useWorkflowDetailActions } from './useWorkflowDetailActions'
 
 export function WorkflowDetailPage() {
   const { key } = useParams<{ key: string }>()

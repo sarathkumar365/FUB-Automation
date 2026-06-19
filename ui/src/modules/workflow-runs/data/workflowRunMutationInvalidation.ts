@@ -10,9 +10,9 @@ export async function invalidateCancelWorkflowRunQueries(
     queryKey: queryKeys.workflowRuns.detail(updatedRun.id),
   })
   await queryClient.invalidateQueries({
-    queryKey: ['workflow-runs', 'list'],
+    queryKey: queryKeys.workflowRuns.lists(),
   })
   await queryClient.invalidateQueries({
-    queryKey: ['workflow-runs', 'key', updatedRun.workflowKey],
+    queryKey: queryKeys.workflowRuns.forKey(updatedRun.workflowKey),
   })
 }

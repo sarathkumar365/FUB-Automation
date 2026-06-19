@@ -7,15 +7,15 @@
  * scoped by workflow key so navigating to another workflow resets it.
  */
 import { useCallback, useState } from 'react'
-import { uiText } from '../../../../../shared/constants/uiText'
-import { useNotify } from '../../../../../shared/notifications/useNotify'
-import { useActivateWorkflowMutation } from '../../../data/useActivateWorkflowMutation'
-import { useArchiveWorkflowMutation } from '../../../data/useArchiveWorkflowMutation'
-import { useDeactivateWorkflowMutation } from '../../../data/useDeactivateWorkflowMutation'
-import { useRollbackWorkflowMutation } from '../../../data/useRollbackWorkflowMutation'
-import { useUpdateWorkflowMutation } from '../../../data/useUpdateWorkflowMutation'
-import { useValidateWorkflowMutation } from '../../../data/useValidateWorkflowMutation'
-import type { WorkflowResponse } from '../../../lib/workflowSchemas'
+import { uiText } from '../../../../shared/constants/uiText'
+import { useNotify } from '../../../../shared/notifications/useNotify'
+import { useActivateWorkflowMutation } from '../../data/useActivateWorkflowMutation'
+import { useArchiveWorkflowMutation } from '../../data/useArchiveWorkflowMutation'
+import { useDeactivateWorkflowMutation } from '../../data/useDeactivateWorkflowMutation'
+import { useRollbackWorkflowMutation } from '../../data/useRollbackWorkflowMutation'
+import { useUpdateWorkflowMutation } from '../../data/useUpdateWorkflowMutation'
+import { useValidateWorkflowMutation } from '../../data/useValidateWorkflowMutation'
+import type { WorkflowResponse } from '../../lib/workflowSchemas'
 
 export type ValidationViewState =
   | { mode: 'idle' }

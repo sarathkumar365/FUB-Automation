@@ -20,6 +20,7 @@
  *   - `layout` — `'inline' | 'stacked' | 'auto'` (default `'auto'`).
  */
 import { isValidElement, type ReactNode } from 'react'
+import { uiText } from '../../constants/uiText'
 import { cn } from '../../lib/cn'
 
 /** Character count at which a plain string flips from inline to stacked in
@@ -50,7 +51,7 @@ function resolveLayout(value: ReactNode, layout: FieldRowLayout): 'inline' | 'st
 
 function renderValue(value: ReactNode): ReactNode {
   if (value === null || value === undefined) return '—'
-  if (typeof value === 'boolean') return value ? 'Yes' : 'No'
+  if (typeof value === 'boolean') return value ? uiText.common.yes : uiText.common.no
   return value
 }
 

@@ -33,9 +33,13 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 - Keep module boundaries:
 1. `src/app`: app shell, router, providers
 2. `src/platform`: API adapters, Zod validation, query setup, SSE wrapper
-3. `src/modules/webhooks`: webhook list/live/detail features
-4. `src/modules/processed-calls`: processed call list/replay features
-5. `src/shared`: reusable types/utils/primitives
+3. `src/modules/*`: feature modules — currently `auth`, `dashboard`, `landing`, `persons`, `settings`,
+   `webhooks`, `processed-calls`, `workflows`, `workflows-builder`, `workflow-runs`. Each splits into
+   `data/` (hooks/queries), `lib/` (pure helpers/schemas), `ui/` (views). `workflows-builder` is expanded
+   for its graph domain (`model/`, `state/` (Zustand), `surfaces/`, `observability/`); `auth` adds `state/`.
+4. `src/shared`: reusable types/utils/primitives
+   <!-- Layer/boundary conventions (schema ownership, cross-module import rules) are finalized in
+   Phase 3 of Docs/features/ui-architecture-conformance (UAC-02 / UAC-04). -->
 
 ## UX and style decisions (locked for v1)
 - Canonical stream baseline: Figma `node-id=23-2` in file key `svLM7vfwHvmdxjoNE1Sr3U`.
@@ -77,8 +81,9 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 1. `app`: route/shell/provider composition only
 2. `platform`: adapters, transport, query wiring, stream contracts
 3. `modules/*/data`: hooks and data orchestration
-4. `modules/*/ui`: view components only
-5. `shared`: reusable primitives, constants, helpers, and cross-module types
+4. `modules/*/lib`: pure helpers/transformers/schemas (no React)
+5. `modules/*/ui`: view components only
+6. `shared`: reusable primitives, constants, helpers, and cross-module types
 - Prefer performant code by default:
 1. avoid unnecessary re-renders and derived-state duplication
 2. memoize expensive computation/selectors where relevant

@@ -79,7 +79,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-05 — Hardcoded query keys bypass the `queryKeys` factory
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 1)
 - **Severity:** MEDIUM
 - **Rule violated:** centralized query-key management (`platform/query/queryKeys.ts`).
 - **Evidence:**
@@ -94,7 +94,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-06 — `ui/AGENTS.md` module list is stale
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 1 — factual list refreshed; convention rules finalized in Phase 3)
 - **Severity:** MEDIUM (doc drift in the canonical conventions file)
 - **Evidence:** `ui/AGENTS.md:33-38` lists only `webhooks` + `processed-calls`. Actual modules (11): auth,
   dashboard, landing, persons, settings, webhooks, processed-calls, workflows, workflows-builder,
@@ -107,7 +107,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-07 — Misplaced hook: `useWorkflowDetailActions.ts` in `lib/`
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 1 — co-located at `WorkflowDetailPage/`)
 - **Severity:** LOW
 - **Rule violated:** `lib/` = pure helpers/transformers (no React). The file uses `useState`/`useCallback`.
 - **Evidence:** `ui/src/modules/workflows/ui/WorkflowDetailPage/lib/useWorkflowDetailActions.ts`.
@@ -129,7 +129,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-09 — Recipes hardcode user-facing `"Yes"/"No"`
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 1 — `uiText.common.yes/no`)
 - **Severity:** LOW (i18n blocker; violates `uiText` centralization)
 - **Evidence:** `ui/src/shared/ui/recipes/FieldRow.tsx:53` and `KeyValueList.tsx:42` emit literal `'Yes'/'No'`.
 - **Fix:** add `uiText.common.yes/no`; reference them in both recipes.
@@ -138,7 +138,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-10 — `.join(' ')` instead of `cn()`
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 1)
 - **Severity:** LOW
 - **Evidence:** `ui/src/shared/ui/PanelNav.tsx:21-26` and `AppRail.tsx:43-48` build `className` via
   `.join(' ')`, losing `tailwind-merge` conflict de-dup.

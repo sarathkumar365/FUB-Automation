@@ -1,6 +1,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useAppPorts } from '../../../app/useAppPorts'
 import { HttpRequestError } from '../../../platform/adapters/http/httpJsonClient'
+import { queryKeys } from '../../../platform/query/queryKeys'
 
 export type ReplayResult = 'accepted' | 'notFound' | 'notReplayable' | 'unexpectedError'
 
@@ -26,7 +27,7 @@ export function useReplayProcessedCallMutation() {
     },
     onSettled: async () => {
       await queryClient.invalidateQueries({
-        queryKey: ['processed-calls', 'list'],
+        queryKey: queryKeys.processedCalls.lists(),
       })
     },
   })

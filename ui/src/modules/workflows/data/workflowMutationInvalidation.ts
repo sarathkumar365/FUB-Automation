@@ -3,7 +3,7 @@ import { queryKeys } from '../../../platform/query/queryKeys'
 
 export async function invalidateWorkflowMutationQueries(queryClient: QueryClient, key: string) {
   await queryClient.invalidateQueries({
-    queryKey: ['workflows', 'list'],
+    queryKey: queryKeys.workflows.lists(),
   })
   await queryClient.invalidateQueries({
     queryKey: queryKeys.workflows.detail(key),

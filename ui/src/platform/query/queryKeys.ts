@@ -11,6 +11,7 @@ export const queryKeys = {
     eventTypes: () => ['webhooks', 'event-types'] as const,
   },
   processedCalls: {
+    lists: () => ['processed-calls', 'list'] as const,
     list: (filters: ProcessedCallFilters) => ['processed-calls', 'list', filters] as const,
   },
   persons: {
@@ -19,6 +20,7 @@ export const queryKeys = {
       ['persons', 'summary', sourcePersonId, filters] as const,
   },
   workflows: {
+    lists: () => ['workflows', 'list'] as const,
     list: (filters: WorkflowListFilters) => ['workflows', 'list', filters] as const,
     detail: (key: string) => ['workflows', 'detail', key] as const,
     versions: (key: string) => ['workflows', 'versions', key] as const,
@@ -26,7 +28,9 @@ export const queryKeys = {
     triggerTypes: () => ['workflows', 'trigger-types'] as const,
   },
   workflowRuns: {
+    lists: () => ['workflow-runs', 'list'] as const,
     list: (filters: WorkflowRunListFilters) => ['workflow-runs', 'list', filters] as const,
+    forKey: (key: string) => ['workflow-runs', 'key', key] as const,
     listForKey: (key: string, filters: WorkflowRunListFilters) => ['workflow-runs', 'key', key, filters] as const,
     detail: (runId: number) => ['workflow-runs', 'detail', runId] as const,
   },
