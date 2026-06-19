@@ -44,7 +44,7 @@ real gaps were PersonsPage, WorkflowBuilderPage, and WorkflowsPage filter behavi
   graph, and a flaky CI-hanging test is a net negative. The page is a thin read-only viewer; its render logic
   (the storyboard surface) is already covered by the `workflow-storyboard-*` unit tests. Page-level coverage
   is **deferred to the planned interactive builder** (which the plan/owner already scoped to bring its own
-  tests). See UAC-11 in tracker.md.
+  tests). See UAC-11 in the README findings registry.
 
 ### Validation
 - `npm run check` green (exit 0, ~16s clean): lint + lint:tokens + knip + build + test. Suite **408 tests /

@@ -2,7 +2,7 @@
 
 ## Status
 Accepted (2026-06-18). Implementation = **ui-architecture-conformance Phase 2** — see
-[`phase-2-plan.md`](../features/ui-architecture-conformance/phase-2-plan.md) (findings UAC-02 + UAC-08).
+[`plan.md`](../features/ui-architecture-conformance/plan.md) "Phase 2" (findings UAC-02 + UAC-08).
 Scope: `ui/` submodule only.
 
 ## Context
