@@ -9,7 +9,7 @@
 | Phase | Status | Summary |
 |-------|--------|---------|
 | 0 — Foundation (docs) | Done | Research/findings consolidated, RD-012 (Proposed), plan + this tracker, the "add a report" recipe. No code. |
-| 1 — Dashboard metrics (direct slice) | Not started | Existing-data dashboard capabilities (windowed counts, hourly series, deltas, leads→assigned→called funnel, failures worklist, recent runs, live readout). **One controller, direct SQL, a DTO — no framework.** |
+| 1 — Dashboard metrics (direct slice) | Planned — [impl doc](./phase-1-implementation.md) | Operational pipeline health (windowed run counts + success rate, hourly throughput, deltas, **operational** funnel `Ingested→Domain Events→Workflow Runs→Failed`, failures worklist, recent runs, events/min). **One snapshot endpoint, 3 domain aggregators, a DTO — no framework.** |
 | 2 — Accountability MVP (direct slice) | Not started | Assigned → called, red/green per agent. Second direct slice, same plain style. Coverage + attribution layers; contains the `source_user_id` null-rate gate. |
 | 3 — Extract platform framework | Not started | Extract `ReportProvider` / `ReportRegistry` / `ReportingQuery` port / `definitions` / generic controller **from the two working slices** (rule of three) — no behavior change to Phases 1–2. **Ratifies RD-012 → Accepted.** |
 
