@@ -18,6 +18,7 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-009-loop-primitive-foreman-cloned-rows.md` — Status: Accepted (implementation planned, loop-primitive feature)
 - `RD-010-step-type-categories.md` — Status: Accepted (implementation = loop-primitive Phase 0)
 - `RD-011-ui-schema-ownership.md` — Status: Accepted (ui/ only; implementation = ui-architecture-conformance Phase 2)
+- `RD-012-reporting-platform-architecture.md` — Status: Proposed (ratify on reporting-platform Phase 1)
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`

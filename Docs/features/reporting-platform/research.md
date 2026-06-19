@@ -24,6 +24,14 @@ _TBD_
   during the brainstorm: a FUB mirror as the capture spine, one read model, two query
   subsystems (deterministic SQL + Vanna text-to-SQL). Records why reporting-as-a-live-agent
   was rejected and the scope-narrowing decisions (historical-first, on-time dropped).
+- [findings/data-model.md](./findings/data-model.md) — ground truth on the data we have
+  today (`events`, `processed_calls`, `persons`), how it's written, agent-name
+  resolution, and the accuracy caveats every report inherits. The factual basis for the
+  plan.
+
+The architecture is recorded as
+[RD-012](../../repo-decisions/RD-012-reporting-platform-architecture.md); the build is in
+[plan.md](./plan.md) + [phases.md](./phases.md).
 
 ## Constraints & open questions
 
