@@ -1,6 +1,7 @@
 # UI Architecture Conformance
 
-> **Status:** 🟡 In progress — 12 / 13 findings resolved. **Phases 1–4 complete** (UAC-01/05/06/07/09/10, UAC-02/08 + RD-011, UAC-04/06-final/13 lint-enforced, UAC-03 code-split). Remaining: **UAC-11 + UAC-12 (Phase 5)** — test backfill + decompose WorkflowsPage. UAC-13 discovered during Phase 3 and fixed.
+> **Status:** ✅ **Complete — 13 / 13 findings resolved** (Phases 1–5). The `ui/` module is aligned with
+> `ui/AGENTS.md` + RD-011, with the layering CI-enforced. UAC-13 was discovered during Phase 3 and fixed.
 > **Goal:** Drive every finding from the [UI Architecture Audit (2026-06-18)](../../audits/ui-architecture-audit-2026-06-18.md)
 > to closure so the `ui/` module is fully aligned with the rules in `ui/AGENTS.md`,
 > `developer-rules.md`, and `src/shared/ui/README.md`.
@@ -32,8 +33,8 @@ Severity = maintainability/risk over ~6 months, not runtime breakage (there is n
 | **UAC-08** | Cross-module type ownership blur (`WorkflowRunSummary`) | LOW | P2 | ☑ Done |
 | **UAC-09** | Recipes hardcode `"Yes"/"No"` (bypass `uiText`) | LOW | P1 | ☑ Done |
 | **UAC-10** | `.join(' ')` instead of `cn()` (PanelNav, AppRail) | LOW | P1 | ☑ Done |
-| **UAC-11** | Test coverage gaps (run-detail, persons, processed-calls, storyboard) | LOW | P5 | ☐ Open |
-| **UAC-12** | `WorkflowsPage.tsx` ~366 LOC — extract column/filter hooks | LOW | P5 | ☐ Open |
+| **UAC-11** | Test coverage gaps (real gaps: PersonsPage, WorkflowBuilderPage, WorkflowsPage filters) | LOW | P5 | ☑ Done |
+| **UAC-12** | `WorkflowsPage.tsx` ~366 LOC — extract column/filter hooks | LOW | P5 | ☑ Done |
 | **UAC-13** | `shared/ui/AppRail` imports `@modules/auth` (shared not a leaf) | LOW | P3 | ☑ Done |
 
 **Status legend:** ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix (record rationale in tracker.md)

@@ -19,6 +19,45 @@ Format per entry:
 
 ---
 
+## Phase 5 (final) — UAC-11 test backfill + UAC-12 decompose WorkflowsPage  (2026-06-18)
+
+Closes the effort at **13/13**. The audit's UAC-11 list was stale (run-detail/processed-calls already tested);
+real gaps were PersonsPage, WorkflowBuilderPage, and WorkflowsPage filter behavior.
+
+### UAC-12 — decompose `WorkflowsPage` (366 → 299 LOC)
+- Extracted `workflowColumns` → `workflows/ui/workflowsColumns.tsx` (const; zero reactive deps).
+- Extracted the filter draft-state + apply/reset → `workflows/ui/useWorkflowsFilters.ts` (page-local hook;
+  preserves the draft-keying that reseeds the draft when the applied status changes).
+- WorkflowsPage now consumes both; behavior identical (existing selection test + new filter test prove it).
+
+### UAC-11 — backfill (characterization-first)
+- `workflows-page-filters.test` (2) — written BEFORE the refactor to characterize apply/reset; protected the
+  extraction.
+- `workflows-filters-hook.test` (4) — unit-tests `useWorkflowsFilters` incl. the draft-keying edge.
+- `persons-page.test` (6) — the gap: rows render, row→navigate, status-filter apply, cursor pagination,
+  empty + error states. (`gcTime: 0` on the test QueryClient, matching the `workflow-detail-page-actions`
+  precedent, so no 5-min gc timer is left scheduled.)
+- **WorkflowBuilderPage page-test — deferred, NOT shipped.** A `workflow-builder-page.test` was written but
+  **mounting `WorkflowBuilderPage` in the Vitest forks pool leaves a worker that won't terminate** (~580s
+  "Timeout terminating forks worker"), reproducible even with a single minimal case that mounts no storyboard.
+  No code-level open handle was found; it's a forks-pool worker-termination issue with that heavy module
+  graph, and a flaky CI-hanging test is a net negative. The page is a thin read-only viewer; its render logic
+  (the storyboard surface) is already covered by the `workflow-storyboard-*` unit tests. Page-level coverage
+  is **deferred to the planned interactive builder** (which the plan/owner already scoped to bring its own
+  tests). See UAC-11 in tracker.md.
+
+### Validation
+- `npm run check` green (exit 0, ~16s clean): lint + lint:tokens + knip + build + test. Suite **408 tests /
+  85 files** (+12 over Phase 4's 396; the deferred builder-page test's 4 cases are not included). Behavior
+  unchanged. Verified on a solo run (concurrent Vitest runs caused OOM/false-failures during investigation —
+  the authoritative number is from a single clean run).
+
+### Notes
+- Out of scope (flagged): PersonsPage shares WorkflowsPage's filter pattern — a shared `useListFilters`
+  abstraction would dedupe both, deferred as a separate refactor.
+
+---
+
 ## Phase 4 code-review fixes + comment trim  (2026-06-18)
 
 Fresh-eyes review of the split found no crashes; two precision fixes applied, plus a comment cleanup:

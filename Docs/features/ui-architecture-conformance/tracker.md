@@ -152,7 +152,10 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-11 — Test coverage gaps
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 5 — audit list was stale; PersonsPage + WorkflowsPage-filters
+  backfilled. **WorkflowBuilderPage page-test deferred:** mounting it hangs the Vitest forks worker
+  (~580s, no code-level open handle found); it's a thin read-only viewer whose render logic is already
+  covered by `workflow-storyboard-*` unit tests — revisit with the planned interactive builder.)
 - **Severity:** LOW (flat `src/test/` layout itself is fine at this scale — do NOT restructure)
 - **Evidence:** no dedicated tests for `WorkflowRunDetailPage`, `PersonsPage`, `ProcessedCallsPage`; some
   `workflows-builder` storyboard interaction paths untested.
@@ -162,7 +165,7 @@ Status legend: ☐ Open · ◐ In progress · ☑ Done · ⊘ Won't fix
 ---
 
 ## UAC-12 — `WorkflowsPage.tsx` ~366 LOC
-- **Status:** ☐ Open
+- **Status:** ☑ Done (2026-06-18, Phase 5 — extracted `workflowColumns` + `useWorkflowsFilters`; 366 → 299 LOC)
 - **Severity:** LOW
 - **Evidence:** `ui/src/modules/workflows/ui/WorkflowsPage.tsx` mixes fragmented filter `useState`s + column
   defs + table + create modal + shell registration.
