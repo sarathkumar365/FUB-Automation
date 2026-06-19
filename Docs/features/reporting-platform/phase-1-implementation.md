@@ -47,8 +47,9 @@ DashboardSnapshotService.snapshot(window)         ← computes ONE window + "now
 
 ## The endpoint
 
-- `GET /admin/dashboard/snapshot` — query param `window` (default `24h`). Returns the full
-  `DashboardSnapshotDto` in one response. Admin-auth, same as the other `/admin/*` endpoints.
+- `GET /admin/dashboard/snapshot` — **no query params in v1** (`window` fixed at 24h; see
+  Contract edge cases). Returns the full `DashboardSnapshotDto` in one response. Admin-auth,
+  same as the other `/admin/*` endpoints.
 - New `DashboardController` (controller layer). May be re-homed under the reporting
   namespace when the framework is extracted (Phase 3) — fine, it's one endpoint.
 - UI: `useDashboardSnapshotQuery` collapses from 4 calls to **1**. **No polling** — see
@@ -140,6 +141,29 @@ FailureRow  { kind: "RUN" | "CALL", ref, workflowKey, reason, retries: int|null,
 - **Run-replay: read-only in v1.** Runs have no replay path; a naive re-submit would
   `DUPLICATE_IGNORED` (idempotency key `WorkflowKey|Source|SourcePersonId|EventId`), and a
   real re-run risks double side effects (partial-success runs). Deferred — see Non-goals.
+
+## Contract edge cases (locked)
+
+Pinned so UI and BE agree before integration:
+
+- **Zero denominators → `null`** (the UI renders `—`, never `0`/`NaN`):
+  - `successRate.value` when `COMPLETED + FAILED == 0` (no terminal runs) → `null`.
+  - any `Delta` whose prior-window baseline is `0` → `{ value: null, direction: "FLAT" }`.
+  - `conversions.*` (`normalizedPct`, `toRunsPct`, `failRatePct`) when the denominator is
+    `0` → `null`.
+- **List sizes:**
+  - `recentRuns` = **5** (fixed).
+  - `needsAttention` capped at **50**, newest first. `hero.openFailures` stays the *true*
+    count (may exceed 50); the UI shows "+N more" from `openFailures − needsAttention.length`.
+- **`window` is fixed 24h in v1** — not a client-facing param. The server always returns 24
+  hourly points; the design's 12h/24h throughput toggle is **client-side slicing** of those
+  points, not a refetch. `window` stays in the DTO as the echoed `{ from, to, label }` anchor.
+- **Serialization:**
+  - all timestamps are **ISO-8601 UTC strings**.
+  - `ageSeconds` and `durationSec` are **server-computed ints** — the UI never does clock
+    math (so "10m ago" can't skew on client clock drift).
+  - percentages are numbers (e.g. `97.0`), not pre-formatted strings.
+- **Errors** inherit the existing `/admin/*` error envelope — no bespoke error shape here.
 
 ## Frontend
 
