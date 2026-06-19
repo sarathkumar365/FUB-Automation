@@ -1,13 +1,14 @@
 # Reporting Platform — Plan
 
-> Plan the whole reporting **layer**; build the **MVP** (+ dashboard metrics) first.
-> The MVP and the dashboard are the first two reference modules that prove the platform;
-> heavy future work (FUB mirror, Vanna text-to-SQL, task-completion) plugs in through
-> seams defined now but not filled.
+> Plan the whole reporting **layer**; build it as **direct vertical slices first, extract
+> the framework last.** The accountability MVP and the dashboard are two plain, un-abstracted
+> reports; the platform framework (RD-012) is then *extracted from* those two working
+> examples (rule of three) rather than committed up front. Heavy future work (FUB mirror,
+> Vanna text-to-SQL, task-completion) plugs in through the framework once it exists.
 >
-> Architecture of record: [RD-012](../../repo-decisions/RD-012-reporting-platform-architecture.md).
+> Architecture **target — to extract, not build-first**: [RD-012](../../repo-decisions/RD-012-reporting-platform-architecture.md) (Proposed).
 > Data ground truth: [findings/data-model.md](./findings/data-model.md).
-> Direction & rejected paths: [architecture-direction.md](./architecture-direction.md).
+> Direction, rejected paths & known limits: [architecture-direction.md](./architecture-direction.md).
 
 ## Goal
 
@@ -22,14 +23,16 @@ accountability board.
 ## Scope
 
 ### In (this pass)
-- **Foundation:** research/findings consolidated, RD-012, this plan + phase tracker, the
-  "how to add a report" recipe (in RD-012).
-- **Platform skeleton:** `ReportProvider`, `ReportRegistry` (auto-discovery), the
+- **Foundation:** research/findings consolidated, RD-012 (Proposed), this plan + phase
+  tracker, the "how to add a report" recipe (in RD-012).
+- **Accountability MVP (direct slice):** assigned → called, red/green, grouped by agent.
+  One controller, direct SQL, a DTO — **no framework.**
+- **Dashboard metrics (direct slice):** the existing-data capabilities the redesigned
+  dashboard needs (see [dashboard-reporting-needs.md](./dashboard-reporting-needs.md)).
+  Second plain slice, same style.
+- **Extracted framework:** `ReportProvider`, `ReportRegistry` (auto-discovery), the
   `ReportingQuery` port + deterministic-SQL adapter, the shared `definitions` module, the
-  generic reporting controller.
-- **Module — Accountability MVP:** assigned → called, red/green, grouped by agent.
-- **Module — Dashboard metrics:** the existing-data capabilities the redesigned dashboard
-  needs (see [dashboard-reporting-needs.md](./dashboard-reporting-needs.md)).
+  generic reporting controller — **extracted from the two slices above, then RD-012 ratified.**
 
 ### Out (named, deferred — slot in later via the seams)
 - The **FUB CDC mirror** and anything needing it: task creation/completion (Q5/Q6),
@@ -41,11 +44,14 @@ accountability board.
 
 ## Design
 
-Per RD-012: providers (auto-discovered) → generic controller; providers read only through
-the `ReportingQuery` port (deterministic SQL now, mirror-backed read model later); metric
-semantics centralized in `definitions`.
+**Build order, not the end state.** Phases 1–2 are plain vertical slices — each its own
+controller + direct SQL + DTO, no shared abstraction. Phase 3 *extracts* the framework
+below **from** those two working slices; the diagram is where we expect to land, not what
+Phase 1 ships. RD-012 is the **target**, ratified only once it's been extracted and the two
+slices sit on it unchanged.
 
 ```
+TARGET (extracted in Phase 3 — not Phase 1):
 controller/reporting/ReportingController         GET /api/reporting/{module}/{report}
         │ routes via
 service/reporting/shared/ReportRegistry  ──discovers──▶ ReportProvider beans
@@ -56,6 +62,11 @@ service/reporting/shared/definitions/  Called · Contacted · Assigned · Lead
 service/reporting/modules/accountability/   AccountabilityProvider + DTO
 service/reporting/modules/dashboard/        DashboardProvider(s) + DTO
 ```
+
+Why this order: the right shape of the `ReportingQuery` port and the `definitions` module
+is unknowable from zero reports. Two real, *different* slices (a per-agent worklist and a
+set of dashboard aggregates) expose what actually needs to be shared — so we extract from
+evidence instead of guessing the contract up front. See "Order of work".
 
 ### Accountability MVP — semantics
 - **Universe:** `persons` where `kind=LEAD` and `assignedUserId` is set.
@@ -76,10 +87,17 @@ open-failures worklist, recent runs, live readout. Deeper funnel stages (appoint
 deals) are deferred to the mirror and slot in as a later provider.
 
 ## Order of work & dependencies
-Phase 0 (docs) → Phase 1 (skeleton; one trivial provider end-to-end proves the seam) →
-Phase 2 (accountability MVP; contains the null-rate gate) → Phase 3 (dashboard metrics;
-reuses Phase-1 foundation + Phase-2 definitions). Phases 2 and 3 both depend only on
-Phase 1, not on each other.
+Phase 0 (docs) → **Phase 1 (accountability MVP — direct slice; contains the null-rate
+gate)** → **Phase 2 (dashboard metrics — direct slice)** → **Phase 3 (extract the
+framework from Phases 1–2 + ratify RD-012).** Phases 1 and 2 are independent of each other;
+Phase 3 depends on both existing.
+
+This is the **rule of three**: don't abstract until you have ≥2 real, *different*
+implementations to abstract *from*. The accountability worklist and the dashboard
+aggregates are deliberately different shapes — extracting a framework that serves both is
+how we know the abstraction is right, instead of locking in RD-012's contract blind. Phase
+3 is a pure refactor: the two slices must keep behaving identically once moved onto the
+extracted framework.
 
 ## Non-goals (and why)
 - **No mirror / no Vanna in this pass** — the MVP and dashboard metrics are answerable
@@ -97,26 +115,46 @@ Phase 1, not on each other.
 - **`person.created` ≠ intake** — affects "leads in today" counts on the dashboard. *Detect:*
   spot-check against FUB `created`. *Mitigation:* label as first-seen, or snapshot FUB
   `created` later.
-- **Over-abstraction of the skeleton** — building registry/port for only two modules could
-  gild. *Detect:* Phase 1 must carry a real second consumer (dashboard) to justify the
-  seam; if it doesn't earn its keep, collapse to direct queries.
+- **Over-abstraction of the framework** — committing the registry/port/definitions contract
+  before it's earned. *Mitigation (this plan's core sequencing):* the framework is
+  **extracted in Phase 3 from two working slices**, never built first. *Detect:* if Phase 3
+  finds the two slices share almost nothing worth abstracting, that's the signal to keep
+  them as direct slices and shrink or drop RD-012 rather than force the seam.
+- **The `ReportingQuery` "swap the backing store, providers don't change" promise may leak**
+  for analytical SQL (a provider's SQL encodes schema knowledge). *Detect:* Phase 3
+  extraction reveals whether the port is a genuine abstraction or a thin pass-through;
+  resolve the method-granularity question then, with two real call-sites in hand.
 
 ## Validation criteria
-- Phase 1: a trivial provider is reachable at `/api/reporting/...` end-to-end; adding it
-  required only a provider + DTO.
-- Phase 2: red/green board renders per agent; the null-rate gate result is recorded; an
-  agent with a known call shows green (no false red on attributable calls).
-- Phase 3: the redesigned dashboard's existing-data panels are backed by real endpoints;
-  the funnel matches the accountability numbers (shared definitions, no divergence).
+- Phase 1: red/green board renders per agent; the null-rate gate result is recorded; an
+  agent with a known call shows green (no false red on attributable calls). Plain slice —
+  no framework yet.
+- Phase 2: the redesigned dashboard's existing-data panels are backed by real endpoints;
+  the funnel matches the accountability numbers (same "called"/"assigned" logic, no
+  divergence). Second plain slice.
+- Phase 3: the framework is extracted; **both slices behave identically after moving onto
+  it** (pure refactor, tests unchanged); adding a *third* hypothetical report would now be a
+  provider + DTO. RD-012 ratified → Accepted.
 
 ## Linked decisions
-- [RD-012](../../repo-decisions/RD-012-reporting-platform-architecture.md) — this
-  architecture (Proposed; ratify on Phase 1).
+- [RD-012](../../repo-decisions/RD-012-reporting-platform-architecture.md) — the framework
+  architecture (Proposed; **extracted and ratified in Phase 3**, not built first).
 - Future RD — text-to-SQL security posture, created when Vanna is picked up.
 
 ## Decisions
-- Architecture, provider/port model, generic-controller-by-default, deferred mirror/Vanna:
-  **RD-012**.
+- **Sequencing — extract, don't pre-build (owner-approved 2026-06-19 stress-test):** build
+  the accountability MVP and dashboard as direct vertical slices first; extract RD-012's
+  framework from them on the rule of three. RD-012 stays Proposed until Phase 3.
+- Architecture target, provider/port model, generic-controller-by-default, deferred
+  mirror/Vanna: **RD-012**.
 - Accountability "called" = any outbound call (attempt counts); coverage vs. attribution
   layering: this plan, owner-approved 2026-06-19.
-- Open (resolve at Phase 1): `ReportingQuery` method granularity — see RD-012 Consequences.
+- Open (resolve at Phase 3, with two call-sites in hand): `ReportingQuery` method
+  granularity — see RD-012 Consequences.
+
+## Known limits & open questions
+Surfaced by the 2026-06-19 stress-test; tracked in
+[architecture-direction.md](./architecture-direction.md) "Known limits": the data ceiling
+(only calls/persons/notes ingested), multi-tenancy scoping, push/alerting being out of the
+pull-only architecture, no caching/materialization strategy, and definitions likely needing
+parameterization. None block the MVP; all are deferred deliberately.

@@ -1,10 +1,23 @@
 # RD-012: Reporting is a platform layer of auto-discovered providers over a query-port seam
 
 ## Status
-Proposed (2026-06-19). Ratify to **Accepted** when Phase 1 lands. Implementation =
-reporting-platform feature — see [`plan.md`](../features/reporting-platform/plan.md).
+Proposed (2026-06-19) — **pending two reference implementations.** This architecture is a
+**target to extract, not to build first.** It is extracted from the accountability MVP and
+the dashboard slices and ratified to **Accepted** in reporting-platform **Phase 3** (rule of
+three) — not Phase 1. See [`plan.md`](../features/reporting-platform/plan.md) "Order of work".
 Scope: backend `service/reporting/` + `controller/reporting/`; the `ui/` reporting pages
 consume the resulting endpoints.
+
+### Sequencing — why this is extracted, not built first
+A 2026-06-19 stress-test flagged that committing this contract up front locks in the
+abstraction at the moment of least information — in particular the `ReportingQuery` method
+granularity (below) and whether one `ReportProvider` shape unifies worklists vs. aggregates
+are unanswerable from zero reports. So the build order is: **Phase 1** accountability MVP
+and **Phase 2** dashboard as plain, direct vertical slices (own controller + SQL + DTO, no
+shared abstraction), then **Phase 3** extracts this framework *from* those two working,
+deliberately-different slices and proves it by moving them onto it with no behavior change.
+If the two slices turn out to share little worth abstracting, the correct outcome is to
+shrink or drop this RD — not to force the seam.
 
 ## Context
 Reporting is being built MVP-first but is intended to grow into the whole reporting layer

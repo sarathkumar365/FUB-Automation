@@ -8,10 +8,14 @@
 
 | Phase | Status | Summary |
 |-------|--------|---------|
-| 0 — Foundation (docs) | In progress | Research/findings consolidated, RD-012, plan + this tracker, the "add a report" recipe. No code. |
-| 1 — Platform skeleton | Not started | `ReportProvider`, `ReportRegistry` (auto-discovery), `ReportingQuery` port + deterministic-SQL adapter, `definitions`, generic controller. Proven by one trivial provider end-to-end. Ratifies RD-012 → Accepted. |
-| 2 — Accountability MVP | Not started | Assigned → called, red/green per agent. Coverage + attribution layers; contains the `source_user_id` null-rate gate. |
-| 3 — Dashboard metrics | Not started | Existing-data dashboard capabilities (windowed counts, hourly series, deltas, leads→assigned→called funnel, failures worklist, recent runs, live readout). Reuses Phase-1 foundation + Phase-2 definitions. |
+| 0 — Foundation (docs) | Done | Research/findings consolidated, RD-012 (Proposed), plan + this tracker, the "add a report" recipe. No code. |
+| 1 — Accountability MVP (direct slice) | Not started | Assigned → called, red/green per agent. **One controller, direct SQL, a DTO — no framework.** Coverage + attribution layers; contains the `source_user_id` null-rate gate. |
+| 2 — Dashboard metrics (direct slice) | Not started | Existing-data dashboard capabilities (windowed counts, hourly series, deltas, leads→assigned→called funnel, failures worklist, recent runs, live readout). Second direct slice, same plain style. |
+| 3 — Extract platform framework | Not started | Extract `ReportProvider` / `ReportRegistry` / `ReportingQuery` port / `definitions` / generic controller **from the two working slices** (rule of three) — no behavior change to Phases 1–2. **Ratifies RD-012 → Accepted.** |
+
+> **Sequencing note (2026-06-19 stress-test).** The framework is built **last**, extracted
+> from two real reports — not first. Committing the abstraction before two working examples
+> would lock in the contract at the moment of least information. See plan.md "Order of work".
 
 **Deferred beyond these phases (via RD-012 seams, not in this pass):** FUB CDC mirror →
 task-completion (Q5/Q6) + "useful" (Q4) + deeper funnel; Vanna text-to-SQL ad-hoc

@@ -87,7 +87,37 @@ ships). AI writes it, humans own it, runtime stays deterministic and fast.
   candidate signals = FUB `appointmentsCreated` / `dealsCreated`). Today we only capture
   **engine-created** tasks (in `workflow_run_steps.outputs` JSON), not human-created ones.
 
-## Open questions (parked)
+## Known limits & open questions (stress-test, 2026-06-19)
+
+A fresh-eyes stress-test of the foundation surfaced these. **The single change adopted** was
+sequencing — build the MVP + dashboard as direct vertical slices and *extract* the framework
+from them (rule of three) rather than committing RD-012 up front (now reflected in plan.md /
+phases.md / RD-012). The rest are **tracked as known limits, deliberately not yet solved**:
+
+- **The real ceiling on "all asks" is DATA, not the framework.** Only calls / persons /
+  notes are ingested. Tasks, appointments, deals, texts, emails, agent metadata,
+  source→closing are all absent — so most *interesting* reporting is blocked on the mirror
+  regardless of how good the read layer is. The mirror is the precondition for breadth, not
+  a late nice-to-have.
+- **Multi-tenancy is unaddressed.** If the platform ever serves more than one brokerage,
+  tenant scoping is a cross-cutting concern that's painful to retrofit and a data-leak risk.
+  *Open question for the owner: single-team or multi-tenant?* Decide before the framework is
+  extracted (it changes the port + definitions contracts).
+- **Pull-only architecture.** Alerts, scheduled digests, "notify me when…" are *push* —
+  scheduler + threshold + notification channel, none of which the current design has. If
+  proactive reporting is in scope, it's a separate seam to design, not a provider.
+- **No caching / materialization strategy.** Every report is live SQL over operational
+  tables, including event-replay aggregations. Fine at low volume; a wall as history grows.
+  Materialized views / cache / read replica for the reporting path are unplanned.
+- **Definitions likely need parameterization, not constants.** "Contacted = connected-only"
+  vs. "= all attempts" vs. "incl. texts" are different asks against one metric. The shared
+  `definitions` module should be designed to take parameters, or it breaks on the first
+  nuanced request.
+- **No report-correctness / reconciliation strategy.** Wrong accountability numbers are
+  worse than none (false accusations). A golden-dataset / reconcile-against-FUB check should
+  accompany the accountability slice.
+
+## Open questions (parked — design detail)
 
 - **Does FUB's task webhook + incremental pull carry a trustworthy completion flag/state?**
   This single fact decides whether Q5/Q6 are buildable as described. To verify against
