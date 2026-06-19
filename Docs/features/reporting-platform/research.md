@@ -20,6 +20,10 @@ _TBD_
 - [Dashboard Reporting Needs](./dashboard-reporting-needs.md) — what reporting data
   the redesigned operations dashboard would need (one slice of the platform, not the
   feature itself). Derived from the existing design handoff; no plan attached.
+- [Architecture direction (learnings)](./architecture-direction.md) — the shape settled
+  during the brainstorm: a FUB mirror as the capture spine, one read model, two query
+  subsystems (deterministic SQL + Vanna text-to-SQL). Records why reporting-as-a-live-agent
+  was rejected and the scope-narrowing decisions (historical-first, on-time dropped).
 
 ## Constraints & open questions
 
