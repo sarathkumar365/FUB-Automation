@@ -10,7 +10,7 @@
 #       "FUB-burst pattern: 3 peopleUpdated within 8s on lead 20235" \
 #       > src/test/resources/replay-fixtures/lead-20235-fub-burst-2026-05-12.json
 #
-# Reads from localhost:5432 / automation_engine / sarathkumar (dev defaults).
+# Reads from localhost:5432 / flux / sarathkumar (dev defaults).
 # Override via PGHOST / PGPORT / PGUSER / PGDATABASE env vars if needed.
 
 set -euo pipefail
@@ -33,7 +33,7 @@ PGHOST="${PGHOST:-localhost}"
 PGPORT="${PGPORT:-5432}"
 PGUSER="${PGUSER:-sarathkumar}"
 PGPASSWORD="${PGPASSWORD:-sarathkumar}"
-PGDATABASE="${PGDATABASE:-automation_engine}"
+PGDATABASE="${PGDATABASE:-flux}"
 export PGHOST PGPORT PGUSER PGPASSWORD PGDATABASE
 
 # Compose the fixture entirely server-side so we don't have to escape JSON in shell.

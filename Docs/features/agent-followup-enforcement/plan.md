@@ -16,12 +16,12 @@ The escalation workflow is the driving use case, but half the work is reusable e
 
 ## What already exists
 
-- Webhook trigger pipeline (parser → ingress → workflow trigger evaluation) — [FubWebhookTriggerType.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java)
-- **LEAD ingestion auto-snapshots person data** — every `peopleCreated/Updated` webhook calls `getPersonRawById` and upserts the person blob (including `assignedUserId` + `assignedTo` display name) into `leads.lead_details` JSONB. See [WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java) and [LeadUpsertService.SNAPSHOT_FIELDS](../../../src/main/java/com/fuba/automation_engine/service/lead/LeadUpsertService.java)
+- Webhook trigger pipeline (parser → ingress → workflow trigger evaluation) — [FubWebhookTriggerType.java](../../../src/main/java/com/flux/service/workflow/trigger/FubWebhookTriggerType.java)
+- **LEAD ingestion auto-snapshots person data** — every `peopleCreated/Updated` webhook calls `getPersonRawById` and upserts the person blob (including `assignedUserId` + `assignedTo` display name) into `leads.lead_details` JSONB. See [WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java) and [LeadUpsertService.SNAPSHOT_FIELDS](../../../src/main/java/com/flux/service/lead/LeadUpsertService.java)
 - `wait_and_check_communication` returns `COMM_NOT_FOUND` / `CONVERSATIONAL` / `CONNECTED_NON_CONVERSATIONAL` against `ProcessedCallEntity` — supports per-step `delayMinutes` + `lookbackMinutes`
 - `fub_reassign` and `fub_move_to_pond` — both accept template-resolved IDs
-- `branch_on_field` evaluates a **JSONata expression** against the run context and maps the stringified result to a result code via `resultMapping` — [BranchOnFieldWorkflowStep.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/steps/BranchOnFieldWorkflowStep.java) lines 46–111
-- JSONata templating (`{{ }}`) wired through `ExpressionScope` with `event` / `sourceLeadId` / `steps` keys — [ExpressionScope.java](../../../src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java)
+- `branch_on_field` evaluates a **JSONata expression** against the run context and maps the stringified result to a result code via `resultMapping` — [BranchOnFieldWorkflowStep.java](../../../src/main/java/com/flux/service/workflow/steps/BranchOnFieldWorkflowStep.java) lines 46–111
+- JSONata templating (`{{ }}`) wired through `ExpressionScope` with `event` / `sourceLeadId` / `steps` keys — [ExpressionScope.java](../../../src/main/java/com/flux/service/workflow/expression/ExpressionScope.java)
 - `automation_workflows` table + `AutomationWorkflowEntity` + `AdminWorkflowController` POST/PUT for create/update
 - Settings page is planned in [ui/Docs/ui-product-design-proposal.md](../../../ui/Docs/ui-product-design-proposal.md) lines 202–233 with a Configuration tab — no settings entity yet, just `@ConfigurationProperties` beans
 
@@ -71,14 +71,14 @@ Three things must travel together for the mention to render as a chip and trigge
 
 Putting `@Name` plain text in body alone does **not** render as a chip and does **not** trigger notification — confirmed by smoke tests A/B vs C.
 
-**Key insight (verified via grep):** the existing LEAD ingestion path already snapshots the FUB person blob into `leads.lead_details` (JSONB) on every `peopleCreated` / `peopleUpdated` webhook — see [LeadUpsertService.java:26-42](../../../src/main/java/com/fuba/automation_engine/service/lead/LeadUpsertService.java) and [WebhookEventProcessorService.java:183-220](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java). The snapshot includes `assignedUserId` AND `assignedTo` (display name). So workflows that mention the *currently assigned agent* don't need a `getUser` API call — the name is already in our DB and is auto-refreshed every time FUB sends an update webhook.
+**Key insight (verified via grep):** the existing LEAD ingestion path already snapshots the FUB person blob into `leads.lead_details` (JSONB) on every `peopleCreated` / `peopleUpdated` webhook — see [LeadUpsertService.java:26-42](../../../src/main/java/com/flux/service/lead/LeadUpsertService.java) and [WebhookEventProcessorService.java:183-220](../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java). The snapshot includes `assignedUserId` AND `assignedTo` (display name). So workflows that mention the *currently assigned agent* don't need a `getUser` API call — the name is already in our DB and is auto-refreshed every time FUB sends an update webhook.
 
 (Note: only **leads** and minimal **call records** are persisted locally — there's no `users` table. If a future workflow needs to mention a user who is NOT the lead's assigned agent, we'd need to either add a `users` ingestion path or add a `getUser(id)` client method then. Out of scope for this phase.)
 
 **New code:**
 - `FubCreateNoteRequestDto` (record) — `personId`, `body`, `isHtml`, `mentions` (nested `Mentions(List<Long> user)`), optional `subject`
 - `FubNoteResponseDto` — `id`, `personId`, `body`, `isHtml`, etc.
-- Extend [FubFollowUpBossClient.java](../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java) with:
+- Extend [FubFollowUpBossClient.java](../../../src/main/java/com/flux/client/fub/FubFollowUpBossClient.java) with:
   - `createNote(CreateNoteCommand)` using `RetryPolicy.DEFAULT_FUB` (429 + 5xx transient, 4xx permanent)
 - `FubCreateNoteWorkflowStep` registered in the workflow step registry — accepts pre-resolved IDs and names from config; **no name lookup, no extra API call**
 
@@ -124,7 +124,7 @@ The `lead` namespace comes from Phase 1, which exposes the `lead_details` snapsh
 ### Gap 2 — Business hours as a platform setting (new)
 Lives on the **Settings → Configuration** tab per the UI proposal. Single source of truth, edited by admin, read by workflows.
 
-- New properties bean: `src/main/java/com/fuba/automation_engine/config/BusinessHoursProperties.java`
+- New properties bean: `src/main/java/com/flux/config/BusinessHoursProperties.java`
   - Fields: `timezone` (e.g. `America/Los_Angeles`), `startHour` (e.g. 9), `endHour` (e.g. 18), `weekdaysOnly` (bool)
   - Bound from `application.properties` for v1; persisted-and-editable comes later when the Settings tab gets write APIs (out of scope here)
 - New service: `BusinessHoursService.isDaytime(Instant)` — used both by workflows and (eventually) the Settings GET endpoint
@@ -183,15 +183,15 @@ Lives on the **Settings → Configuration** tab per the UI proposal. Single sour
 ## Critical files
 
 **New:**
-- `src/main/java/com/fuba/automation_engine/client/fub/dto/FubCreateNoteRequestDto.java` (incl. nested `Mentions` record)
-- `src/main/java/com/fuba/automation_engine/client/fub/dto/FubNoteResponseDto.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubCreateNoteWorkflowStep.java`
-- `src/main/java/com/fuba/automation_engine/config/BusinessHoursProperties.java`
-- `src/main/java/com/fuba/automation_engine/service/BusinessHoursService.java`
+- `src/main/java/com/flux/client/fub/dto/FubCreateNoteRequestDto.java` (incl. nested `Mentions` record)
+- `src/main/java/com/flux/client/fub/dto/FubNoteResponseDto.java`
+- `src/main/java/com/flux/service/workflow/steps/FubCreateNoteWorkflowStep.java`
+- `src/main/java/com/flux/config/BusinessHoursProperties.java`
+- `src/main/java/com/flux/service/BusinessHoursService.java`
 - Workflow JSON seed/migration
 
 **Modified:**
-- `src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java` — add `createNote(...)` and `getUser(userId)`
+- `src/main/java/com/flux/client/fub/FubFollowUpBossClient.java` — add `createNote(...)` and `getUser(userId)`
 - Workflow step registry — register `fub_create_note`
 - `WorkflowExecutionManager` (or expression scope builder) — inject `now.isDaytime` / `now.hourLocal`
 - `src/main/resources/application.properties` (and `-prod`) — `automation.business-hours.timezone`, `.startHour`, `.endHour`, `.weekdaysOnly`
@@ -351,7 +351,7 @@ Result: 201, note 21256. Shahrukh Baig (id 28) auto-added as collaborator.
 
 Earlier drafts of the design assumed the step would resolve `userId → displayName` via a fresh `GET /v1/users/{id}` call (or a cached `FubUserDirectoryService`). After inspecting the local persistence layer this turned out to be unnecessary work for our use case.
 
-**The system already snapshots person data on ingestion.** [WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java) calls `getPersonRawById(leadId)` for every `peopleCreated/Updated` webhook and hands the result to [LeadUpsertService.upsertFubPerson](../../../src/main/java/com/fuba/automation_engine/service/lead/LeadUpsertService.java). The snapshot stored in `leads.lead_details` (JSONB) explicitly includes both `assignedUserId` AND `assignedTo` (display name) — see `SNAPSHOT_FIELDS` at lines 26-42.
+**The system already snapshots person data on ingestion.** [WebhookEventProcessorService.processLeadDomainEvent](../../../src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java) calls `getPersonRawById(leadId)` for every `peopleCreated/Updated` webhook and hands the result to [LeadUpsertService.upsertFubPerson](../../../src/main/java/com/flux/service/lead/LeadUpsertService.java). The snapshot stored in `leads.lead_details` (JSONB) explicitly includes both `assignedUserId` AND `assignedTo` (display name) — see `SNAPSHOT_FIELDS` at lines 26-42.
 
 **What's NOT stored locally:**
 

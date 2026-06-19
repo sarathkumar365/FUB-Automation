@@ -8,7 +8,7 @@
 
 ## Context
 
-The Automation Engine is being moved to a publicly reachable dev URL (Render free tier or similar) so that Follow Up Boss can deliver real webhooks. Today the app runs only behind a Cloudflare quick tunnel for showcase use, and `/admin/**` is wide open. Before exposing the host to the internet — even as a dev environment — close the gaps that an unauthenticated attacker can exploit, and make explicit which gaps we are deliberately deferring.
+Flux is being moved to a publicly reachable dev URL (Render free tier or similar) so that Follow Up Boss can deliver real webhooks. Today the app runs only behind a Cloudflare quick tunnel for showcase use, and `/admin/**` is wide open. Before exposing the host to the internet — even as a dev environment — close the gaps that an unauthenticated attacker can exploit, and make explicit which gaps we are deliberately deferring.
 
 In scope: A1 (auth + RBAC), A3 (Tomcat body cap), A5 (gitignore — already done), A6 (devtools verify), A7 (disable `show-sql`).
 Out of scope (accepted): A2 (SSRF guard), A4 (bounded HTTP reads). Tracked in the security checklist under "Known issues".
@@ -209,7 +209,7 @@ ALTER TABLE app_user ADD CONSTRAINT chk_app_user_role
 </dependency>
 ```
 
-- `config/JwtProperties.java` — `@ConfigurationProperties(prefix = "admin.auth.jwt")`, Lombok-style. Fields: `secret: String` (HS256 — must be ≥32 chars / 256 bits), `issuer: String` (default `automation-engine`), `expiry: Duration` (default `8h`).
+- `config/JwtProperties.java` — `@ConfigurationProperties(prefix = "admin.auth.jwt")`, Lombok-style. Fields: `secret: String` (HS256 — must be ≥32 chars / 256 bits), `issuer: String` (default `flux`), `expiry: Duration` (default `8h`).
 - `service/auth/JwtService.java`:
   - `String issue(AppUserEntity user)` — claims: `sub=username`, `role=<…>`, `iat`, `exp`, `iss`. HS256-signed.
   - `JwtPrincipal parse(String token)` — validates signature, expiry, issuer; throws `JwtException` on failure. Returns `(username, role)`.
@@ -314,7 +314,7 @@ Add to `application.properties`:
 
 ```
 admin.auth.jwt.secret=${JWT_SECRET:}
-admin.auth.jwt.issuer=${JWT_ISSUER:automation-engine}
+admin.auth.jwt.issuer=${JWT_ISSUER:flux}
 admin.auth.jwt.expiry=${JWT_EXPIRY:8h}
 admin.auth.seed-username=${ADMIN_AUTH_USERNAME:}
 admin.auth.seed-password=${ADMIN_AUTH_PASSWORD:}
@@ -364,7 +364,7 @@ spring.jpa.properties.hibernate.format_sql=false
 
 `scripts/run-app.sh prod` already activates `prod`.
 
-**Defense in depth.** The existing application-level cap at [WebhookIngressService.java:71](../../../src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java) stays at the env-driven default of 1 MB (`webhook.max-body-bytes`). Tomcat's 10 MB outer wall protects the JVM from buffering huge bodies; the 1 MB inner wall keeps the actual webhook contract tight. Keep both.
+**Defense in depth.** The existing application-level cap at [WebhookIngressService.java:71](../../../src/main/java/com/flux/service/webhook/WebhookIngressService.java) stays at the env-driven default of 1 MB (`webhook.max-body-bytes`). Tomcat's 10 MB outer wall protects the JVM from buffering huge bodies; the 1 MB inner wall keeps the actual webhook contract tight. Keep both.
 
 **Known gap (documented).** Spring's `@RequestBody` for JSON isn't gated by `multipart` props directly. The real defense is `server.tomcat.max-swallow-size`. Full enforcement on a streaming filter is over-scope for dev; documented in the checklist.
 
@@ -376,7 +376,7 @@ Already covered (`.gitignore:38,41-43`). Visual confirm + tick the checklist.
 
 ```
 ./mvnw clean package -DskipTests
-jar tf target/automation-engine-*.jar | grep -i devtools
+jar tf target/flux-*.jar | grep -i devtools
 ```
 
 Expected empty. If not, add `<excludeDevtools>true</excludeDevtools>` to `spring-boot-maven-plugin`.
@@ -396,19 +396,19 @@ Covered by `application-prod.properties` above (lands with A3 in the same phase)
 
 **New (backend):**
 - `src/main/resources/db/migration/V16__create_app_user_table.sql`
-- `src/main/java/com/fuba/automation_engine/persistence/entity/AppUserEntity.java`
-- `src/main/java/com/fuba/automation_engine/persistence/entity/AppUserRole.java`
-- `src/main/java/com/fuba/automation_engine/persistence/repository/AppUserRepository.java`
-- `src/main/java/com/fuba/automation_engine/config/SecurityConfig.java`
-- `src/main/java/com/fuba/automation_engine/config/JwtProperties.java`
-- `src/main/java/com/fuba/automation_engine/config/security/JwtAuthenticationFilter.java`
-- `src/main/java/com/fuba/automation_engine/config/security/JsonAuthEntryPoint.java`
-- `src/main/java/com/fuba/automation_engine/service/auth/JwtService.java`
-- `src/main/java/com/fuba/automation_engine/service/auth/JwtPrincipal.java` (record)
-- `src/main/java/com/fuba/automation_engine/service/auth/AppUserDetailsService.java`
-- `src/main/java/com/fuba/automation_engine/service/auth/AdminAuthService.java`
-- `src/main/java/com/fuba/automation_engine/service/auth/AdminUserSeeder.java`
-- `src/main/java/com/fuba/automation_engine/controller/AdminAuthController.java`
+- `src/main/java/com/flux/persistence/entity/AppUserEntity.java`
+- `src/main/java/com/flux/persistence/entity/AppUserRole.java`
+- `src/main/java/com/flux/persistence/repository/AppUserRepository.java`
+- `src/main/java/com/flux/config/SecurityConfig.java`
+- `src/main/java/com/flux/config/JwtProperties.java`
+- `src/main/java/com/flux/config/security/JwtAuthenticationFilter.java`
+- `src/main/java/com/flux/config/security/JsonAuthEntryPoint.java`
+- `src/main/java/com/flux/service/auth/JwtService.java`
+- `src/main/java/com/flux/service/auth/JwtPrincipal.java` (record)
+- `src/main/java/com/flux/service/auth/AppUserDetailsService.java`
+- `src/main/java/com/flux/service/auth/AdminAuthService.java`
+- `src/main/java/com/flux/service/auth/AdminUserSeeder.java`
+- `src/main/java/com/flux/controller/AdminAuthController.java`
 - `src/main/resources/application-prod.properties`
 - Tests: `AppUserRepositoryTest`, `JwtServiceTest`, `JwtAuthenticationFilterTest`, `AdminAuthControllerTest`, `AdminUserSeederTest`, `SecurityConfigTest`.
 
@@ -492,7 +492,7 @@ cd ui && npm test
 Devtools verify (A6):
 ```bash
 ./mvnw clean package -DskipTests
-jar tf target/automation-engine-*.jar | grep -i devtools                             # empty
+jar tf target/flux-*.jar | grep -i devtools                             # empty
 ```
 
 > **Note on Maven vs Spring profiles.** `-P` is a Maven profile flag, but no Maven profile named `prod` exists in `pom.xml`. The `prod` *Spring* profile is selected at runtime via `SPRING_PROFILES_ACTIVE=prod` (and is what activates `application-prod.properties`). Don't mix the two.

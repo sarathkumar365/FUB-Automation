@@ -15,7 +15,7 @@ These are the two real-world problems this app solves.
 
 ### 1.2 How it solves them
 
-The **Automation Engine** sits between Follow Up Boss and the team's workflow. It listens for events from FUB via webhooks and takes automated action:
+The **Flux** sits between Follow Up Boss and the team's workflow. It listens for events from FUB via webhooks and takes automated action:
 
 **Scenario 1 — Call Automation (live today):**
 A call happens in FUB. FUB fires a `callsCreated` webhook to this app. The app fetches the call details, evaluates the outcome, and decides:
@@ -76,7 +76,7 @@ Required variables in `.env`:
 | `FUB_BASE_URL` | FUB API base URL | `https://api.followupboss.com/v1` |
 | `FUB_X_SYSTEM` | X-System header (from FUB system registration) | `your-system-name` |
 | `FUB_X_SYSTEM_KEY` | X-System-Key header (also used as webhook signing key) | `your-system-key` |
-| `DB_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://localhost:5432/automation_engine` |
+| `DB_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://localhost:5432/flux` |
 | `DB_USER` | Database username | `postgres` |
 | `DB_PASS` | Database password | `postgres` |
 | `DEV_TEST_USER_ID` | In `local` profile, only process calls for this FUB user ID (safety guard) | `30` |

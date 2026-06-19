@@ -150,36 +150,36 @@ Wave gate. Exercises every endpoint against a real database plus the Wave 3 trig
 ## Files to Create
 
 - `src/main/resources/db/migration/V{next}__add_workflow_version_number.sql`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowTriggerRegistry.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowRunQueryService.java`
-- `src/main/java/com/fuba/automation_engine/controller/AdminWorkflowRunController.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/TriggerTypeCatalogEntry.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/UpdateWorkflowRequest.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/WorkflowVersionSummary.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/PageResponse.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/ValidateWorkflowRequest.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/ValidateWorkflowResponse.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/WorkflowRunSummary.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/WorkflowRunStepDetail.java`
-- `src/main/java/com/fuba/automation_engine/controller/dto/WorkflowRunDetailResponse.java`
-- `src/test/java/com/fuba/automation_engine/service/workflow/WorkflowTriggerRegistryTest.java`
-- `src/test/java/com/fuba/automation_engine/controller/AdminWorkflowRunControllerTest.java`
-- `src/test/java/com/fuba/automation_engine/controller/WorkflowAdminApiIntegrationTest.java`
+- `src/main/java/com/flux/service/workflow/WorkflowTriggerRegistry.java`
+- `src/main/java/com/flux/service/workflow/WorkflowRunQueryService.java`
+- `src/main/java/com/flux/controller/AdminWorkflowRunController.java`
+- `src/main/java/com/flux/controller/dto/TriggerTypeCatalogEntry.java`
+- `src/main/java/com/flux/controller/dto/UpdateWorkflowRequest.java`
+- `src/main/java/com/flux/controller/dto/WorkflowVersionSummary.java`
+- `src/main/java/com/flux/controller/dto/PageResponse.java`
+- `src/main/java/com/flux/controller/dto/ValidateWorkflowRequest.java`
+- `src/main/java/com/flux/controller/dto/ValidateWorkflowResponse.java`
+- `src/main/java/com/flux/controller/dto/WorkflowRunSummary.java`
+- `src/main/java/com/flux/controller/dto/WorkflowRunStepDetail.java`
+- `src/main/java/com/flux/controller/dto/WorkflowRunDetailResponse.java`
+- `src/test/java/com/flux/service/workflow/WorkflowTriggerRegistryTest.java`
+- `src/test/java/com/flux/controller/AdminWorkflowRunControllerTest.java`
+- `src/test/java/com/flux/controller/WorkflowAdminApiIntegrationTest.java`
 
 ## Files to Modify
 
-- `src/main/java/com/fuba/automation_engine/persistence/entity/AutomationWorkflowEntity.java` — add `versionNumber`
-- `src/main/java/com/fuba/automation_engine/persistence/entity/WorkflowStatus.java` — add `ARCHIVED`
-- `src/main/java/com/fuba/automation_engine/persistence/repository/AutomationWorkflowRepository.java` — add version-aware finders + paged list
-- `src/main/java/com/fuba/automation_engine/persistence/repository/WorkflowRunRepository.java` — add paged queries (by key, cross-workflow)
-- `src/main/java/com/fuba/automation_engine/service/workflow/AutomationWorkflowService.java` — add update/activate/deactivate/rollback/archive/list/listVersions/getLatestByKey/validate
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowTriggerType.java` — add display metadata methods
-- `src/main/java/com/fuba/automation_engine/service/workflow/trigger/FubWebhookTriggerType.java` — implement display metadata
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowTriggerRouter.java` — consume `WorkflowTriggerRegistry`
-- `src/main/java/com/fuba/automation_engine/controller/AdminWorkflowController.java` — add list/update/versions/activate/deactivate/rollback/archive/validate/trigger-types endpoints; migrate `{id}` → `{key}` path
-- `src/main/java/com/fuba/automation_engine/controller/dto/WorkflowResponse.java` — extend with `versionNumber`, `trigger`
-- `src/test/java/com/fuba/automation_engine/controller/AdminWorkflowControllerTest.java` — cover every new endpoint
-- `src/test/java/com/fuba/automation_engine/service/workflow/AutomationWorkflowServiceTest.java` — cover new service error paths
+- `src/main/java/com/flux/persistence/entity/AutomationWorkflowEntity.java` — add `versionNumber`
+- `src/main/java/com/flux/persistence/entity/WorkflowStatus.java` — add `ARCHIVED`
+- `src/main/java/com/flux/persistence/repository/AutomationWorkflowRepository.java` — add version-aware finders + paged list
+- `src/main/java/com/flux/persistence/repository/WorkflowRunRepository.java` — add paged queries (by key, cross-workflow)
+- `src/main/java/com/flux/service/workflow/AutomationWorkflowService.java` — add update/activate/deactivate/rollback/archive/list/listVersions/getLatestByKey/validate
+- `src/main/java/com/flux/service/workflow/WorkflowTriggerType.java` — add display metadata methods
+- `src/main/java/com/flux/service/workflow/trigger/FubWebhookTriggerType.java` — implement display metadata
+- `src/main/java/com/flux/service/workflow/WorkflowTriggerRouter.java` — consume `WorkflowTriggerRegistry`
+- `src/main/java/com/flux/controller/AdminWorkflowController.java` — add list/update/versions/activate/deactivate/rollback/archive/validate/trigger-types endpoints; migrate `{id}` → `{key}` path
+- `src/main/java/com/flux/controller/dto/WorkflowResponse.java` — extend with `versionNumber`, `trigger`
+- `src/test/java/com/flux/controller/AdminWorkflowControllerTest.java` — cover every new endpoint
+- `src/test/java/com/flux/service/workflow/AutomationWorkflowServiceTest.java` — cover new service error paths
 
 ## Reused Utilities (do NOT reimplement)
 

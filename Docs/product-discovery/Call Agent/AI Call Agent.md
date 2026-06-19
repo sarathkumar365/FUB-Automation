@@ -4,7 +4,7 @@ Objective: Implement a fast prototype for lead-intake call automation using the 
 ## 1. Locked POC Architecture Decision
 For POC, we will use a hybrid model:
 
-1. Java (`automation-engine`) remains source of truth for:
+1. Java (`flux`) remains source of truth for:
    - workflow orchestration
    - claim checks
    - idempotency and retries

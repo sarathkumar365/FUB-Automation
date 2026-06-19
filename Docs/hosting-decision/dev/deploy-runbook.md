@@ -1,6 +1,6 @@
 # Dev Hosting Deploy Runbook
 
-Step-by-step for deploying the Automation Engine to **Railway** as a single
+Step-by-step for deploying Flux to **Railway** as a single
 service that serves both the Spring API and the bundled React SPA. Captures
 the actual gotchas we hit during the first deploy so the next operator
 (or you in three months) doesn't have to re-discover them.
@@ -114,7 +114,7 @@ SERVER_PORT=${{PORT}}
 
 # JWT — admin auth (RD-004)
 JWT_SECRET=<paste output of: openssl rand -base64 48>
-JWT_ISSUER=automation-engine
+JWT_ISSUER=flux
 JWT_EXPIRY=8h
 
 # First-boot admin user — seeder consumes these once when app_user is empty
@@ -160,7 +160,7 @@ Railway probably triggered a build when you connected the repo. If not,
 Look for these lines in the runtime log:
 ```
 Picked up JAVA_TOOL_OPTIONS: -Djava.net.preferIPv6Stack=true -Djava.net.preferIPv6Addresses=true
-Started AutomationEngineApplication in X.X seconds
+Started FluxApplication in X.X seconds
 Successfully validated 16 migrations
 Schema "public" is up to date. No migration necessary.
 AdminUserSeeder: inserted ADMIN user username=<your-admin>
@@ -183,7 +183,7 @@ click anything. Each deploy:
    ```bash
    HOST=https://<your-railway-host>
 
-   curl -i $HOST/health                              # 200, "Automation Engine is running!"
+   curl -i $HOST/health                              # 200, "Flux is running!"
    curl -i $HOST/admin-ui                            # 200, HTML body
    curl -i $HOST/admin-ui/leads/anything             # 200, HTML body (deep-link refresh)
    curl -i $HOST/admin/leads                         # 401, {"error":"unauthorized"}

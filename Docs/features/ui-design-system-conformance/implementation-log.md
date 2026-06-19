@@ -228,7 +228,7 @@ and the status glyphs. No page is rebuilt yet (those are B3–B5).
   constant; `AuthShell`'s near-but-different gradient is left alone (a wholesale unify would shift the auth
   screens — out of scope, per the design review).
 - **Lockup reuses the centralized wordmark** (`uiText.authShell.wordmark` / `wordmarkSub`) — no new
-  "Automation Engine" literals, so RD-005's pending rename stays single-source.
+  "Flux" literals, so RD-005's pending rename stays single-source.
 - **Transform-only entrance.** `useRise` never touches opacity, so a throttled/background tab can't strand
   content hidden; reduced-motion users skip it entirely.
 - **Router-hook-free shell** so it can render from the top-level class error boundary in B3.

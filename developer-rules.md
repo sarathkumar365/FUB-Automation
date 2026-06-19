@@ -9,19 +9,19 @@ This file defines repository structure rules and implementation guardrails for t
 ## Repository structure (MVP)
 Use the following package and resource layout for Scenario 1 implementation:
 
-- `src/main/java/com/fuba/automation_engine/config`
-- `src/main/java/com/fuba/automation_engine/controller`
-- `src/main/java/com/fuba/automation_engine/client/fub`
-- `src/main/java/com/fuba/automation_engine/client/fub/dto`
-- `src/main/java/com/fuba/automation_engine/service`
-- `src/main/java/com/fuba/automation_engine/rules`
-- `src/main/java/com/fuba/automation_engine/persistence/entity`
-- `src/main/java/com/fuba/automation_engine/persistence/repository`
+- `src/main/java/com/flux/config`
+- `src/main/java/com/flux/controller`
+- `src/main/java/com/flux/client/fub`
+- `src/main/java/com/flux/client/fub/dto`
+- `src/main/java/com/flux/service`
+- `src/main/java/com/flux/rules`
+- `src/main/java/com/flux/persistence/entity`
+- `src/main/java/com/flux/persistence/repository`
 - `src/main/resources/db/migration`
-- `src/test/java/com/fuba/automation_engine/controller`
-- `src/test/java/com/fuba/automation_engine/service`
-- `src/test/java/com/fuba/automation_engine/client/fub`
-- `src/test/java/com/fuba/automation_engine/integration`
+- `src/test/java/com/flux/controller`
+- `src/test/java/com/flux/service`
+- `src/test/java/com/flux/client/fub`
+- `src/test/java/com/flux/integration`
 
 ## Delivery style and workflow
 - Make only small, reviewable, incremental changes.

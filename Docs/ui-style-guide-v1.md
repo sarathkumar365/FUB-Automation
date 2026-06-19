@@ -1,7 +1,7 @@
 # UI Style Guide v1 (Canonical)
 
 ## Purpose
-This document is the canonical UI style reference for the admin streaming experience in `automation-engine` UI 0.1.
+This document is the canonical UI style reference for the admin streaming experience in `flux` UI 0.1.
 
 Use this together with:
 - `Docs/ui-figma-reference.md` (Figma node references)

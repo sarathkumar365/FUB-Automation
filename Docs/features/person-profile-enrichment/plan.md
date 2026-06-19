@@ -86,16 +86,16 @@ person.created / person.state_changed        (existing typed domain-event rail)
 ## Integration points (reuse-first)
 
 - **Trigger:** new `DomainEventListener` `@Component` — auto-registered, no dispatcher change.
-  Runs after-commit; **enqueue only**. ([InMemoryDomainEventDispatcher](../../../src/main/java/com/fuba/automation_engine/service/event/InMemoryDomainEventDispatcher.java))
+  Runs after-commit; **enqueue only**. ([InMemoryDomainEventDispatcher](../../../src/main/java/com/flux/service/event/InMemoryDomainEventDispatcher.java))
 - **Worker:** mirror the existing `due_at` + scheduled-worker pattern used for workflow steps.
 - **Persistence:** Flyway **V24** (next free) adds `persons.profile` JSONB + the job/queue +
   the audit table. Writes are **column-scoped** — reuse the anti-clobber discipline that already
-  protects `person_details`/tags from races ([FubFollowUpBossClient addTag race note](../../../src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java)).
+  protects `person_details`/tags from races ([FubFollowUpBossClient addTag race note](../../../src/main/java/com/flux/client/fub/FubFollowUpBossClient.java)).
 - **Expression scope:** new `ProfileResolver` parallel to
-  [PersonSnapshotResolver](../../../src/main/java/com/fuba/automation_engine/service/person/PersonSnapshotResolver.java);
+  [PersonSnapshotResolver](../../../src/main/java/com/flux/service/person/PersonSnapshotResolver.java);
   extend `CAPTURED_FIELDS` + `WorkflowGraphValidator` so `person.profile.*` validates.
 - **HTTP/LLM:** reuse the existing outbound HTTP client/adapter pattern
-  ([AiCallServiceHttpClientAdapter](../../../src/main/java/com/fuba/automation_engine/client/aicall/AiCallServiceHttpClientAdapter.java)).
+  ([CortexHttpClientAdapter](../../../src/main/java/com/flux/client/aicall/CortexHttpClientAdapter.java)).
   API keys via env only — no hardcoded secrets (AGENTS.md).
 - **UI:** extend `ui/src/modules/persons/{ui,lib,data}` — not greenfield.
 

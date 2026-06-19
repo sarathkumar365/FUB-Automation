@@ -22,7 +22,7 @@ Completed
   - Deleted policy-only DTO contracts.
   - Deleted policy worker config classes/properties and removed `policy.worker.*` keys from `application.properties`.
   - Added replacement verification test:
-    - `src/test/java/com/fuba/automation_engine/integration/LegacyPolicySurfaceRemovalIntegrationTest.java`
+    - `src/test/java/com/flux/integration/LegacyPolicySurfaceRemovalIntegrationTest.java`
 - Scheduling preservation:
   - Moved `@EnableScheduling` to `WorkflowWorkerSchedulingConfig`.
 - Frontend cleanup:

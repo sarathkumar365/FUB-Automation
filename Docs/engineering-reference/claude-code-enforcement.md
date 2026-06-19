@@ -157,7 +157,7 @@ Always loaded into context. Soft enforcement. Works best for:
 **Rule of thumb:** before adding a bullet, ask *"does the model do this without being told?"* If yes, delete instead.
 
 #### 6. Memory
-**Directory:** `~/.claude/projects/-Users-sarathkumar-Projects-2Creative-automation-engine/memory/`
+**Directory:** `~/.claude/projects/-Users-sarathkumar-Projects-2Creative-flux/memory/`
 
 Persistent notes across sessions, keyed by repo. The model reads/writes them. Soft enforcement like AGENTS.md, but **cross-session**.
 

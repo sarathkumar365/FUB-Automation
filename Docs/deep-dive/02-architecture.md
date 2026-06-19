@@ -21,8 +21,8 @@ Repository / External API
 ## Package structure
 
 ```
-com.fuba.automation_engine/
-├── AutomationEngineApplication.java          ← Spring Boot entry point
+com.flux/
+├── FluxApplication.java          ← Spring Boot entry point
 ├── config/                                    ← Configuration beans and property classes
 │   ├── FubClientProperties                   ← FUB API connection config
 │   ├── WebhookProperties                     ← Webhook ingestion config

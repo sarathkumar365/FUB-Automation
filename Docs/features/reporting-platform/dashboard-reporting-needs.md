@@ -8,7 +8,7 @@
 ## Why this note exists
 
 A high-fidelity redesign of the operator dashboard already exists as a prototype:
-`ui/Automation Engine Design System/design_handoff_dashboard/` (Direction A —
+`ui/Flux Design System/design_handoff_dashboard/` (Direction A —
 "Health headline"). Its README says to keep the data layer and replace the
 presentation — but the prototype's numbers are **all hard-coded mock data**. The
 design *assumes* a reporting layer that does not exist yet.
@@ -76,5 +76,5 @@ plan.
 
 ## Source material
 
-- Design: `ui/Automation Engine Design System/design_handoff_dashboard/` (README + `prototype/dashboard-app.jsx`, `prototype/dash-data.jsx`, `prototype/charts.jsx`)
+- Design: `ui/Flux Design System/design_handoff_dashboard/` (README + `prototype/dashboard-app.jsx`, `prototype/dash-data.jsx`, `prototype/charts.jsx`)
 - Current implementation: `ui/src/modules/dashboard/` (`DashboardPage.tsx`, `data/useDashboardSnapshotQuery.ts`, `lib/dashboardSnapshot.ts`)

@@ -22,18 +22,18 @@
 1. **Webhook ingestion platform (reusable)**
 - Source-based webhook ingress, signature verification, persistence, async dispatch already exist.
 - Key files:
-  - [/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/controller/WebhookIngressController.java](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/controller/WebhookIngressController.java)
-  - [/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java)
+  - [/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/controller/WebhookIngressController.java](/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/controller/WebhookIngressController.java)
+  - [/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/service/webhook/WebhookIngressService.java](/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/service/webhook/WebhookIngressService.java)
 
 2. **Event processing orchestration (needs upgrade)**
 - Current processing path is largely call-centric and not domain-routable for broad event support.
 - Key file:
-  - [/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java)
+  - [/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java](/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java)
 
 3. **Domain modules**
 - Call outcome domain exists; assignment domain does not.
 - Existing domain reference:
-  - [/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/rules/CallDecisionEngine.java](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/rules/CallDecisionEngine.java)
+  - [/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/rules/CallDecisionEngine.java](/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/rules/CallDecisionEngine.java)
 
 4. **Policy platform (needs build from current)**
 - Typed config pattern exists, but persistent runtime policy with admin updates is not present.
@@ -44,8 +44,8 @@
 6. **FUB adapter layer (needs extension)**
 - Port/adapter base exists, but assignment-SLA actions are missing.
 - Key files:
-  - [/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/service/FollowUpBossClient.java](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/service/FollowUpBossClient.java)
-  - [/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/java/com/fuba/automation_engine/client/fub/FubFollowUpBossClient.java)
+  - [/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/service/FollowUpBossClient.java](/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/service/FollowUpBossClient.java)
+  - [/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/client/fub/FubFollowUpBossClient.java](/Users/sarathkumar/Projects/2Creative/flux/src/main/java/com/flux/client/fub/FubFollowUpBossClient.java)
 
 7. **Admin operations platform (reusable patterns, needs assignment surface)**
 - Webhook and processed-call admin patterns exist and can be reused for assignment checks/policy.

@@ -779,13 +779,13 @@ Critically: when a run is planned, the engine **freezes a snapshot** of the defi
 
 ### 2.1 Webhook comes in
 
-File: `src/main/java/com/fuba/automation_engine/controller/WebhookIngressController.java`
+File: `src/main/java/com/flux/controller/WebhookIngressController.java`
 
 The controller exposes `POST /webhooks/{source}` (e.g. `/webhooks/fub`). It reads the raw body, grabs the headers, and hands off to `WebhookIngressService.ingest()`.
 
 ### 2.2 Ingest persists and dispatches
 
-File: `src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java`, method `ingest()` (lines 59–157).
+File: `src/main/java/com/flux/service/webhook/WebhookIngressService.java`, method `ingest()` (lines 59–157).
 
 The ingest service does four things:
 1. Verifies the webhook signature.
@@ -795,7 +795,7 @@ The ingest service does four things:
 
 ### 2.3 Trigger router picks which workflows to run
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/trigger/WorkflowTriggerRouter.java`, method `route()` (lines 46–193).
+File: `src/main/java/com/flux/service/workflow/trigger/WorkflowTriggerRouter.java`, method `route()` (lines 46–193).
 
 Important mental model: **triggers are not steps.** Triggers are evaluated *before* any run exists. A trigger's only job is to answer "does this webhook event cause this workflow to start, and if so, for which entity (lead)?"
 
@@ -810,7 +810,7 @@ For our example, suppose a FUB webhook arrives for a newly-created lead. The tri
 
 ### 2.4 Planning creates the run and materializes every step
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java`, method `plan()` (lines 68–130).
+File: `src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java`, method `plan()` (lines 68–130).
 
 This is the most important method in the whole engine. In one transaction it:
 
@@ -846,7 +846,7 @@ Nothing in the engine is event-driven in-process. Everything is database-polled.
 
 ### 3.1 The polling worker
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionDueWorker.java`, method `pollAndProcessDueSteps()` (lines 39–77).
+File: `src/main/java/com/flux/service/workflow/WorkflowExecutionDueWorker.java`, method `pollAndProcessDueSteps()` (lines 39–77).
 
 A `@Scheduled` method wakes up every ~2 seconds (configurable via `workflow.worker.poll-interval-ms`). Each tick it:
 1. Runs stale-recovery (rescues steps stuck in PROCESSING from a crashed prior tick).
@@ -855,7 +855,7 @@ A `@Scheduled` method wakes up every ~2 seconds (configurable via `workflow.work
 
 ### 3.2 The claim query — the heart of concurrency safety
 
-File: `src/main/java/com/fuba/automation_engine/persistence/repository/JdbcWorkflowRunStepClaimRepository.java`, method `claimDuePendingSteps()` (lines 96–108).
+File: `src/main/java/com/flux/persistence/repository/JdbcWorkflowRunStepClaimRepository.java`, method `claimDuePendingSteps()` (lines 96–108).
 
 ```sql
 WITH due AS (
@@ -891,7 +891,7 @@ A successfully claimed step transitions **PENDING → PROCESSING** atomically. I
 
 ## 4. Executing a Single Step
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java`, method `executeClaimedStep()` (lines 61–135).
+File: `src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java`, method `executeClaimedStep()` (lines 61–135).
 
 Let's walk the claim of `wait_5m` — the very first step to execute in our example — and then `branch_check`, to see how data flows between them.
 
@@ -934,7 +934,7 @@ This step is worth taking slowly, because the expression system is what makes th
 
 There is **one evaluator, two modes**. Not two evaluators — one class (`JsonataExpressionEvaluator`) that does everything.
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionEvaluator.java` (interface)
+File: `src/main/java/com/flux/service/workflow/expression/ExpressionEvaluator.java` (interface)
 Implementation: `JsonataExpressionEvaluator.java`
 
 | Mode | Method | When used | Input shape | Returns |
@@ -1197,7 +1197,7 @@ The previous sections traced one run from webhook to completion. But a productio
 
 ### 8.1 The graph validator — how authors are protected from themselves
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowGraphValidator.java` (class `WorkflowGraphValidator`, main method `validate(Map<String, Object> graph)` at line 23).
+File: `src/main/java/com/flux/service/workflow/WorkflowGraphValidator.java` (class `WorkflowGraphValidator`, main method `validate(Map<String, Object> graph)` at line 23).
 
 **Why it exists.** The graph is a JSONB blob authored by a human (via the admin UI or an API call). Nothing in JSON's structure prevents someone from writing a graph whose entry node doesn't exist, whose transitions point at dead node IDs, or whose cycles make the run loop forever. The validator is the gatekeeper that rejects such graphs before they can harm anything.
 

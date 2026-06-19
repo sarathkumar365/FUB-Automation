@@ -1,7 +1,7 @@
 # Replay fixtures
 
 Recorded webhook sequences driven through the engine by
-[`ReplayHarnessTest`](../../java/com/fuba/automation_engine/replay/ReplayHarnessTest.java).
+[`ReplayHarnessTest`](../../java/com/flux/replay/ReplayHarnessTest.java).
 
 Each fixture file becomes one dynamic test. Drop a new JSON file in this
 directory and it is picked up automatically — no Java changes needed.

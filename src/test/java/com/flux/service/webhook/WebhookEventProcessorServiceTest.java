@@ -1,0 +1,310 @@
+package com.flux.service.webhook;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.node.ObjectNode;
+import com.flux.config.CallOutcomeRulesProperties;
+import com.flux.config.FubRetryProperties;
+import com.flux.persistence.entity.ProcessedCallEntity;
+import com.flux.persistence.repository.ProcessedCallRepository;
+import com.flux.rules.CallDecisionAction;
+import com.flux.rules.CallDecisionEngine;
+import com.flux.rules.CallPreValidationService;
+import com.flux.rules.CallbackTaskCommandFactory;
+import com.flux.rules.PreValidationResult;
+import com.flux.service.FollowUpBossClient;
+import com.flux.service.call.CallUpsertService;
+import com.flux.service.person.PersonUpsertService;
+import com.flux.service.model.CallDetails;
+import com.flux.service.webhook.model.NormalizedAction;
+import com.flux.service.webhook.model.NormalizedDomain;
+import com.flux.service.webhook.model.NormalizedWebhookEvent;
+import com.flux.service.webhook.model.WebhookEventStatus;
+import com.flux.service.webhook.model.WebhookSource;
+import java.time.OffsetDateTime;
+import java.util.Optional;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.core.env.Environment;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.atLeastOnce;
+
+class WebhookEventProcessorServiceTest {
+
+    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+
+    private ProcessedCallRepository processedCallRepository;
+    private FollowUpBossClient followUpBossClient;
+    private CallPreValidationService callPreValidationService;
+    private CallDecisionEngine callDecisionEngine;
+    private CallbackTaskCommandFactory callbackTaskCommandFactory;
+    private Environment environment;
+    private PersonUpsertService personUpsertService;
+    private CallUpsertService callUpsertService;
+    private com.flux.service.note.NoteEmissionService noteEmissionService;
+    private WebhookEventProcessorService service;
+
+    @BeforeEach
+    void setUp() {
+        processedCallRepository = mock(ProcessedCallRepository.class);
+        followUpBossClient = mock(FollowUpBossClient.class);
+        callPreValidationService = mock(CallPreValidationService.class);
+        callDecisionEngine = mock(CallDecisionEngine.class);
+        callbackTaskCommandFactory = mock(CallbackTaskCommandFactory.class);
+        environment = mock(Environment.class);
+        personUpsertService = mock(PersonUpsertService.class);
+        callUpsertService = mock(CallUpsertService.class);
+        noteEmissionService = mock(com.flux.service.note.NoteEmissionService.class);
+
+        FubRetryProperties retryProperties = new FubRetryProperties();
+        retryProperties.setMaxAttempts(1);
+        retryProperties.setInitialDelayMs(0);
+        retryProperties.setMaxDelayMs(0);
+
+        CallOutcomeRulesProperties callOutcomeRulesProperties = new CallOutcomeRulesProperties();
+        callOutcomeRulesProperties.setDevTestUserId(0L);
+
+        service = new WebhookEventProcessorService(
+                processedCallRepository,
+                followUpBossClient,
+                callPreValidationService,
+                callDecisionEngine,
+                callbackTaskCommandFactory,
+                retryProperties,
+                callOutcomeRulesProperties,
+                environment,
+                personUpsertService,
+                callUpsertService,
+                noteEmissionService);
+    }
+
+    @Test
+    void shouldRouteCallDomainToCallWorkflow() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-call",
+                NormalizedDomain.CALL,
+                NormalizedAction.CREATED,
+                payload("callsCreated", 123L));
+
+        when(processedCallRepository.findByCallId(123L)).thenReturn(Optional.empty());
+        when(processedCallRepository.save(any(ProcessedCallEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0, ProcessedCallEntity.class));
+        when(followUpBossClient.getCallById(123L)).thenReturn(new CallDetails(123L, 99L, 0, 0L, "No Answer"));
+        when(callPreValidationService.validate(any(CallDetails.class)))
+                .thenReturn(Optional.of(new PreValidationResult(
+                        CallDecisionAction.SKIP,
+                        CallDecisionEngine.REASON_MISSING_ASSIGNEE)));
+
+        service.process(event);
+
+        verify(followUpBossClient).getCallById(123L);
+        verify(processedCallRepository).findByCallId(123L);
+        verify(processedCallRepository, never()).findByCallId(999L);
+        verify(processedCallRepository, atLeastOnce()).save(any(ProcessedCallEntity.class));
+    }
+
+    @Test
+    void shouldDelegateCallFactsPersistenceToCallUpsertService() {
+        // Verifies the wiring only: call-facts persistence + orphan-person
+        // logging is asserted in CallUpsertServiceTest, not here.
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-call-facts",
+                NormalizedDomain.CALL,
+                NormalizedAction.CREATED,
+                payload("callsCreated", 321L));
+
+        when(processedCallRepository.findByCallId(321L)).thenReturn(Optional.empty());
+        when(processedCallRepository.save(any(ProcessedCallEntity.class)))
+                .thenAnswer(invocation -> invocation.getArgument(0, ProcessedCallEntity.class));
+        CallDetails callDetails = new CallDetails(
+                321L, 19355L, 42, 77L, "Connected", true,
+                OffsetDateTime.parse("2026-04-17T18:00:00Z"));
+        when(followUpBossClient.getCallById(321L)).thenReturn(callDetails);
+        when(callPreValidationService.validate(any(CallDetails.class)))
+                .thenReturn(Optional.of(new PreValidationResult(
+                        CallDecisionAction.SKIP,
+                        CallDecisionEngine.REASON_CONNECTED_NO_FOLLOWUP)));
+
+        service.process(event);
+
+        verify(callUpsertService).persistCallFacts(eq(event), any(ProcessedCallEntity.class), eq(callDetails));
+    }
+
+    @Test
+    void shouldUpsertPersonAndRouteWorkflowForAssignmentEvent() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment",
+                NormalizedDomain.PERSON,
+                NormalizedAction.CREATED,
+                payload("peopleCreated", 777L));
+        ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
+        personPayload.put("id", 777L);
+        personPayload.put("name", "Jane Doe");
+        when(followUpBossClient.getPersonRawById(777L)).thenReturn(personPayload);
+
+        Assertions.assertDoesNotThrow(() -> service.process(event));
+
+        verify(followUpBossClient).getPersonRawById(777L);
+        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class), eq(null));
+        verify(processedCallRepository, never()).findByCallId(any());
+        verify(processedCallRepository, never()).save(any());
+        verify(followUpBossClient, never()).getCallById(anyLong());
+        verify(followUpBossClient, never()).createTask(any());
+    }
+
+    @Test
+    void shouldUpsertPersonForEachResourceIdOnAssignmentEvent() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment-many",
+                NormalizedDomain.PERSON,
+                NormalizedAction.UPDATED,
+                payloadWithResourceIds("peopleUpdated", 777L, 778L, 779L));
+        ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
+        personPayload.put("id", 777L);
+        when(followUpBossClient.getPersonRawById(anyLong())).thenReturn(personPayload);
+
+        Assertions.assertDoesNotThrow(() -> service.process(event));
+
+        verify(followUpBossClient).getPersonRawById(777L);
+        verify(followUpBossClient).getPersonRawById(778L);
+        verify(followUpBossClient).getPersonRawById(779L);
+        verify(personUpsertService).upsertFubPerson(eq("777"), any(JsonNode.class), eq(null));
+        verify(personUpsertService).upsertFubPerson(eq("778"), any(JsonNode.class), eq(null));
+        verify(personUpsertService).upsertFubPerson(eq("779"), any(JsonNode.class), eq(null));
+        verify(processedCallRepository, never()).findByCallId(any());
+    }
+
+    @Test
+    void shouldSwallowFubFailureDuringPersonUpsertAndStillRouteWorkflow() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment-fub-fail",
+                NormalizedDomain.PERSON,
+                NormalizedAction.CREATED,
+                payload("peopleCreated", 555L));
+        when(followUpBossClient.getPersonRawById(555L))
+                .thenThrow(new com.flux.exception.fub.FubTransientException("boom", 503, null));
+
+        Assertions.assertDoesNotThrow(() -> service.process(event));
+
+        verify(personUpsertService, never()).upsertFubPerson(anyString(), any(JsonNode.class), any());
+    }
+
+    @Test
+    void shouldUpsertEveryPersonRegardlessOfStage() {
+        // The old stage-only ingest filter was dropped: a non-lead-stage person
+        // is still fetched and upserted; PersonUpsertService classifies it via kind.
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment-non-person",
+                NormalizedDomain.PERSON,
+                NormalizedAction.CREATED,
+                payload("peopleCreated", 991L));
+        ObjectNode personPayload = OBJECT_MAPPER.createObjectNode();
+        personPayload.put("id", 991L);
+        personPayload.put("stage", "Agent");
+        when(followUpBossClient.getPersonRawById(991L)).thenReturn(personPayload);
+
+        Assertions.assertDoesNotThrow(() -> service.process(event));
+
+        verify(followUpBossClient).getPersonRawById(991L);
+        verify(personUpsertService).upsertFubPerson(eq("991"), any(JsonNode.class), eq(null));
+    }
+
+    @Test
+    void shouldSkipAssignmentSpecificProcessingWhenNoResourceIdsPresent() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment-empty",
+                NormalizedDomain.PERSON,
+                NormalizedAction.UPDATED,
+                payloadWithoutResourceIds("peopleUpdated"));
+
+        service.process(event);
+    }
+
+    @Test
+    void shouldNotExecuteSideEffectsForUnknownDomain() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-unknown",
+                NormalizedDomain.UNKNOWN,
+                NormalizedAction.UNKNOWN,
+                payload("unexpected", 888L));
+
+        service.process(event);
+
+        verify(processedCallRepository, never()).findByCallId(any());
+        verify(processedCallRepository, never()).save(any());
+        verify(followUpBossClient, never()).getCallById(anyLong());
+        verify(followUpBossClient, never()).createTask(any());
+    }
+
+    @Test
+    void shouldContinueDomainProcessingWhenRouterThrows() {
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-assignment-router-fail",
+                NormalizedDomain.PERSON,
+                NormalizedAction.CREATED,
+                payload("peopleCreated", 888L));
+
+        Assertions.assertDoesNotThrow(() -> service.process(event));
+    }
+
+    @Test
+    void noteDomainEventDelegatesToNoteEmissionService() {
+        ObjectNode payload = payloadWithResourceIds("notesCreated", 9001L);
+        NormalizedWebhookEvent event = eventWithPayload(
+                "evt-note", NormalizedDomain.NOTE, NormalizedAction.CREATED, payload);
+
+        service.process(event);
+
+        verify(noteEmissionService).emit(event);
+    }
+
+    private NormalizedWebhookEvent eventWithPayload(
+            String eventId,
+            NormalizedDomain domain,
+            NormalizedAction action,
+            ObjectNode payload) {
+        return new NormalizedWebhookEvent(
+                WebhookSource.FUB,
+                eventId,
+                payload.path("eventType").asText(""),
+                null,
+                null,
+                domain,
+                action,
+                null,
+                WebhookEventStatus.RECEIVED,
+                payload,
+                OffsetDateTime.now(),
+                "hash-" + eventId,
+                null);
+    }
+
+    private ObjectNode payload(String eventType, long resourceId) {
+        return payloadWithResourceIds(eventType, resourceId);
+    }
+
+    private ObjectNode payloadWithResourceIds(String eventType, long... resourceIds) {
+        ObjectNode payload = OBJECT_MAPPER.createObjectNode();
+        payload.put("eventType", eventType);
+        var ids = payload.putArray("resourceIds");
+        for (long resourceId : resourceIds) {
+            ids.add(resourceId);
+        }
+        return payload;
+    }
+
+    private ObjectNode payloadWithoutResourceIds(String eventType) {
+        ObjectNode payload = OBJECT_MAPPER.createObjectNode();
+        payload.put("eventType", eventType);
+        return payload;
+    }
+}

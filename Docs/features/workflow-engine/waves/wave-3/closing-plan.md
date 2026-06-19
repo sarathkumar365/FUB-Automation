@@ -19,7 +19,7 @@ Close Wave 3 with end-to-end proof (trigger routing + step execution + retry beh
 4. Updated feature docs (`phase-3-implementation.md`, `phases.md`, wave tracker, plan, research).
 
 ## Explicit In Scope
-- workflow trigger + execution end-to-end proof under `src/test/java/com/fuba/automation_engine/service/workflow/`.
+- workflow trigger + execution end-to-end proof under `src/test/java/com/flux/service/workflow/`.
 - targeted + full-suite validation runs.
 - feature lifecycle docs and status tracking updates.
 

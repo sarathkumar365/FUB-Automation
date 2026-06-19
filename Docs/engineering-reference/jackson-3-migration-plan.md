@@ -88,19 +88,19 @@ Three fields are typed `JsonNode` and **need migration**:
 
 | Field | File | Column |
 |---|---|---|
-| `LeadEntity.leadDetails` | [LeadEntity.java:55-57](src/main/java/com/fuba/automation_engine/persistence/entity/LeadEntity.java) | `leads.lead_details` JSONB NOT NULL DEFAULT `'{}'::jsonb` |
-| `WebhookEventEntity.payload` | [WebhookEventEntity.java:73-75](src/main/java/com/fuba/automation_engine/persistence/entity/WebhookEventEntity.java) | `webhook_events.payload` JSONB NOT NULL |
-| `ProcessedCallEntity.rawPayload` | [ProcessedCallEntity.java:71-73](src/main/java/com/fuba/automation_engine/persistence/entity/ProcessedCallEntity.java) | `processed_calls.raw_payload` JSONB |
+| `LeadEntity.leadDetails` | [LeadEntity.java:55-57](src/main/java/com/flux/persistence/entity/LeadEntity.java) | `leads.lead_details` JSONB NOT NULL DEFAULT `'{}'::jsonb` |
+| `WebhookEventEntity.payload` | [WebhookEventEntity.java:73-75](src/main/java/com/flux/persistence/entity/WebhookEventEntity.java) | `webhook_events.payload` JSONB NOT NULL |
+| `ProcessedCallEntity.rawPayload` | [ProcessedCallEntity.java:71-73](src/main/java/com/flux/persistence/entity/ProcessedCallEntity.java) | `processed_calls.raw_payload` JSONB |
 
 Nine fields are typed `Map<String,Object>` or `List<String>` and **stay untouched**:
 
 | Field | File | Column |
 |---|---|---|
-| `AutomationWorkflowEntity.trigger` | [AutomationWorkflowEntity.java](src/main/java/com/fuba/automation_engine/persistence/entity/AutomationWorkflowEntity.java) | `automation_workflows.trigger` |
+| `AutomationWorkflowEntity.trigger` | [AutomationWorkflowEntity.java](src/main/java/com/flux/persistence/entity/AutomationWorkflowEntity.java) | `automation_workflows.trigger` |
 | `AutomationWorkflowEntity.graph` | same | `automation_workflows.graph` |
-| `WorkflowRunEntity.workflowGraphSnapshot` | [WorkflowRunEntity.java](src/main/java/com/fuba/automation_engine/persistence/entity/WorkflowRunEntity.java) | `workflow_runs.workflow_graph_snapshot` |
+| `WorkflowRunEntity.workflowGraphSnapshot` | [WorkflowRunEntity.java](src/main/java/com/flux/persistence/entity/WorkflowRunEntity.java) | `workflow_runs.workflow_graph_snapshot` |
 | `WorkflowRunEntity.triggerPayload` | same | `workflow_runs.trigger_payload` |
-| `WorkflowRunStepEntity.dependsOnNodeIds` | [WorkflowRunStepEntity.java](src/main/java/com/fuba/automation_engine/persistence/entity/WorkflowRunStepEntity.java) | `workflow_run_steps.depends_on_node_ids` |
+| `WorkflowRunStepEntity.dependsOnNodeIds` | [WorkflowRunStepEntity.java](src/main/java/com/flux/persistence/entity/WorkflowRunStepEntity.java) | `workflow_run_steps.depends_on_node_ids` |
 | `WorkflowRunStepEntity.configSnapshot` | same | `workflow_run_steps.config_snapshot` |
 | `WorkflowRunStepEntity.resolvedConfig` | same | `workflow_run_steps.resolved_config` |
 | `WorkflowRunStepEntity.outputs` | same | `workflow_run_steps.outputs` |
@@ -124,13 +124,13 @@ Verified by grepping all controllers for `@RequestBody`. Inbound bodies are type
 | Element | Status |
 |---|---|
 | pom: `io.jsonwebtoken:jjwt-api:0.12.6`, `jjwt-impl:0.12.6` (runtime), `jjwt-jackson:0.12.6` (runtime) | Untouched. |
-| Code: [JwtService.java](src/main/java/com/fuba/automation_engine/service/auth/JwtService.java) — uses `Jwts.builder()` / `Jwts.parser()` only | No direct Jackson imports. No code change. |
+| Code: [JwtService.java](src/main/java/com/flux/service/auth/JwtService.java) — uses `Jwts.builder()` / `Jwts.parser()` only | No direct Jackson imports. No code change. |
 
 JJWT will continue to use Jackson 2 internally for JWT claim (de)serialization. Two Jacksons coexist by package separation.
 
 ### 3g. HTTP / RestClient
 
-[HttpClientConfig.java](src/main/java/com/fuba/automation_engine/config/HttpClientConfig.java) is a vanilla `RestClient.builder()` — no Jackson injection. After migration, outbound calls (FUB, AI-call, Slack) deserialize via Spring Boot 4's auto-configured Jackson 3 converters. To verify in Phase 5: `FubFollowUpBossClient.getPersonRawById` round-trip; AI-call adapter round-trip.
+[HttpClientConfig.java](src/main/java/com/flux/config/HttpClientConfig.java) is a vanilla `RestClient.builder()` — no Jackson injection. After migration, outbound calls (FUB, AI-call, Slack) deserialize via Spring Boot 4's auto-configured Jackson 3 converters. To verify in Phase 5: `FubFollowUpBossClient.getPersonRawById` round-trip; AI-call adapter round-trip.
 
 ## 4. Jackson 2 → Jackson 3 API delta
 
@@ -156,7 +156,7 @@ JJWT will continue to use Jackson 2 internally for JWT claim (de)serialization. 
 
 ### 4.1 `JacksonConfig` rewrite
 
-Current — [JacksonConfig.java](src/main/java/com/fuba/automation_engine/config/JacksonConfig.java):
+Current — [JacksonConfig.java](src/main/java/com/flux/config/JacksonConfig.java):
 
 ```java
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -194,51 +194,51 @@ Verified by exhaustive grep. Counts below are exact, not approximate.
 **Reads — 5 main sites + 4 test sites = 9 total:**
 
 Main:
-- [ProcessedCallAdminService.java:90-91](src/main/java/com/fuba/automation_engine/service/webhook/ProcessedCallAdminService.java) — chained reads: `entity.getRawPayload().has("eventType")` and `.get("eventType").asText("callsCreated")`. Rewrite to a local var: `JsonNode payload = entity.getRawPayload() == null ? null : objectMapper.readTree(entity.getRawPayload());` then operate on `payload`.
-- [AdminWebhookService.java:117](src/main/java/com/fuba/automation_engine/service/webhook/AdminWebhookService.java) — `normalizePayload(entity.getPayload())` — `normalizePayload` signature changes input from `JsonNode` to `String`; method body does `objectMapper.readTree(input)`.
-- [LeadAdminQueryService.java:310](src/main/java/com/fuba/automation_engine/service/lead/LeadAdminQueryService.java) — `normalizeJson(entity.getLeadDetails())` — also delete the `normalizeJson` helper at lines 346–355 (redundant; `readTree(String)` already detaches from Hibernate session).
-- [LeadAdminQueryService.java:298](src/main/java/com/fuba/automation_engine/service/lead/LeadAdminQueryService.java) — `normalizeJson(row.leadDetails())` — same. The `LeadFeedRow.leadDetails` record component changes from `JsonNode` to `String`; service-side `readTree` produces the JsonNode for the DTO.
-- [LeadSnapshotResolver.java:70-78](src/main/java/com/fuba/automation_engine/service/lead/LeadSnapshotResolver.java) — `JsonNode snapshot = entity.get().getLeadDetails();` becomes `JsonNode snapshot = objectMapper.readTree(entity.get().getLeadDetails());`. Existing null/missing-node guards still apply on the parsed JsonNode.
+- [ProcessedCallAdminService.java:90-91](src/main/java/com/flux/service/webhook/ProcessedCallAdminService.java) — chained reads: `entity.getRawPayload().has("eventType")` and `.get("eventType").asText("callsCreated")`. Rewrite to a local var: `JsonNode payload = entity.getRawPayload() == null ? null : objectMapper.readTree(entity.getRawPayload());` then operate on `payload`.
+- [AdminWebhookService.java:117](src/main/java/com/flux/service/webhook/AdminWebhookService.java) — `normalizePayload(entity.getPayload())` — `normalizePayload` signature changes input from `JsonNode` to `String`; method body does `objectMapper.readTree(input)`.
+- [LeadAdminQueryService.java:310](src/main/java/com/flux/service/lead/LeadAdminQueryService.java) — `normalizeJson(entity.getLeadDetails())` — also delete the `normalizeJson` helper at lines 346–355 (redundant; `readTree(String)` already detaches from Hibernate session).
+- [LeadAdminQueryService.java:298](src/main/java/com/flux/service/lead/LeadAdminQueryService.java) — `normalizeJson(row.leadDetails())` — same. The `LeadFeedRow.leadDetails` record component changes from `JsonNode` to `String`; service-side `readTree` produces the JsonNode for the DTO.
+- [LeadSnapshotResolver.java:70-78](src/main/java/com/flux/service/lead/LeadSnapshotResolver.java) — `JsonNode snapshot = entity.get().getLeadDetails();` becomes `JsonNode snapshot = objectMapper.readTree(entity.get().getLeadDetails());`. Existing null/missing-node guards still apply on the parsed JsonNode.
 
 Tests (verified by grep — read sites in test code typically assert on entity-loaded JsonNode):
-- [LeadSnapshotResolverTest.java](src/test/java/com/fuba/automation_engine/service/lead/LeadSnapshotResolverTest.java) — 2-3 read assertions.
-- [LeadUpsertServiceTest.java](src/test/java/com/fuba/automation_engine/service/lead/LeadUpsertServiceTest.java) — entity assertions after `upsert*` calls.
-- Repository read tests in `src/test/java/com/fuba/automation_engine/integration/` — assertions on row contents.
+- [LeadSnapshotResolverTest.java](src/test/java/com/flux/service/lead/LeadSnapshotResolverTest.java) — 2-3 read assertions.
+- [LeadUpsertServiceTest.java](src/test/java/com/flux/service/lead/LeadUpsertServiceTest.java) — entity assertions after `upsert*` calls.
+- Repository read tests in `src/test/java/com/flux/integration/` — assertions on row contents.
 
 **Writes — 5 main sites + 17 test sites = 22 total** (exhaustive list — every `setLeadDetails` / `setPayload` / `setRawPayload` call):
 
 Main:
-- [LeadUpsertService.java:67, 79, 93](src/main/java/com/fuba/automation_engine/service/lead/LeadUpsertService.java) — `entity.setLeadDetails(snapshot)` → `entity.setLeadDetails(snapshot.toString())`. `buildSnapshot()` still returns `JsonNode`; only the persistence handoff changes.
-- [WebhookIngressService.java:128](src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java) — `entity.setPayload(event.payload())` → `entity.setPayload(event.payload().toString())`. Note `WebhookIngressService` has no Jackson imports today (it just chains `event.payload()` calls); after migration the chained `.get()`, `.asText()` calls still resolve to Jackson 3 `JsonNode` because `event.payload()`'s return type is now Jackson 3.
-- [WebhookEventProcessorService.java:473](src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java) — `entity.setRawPayload(rawPayload)` → `entity.setRawPayload(rawPayload.toString())`. Surrounding helper methods (`extractEventType`, `extractResourceIds`, `getOrCreateEntity`) keep `JsonNode` parameter types — only the persistence handoff changes.
+- [LeadUpsertService.java:67, 79, 93](src/main/java/com/flux/service/lead/LeadUpsertService.java) — `entity.setLeadDetails(snapshot)` → `entity.setLeadDetails(snapshot.toString())`. `buildSnapshot()` still returns `JsonNode`; only the persistence handoff changes.
+- [WebhookIngressService.java:128](src/main/java/com/flux/service/webhook/WebhookIngressService.java) — `entity.setPayload(event.payload())` → `entity.setPayload(event.payload().toString())`. Note `WebhookIngressService` has no Jackson imports today (it just chains `event.payload()` calls); after migration the chained `.get()`, `.asText()` calls still resolve to Jackson 3 `JsonNode` because `event.payload()`'s return type is now Jackson 3.
+- [WebhookEventProcessorService.java:473](src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java) — `entity.setRawPayload(rawPayload)` → `entity.setRawPayload(rawPayload.toString())`. Surrounding helper methods (`extractEventType`, `extractResourceIds`, `getOrCreateEntity`) keep `JsonNode` parameter types — only the persistence handoff changes.
 
 Tests (17 sites in 13 files):
-- src/test/java/com/fuba/automation_engine/integration/WebhookEventRepositoryTest.java:78
-- src/test/java/com/fuba/automation_engine/integration/AdminProcessedCallsFlowTest.java:131 (`entity.setRawPayload(objectMapper.createObjectNode())` → `.createObjectNode().toString()`)
-- src/test/java/com/fuba/automation_engine/integration/AdminWebhooksFlowTest.java:133, :163
-- src/test/java/com/fuba/automation_engine/integration/AdminLeadsFlowTest.java:177
-- src/test/java/com/fuba/automation_engine/integration/JdbcLeadFeedReadRepositoryTest.java:150
-- src/test/java/com/fuba/automation_engine/integration/AdminWebhooksPostgresRegressionTest.java:84
-- src/test/java/com/fuba/automation_engine/integration/JdbcWebhookFeedReadRepositoryTest.java:254
-- src/test/java/com/fuba/automation_engine/controller/AdminWebhookControllerTest.java:165
-- src/test/java/com/fuba/automation_engine/integration/LeadScopedTopNRepositoryTest.java:164
-- src/test/java/com/fuba/automation_engine/integration/AdminProcessedCallsPostgresRegressionTest.java:73
-- src/test/java/com/fuba/automation_engine/service/webhook/AdminWebhookServiceTest.java:173
-- src/test/java/com/fuba/automation_engine/service/lead/LeadSnapshotResolverTest.java:46, :69, :135 (also a `setLeadDetails(null)` at :120 — no change needed since null is valid for both String and JsonNode)
-- src/test/java/com/fuba/automation_engine/service/lead/LeadUpsertServiceTest.java:73
-- src/test/java/com/fuba/automation_engine/service/workflow/WorkflowEngineSmokeTest.java:369
+- src/test/java/com/flux/integration/WebhookEventRepositoryTest.java:78
+- src/test/java/com/flux/integration/AdminProcessedCallsFlowTest.java:131 (`entity.setRawPayload(objectMapper.createObjectNode())` → `.createObjectNode().toString()`)
+- src/test/java/com/flux/integration/AdminWebhooksFlowTest.java:133, :163
+- src/test/java/com/flux/integration/AdminLeadsFlowTest.java:177
+- src/test/java/com/flux/integration/JdbcLeadFeedReadRepositoryTest.java:150
+- src/test/java/com/flux/integration/AdminWebhooksPostgresRegressionTest.java:84
+- src/test/java/com/flux/integration/JdbcWebhookFeedReadRepositoryTest.java:254
+- src/test/java/com/flux/controller/AdminWebhookControllerTest.java:165
+- src/test/java/com/flux/integration/LeadScopedTopNRepositoryTest.java:164
+- src/test/java/com/flux/integration/AdminProcessedCallsPostgresRegressionTest.java:73
+- src/test/java/com/flux/service/webhook/AdminWebhookServiceTest.java:173
+- src/test/java/com/flux/service/lead/LeadSnapshotResolverTest.java:46, :69, :135 (also a `setLeadDetails(null)` at :120 — no change needed since null is valid for both String and JsonNode)
+- src/test/java/com/flux/service/lead/LeadUpsertServiceTest.java:73
+- src/test/java/com/flux/service/workflow/WorkflowEngineSmokeTest.java:369
 
 **JDBC repository readers** (`JdbcLeadFeedReadRepository` and `JdbcWebhookFeedReadRepository`) currently materialize `JsonNode` from `ResultSet` via `objectMapper.readTree`. After the entity-record component changes from `JsonNode` to `String`:
 - The `LeadFeedRow.leadDetails` and `WebhookFeedRow.payload` record components change to `String`.
 - The repository simply pulls `rs.getString("lead_details")` (or `rs.getObject(...)` for `PGobject` cases) and stores the raw text.
-- The `readJson` helper (current lines [JdbcLeadFeedReadRepository.java:116-135](src/main/java/com/fuba/automation_engine/persistence/repository/JdbcLeadFeedReadRepository.java)) is **simplified** — no `readTree` needed at the repo layer. Service-layer consumers parse with their own ObjectMapper.
-- Same for [JdbcWebhookFeedReadRepository.java:115-135](src/main/java/com/fuba/automation_engine/persistence/repository/JdbcWebhookFeedReadRepository.java).
+- The `readJson` helper (current lines [JdbcLeadFeedReadRepository.java:116-135](src/main/java/com/flux/persistence/repository/JdbcLeadFeedReadRepository.java)) is **simplified** — no `readTree` needed at the repo layer. Service-layer consumers parse with their own ObjectMapper.
+- Same for [JdbcWebhookFeedReadRepository.java:115-135](src/main/java/com/flux/persistence/repository/JdbcWebhookFeedReadRepository.java).
 
 ### 4.4 Delete misapplied `@JsonSerialize(as = JsonNode.class)`
 
 Two occurrences carry an annotation that was a failed earlier attempt to fix the same bug:
-- [WebhookEventDetailResponse.java:22](src/main/java/com/fuba/automation_engine/controller/dto/WebhookEventDetailResponse.java)
-- [WebhookFeedItemResponse.java:24](src/main/java/com/fuba/automation_engine/controller/dto/WebhookFeedItemResponse.java)
+- [WebhookEventDetailResponse.java:22](src/main/java/com/flux/controller/dto/WebhookEventDetailResponse.java)
+- [WebhookFeedItemResponse.java:24](src/main/java/com/flux/controller/dto/WebhookFeedItemResponse.java)
 
 **Delete the annotation and the import.** Jackson 3 handles `JsonNode` natively without it.
 
@@ -259,8 +259,8 @@ Then by hand:
 
 1. **JacksonConfig** — apply §4.1 rewrite.
 2. **`@JsonSerialize` deletions** — apply §4.4.
-3. **`throws JsonProcessingException`** — only [SlackNotifyWorkflowStep.java:118](src/main/java/com/fuba/automation_engine/service/workflow/steps/SlackNotifyWorkflowStep.java). Drop the `throws` clause (now unchecked). Update the call site at line 90 to catch `JacksonException` (or remove the catch).
-4. **`catch (JsonProcessingException ex)`** — at [AiCallServiceHttpClientAdapter.java:134, 145](src/main/java/com/fuba/automation_engine/client/aicall/AiCallServiceHttpClientAdapter.java). Change to `catch (JacksonException ex)`.
+3. **`throws JsonProcessingException`** — only [SlackNotifyWorkflowStep.java:118](src/main/java/com/flux/service/workflow/steps/SlackNotifyWorkflowStep.java). Drop the `throws` clause (now unchecked). Update the call site at line 90 to catch `JacksonException` (or remove the catch).
+4. **`catch (JsonProcessingException ex)`** — at [CortexHttpClientAdapter.java:134, 145](src/main/java/com/flux/client/aicall/CortexHttpClientAdapter.java). Change to `catch (JacksonException ex)`.
 
 ### 4.6 Test import sweep (41 files, mechanical)
 
@@ -278,7 +278,7 @@ Identical sed pass against `src/test/java`. Manual checks afterward:
 3. Capture both reproductions of the bug for after/before comparison:
    - `curl -s http://localhost:8080/admin/leads | jq '.items[0].snapshot'` — expect garbage.
    - `curl -s http://localhost:8080/admin/webhooks/{id} | jq '.payload'` — expect garbage.
-4. Confirm Postgres data the test will use (or rely on Testcontainers, which is what most integration tests already use — see `src/test/java/com/fuba/automation_engine/integration/*`).
+4. Confirm Postgres data the test will use (or rely on Testcontainers, which is what most integration tests already use — see `src/test/java/com/flux/integration/*`).
 
 **Gate:** baseline `./mvnw verify` is green. Bug reproductions captured.
 
@@ -332,7 +332,7 @@ Also recommended (belt-and-suspenders): pin `com.fasterxml.jackson.core:jackson-
    - `/webhooks/:id` — `safeJson(detail.payload)` at [WebhooksPage.tsx:550](ui/src/modules/webhooks/ui/WebhooksPage.tsx) renders the real webhook body.
    - Date columns (`createdAt`, `updatedAt`) display as ISO-8601 strings, not bean dumps.
    - Workflow runs panel renders correctly (verifies `Map<String,Object>` JSONB → HTTP path is intact).
-4. End-to-end workflow run: trigger a workflow that uses `lead.firstName` in a JSONata template ([ExpressionScope.java](src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionScope.java)). Verify the resolved value is the real FUB first name.
+4. End-to-end workflow run: trigger a workflow that uses `lead.firstName` in a JSONata template ([ExpressionScope.java](src/main/java/com/flux/service/workflow/expression/ExpressionScope.java)). Verify the resolved value is the real FUB first name.
 5. JWT login: `POST /admin/auth/login` returns a valid JWT. Verifies JJWT's Jackson 2 path is intact.
 6. `./mvnw verify` still green.
 
@@ -370,7 +370,7 @@ A walk through every system layer asking "if Phase 5 says we're done, what bug c
 | Cursor codecs (`LeadFeedCursorCodec`, `WebhookFeedCursorCodec`) | Existing base64-encoded cursors held in clients become unparseable. | Both codecs round-trip JSON shape that Jackson 3 reads identically; `WebhookFeedCursorCodecTest` validates. |
 | Spring tests using `@AutoConfigureMockMvc` | `andExpect(jsonPath(...))` uses Spring Boot's mapper — same as production. | Existing `*FlowTest` integration tests. |
 | Slack webhook step | `buildPayload` did `objectMapper.writeValueAsString(payload)` declared `throws JsonProcessingException`. | `SlackNotifyWorkflowStepTest`. Remove the `throws` clause from method signature. |
-| AI-call client | `readValue(body, targetType)` deserialization. | `AiCallServiceHttpClientAdapterTest`. |
+| AI-call client | `readValue(body, targetType)` deserialization. | `CortexHttpClientAdapterTest`. |
 | `convertValue(node, TypeReference<Map<String,Object>>)` in `WorkflowTriggerRouter` | Jackson 3 may treat differently. | All-or-nothing migration in one PR; both sides upgrade together. `WorkflowTriggerRouterTest` covers. |
 | Compile-time | Stray `com.fasterxml.jackson.databind.X` reintroduced via IDE auto-import. | Phase 4 enforcer rule blocks the next PR. |
 

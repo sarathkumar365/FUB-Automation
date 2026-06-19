@@ -55,7 +55,7 @@ The cheap, low-risk wins. Nothing in this phase touches authentication or runtim
 
 ### Slice 1C — Devtools exclusion verify (A6)
 
-- [x] **M** Ran `./mvnw clean package -DskipTests` → `jar tf target/automation-engine-*.jar | grep -i devtools` returned empty. 57 MB packaged jar contains no devtools classes.
+- [x] **M** Ran `./mvnw clean package -DskipTests` → `jar tf target/flux-*.jar | grep -i devtools` returned empty. 57 MB packaged jar contains no devtools classes.
 - [-] `<excludeDevtools>true</excludeDevtools>` in `pom.xml` not needed — already absent from the packaged jar.
 
 ### Phase gate

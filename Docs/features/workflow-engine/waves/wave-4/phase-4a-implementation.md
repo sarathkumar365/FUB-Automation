@@ -6,7 +6,7 @@ Completed (Phases 1-4 completed, Wave 4a closed)
 ## Phase 1 Delivered — Foundations
 - Schema:
   - Added Flyway migration:
-    - [V11__add_workflow_version_number.sql](/Users/sarathkumar/Projects/2Creative/automation-engine/src/main/resources/db/migration/V11__add_workflow_version_number.sql)
+    - [V11__add_workflow_version_number.sql](/Users/sarathkumar/Projects/2Creative/flux/src/main/resources/db/migration/V11__add_workflow_version_number.sql)
   - Added `automation_workflows.version_number INT NOT NULL DEFAULT 1`
   - Backfilled versions with `ROW_NUMBER() OVER (PARTITION BY key ORDER BY id)`
   - Added unique index `uk_automation_workflows_key_version_number` on `(key, version_number)`
