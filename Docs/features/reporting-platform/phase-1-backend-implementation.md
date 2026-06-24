@@ -176,6 +176,17 @@ record FailedRunRow(Long id, String workflowKey, String reasonCode, OffsetDateTi
   24- (or 8-) point array. This keeps the SQL plain Postgres (portable for the Testcontainers IT) —
   no `generate_series` left-join.
 
+> **Known behavior (observed 2026-06-24, not yet changed) — the board is static within the clock
+> hour.** Because the whole window is floored to the top of the hour, between e.g. 3:00 and 3:59 the
+> window is fixed at `[yesterday 3pm, today 3pm)`. Consequences a user sees: the **"Updated {time}"
+> label shows the floored hour** (e.g. "3:00:00 PM") and does not move until the next hour; **a
+> browser refresh re-fetches but returns identical numbers** (activity after `to` is excluded until
+> the hour rolls); only `events/min` is live. This reads as "stuck/stale." It is the accepted ≤1h
+> trade-off, surfacing in practice. If it proves confusing, the fix is to use a **rolling true-`now`
+> window** for the counts (live on refresh) while keeping an hour-aligned grid for the chart bars
+> (current hour becomes a partial last bar), and show the **real fetch time** in "Updated". Deferred
+> — no change made.
+
 ## Verified data ground truth (the facts the queries rest on)
 
 - **`workflow_runs`:** `status` (enum `PENDING, BLOCKED, DUPLICATE_IGNORED, CANCELED, COMPLETED,
