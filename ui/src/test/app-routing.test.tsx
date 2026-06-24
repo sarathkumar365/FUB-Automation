@@ -35,7 +35,8 @@ describe('App routing and shell', () => {
     expect(await screen.findByText(uiText.dashboard.subtitle)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.railAriaLabel)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.contentAriaLabel)).toBeInTheDocument()
-    expect(screen.getByLabelText(uiText.app.shell.inspectorAriaLabel)).toBeInTheDocument()
+    // Dashboard is a full-width overview — it publishes no panel or inspector region.
+    expect(screen.queryByLabelText(uiText.app.shell.inspectorAriaLabel)).not.toBeInTheDocument()
   })
 
   it('navigates to dashboard when clicking rail brand icon from inside admin', async () => {

@@ -25,6 +25,12 @@ function ShellLayout() {
   const { panelContent, inspectorContent } = useShellRegions()
   const hasDesktopPanel = Boolean(panelContent?.title || panelContent?.body)
   const hasPanelBody = Boolean(panelContent?.body)
+  const hasInspector = Boolean(inspectorContent?.title || inspectorContent?.body)
+
+  const closeDrawers = () => {
+    setPanelOpen(false)
+    setInspectorOpen(false)
+  }
 
   return (
     <div className="min-h-screen bg-[var(--color-bg)] text-[var(--color-text)] lg:h-screen lg:overflow-hidden">
@@ -44,9 +50,11 @@ function ShellLayout() {
             </Button>
             <p className="text-sm font-semibold">{uiText.app.title}</p>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={() => setInspectorOpen((value) => !value)}>
-                {isInspectorOpen ? uiText.app.shell.closeInspector : uiText.app.shell.openInspector}
-              </Button>
+              {hasInspector ? (
+                <Button variant="outline" size="sm" onClick={() => setInspectorOpen((value) => !value)}>
+                  {isInspectorOpen ? uiText.app.shell.closeInspector : uiText.app.shell.openInspector}
+                </Button>
+              ) : null}
               <LogoutButton variant="rail" className="md:hidden" />
             </div>
           </header>
@@ -56,16 +64,18 @@ function ShellLayout() {
           </AppContentFrame>
         </div>
 
-        <InspectorPanel title={inspectorContent?.title} className="hidden w-[320px] lg:block lg:overflow-y-auto">
-          {inspectorContent?.body}
-        </InspectorPanel>
+        {hasInspector ? (
+          <InspectorPanel title={inspectorContent?.title} className="hidden w-[320px] lg:block lg:overflow-y-auto">
+            {inspectorContent?.body}
+          </InspectorPanel>
+        ) : null}
       </div>
 
       {isPanelOpen ? (
         <div className="fixed inset-0 z-50 bg-black/30 lg:hidden" onClick={() => setPanelOpen(false)}>
           <div onClick={(event) => event.stopPropagation()}>
             <AppPanel title={panelContent?.title} className="h-full max-w-[280px]">
-              <PanelNav onNavigate={() => setPanelOpen(false)} />
+              <PanelNav onNavigate={closeDrawers} />
               {hasPanelBody ? <div className="my-3 border-t border-[var(--color-border)]" /> : null}
               {panelContent?.body}
             </AppPanel>
@@ -73,7 +83,7 @@ function ShellLayout() {
         </div>
       ) : null}
 
-      {isInspectorOpen ? (
+      {isInspectorOpen && hasInspector ? (
         <div className="fixed inset-0 z-50 bg-black/30 lg:hidden" onClick={() => setInspectorOpen(false)}>
           <div onClick={(event) => event.stopPropagation()}>
             <InspectorPanel title={inspectorContent?.title} className="ml-auto h-full w-[min(85vw,320px)] border-l border-[var(--color-border)]">

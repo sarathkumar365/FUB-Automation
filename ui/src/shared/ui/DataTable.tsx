@@ -17,6 +17,9 @@ type DataTableProps<T> = {
   onRowClick?: (row: T) => void
   selectedRowKey?: string | number | null
   getRowAriaLabel?: (row: T) => string
+  // Optional always-on leading accent rail color per row (e.g. status-tinted "ledger" treatment).
+  // When omitted, the rail keeps its default brand-on-hover/selected behavior.
+  rowAccent?: (row: T) => string
 }
 
 export function DataTable<T>({
@@ -28,6 +31,7 @@ export function DataTable<T>({
   onRowClick,
   selectedRowKey = null,
   getRowAriaLabel,
+  rowAccent,
 }: DataTableProps<T>) {
   if (loading) {
     return <p className="text-sm text-[var(--color-text-muted)]">{uiText.states.loadingMessage}</p>
@@ -54,6 +58,7 @@ export function DataTable<T>({
             const rowKey = getRowKey(row)
             const isSelected = selectedRowKey !== null && selectedRowKey === rowKey
             const interactive = Boolean(onRowClick)
+            const accentColor = rowAccent?.(row)
 
             const railClass = isSelected
               ? 'border-l-[3px] border-l-[var(--color-brand)]'
@@ -88,14 +93,24 @@ export function DataTable<T>({
                     : undefined
                 }
               >
-                {columns.map((column, colIndex) => (
-                  <td
-                    key={column.key}
-                    className={`px-4 py-3 ${colIndex === 0 ? railClass : ''} ${column.className ?? ''}`}
-                  >
-                    {column.render(row)}
-                  </td>
-                ))}
+                {columns.map((column, colIndex) => {
+                  const isRail = colIndex === 0
+                  // Selection rail wins over the accent rail so a selected row stays visibly selected.
+                  const accented = isRail && accentColor !== undefined && !isSelected
+                  return (
+                    <td
+                      key={column.key}
+                      className={`px-4 py-3 ${isRail && !accented ? railClass : ''} ${column.className ?? ''}`}
+                      style={
+                        accented
+                          ? { borderLeftWidth: '3px', borderLeftStyle: 'solid', borderLeftColor: accentColor }
+                          : undefined
+                      }
+                    >
+                      {column.render(row)}
+                    </td>
+                  )
+                })}
               </tr>
             )
           })}
