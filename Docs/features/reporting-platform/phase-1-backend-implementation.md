@@ -248,8 +248,10 @@ FailureRow { ref, workflowKey, status, reason, ageSeconds }
 | `stats.openFailures.value` | same as `hero.openFailures` | (repeated inside the stat strip) |
 | `stats.openFailures.delta` | failure-count trend | **absolute count** change vs prior 24h: `cur − prev` (e.g. `-2`) |
 
-`Delta.direction` is `UP`/`DOWN`/`FLAT` (sign of `value`). If the prior window's baseline is `0`
-(nothing to compare), `Delta = { value: null, direction: "FLAT" }`.
+`Delta.direction` is `UP`/`DOWN`/`FLAT` (sign of `value`). For the **ratio** deltas (`runs`
+percent-change, `successRate` percentage-point) a zero/absent prior baseline (prior runs `0`, or no
+prior terminal runs) yields `{ value: null, direction: "FLAT" }`. The **absolute `openFailures`
+delta** is always `cur − prev` — a `0 → N` failure spike shows `UP +N` and is never suppressed.
 
 ### `throughput` (source: `webhook_events.received_at`)
 | Field | Meaning | Calculation |
@@ -334,8 +336,10 @@ e.g. "42 of 300 runs failed in the last 24h".
 
 ## Contract edge cases (locked)
 
-- **Zero denominators → `null`** (the UI renders `—`, never `0`/`NaN`): `successRate.value` when no
-  terminal runs; any `Delta` whose prior baseline is `0` → `{ value: null, direction: "FLAT" }`.
+- **Zero / absent baseline:** `successRate.value` is `null` when no terminal runs (UI renders `—`).
+  **Ratio deltas** (`runs` %, `successRate` pp) → `{ value: null, direction: "FLAT" }` on a zero/absent
+  prior baseline. The **absolute `openFailures` delta** is always `cur − prev` (a `0 → N` spike shows
+  `UP +N`, never suppressed).
 - **List sizes:** `recentRuns` = **5** (fixed); `needsAttention` capped at **50**, newest first.
   `hero.openFailures` stays the *true* count (may exceed 50); "+N more" = `openFailures − length`.
 - **`window` is fixed 24h in v1** — not a client param. The server always returns 24 hourly points.
