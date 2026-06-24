@@ -1,89 +1,60 @@
-/* Root wrapper — clips blobs so they never create scroll bars */
+/* Root wrapper — clips the hero wash so it never creates scrollbars. */
 .dash-root {
   position: relative;
   isolation: isolate;
   overflow: hidden;
 }
 
-/* Ambient corner blobs — decorative only */
-.dash-blob {
+/* Big-number kerning for hero/funnel values. */
+.dash-bignum {
+  font-variant-numeric: tabular-nums;
+  letter-spacing: -0.03em;
+  line-height: 0.95;
+}
+
+/* Ambient brand wash behind the hero content (decorative). */
+.dash-herowash {
   position: absolute;
-  z-index: -1;
+  inset: 0;
+  z-index: 0;
   pointer-events: none;
+  overflow: hidden;
+  border-radius: inherit;
+}
+
+.dash-herowash::before {
+  content: '';
+  position: absolute;
+  top: -40%;
+  right: -10%;
+  width: 420px;
+  height: 420px;
   border-radius: 999px;
-  filter: blur(90px);
-  opacity: 0.35;
-  will-change: transform;
+  filter: blur(80px);
+  opacity: 0.5;
+  background: radial-gradient(circle at center, color-mix(in srgb, var(--color-brand) 40%, transparent), transparent 70%);
 }
 
-.dash-blob-tr {
-  top: -160px;
-  right: -140px;
-  width: 520px;
-  height: 520px;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--color-brand) 55%, transparent), transparent 70%);
-  animation: dash-drift-tr 42s ease-in-out infinite alternate;
-}
-
-.dash-blob-bl {
-  bottom: -180px;
-  left: -180px;
-  width: 560px;
-  height: 560px;
-  background: radial-gradient(circle at center, color-mix(in srgb, var(--color-brand-2) 45%, transparent), transparent 70%);
-  animation: dash-drift-bl 52s ease-in-out infinite alternate;
-}
-
-@keyframes dash-drift-tr {
-  from {
-    transform: translate(0, 0);
+/* Live pulse dot — the page's only "live" motion (no opacity-fade entrance, per the handoff:
+   a throttled/background tab freezes CSS animations at frame 0 and would hide content). */
+@keyframes dash-pulse {
+  0% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-live) 55%, transparent);
   }
-  to {
-    transform: translate(-24px, 18px);
+  70% {
+    box-shadow: 0 0 0 6px color-mix(in srgb, var(--color-live) 0%, transparent);
+  }
+  100% {
+    box-shadow: 0 0 0 0 color-mix(in srgb, var(--color-live) 0%, transparent);
   }
 }
 
-@keyframes dash-drift-bl {
-  from {
-    transform: translate(0, 0);
-  }
-  to {
-    transform: translate(22px, -20px);
-  }
-}
-
-/* Content stagger entrance */
-@keyframes dash-fade-up {
-  from {
-    opacity: 0;
-    transform: translateY(6px);
-  }
-  to {
-    opacity: 1;
-    transform: translateY(0);
-  }
-}
-
-.dash-item {
-  animation: dash-fade-up 0.35s ease both;
-  animation-delay: var(--delay, 0ms);
-}
-
-.stat-tile {
-  transition: box-shadow 0.15s ease, transform 0.15s ease;
-}
-
-.stat-tile:hover {
-  box-shadow: var(--shadow-hover);
-  transform: translateY(-1px);
+.dash-livedot {
+  animation: dash-pulse 2.2s ease-out infinite;
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dash-blob,
-  .dash-item {
+  .dash-livedot {
     animation: none;
-  }
-  .stat-tile {
-    transition: none;
   }
 }

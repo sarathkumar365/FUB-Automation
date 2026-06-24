@@ -45,8 +45,8 @@ Storyboard-specific visual effects: grid dot, card border, selected-scene ring, 
 ### Spacing — `--space-1` through `--space-5`
 4 / 8 / 12 / 16 / 20 px. Most primitives use Tailwind utility classes for spacing (`gap-3`, `p-4`), so these tokens show up mostly in CSS or inline `style` where utility classes don't fit.
 
-### Elevation — `--shadow-subtle`, `--shadow-hover`, `--shadow-float`
-Three soft, low drop shadows: `--shadow-subtle` (resting card), `--shadow-hover` (lifted stat-tile, adds a second `0 4px 12px` layer), `--shadow-float` (glass milestone card). No hard or dark drop shadows anywhere. Scene cards have their own storyboard-specific shadows.
+### Elevation — `--shadow-subtle`, `--shadow-float`
+Two soft, low drop shadows: `--shadow-subtle` (resting card), `--shadow-float` (glass milestone card). No hard or dark drop shadows anywhere. Scene cards have their own storyboard-specific shadows.
 
 ### Semantic type roles — `--type-*`
 First-class type roles lifted from the design system: `display` (hero), `h1`/`h2`/`h3`, `body`, `small`, `kicker` (uppercase overline), `caption` (uppercase field label), `mono`. Each role exposes its size/weight/leading/tracking as separate tokens (e.g. `--type-h1-size`, `--type-h1-weight`). Reference these instead of re-deriving sizes per component so type stays consistent.

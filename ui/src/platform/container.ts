@@ -1,4 +1,5 @@
 import { HttpAdminWebhookAdapter } from './adapters/http/httpAdminWebhookAdapter'
+import { HttpDashboardAdapter } from './adapters/http/httpDashboardAdapter'
 import { HttpJsonClient } from './adapters/http/httpJsonClient'
 import { HttpPersonsAdapter } from './adapters/http/httpPersonsAdapter'
 import { HttpProcessedCallsAdapter } from './adapters/http/httpProcessedCallsAdapter'
@@ -7,6 +8,7 @@ import { HttpWorkflowAdapter } from './adapters/http/httpWorkflowAdapter'
 import { HttpWorkflowRunAdapter } from './adapters/http/httpWorkflowRunAdapter'
 import { SseWebhookStreamAdapter } from './adapters/sse/sseWebhookStreamAdapter'
 import type { AdminWebhookPort } from './ports/adminWebhookPort'
+import type { DashboardPort } from './ports/dashboardPort'
 import type { PersonsPort } from './ports/personsPort'
 import type { ProcessedCallsPort } from './ports/processedCallsPort'
 import type { SettingsPort } from './ports/settingsPort'
@@ -16,6 +18,7 @@ import type { WorkflowRunPort } from './ports/workflowRunPort'
 
 const httpClient = new HttpJsonClient()
 const adminWebhookPort: AdminWebhookPort = new HttpAdminWebhookAdapter(httpClient)
+const dashboardPort: DashboardPort = new HttpDashboardAdapter(httpClient)
 const processedCallsPort: ProcessedCallsPort = new HttpProcessedCallsAdapter(httpClient)
 const personsPort: PersonsPort = new HttpPersonsAdapter(httpClient)
 const settingsPort: SettingsPort = new HttpSettingsAdapter(httpClient)
@@ -24,6 +27,7 @@ const workflowRunPort: WorkflowRunPort = new HttpWorkflowRunAdapter(httpClient)
 
 export type AppPorts = {
   adminWebhookPort: AdminWebhookPort
+  dashboardPort: DashboardPort
   personsPort: PersonsPort
   processedCallsPort: ProcessedCallsPort
   settingsPort: SettingsPort
@@ -34,6 +38,7 @@ export type AppPorts = {
 
 export const appPorts: AppPorts = {
   adminWebhookPort,
+  dashboardPort,
   personsPort,
   processedCallsPort,
   settingsPort,

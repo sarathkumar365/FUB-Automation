@@ -1,58 +1,29 @@
-import { useMemo, type CSSProperties } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { useShellRegionRegistration } from '@app/useShellRegionRegistration'
 import { routes } from '@shared/constants/routes'
 import { uiText } from '@shared/constants/uiText'
 import { formatDateTime } from '@shared/lib/date'
+import { DataTable, type ColumnDef } from '@shared/ui/DataTable'
 import { ErrorState } from '@shared/ui/ErrorState'
 import { LoadingState } from '@shared/ui/LoadingState'
 import { PageCard } from '@shared/ui/PageCard'
 import { PageHeader } from '@shared/ui/PageHeader'
 import { StatusBadge } from '@shared/ui/StatusBadge'
 import { formatWorkflowRunStatus, getWorkflowRunStatusTone } from '@modules/workflow-runs/lib/workflowRunsDisplay'
-import type { WorkflowRunSummary } from '@platform/contracts/workflowSchemas'
+import type { WorkflowRunStatus } from '@platform/contracts/workflowSchemas'
+import type { DashboardFailureRow, DashboardRunRow, Delta } from '@platform/contracts/dashboardSchemas'
 import { useDashboardSnapshotQuery } from '../data/useDashboardSnapshotQuery'
-import { RECENT_WEBHOOK_WINDOW } from '../lib/dashboardSnapshot'
+import { AreaChart } from './charts/AreaChart'
+import { Sparkbars } from './charts/Sparkbars'
 import './DashboardPage.css'
 
-type StatTone = 'default' | 'error' | 'ok'
+type DeltaTone = 'ok' | 'bad' | 'muted'
+type DeltaPolarity = 'rate' | 'failures' | 'neutral'
+type DeltaView = { text: string; tone: DeltaTone; direction: Delta['direction'] }
 
 export function DashboardPage() {
   const navigate = useNavigate()
   const snapshotQuery = useDashboardSnapshotQuery()
   const snapshot = snapshotQuery.data
-
-  const panelRegion = useMemo(
-    () => ({
-      title: uiText.dashboard.panelTitle,
-      body: (
-        <div className="space-y-2 text-sm">
-          <p>
-            <span className="text-[var(--color-text-muted)]">{uiText.dashboard.activeWorkflowsTitle}: </span>
-            {snapshot?.activeWorkflows.count ?? 0}
-          </p>
-          <p>
-            <span className="text-[var(--color-text-muted)]">{uiText.dashboard.failedRunsTitle}: </span>
-            {snapshot?.failedRuns.count ?? 0}
-          </p>
-        </div>
-      ),
-    }),
-    [snapshot?.activeWorkflows.count, snapshot?.failedRuns.count],
-  )
-
-  const inspectorRegion = useMemo(
-    () => ({
-      title: uiText.dashboard.inspectorTitle,
-      body: <p className="text-sm text-[var(--color-text-muted)]">{uiText.dashboard.inspectorDescription}</p>,
-    }),
-    [],
-  )
-
-  useShellRegionRegistration({
-    panel: panelRegion,
-    inspector: inspectorRegion,
-  })
 
   if (snapshotQuery.isPending) {
     return (
@@ -72,174 +43,343 @@ export function DashboardPage() {
     )
   }
 
-  const recentRuns = snapshot.recentRuns.items.slice(0, 5)
-  const failedCount = snapshot.failedRuns.count
-  const failedTone: StatTone = failedCount > 0 ? 'error' : 'ok'
-  const failedSubLabel =
-    failedCount > 0 ? uiText.dashboard.statFailedRunsLabel : uiText.dashboard.failedRunsEmpty
-  const latestIngestValue = formatNullableDate(snapshot.systemHealth.latestWebhookReceivedAt)
+  const { hero, funnel, throughput, recentRuns, needsAttention } = snapshot
+  const successRateText =
+    hero.stats.successRate.value === null
+      ? uiText.workflowRuns.missingValue
+      : `${hero.stats.successRate.value.toFixed(1)}%`
 
-  const ingestValue =
-    snapshot.systemHealth.recentWebhookCount > RECENT_WEBHOOK_WINDOW
-      ? `${RECENT_WEBHOOK_WINDOW}+`
-      : snapshot.systemHealth.recentWebhookCount
+  const runsDelta = makeDeltaView(hero.stats.runs.delta, 'neutral', (v) => signed(v, `${Math.abs(Math.round(v))}%`))
+  const successDelta = makeDeltaView(hero.stats.successRate.delta, 'rate', (v) => signed(v, `${Math.abs(v).toFixed(1)}pt`))
+  const failuresDelta = makeDeltaView(hero.stats.openFailures.delta, 'failures', (v) => signed(v, `${Math.abs(Math.round(v))}`))
+
+  const runColumns: ColumnDef<DashboardRunRow>[] = [
+    { key: 'id', header: uiText.dashboard.runIdHeader, render: (r) => <span className="font-mono text-xs">{r.id}</span> },
+    { key: 'wf', header: uiText.dashboard.workflowKeyHeader, render: (r) => <span className="font-mono text-xs">{r.workflowKey}</span> },
+    {
+      key: 'status',
+      header: uiText.dashboard.statusHeader,
+      render: (r) => <StatusBadge label={formatWorkflowRunStatus(r.status)} tone={getWorkflowRunStatusTone(r.status)} />,
+    },
+    {
+      key: 'duration',
+      header: uiText.dashboard.durationHeader,
+      render: (r) => (
+        <span className="font-mono text-xs text-[var(--color-text-muted)]">
+          {r.durationSec === null ? uiText.workflowRuns.missingValue : `${r.durationSec}s`}
+        </span>
+      ),
+    },
+    {
+      key: 'completed',
+      header: uiText.dashboard.completedAtHeader,
+      render: (r) => (
+        <span className="font-mono text-xs text-[var(--color-text-muted)]">
+          {r.completedAt === null ? uiText.workflowRuns.missingValue : formatDateTime(r.completedAt)}
+        </span>
+      ),
+    },
+  ]
 
   return (
-    <div className="dash-root space-y-4">
-      <div className="dash-blob dash-blob-tr" aria-hidden="true" />
-      <div className="dash-blob dash-blob-bl" aria-hidden="true" />
+    <div className="dash-root mx-auto flex w-full flex-col gap-[18px] lg:w-[85%]">
+      {/* Hero — health headline + throughput */}
+      <section className="relative overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] p-7 shadow-[var(--shadow-subtle)]">
+        <div className="dash-herowash" aria-hidden="true" />
+        <div className="relative z-[1] grid grid-cols-1 items-center gap-9 lg:grid-cols-[1.05fr_1fr]">
+          <div>
+            <p className="text-[11px] font-extrabold uppercase tracking-[0.12em] text-[var(--color-text-muted)]">
+              {uiText.dashboard.kicker}
+            </p>
+            <div className="mt-3 flex items-center gap-3.5">
+              <h1 className="dash-bignum m-0 text-[46px] font-extrabold text-[var(--color-text)]">
+                {uiText.dashboard.health[hero.state]}
+              </h1>
+              <LivePill />
+            </div>
+            <p className="mt-3 max-w-[440px] text-sm leading-relaxed text-[var(--color-text-muted)]">
+              {uiText.dashboard.subtitle}
+            </p>
+            <p className="mb-5 mt-1 font-mono text-[11px] text-[var(--color-text-muted)]">
+              {uiText.dashboard.updatedLabel} {formatDateTime(snapshot.window.to)}
+            </p>
+            <div className="flex items-start border-t border-[var(--color-border)] pt-4">
+              <HeroStat label={uiText.dashboard.runsTitle} value={hero.stats.runs.value} delta={runsDelta} />
+              <Divider />
+              <HeroStat label={uiText.dashboard.successRateTitle} value={successRateText} delta={successDelta} />
+              <Divider />
+              <HeroStat
+                label={uiText.dashboard.openFailuresTitle}
+                value={hero.openFailures}
+                valueTone={hero.openFailures > 0 ? 'bad' : undefined}
+                delta={failuresDelta}
+              />
+            </div>
+          </div>
 
-      <PageHeader title={uiText.dashboard.title} subtitle={uiText.dashboard.subtitle} />
+          <div>
+            <div className="mb-2.5 flex items-baseline justify-between">
+              <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">
+                {uiText.dashboard.throughputLabel}
+              </span>
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-[var(--color-text-muted)]">
+                <span className="dash-livedot inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-live)]" />
+                {throughput.perMin}
+                {uiText.dashboard.perMinLabel}
+              </span>
+            </div>
+            <AreaChart data={throughput.series} height={150} />
+            <div className="mt-1.5 flex justify-between font-mono text-[10px] text-[var(--color-text-muted)]">
+              <span>{uiText.dashboard.rangeAgoLabel}</span>
+              <span>
+                {uiText.dashboard.peakLabel} {throughput.peak} · {uiText.dashboard.avgLabel} {throughput.avg}
+              </span>
+              <span>{uiText.dashboard.nowLabel}</span>
+            </div>
+          </div>
+        </div>
+      </section>
 
-      <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-        <StatTile
-          label={uiText.dashboard.activeWorkflowsTitle}
-          subLabel={uiText.dashboard.statActiveWorkflowsLabel}
-          value={snapshot.activeWorkflows.count}
-          to={buildRouteWithStatus(routes.workflows, 'ACTIVE')}
-          linkLabel={uiText.dashboard.openWorkflows}
-          tone="default"
-          delay={0}
-        />
-        <StatTile
-          label={uiText.dashboard.failedRunsTitle}
-          subLabel={failedSubLabel}
-          value={failedCount}
-          to={buildRouteWithStatus(routes.workflowRuns, 'FAILED')}
-          linkLabel={uiText.dashboard.openFailedRuns}
-          tone={failedTone}
-          delay={60}
-        />
-        <StatTile
-          label={uiText.dashboard.systemHealthTitle}
-          subLabel={`${uiText.dashboard.latestIngestLabel}: ${latestIngestValue}`}
-          value={ingestValue}
-          to={routes.webhooks}
-          linkLabel={uiText.dashboard.viewIngestActivity}
-          tone="default"
-          delay={120}
-        />
-      </div>
+      {/* Funnel rail — four volume counts (no conversion %s in v1) */}
+      <section className="flex flex-col overflow-hidden rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)] shadow-[var(--shadow-subtle)] sm:flex-row sm:items-stretch">
+        <FunnelStage label={uiText.dashboard.funnelIngested} sub={uiText.dashboard.funnelIngestedSub} value={funnel.ingested.value} spark={funnel.ingested.spark} />
+        <Chevron />
+        <FunnelStage label={uiText.dashboard.funnelDomainEvents} sub={uiText.dashboard.funnelDomainEventsSub} value={funnel.domainEvents.value} spark={funnel.domainEvents.spark} />
+        <Chevron />
+        <FunnelStage label={uiText.dashboard.funnelRuns} sub={uiText.dashboard.funnelRunsSub} value={funnel.runs.value} spark={funnel.runs.spark} />
+        <Chevron />
+        <FunnelStage label={uiText.dashboard.funnelFailed} sub={uiText.dashboard.funnelFailedSub} value={funnel.failed.value} spark={funnel.failed.spark} tone="bad" />
+      </section>
 
-      <div className="dash-item" style={{ ['--delay' as string]: '180ms' } as CSSProperties}>
+      {/* Recent runs + needs attention */}
+      <div className="grid grid-cols-1 items-start gap-4 lg:grid-cols-[1.7fr_1fr]">
         <PageCard title={uiText.dashboard.recentRunsTitle}>
-          {recentRuns.length === 0 ? (
-            <p className="text-sm text-[var(--color-text-muted)]">{uiText.dashboard.recentRunsEmpty}</p>
+          <DataTable
+            columns={runColumns}
+            rows={recentRuns}
+            getRowKey={(r) => r.id}
+            emptyMessage={uiText.dashboard.recentRunsEmpty}
+            onRowClick={(r) => navigate(routes.workflowRunDetail(r.id))}
+            getRowAriaLabel={(r) => `${uiText.dashboard.runRowAriaLabelPrefix} ${r.id}`}
+            rowAccent={(r) => statusRailColor(r.status)}
+          />
+          <Link
+            to={routes.workflowRuns}
+            className="mt-3.5 inline-flex h-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-alt)]"
+          >
+            {uiText.dashboard.openRuns}
+          </Link>
+        </PageCard>
+
+        <PageCard title={uiText.dashboard.needsAttentionTitle}>
+          {needsAttention.length === 0 ? (
+            <p className="flex items-center gap-2 py-3 text-sm font-semibold text-[var(--color-status-ok)]">
+              <CheckIcon />
+              {uiText.dashboard.needsAttentionEmpty}
+            </p>
           ) : (
-            <RunList runs={recentRuns} onSelect={(run) => navigate(routes.workflowRunDetail(run.id))} />
+            <ul className="flex flex-col gap-2.5">
+              {needsAttention.map((row) => (
+                <AttentionRow key={row.ref} row={row} onSelect={() => navigate(routes.workflowRunDetail(Number(row.ref)))} />
+              ))}
+            </ul>
           )}
-          <DashboardLink to={routes.workflowRuns} label={uiText.dashboard.openRuns} />
         </PageCard>
       </div>
-
-      <p className="dash-item text-xs text-[var(--color-text-muted)]" style={{ ['--delay' as string]: '240ms' } as CSSProperties}>
-        {uiText.dashboard.placeholderHealthMessage}
-      </p>
     </div>
   )
 }
 
-type StatTileProps = {
+function Divider() {
+  return <div className="w-px self-stretch bg-[var(--color-border)]" />
+}
+
+function LivePill() {
+  return (
+    <span className="inline-flex items-center gap-1.5 rounded-full border border-[var(--color-status-ok)] bg-[var(--color-status-ok-bg)] px-3 py-1 text-[11px] font-semibold text-[var(--color-status-ok)]">
+      <span className="dash-livedot inline-block h-1.5 w-1.5 rounded-full bg-[var(--color-live)]" />
+      {uiText.dashboard.livePillLabel}
+    </span>
+  )
+}
+
+function HeroStat({
+  label,
+  value,
+  valueTone,
+  delta,
+}: {
   label: string
-  subLabel: string
-  value: number | string
-  to: string
-  linkLabel: string
-  tone: StatTone
-  delay: number
-}
-
-function StatTile({ label, subLabel, value, to, linkLabel, tone, delay }: StatTileProps) {
-  const accentColor =
-    tone === 'error'
-      ? 'var(--color-status-bad)'
-      : tone === 'ok'
-        ? 'var(--color-status-ok)'
-        : 'var(--color-brand)'
-
+  value: string | number
+  valueTone?: 'bad'
+  delta: DeltaView | null
+}) {
   return (
-    <Link
-      to={to}
-      aria-label={linkLabel}
-      className="stat-tile dash-item group flex flex-col rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-subtle)] no-underline"
-      style={
-        {
-          borderLeftColor: accentColor,
-          borderLeftWidth: '3px',
-          ['--delay' as string]: `${delay}ms`,
-        } as CSSProperties
-      }
-    >
-      <h3 className="text-xs font-medium uppercase tracking-wide text-[var(--color-text-muted)]">{label}</h3>
-      <span className="mt-2 text-3xl font-semibold leading-none text-[var(--color-text)]">{value}</span>
-      <span className="mt-1 text-xs text-[var(--color-text-muted)]">{subLabel}</span>
-      <span className="mt-3 text-xs font-medium text-[var(--color-brand)] group-hover:underline">{linkLabel} →</span>
-    </Link>
-  )
-}
-
-function RunList({ runs, onSelect }: { runs: WorkflowRunSummary[]; onSelect: (run: WorkflowRunSummary) => void }) {
-  return (
-    <div className="overflow-x-auto rounded-md border border-[var(--color-border)]">
-      <table className="min-w-full text-left text-xs">
-        <thead className="bg-[var(--color-surface-alt)] text-[var(--color-text-muted)]">
-          <tr>
-            <th className="px-2 py-2 font-medium">{uiText.dashboard.runIdHeader}</th>
-            <th className="px-2 py-2 font-medium">{uiText.dashboard.workflowKeyHeader}</th>
-            <th className="px-2 py-2 font-medium">{uiText.dashboard.statusHeader}</th>
-            <th className="px-2 py-2 font-medium">{uiText.dashboard.completedAtHeader}</th>
-          </tr>
-        </thead>
-        <tbody>
-          {runs.map((run) => (
-            <tr
-              key={run.id}
-              role="button"
-              tabIndex={0}
-              aria-label={`${uiText.dashboard.runRowAriaLabelPrefix} ${run.id}`}
-              onClick={() => onSelect(run)}
-              onKeyDown={(event) => {
-                if (event.key === 'Enter' || event.key === ' ') {
-                  event.preventDefault()
-                  onSelect(run)
-                }
-              }}
-              className="cursor-pointer border-t border-[var(--color-border)] transition-colors hover:bg-[var(--color-surface-alt)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)] ring-offset-[var(--color-surface)]"
-            >
-              <td className="px-2 py-2 font-mono">{run.id}</td>
-              <td className="px-2 py-2 font-mono">{run.workflowKey}</td>
-              <td className="px-2 py-2">
-                <StatusBadge label={formatWorkflowRunStatus(run.status)} tone={getWorkflowRunStatusTone(run.status)} />
-              </td>
-              <td className="px-2 py-2">{formatNullableDate(run.completedAt)}</td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="px-[22px] first:pl-0">
+      <div className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">{label}</div>
+      <div
+        className="dash-bignum mt-1.5 font-mono text-2xl font-bold"
+        style={{ color: valueTone === 'bad' ? 'var(--color-status-bad)' : 'var(--color-text)' }}
+      >
+        {value}
+      </div>
+      <div className="mt-1 h-4 text-[11px]">
+        <DeltaIndicator view={delta} />
+      </div>
     </div>
   )
 }
 
-function DashboardLink({ to, label }: { to: string; label: string }) {
+function DeltaIndicator({ view }: { view: DeltaView | null }) {
+  if (view === null) {
+    return <span className="text-[var(--color-text-muted)]">{uiText.workflowRuns.missingValue}</span>
+  }
+  const color =
+    view.tone === 'ok' ? 'var(--color-status-ok)' : view.tone === 'bad' ? 'var(--color-status-bad)' : 'var(--color-text-muted)'
   return (
-    <Link
-      to={to}
-      className="mt-3 inline-flex h-8 items-center justify-center rounded-md border border-[var(--color-border)] bg-[var(--color-surface)] px-3 text-xs font-medium text-[var(--color-text)] transition-colors hover:bg-[var(--color-surface-alt)]"
-    >
-      {label}
-    </Link>
+    <span className="inline-flex items-center gap-1 font-bold" style={{ color }}>
+      {view.direction !== 'FLAT' ? (
+        <svg
+          viewBox="0 0 24 24"
+          width="12"
+          height="12"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.4"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          style={{ transform: view.direction === 'DOWN' ? 'rotate(180deg)' : 'none' }}
+        >
+          <path d="M12 19V5M5 12l7-7 7 7" />
+        </svg>
+      ) : null}
+      {view.text}
+    </span>
   )
 }
 
-function buildRouteWithStatus(path: string, status: string): string {
-  const params = new URLSearchParams()
-  params.set('status', status)
-  return `${path}?${params.toString()}`
+function FunnelStage({
+  label,
+  sub,
+  value,
+  spark,
+  tone,
+}: {
+  label: string
+  sub: string
+  value: number
+  spark: number[]
+  tone?: 'bad'
+}) {
+  const color = tone === 'bad' ? 'var(--color-status-bad)' : 'var(--color-brand)'
+  return (
+    <div className="min-w-0 flex-1 p-4">
+      <div className="flex items-center gap-2">
+        <span className="inline-block h-[7px] w-[7px] rounded-full" style={{ backgroundColor: color }} aria-hidden="true" />
+        <span className="text-[11px] font-bold uppercase tracking-[0.05em] text-[var(--color-text-muted)]">{label}</span>
+      </div>
+      <div className="mt-2 flex items-baseline gap-1.5">
+        <span
+          className="dash-bignum font-mono text-3xl font-bold"
+          style={{ color: tone === 'bad' ? 'var(--color-status-bad)' : 'var(--color-text)' }}
+        >
+          {value}
+        </span>
+        <span className="text-[11px] text-[var(--color-text-muted)]">{sub}</span>
+      </div>
+      <div className="mt-2.5">
+        <Sparkbars data={spark} height={26} color={color} />
+      </div>
+    </div>
+  )
 }
 
-function formatNullableDate(value: string | null): string {
-  if (!value) {
-    return uiText.workflowRuns.missingValue
+function Chevron() {
+  return (
+    <div className="hidden flex-shrink-0 items-center self-stretch border-l border-[var(--color-border)] px-3.5 sm:flex">
+      <svg
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        fill="none"
+        stroke="var(--color-text-muted)"
+        strokeWidth="2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
+        <path d="m9 18 6-6-6-6" />
+      </svg>
+    </div>
+  )
+}
+
+function AttentionRow({ row, onSelect }: { row: DashboardFailureRow; onSelect: () => void }) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onSelect}
+        className="flex w-full items-center gap-3 rounded-md bg-[var(--color-status-bad-bg)] px-3 py-2.5 text-left transition-colors hover:brightness-95 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[var(--color-brand)]"
+      >
+        <span className="flex-shrink-0 rounded px-1.5 py-1 text-[10px] font-extrabold uppercase tracking-[0.06em] text-[var(--color-status-bad)]">
+          {row.status}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="flex items-baseline gap-2">
+            <span className="font-mono text-xs font-semibold text-[var(--color-status-bad)]">#{row.ref}</span>
+            <span className="truncate font-mono text-[11px] text-[var(--color-text-muted)]">
+              {row.reason ?? uiText.workflowRuns.missingValue}
+            </span>
+          </span>
+          <span className="mt-0.5 block font-mono text-[10.5px] text-[var(--color-text-muted)]">
+            {row.workflowKey} · {formatAge(row.ageSeconds)}
+          </span>
+        </span>
+      </button>
+    </li>
+  )
+}
+
+function CheckIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      <path d="M20 6 9 17l-5-5" />
+    </svg>
+  )
+}
+
+function statusRailColor(status: WorkflowRunStatus): string {
+  const tone = getWorkflowRunStatusTone(status)
+  if (tone === 'error') return 'var(--color-status-bad)'
+  if (tone === 'success') return 'var(--color-status-ok)'
+  return 'var(--color-brand)'
+}
+
+function makeDeltaView(delta: Delta, polarity: DeltaPolarity, format: (value: number) => string): DeltaView | null {
+  if (delta.value === null) {
+    return null
   }
-  return formatDateTime(value)
+  const tone: DeltaTone =
+    delta.direction === 'FLAT' || polarity === 'neutral'
+      ? 'muted'
+      : polarity === 'rate'
+        ? delta.direction === 'UP'
+          ? 'ok'
+          : 'bad'
+        : delta.direction === 'UP'
+          ? 'bad'
+          : 'ok'
+  return { text: format(delta.value), tone, direction: delta.direction }
+}
+
+function signed(value: number, body: string): string {
+  const sign = value > 0 ? '+' : value < 0 ? '−' : ''
+  return `${sign}${body}`
+}
+
+function formatAge(seconds: number): string {
+  if (seconds < 60) return `${seconds}s`
+  if (seconds < 3600) return `${Math.floor(seconds / 60)}m`
+  return `${Math.floor(seconds / 3600)}h`
 }
