@@ -101,47 +101,60 @@ A Flyway view `v_lead_holder_intervals` yielding, per lead, `(source_person_id, 
 
 ```sql
 CREATE VIEW v_lead_holder_intervals AS
-WITH reassign AS (
-  SELECT e.entity_id AS source_person_id,
+WITH active_leads AS (   -- the ONE membership filter; all branches inherit it (audit fix #2)
+  SELECT source_person_id, created_at,
+         (person_details->>'assignedUserId')::bigint AS current_uid
+  FROM persons
+  WHERE kind='LEAD' AND status='ACTIVE'
+    AND person_details->>'assignedUserId' IS NOT NULL
+),
+reassign AS (
+  SELECT al.source_person_id,
          (e.payload->'previous'->>'assignedUserId')::bigint AS from_uid,
          (e.payload->'current' ->>'assignedUserId')::bigint AS to_uid,
          e.created_at AS changed_at,
          lead(e.created_at) OVER (PARTITION BY e.entity_id ORDER BY e.created_at) AS next_changed_at,
          row_number()      OVER (PARTITION BY e.entity_id ORDER BY e.created_at) AS seq
   FROM events e
+  JOIN active_leads al ON al.source_person_id = e.entity_id
   WHERE e.event_kind = 'person.state_changed'
     AND e.payload->'changed_fields' ? 'assignedUserId'          -- jsonb array element test
 ),
-anchored AS (   -- the segment before the first reassignment: holder = its from_uid, start = lead first-seen
+anchored AS (   -- before the first reassignment: holder = its from_uid; start = -infinity (audit fix #1)
   SELECT r.source_person_id, r.from_uid AS assigned_uid,
-         p.created_at AS valid_from, r.changed_at AS valid_to
-  FROM reassign r JOIN persons p ON p.source_person_id = r.source_person_id
-  WHERE r.seq = 1
+         '-infinity'::timestamptz AS valid_from, r.changed_at AS valid_to
+  FROM reassign r WHERE r.seq = 1
 ),
-segments AS (   -- each reassignment opens an interval closed by the next (or 'infinity')
+segments AS (   -- each reassignment opens an interval closed by the next (or +infinity)
   SELECT r.source_person_id, r.to_uid AS assigned_uid,
          r.changed_at AS valid_from, coalesce(r.next_changed_at, 'infinity'::timestamptz) AS valid_to
   FROM reassign r
 ),
-never AS (       -- leads with no reassignment: single interval = current owner
-  SELECT p.source_person_id,
-         (p.person_details->>'assignedUserId')::bigint AS assigned_uid,
-         p.created_at AS valid_from, 'infinity'::timestamptz AS valid_to
-  FROM persons p
-  WHERE p.kind='LEAD' AND p.status='ACTIVE'
-    AND p.person_details->>'assignedUserId' IS NOT NULL
-    AND NOT EXISTS (SELECT 1 FROM reassign r WHERE r.source_person_id = p.source_person_id)
+never AS (       -- no reassignment: single interval = current owner, for all time
+  SELECT al.source_person_id, al.current_uid AS assigned_uid,
+         '-infinity'::timestamptz AS valid_from, 'infinity'::timestamptz AS valid_to
+  FROM active_leads al
+  WHERE NOT EXISTS (SELECT 1 FROM reassign r WHERE r.source_person_id = al.source_person_id)
 )
 SELECT * FROM anchored
 UNION ALL SELECT * FROM segments
 UNION ALL SELECT * FROM never;
 ```
 
+**Two audit-found corrections baked in (2026-07-02):**
+1. **Earliest interval starts at `-infinity`, not `persons.created_at`.** `created_at` = *first-seen-by-us*,
+   not FUB intake — anchoring there dropped same-day calls that occurred *before* we first saw the lead
+   (~128 false "not-reached" credits in the audit). Tenure is bounded only by reassignment events; the
+   earliest holder owned the lead "from the beginning of time" as far as we can prove.
+2. **All branches inherit the `active_leads` filter** (`kind='LEAD' AND status='ACTIVE'`). Previously
+   `anchored`/`segments` read raw `events` and leaked a few stale/non-lead entities.
+
 **Why it's correct with 34% birth-record coverage:** `anchored`/`segments` need only the reassignment
 events (which carry `from`+`to`), not `person.created`; `never` covers the ~93% unreassigned leads from
 the snapshot. Blast radius: only ~54/784 leads were ever reassigned, so the view *changes an answer* only
 for that small, correctness-critical set. **The IT is the deliverable that proves this** — seed a lead
-reassigned mid-window with a call in each interval and assert each call credits the right holder.
+reassigned mid-window (with a call before first-seen, and one in each interval) and assert each call
+credits the right holder.
 
 ## Report 1 — Source → Agent → contact outcome
 - **Universe:** active assigned leads whose arrival (`persons.created_at`) is in-window.
