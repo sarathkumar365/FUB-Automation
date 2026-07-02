@@ -70,6 +70,13 @@ set of dashboard aggregates) expose what actually needs to be shared — so we e
 evidence instead of guessing the contract up front. See "Order of work".
 
 ### Accountability MVP — semantics
+> **Superseded for the build by [phase-2-implementation.md](./phase-2-implementation.md) (2026-07-02).**
+> The `source_user_id` null-rate gate and the coverage-vs-attribution layering below were resolved by
+> two later findings: continuous hosting removed the uptime blocker, and the `events` diary lets us
+> reconstruct a per-lead **timeline** so attribution is exact (credited to the holder-at-the-time),
+> not gated. Contact is now a 3-state model (reached-by-call / reached-by-other-channel / not-reached).
+> The universe below still holds; read the impl doc for the current metric model.
+
 - **Universe:** `persons` where `kind=LEAD` and `assignedUserId` is set.
 - **Called:** an outbound (`is_incoming=false`) `processed_calls` row for the lead.
   Attempt counts (voicemail/no-answer = effort); outcome/connected ignored in v1.

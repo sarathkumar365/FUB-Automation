@@ -20,6 +20,7 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-011-ui-schema-ownership.md` — Status: Accepted (ui/ only; implementation = ui-architecture-conformance Phase 2)
 - `RD-012-reporting-platform-architecture.md` — Status: Proposed (extract & ratify on reporting-platform Phase 3, rule of three)
 - `RD-013-reporting-charts-custom-vs-library.md` — Status: Accepted (custom SVG for design-primitives; library — lean visx — at the analytical layer)
+- `RD-014-reporting-query-architecture.md` — Status: Accepted (deterministic-first over a thin semantic layer = SQL views + data-truths.md; NL deferred/demand-gated. Amended 2026-07-02: event-sourced timeline substrate; reconcile job optional)
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`
