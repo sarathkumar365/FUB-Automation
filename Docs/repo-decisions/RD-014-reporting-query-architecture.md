@@ -15,12 +15,16 @@ Two facts discovered after acceptance sharpen (do not reverse) this decision:
    view (who held each lead over what interval). Reports join on top. The "person timeline," previously
    deferred, is now the **foundation** of Phase 2, not a future feature. This is still "SQL views, not
    dbt/Cube," still deterministic, still **views over materialized** (decision 6 reinforced).
-2. **The accuracy gate is demoted from prerequisite to optional.** The app now runs continuously, so the
-   event stream is complete going forward; v1 reports forward-only over 24h/7d windows. The
-   24/7 + reconcile "prerequisite" in Consequences below is superseded — the reconcile/backfill job is
-   **optional** (pre-hosting history / blip insurance), not a blocker. See
-   [data-truths §2.1 + §6](../features/reporting-platform/findings/data-truths.md) and
-   [phases.md](../features/reporting-platform/phases.md) Phase 2/2b.
+2. ~~**The accuracy gate is demoted from prerequisite to optional.**~~ **REVERSED 2026-07-02 (audit) —
+   the reconcile/backfill job is MANDATORY.** A live FUB-API audit disproved "hosted ⇒ complete": recent
+   call capture is ~41%, whole days inside the window carry zero webhooks, and the accountability
+   red-list is ~40% false. **Root cause = an ephemeral Cloudflare quick-tunnel webhook ingress + FUB's
+   at-most-once delivery (no replay) + no backfill** — not app uptime, not ingestion. Continuous app
+   hosting does not make forward windows complete. The 24/7 **and** reconcile prerequisite in
+   Consequences below **stands**; only the "reconcile is optional" wording is retracted. Fix = a stable
+   public webhook URL **plus** a scheduled FUB `/v1/calls`+`/v1/people` since-last-sync reconcile. See
+   [data-truths §2.1 CORRECTION](../features/reporting-platform/findings/data-truths.md) and
+   [phases.md](../features/reporting-platform/phases.md) Phase 2c.
 
 Deterministic-first, accountability-frozen-in-SQL, and NL-deferred-and-demand-gated all stand unchanged.
 
@@ -123,6 +127,8 @@ by a human before it ships. AI leverage without runtime non-determinism.
   is the precondition (and context) for any future NL interface.
 - NL may never be built; if it is, it's cheap (agent + MCP over views) and clearly exploratory.
 - Accountability stays deterministic and defensible.
-- ~~Ingestion reliability (24/7 + reconcile) is the real prerequisite for call-derived accuracy.~~
-  **Superseded by the 2026-07-02 amendment:** continuous hosting makes forward windows complete; the
-  reconcile job is optional. See data-truths.md §2.1.
+- **Ingestion reliability (stable webhook ingress + 24/7 + reconcile) is the real prerequisite for
+  call-derived accuracy** — re-affirmed by the 2026-07-02 audit. (The intervening "continuous hosting
+  makes windows complete; reconcile optional" claim was DISPROVEN the same day: the ingress is an
+  ephemeral quick tunnel and FUB delivery is at-most-once, so ~59% of recent calls are dropped with no
+  replay. The **reconcile/backfill job is mandatory.**) See data-truths.md §2.1 CORRECTION.

@@ -23,8 +23,28 @@
 ## 2. Data-quality truths (the things NOT in the schema)
 Each is a fact about how this brokerage / pipeline works that no schema-probe or row-sample reveals.
 
-### 2.1 Completeness is uptime-bound — healed by continuous hosting (NOT a build blocker)
-**Reframed 2026-07-02 (was "THE ACCURACY GATE / build-blocker").** Verified 2026-06-25: when the app
+### 2.1 Completeness is NOT healed by hosting — reconcile is mandatory (ingress-bound accuracy gate)
+> **CORRECTION 2026-07-02 (audit) — supersedes the "healed by continuous hosting / reconcile optional"
+> reframe below.** A live FUB-API audit disproved the "hosted ⇒ complete" premise. Measured against
+> ground truth *today*: recent call capture is **~41%** (30 of 73 FUB outbound calls in a 06-24/25 slice
+> are absent from local), whole days inside the window have **zero** webhooks of any type (06-27, 06-28,
+> 07-01), and the owner's "not reached" list is **~40% false reds** (10/25 sampled leads were actually
+> called per FUB; e.g. lead 15293 called 4× on 06-25/26 — the hosted era — with 0 local rows).
+> **Root cause:** it is **not** app uptime and **not** ingestion (4,362 webhooks → 4,395 processed_calls,
+> ≈1:1; missing calls are byte-identical in shape to captured ones). The FUB webhook is registered to an
+> **ephemeral Cloudflare quick tunnel** (`views-announcements-walk-carter.trycloudflare.com`; `.env`
+> `PUBLIC_BASE_URL` is empty), whose hostname changes on every `cloudflared` restart while FUB holds one
+> static registration. FUB delivery is **at-most-once with no replay**, so every event fired while the
+> URL is stale is **lost permanently**. Continuous *app* hosting cannot fix a fragile *ingress* + no
+> backfill. **Consequence: the reconcile/backfill job is MANDATORY, not optional** — it is the only thing
+> that heals dropped webhooks. Snapshot flags (`source`/`assignedUserId`/`contacted`) still match FUB
+> exactly and remain downtime-robust; the gap is call-derived metrics (Report 2). Fix = stable public
+> URL **and** a scheduled FUB `/v1/calls`+`/v1/people` since-last-sync reconcile. See §2.1-orig below for
+> the earlier (now-disproven) reasoning, retained for history.
+
+### 2.1-orig Completeness is uptime-bound — healed by continuous hosting (NOT a build blocker) — DISPROVEN 2026-07-02
+**Reframed 2026-07-02 (was "THE ACCURACY GATE / build-blocker"); this reframe was itself DISPROVEN the
+same day — see the CORRECTION above.** Verified 2026-06-25: when the app
 is running, **local == FUB exactly, 0% variance** (window 06-25 13:00-21:00 UTC: all 7 agents'
 outbound/connected/distinct-lead counts identical in both sources). **Ingestion is correct — no webhook
 filtering, no mapping bug; the numbers are right.** The *only* source of inaccuracy is **coverage**:
@@ -38,14 +58,14 @@ the app was historically not run 24/7, and webhooks that fired while it was down
 event stream is complete** — no gap to heal. Two scoping decisions make this a non-issue for v1:
 1. **Historical (pre-hosting) data is out of v1 scope.** We report only forward, over short recency
    windows (**24h / 7d**), which sit entirely inside continuous uptime.
-2. A **reconcile/backfill job** (FUB `/v1/calls`+`/v1/people` since last sync) is **demoted to
-   optional** — it only buys back pre-hosting history or insures against deploy/restart blips; it is
-   **not** a prerequisite for the v1 reports. See [phases.md](../phases.md) Phase 2b.
+2. A **reconcile/backfill job** (FUB `/v1/calls`+`/v1/people` since last sync) was demoted to optional
+   here — **REVERSED by the CORRECTION above: it is MANDATORY.** The 2026-07-02 audit found active call
+   loss in the hosted window (~41% capture), so short forward windows are **not** complete.
 
-So `processed_calls`-derived metrics are trustworthy for any 24h/7d window the app has been up across —
-which, hosted, is always. The old "~85% false-red" cross-check was an artifact of *pre-hosting downtime
-gaps + naive current-holder attribution*; continuous hosting fixes the first and Report 2's
-timeline-correct attribution (§6) fixes the second.
+So `processed_calls`-derived metrics were claimed trustworthy for any hosted 24h/7d window — **the audit
+showed this is false** (~40% false-red persists in the hosted era). The "~85% false-red" was blamed on
+pre-hosting downtime + naive attribution; timeline-correct attribution (§6) fixes the naive part, but the
+**dropped-webhook part is real and ongoing** and only the reconcile job heals it.
 
 ### 2.2 Owner / default-assignee pool (`assignedUserId = 1`) — legitimate FUB state, segregate it
 `uid=1` ("Mandeep Dhesi", FUB owner) holds **~486-498 of ~725 active leads (68%)**. Verified via FUB
@@ -84,9 +104,27 @@ Only 2 ids split: uid 31 ("Arjun Ahluwalia"/"Arjun Singh Ahluwalia" = a FUB name
 ISA pond account also labelled "Mandeep Dhesi"). We snapshot `assignedTo` verbatim from FUB.
 **Group by `assignedUserId`, pick one canonical name per id** — fully resolves it.
 
-### 2.7 `source` is messy free-text — normalize before reporting
-Observed: `Instagram` / `Insta` / `Intragram`; `Social media` / `TikTok`; `facebook`; `Manual Add`;
-`Realtor.ca`; blanks. Collapse variants to a canonical set in the semantic layer.
+### 2.7 `source` is messy free-text — normalize to the canonical set (part of the semantic layer)
+Raw values seen on active leads (live scan 2026-07-02): `facebook` (359), `Instagram` (199), blank (90),
+`Manual Add` (66), `Realtor.ca` (24), `InvestorGuide` (15), `Social media` (10), `TikTok` (10),
+`dhesirealestate.ca` (4), `Listing` (3), `Referral` (2), `Insta` (1), `Intragram` (1), `Open house` (1),
+`Mandeep Dhesi` (1), `Reference` (1). **Canonical bucket set (locked 2026-07-02, tunable)** — the
+raw→canonical mapping is encoded in the semantic-layer view and read by Report 1's top axis:
+
+| Canonical bucket | Raw values folded in |
+|---|---|
+| **Facebook** | `facebook` |
+| **Instagram** | `Instagram`, `Insta`, `Intragram` |
+| **TikTok** | `TikTok` |
+| **Social media** | `Social media` |
+| **Manual Add** | `Manual Add`, `Mandeep Dhesi` |
+| **Realtor.ca** | `Realtor.ca` |
+| **InvestorGuide** | `InvestorGuide` |
+| **Website** | `dhesirealestate.ca` |
+| **Listing** | `Listing` |
+| **Referral** | `Referral`, `Reference` |
+| **Open house** | `Open house` |
+| **Unspecified** | blank / null |
 
 ### 2.8 Mirror is materially incomplete vs FUB (completeness = webhook delivery)
 **59%** of person-linked calls are **orphans** (reference a lead absent from our `persons` mirror).
@@ -115,8 +153,9 @@ accountability report; see [§6 the lead-timeline layer](#6-the-lead-timeline-la
 **Caveats:** (1) `person.created` = first-seen-by-us, not FUB intake — so *time-to-contact* is measured
 from first-seen (attribution unaffected; only SLA-grade timing is soft). (2) **assigned-at is reliable
 for post-ingestion changes** (every reassignment we observed is timestamped), *not* for the
-pre-ingestion baseline. (3) Completeness is uptime-bound (§2.1) — clean going forward under continuous
-hosting. (4) Naming a *caller* who was never an assignee needs the FUB-user roster (Issue #19, §2.11);
+pre-ingestion baseline. (3) Completeness is gated on the webhook ingress + reconcile job (§2.1
+CORRECTION; Phase 2c) — continuous *app* hosting does **not** by itself make windows complete.
+(4) Naming a *caller* who was never an assignee needs the FUB-user roster (Issue #19, §2.11);
 the assignee is always nameable.
 
 ### 2.10 Single segment today — type/stage slicing is dead weight

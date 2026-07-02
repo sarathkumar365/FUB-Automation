@@ -27,8 +27,10 @@ it (accountability). Direct vertical slice — on-read views over existing table
 now the **substrate** (it's reconstructable from data we already hold — see below), and a reporting
 read-model *table* stays deferred (on-read views suffice; see Non-goals + Architecture posture).
 
-## Accuracy: completeness is uptime-bound, healed by continuous hosting (NOT a blocker)
-**Demoted 2026-07-02 from "build-blocker" to a completeness note.** Cross-checked the local DB against
+## Accuracy: call coverage is the ceiling — reconcile job is MANDATORY (audit-corrected)
+**History of this call, in order:** first framed as a build-blocker; then briefly demoted (2026-07-02) to
+"healed by continuous hosting, reconcile optional"; then **that demotion was DISPROVEN the same day by a
+live-API audit** (see Resolution below). Cross-checked the local DB against
 the live FUB API: **when the app is running, local == FUB exactly — 0% variance** (window
 2026-06-25 13:00–21:00 UTC, per-agent outbound/connected/distinct-lead rollup identical agent-for-agent,
 e.g. Navjot 93/93 calls, 49/49 leads; all 7 exact). **Ingestion is correct** — no webhook filtering,
@@ -37,13 +39,16 @@ not run 24/7, and webhooks fired during downtime were lost permanently (FUB deli
 Historical evidence: zero local calls 06-20→06-23 (FUB 142/91/225/193); best day 06-24 ~54%; all-time
 pre-hosting local 4,120 vs FUB 129,156.
 
-**Resolution (2026-07-02): the app is hosted and runs continuously**, so the event stream is complete
-going forward. v1 reports **forward-only over 24h/7d windows** that sit entirely inside uptime →
-trustworthy by construction. **Historical (pre-hosting) data is out of scope.** The old "~85% false-red"
-finding was an artifact of *pre-hosting downtime + naive current-holder attribution* — continuous
-hosting fixes the first, and Report 2's timeline-correct attribution fixes the second. A reconcile/
-backfill job (FUB `/v1/calls`+`/v1/people` since last sync) is **optional** (Phase 2b) — only for
-buying back pre-hosting history or insuring against deploy blips; **not a prerequisite.**
+**Resolution (2026-07-02) — DISPROVEN the same day by a live-API audit; see the CORRECTION note
+below.** The claim was: the app is hosted and runs continuously, so the event stream is complete going
+forward, and v1 forward-only 24h/7d windows are trustworthy by construction, making a reconcile/backfill
+job optional. **The 2026-07-02 audit refuted this:** recent call capture is **~41%**, the Report-2
+red-list is **~40% false**, and the root cause is an **ephemeral Cloudflare quick-tunnel webhook ingress
++ FUB at-most-once delivery (no replay)** — not app uptime, not ingestion. Continuous hosting does not
+make windows complete. **The reconcile/backfill job (now Phase 2c) is MANDATORY, not optional**, and a
+**stable public webhook URL** is required alongside it. Timeline-correct attribution (§6) still fixes the
+*naive-attribution* half of the old false-red; the *dropped-webhook* half is real, ongoing, and only the
+reconcile job heals it. See [data-truths §2.1 CORRECTION](./findings/data-truths.md).
 
 ## The lead-timeline layer — the substrate (verified against live `events`, 2026-07-02)
 The `events` table is an event-sourced diary that already captures, timestamped, everything that
@@ -192,11 +197,12 @@ owner call before build, **[TICKET]** = separate defect/effort, **[CAVEAT]** = d
 
 **P0 — RESOLVED 2026-07-02 (were blockers; both dissolved)**
 
-- [x] ~~**[TICKET] Close the ingestion uptime gap.**~~ **Resolved by continuous hosting.** Verified
-  2026-06-25: local == FUB **exactly (0% variance)** when the app is live; the only inaccuracy was
-  pre-hosting downtime. The app now runs continuously, so forward 24h/7d windows are complete; historical
-  is out of scope. The FUB `/v1/calls`+`/v1/people` reconcile/backfill job is **demoted to optional**
-  (Phase 2b) — not a prerequisite. See the "Accuracy" section above.
+- [ ] **[TICKET] Close the ingestion gap — REOPENED 2026-07-02 (audit); NOT resolved by hosting.** The
+  "resolved by continuous hosting / reconcile optional" call was **wrong**: a live-API audit found ~41%
+  recent call capture and ~40% false reds *in the hosted window*. Root cause = **ephemeral Cloudflare
+  quick-tunnel webhook ingress + FUB at-most-once delivery (no replay)**, not uptime. **Mandatory fix:**
+  a **stable public webhook URL** + a scheduled FUB `/v1/calls`+`/v1/people` since-last-sync
+  reconcile/backfill (**Phase 2c, on the critical path for R2**). See data-truths §2.1 CORRECTION.
 - [x] ~~**[DECISION] Dispose of the owner bucket.**~~ **Resolved: render `uid=1` as a normal agent.**
   The naive "~70% of all leads RED, mostly false" failure mode came from *naive current-holder
   attribution*, which **Report 2's timeline-correct attribution eliminates** (credit goes to the

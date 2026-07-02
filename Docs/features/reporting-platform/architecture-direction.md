@@ -1,8 +1,14 @@
 # Reporting — architecture direction (learnings)
 
-> **Status: research only.** Captures the direction settled during the architecture
-> brainstorm. Nothing here is designed in detail or implemented. Feeds `plan.md` when
-> we get there.
+> **Status: historical brainstorm — retained for provenance.** The **current source of truth** is
+> **[RD-014](../../repo-decisions/RD-014-reporting-query-architecture.md)** + the **2026-07-02 audit**
+> ([data-truths.md §2.1 CORRECTION](./findings/data-truths.md)). Two notes for the reader:
+> - **Superseded here:** the specific "mirror read-model + Vanna text-to-SQL" shape below is sharpened by
+>   RD-014 into "on-read SQL views now, agent-over-MCP NL deferred." Read RD-014 for the live shape.
+> - **Re-vindicated here:** this doc's core thesis — *"a mirror + reconcile is the capture spine, not
+>   optional"* — was **proven right** by the 2026-07-02 audit (the webhook ingress drops ~59% of calls;
+>   the reconcile job is now mandatory, Phase 2c). The "rejected: reporting-as-a-live-agent" reasoning
+>   and the "known limits" list also still stand.
 
 ## The settled shape
 
@@ -82,7 +88,7 @@ ships). AI writes it, humans own it, runtime stays deterministic and fast.
 ## Data-availability recap (from the data-source deep-dive)
 
 - **Answerable today:** assigned → contacted — from the `events` diary (assignment
-  history) + `processed_calls` (contact). See Q2/Q3 in [v1-scope](./v1-scope.md).
+  history) + `processed_calls` (contact). See Q2/Q3 in [plan.md](./plan.md).
 - **Blocked today — needs the mirror:** task completion (Q5/Q6), "useful" outcome (Q4,
   candidate signals = FUB `appointmentsCreated` / `dealsCreated`). Today we only capture
   **engine-created** tasks (in `workflow_run_steps.outputs` JSON), not human-created ones.

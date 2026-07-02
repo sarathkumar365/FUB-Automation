@@ -95,10 +95,12 @@ so **timeline-correct attribution is buildable now** — no reconcile job requir
 - **`contacted` vs `called` divergence** (244 vs 113) → two distinct columns.
 
 ## Cross-cutting caveats (apply to every query above)
-1. **Uptime (mostly resolved 2026-07-02)** — `processed_calls`/`call.created` are complete going forward
-   under continuous hosting; forward 24h/7d windows are fully covered. Only *pre-hosting historical*
-   windows undercount, and those are out of v1 scope (data-truths §2.1). FUB-snapshot fields remain
-   downtime-robust regardless.
+1. **Call completeness (NOT resolved — audit 2026-07-02)** — `processed_calls`/`call.created` are
+   **incomplete even in the hosted window** (~41% recent capture, ~40% false reds). Root cause = an
+   ephemeral quick-tunnel webhook ingress + FUB at-most-once delivery (no replay), *not* uptime — so
+   continuous hosting does **not** fix it; the **mandatory reconcile job (Phase 2c)** does. Any
+   call-derived query is understated until then. FUB-snapshot fields (`source`/`assignedUserId`/
+   `contacted`) match FUB exactly and remain downtime-robust regardless (data-truths §2.1 CORRECTION).
 2. **Owner pool** (`uid=1`) — **not** segregated: rendered as a normal agent (data-truths §2.2).
    Report 2's timeline-correct attribution prevents the per-agent distortion the old segregation guarded
    against.
@@ -115,7 +117,9 @@ so **timeline-correct attribution is buildable now** — no reconcile job requir
 3. **Report 2 — Assigned → contacted, timeline-correct** — accountability, attributing each contact to
    the holder-at-the-time. Now buildable in v1 (not deferred) because the timeline + continuous hosting
    remove the old call-completeness blocker.
-Windows 24h/7d, forward-only. The reconcile job (Phase 2b) is optional, not a prerequisite.
+Windows 24h/7d, forward-only. **The reconcile job (Phase 2c) is MANDATORY, not optional** — the
+2026-07-02 audit found ~41% recent call capture / ~40% false reds from an ephemeral quick-tunnel ingress
++ FUB at-most-once delivery; R2's call-derived accuracy is gated on it (data-truths §2.1 CORRECTION).
 
 ## Report-flow archetypes (industry patterns) — mapped by build tier
 The manager UX is built from a small set of standard analytics **flows** (interaction shape +
@@ -148,7 +152,8 @@ app-uptime window — gated on the reconcile job · 🔴 not captured yet):
    last unlocked 2026-07-02 by the `events`-diary timeline (data-truths §2.9) + continuous hosting.
 2. **Trustworthy forward under continuous hosting** (was "gated on the reconcile job"): leaderboard /
    scorecard, velocity, call trends — call-derived, complete for forward 24h/7d windows now that the
-   app runs continuously. The reconcile job (Phase 2b) is now *optional* — only for pre-hosting history.
+   app runs continuously. **[Corrected 2026-07-02:** the reconcile job (Phase 2c) is **mandatory**, not
+   optional — the hosted window is only ~41% complete; see the Uptime caveat above and data-truths §2.1.]
 3. **Blocked until new capture:** full funnel-to-**conversion**, **pipeline/forecast**, **attribution
    to outcomes**.
    All three need FUB **appointments/deals** ingested — so that one capture investment **unlocks three

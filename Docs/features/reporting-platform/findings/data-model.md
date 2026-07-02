@@ -96,8 +96,11 @@ Handled by `FubWebhookParser`: `callsCreated`, `peopleCreated`, `peopleUpdated`,
 - **Nullable attribution keys** (`source_user_id`, `source_person_id`) cap per-agent /
   per-lead accuracy. Because `raw_payload` is retained, a high null rate is diagnosable
   (FUB didn't send it = tolerate) vs. fixable (we didn't extract it = parse + backfill).
-  **The `source_user_id` null rate is the ceiling on accountability accuracy** and is the
-  one number to measure before trusting any per-agent figure.
+  **Update 2026-07-02:** the null rate turned out **not** to be the ceiling — on calls that link to a
+  lead, `source_user_id` is **0% null** (the nulls are unmapped rows that can't join a lead anyway). The
+  real ceiling on accountability accuracy is **call *coverage*** — the ephemeral webhook ingress drops
+  ~59% of recent calls (see [data-truths.md §2.1 CORRECTION](./data-truths.md)); the fix is the Phase 2c
+  reconcile job, not null-rate remediation.
 - **Mirror completeness = webhook-delivery completeness.** We hold the leads FUB sent us
   webhooks for; a lead that never triggered one isn't present.
 
@@ -109,4 +112,5 @@ Handled by `FubWebhookParser`: `callsCreated`, `peopleCreated`, `peopleUpdated`,
 - **Blocked (needs the mirror / new capture):** task creation vs. completion (Q5/Q6),
   "useful" outcome (Q4, via appointments/deals), text/SMS contact, true FUB intake date.
 
-See also: [v1-scope](../v1-scope.md), [architecture-direction](../architecture-direction.md).
+See also: [plan.md](../plan.md) (guiding questions Q1–Q6), [architecture-direction](../architecture-direction.md),
+[data-truths.md](./data-truths.md) (canonical semantic layer).

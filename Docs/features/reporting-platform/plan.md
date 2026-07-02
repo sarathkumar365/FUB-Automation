@@ -43,6 +43,19 @@ owner preference; this board is the second slice — see "Order of work".)*
   anchors on the assigned agent, whose name is already captured (`assignedTo`).
 - **Text/SMS contact**, true FUB intake date, on-time task semantics.
 
+### Original guiding questions (Q1–Q6 — folded from the former `v1-scope.md`)
+The user's original asks, kept for provenance. Q2/Q3 are what Phase 2 builds; Q4–Q6 stay deferred.
+- **Q1 — Leads in:** how many leads entered, per period. *(Volume; the funnel denominator.)*
+- **Q2 — Leads contacted:** of assigned/self-assigned leads, how many were actually contacted. *(→ Report 1.)*
+- **Q3 — Per-agent assignment vs. follow-up:** for an agent, leads assigned/self-assigned vs. how many they
+  followed up — the accountability angle. *(→ Report 2, timeline-correct.)*
+- **Q4 — Assigned → contacted → *useful*:** adds outcome quality (qualified/appointment/deal). **Deferred** —
+  needs appointments/deals capture.
+- **Q5 — Task creation vs. completion; Q6 — was a due task finished:** **Deferred** — no task table / task
+  webhooks today (only engine-created tasks in `workflow_run_steps.outputs`).
+> Definition trap (Run 163): "contacted"/"followed up" depend on which call types count and over what
+> window — frozen in reviewed SQL, never re-decided per query.
+
 ## Design
 
 **Build order, not the end state.** Phases 1–2 are plain vertical slices — each its own

@@ -7,7 +7,11 @@
 > semantic layer, §6 = this substrate), [phase-2-design-handoff.md](./phase-2-design-handoff.md)
 > (the brief for the FE screens), [RD-014](../../repo-decisions/RD-014-reporting-query-architecture.md).
 
-## What we're building
+## What we're building — two phases
+1. **Phase 2a — Lead-timeline substrate.** Reconstruct a per-lead ownership timeline from the events we
+   already capture (a SQL view; no API, no UI). The foundation.
+2. **Phase 2b — The two reports.** Run two manager reports on top of the timeline (BE + FE).
+
 A **lead-timeline substrate** (on-read SQL views over `events`) and **two deterministic reports** on
 top, admin/owner-facing, over short forward windows (**24h / 7d**):
 
@@ -23,8 +27,11 @@ Direct vertical slice — plain SQL views + dashboard-local read repos, **not** 
 ## Locked decisions (2026-07-02)
 1. **Semantic layer = real Flyway `CREATE VIEW`(s)** (not CTEs duplicated per query). Single source of
    truth both reports — and any future NL layer — read. First DB view in the repo.
-2. **Windows: 24h / 7d, forward-only.** Historical (pre-hosting) out of scope; continuous hosting makes
-   short windows complete. Default 7d; 24h is the leading edge.
+2. **Windows: 24h / 7d, forward-only.** Default 7d; 24h is the leading edge. Historical (pre-hosting)
+   out of scope. **⚠️ Corrected 2026-07-02 (audit):** short windows are *not* automatically complete —
+   the ephemeral webhook ingress drops ~59% of recent calls (data-truths §2.1 CORRECTION), so **R2's
+   call-derived numbers are gated on Phase 2c** (stable ingress + reconcile). R1 (snapshot flags) is
+   unaffected.
 3. **Holder-intervals anchor on the `persons` row, NOT `person.created` events.** Only 266/784 active
    leads (34%) have a `person.created` event; every lead has a `persons` row. Each `person.state_changed`
    reassignment carries *both* previous and current owner, so the chain reconstructs from `persons`
@@ -32,7 +39,7 @@ Direct vertical slice — plain SQL views + dashboard-local read repos, **not** 
 4. **Contact is a 3-state, two-type model** (per lead, mutually exclusive):
    - **Reached by call** — an actual outbound call in our log; attributed to the holder-at-call-time.
    - **Reached by another channel** — FUB `contacted='1'` **but no call on record** (residual ⇒ msg/email);
-     attributed to the holder-at-flip-time. Reliable only under complete call capture (continuous hosting).
+     attributed to the holder-at-flip-time. Reliable only under complete call capture — **gated on Phase 2c**.
    - **Not reached** — `contacted='0'` and no call.
 5. **Report 1 drill depth: Source → Agent → contact outcome** (3 levels).
 6. **Report 2 drill: per-agent → the actual not-reached leads** (worklist with name + contact handle),
@@ -44,6 +51,13 @@ Direct vertical slice — plain SQL views + dashboard-local read repos, **not** 
    (`persons.created_at` / `person.created` in-window). "Contacted-within-window" (recency) is a Report-2
    / velocity concern, not Report 1.
 9. **FE waits on a design handoff** (see companion doc); **BE is built first** and does not block on it.
+10. **Canonical lead-source set is part of Phase 2a's semantic layer** (a `definitions` artifact, not a
+    per-query CASE). Locked buckets from the live distinct-value scan (2026-07-02): **Facebook**
+    (`facebook`) · **Instagram** (`Instagram`/`Insta`/`Intragram`) · **TikTok** · **Social media** ·
+    **Manual Add** (+`Mandeep Dhesi`) · **Realtor.ca** · **InvestorGuide** · **Website**
+    (`dhesirealestate.ca`) · **Listing** · **Referral** (+`Reference`) · **Open house** ·
+    **Unspecified** (blank/null). Encoded as a raw→canonical mapping in the view; the set is recorded in
+    [data-truths §2.7](./findings/data-truths.md) and is tunable. Report 1's top axis reads it.
 
 ### Verification banked (2026-07-02)
 Holder reconstruction was checked against the FUB API (read-only `GET /v1/people/{id}`):
@@ -60,7 +74,7 @@ Holder reconstruction was checked against the FUB API (read-only `GET /v1/people
 | **Reached by call** | ≥1 outbound call to the lead whose `call_started_at` falls in a holder interval; credited to that holder. |
 | **Reached by other channel** | `person_details->>'contacted' = '1'` AND no outbound call on record (residual). |
 | **Not reached** | `contacted='0'` and no outbound call. |
-| **Source (normalized)** | `person_details->>'source'` collapsed to a canonical set (Instagram/Insta/Intragram → Instagram, etc.). |
+| **Source (normalized)** | `person_details->>'source'` collapsed to the canonical bucket set (decision 10; e.g. Instagram/Insta/Intragram → Instagram). |
 | **Group key** | `assignedUserId` (bigint); display `assignedTo`, canonical name per id. |
 
 ## What already exists to reuse (from the 2026-07-02 code sweep)
@@ -173,15 +187,32 @@ Backend (mirrors the dashboard package shape):
 
 Frontend (blocked on design handoff): `modules/reporting-source/` and `modules/reporting-accountability/`, each with its `platform/contracts/*Schemas.ts` + port + `httpAdapter` + container wiring + `queryKeys` + `use*Query`.
 
-## Order of work (BE-first)
-1. **Timeline view + IT** — `V24` view, `HolderIntervals…PostgresTest` (reassigned-lead interval correctness). *No API surface yet.*
-2. **Report 1 read path + IT** — source normalization + 3-state aggregate.
-3. **Report 1 API** — controller endpoint + DTO + service unit tests (mocked repo).
-4. **Report 2 read path + IT** — attribution join over the view (the correctness-critical IT) + unreached-drill query.
-5. **Report 2 API** — endpoints + DTO + service unit tests.
-6. **Index migration `V25`** (fast-follow; the JSONB expression index).
-7. **Frontend** (both modules) — once the design handoff lands.
-8. **Docs** — update `phases.md`, append `phase-2-implementation` notes, add RD-014 to `repo-decisions/README.md` index.
+## The two phases (build order, BE-first)
+
+### Phase 2a — Lead-timeline substrate
+The foundation: reconstruct the per-lead ownership timeline. **No API, no UI — a view + its proof.**
+1. `V24` — the `v_lead_holder_intervals` view (above).
+2. `HolderIntervals…PostgresTest` IT — seed a lead reassigned mid-window with a call in each interval;
+   assert each call credits the holder-at-call-time; assert a never-reassigned lead is a single interval.
+
+**Done signal:** IT green; the view returns the correct holder-at-T for reassigned and unreassigned
+leads. Independently reviewable and shippable — a pure substrate with no behavior surface.
+
+### Phase 2b — The two reports (on the timeline)
+3. **Report 1** — read path + IT (source normalization + 3-state aggregate) → API (endpoint + DTO +
+   service unit tests on a mocked repo).
+4. **Report 2** — read path + IT (the correctness-critical attribution join over the view + the
+   unreached-drill query) → API (endpoints + DTO + unit tests).
+5. **`V25`** — JSONB expression index (fast-follow).
+6. **Frontend** — both modules (RD-011 trio + screens) once the design handoff lands.
+7. **Docs** — update `phases.md`, append notes, keep the RD-014 README index current.
+
+**Done signal:** both reports render with correct numbers; a lead reassigned mid-window credits the
+right agent (no false red); the unreached drill lists the actual leads; FE gate green.
+
+> **Dependency honesty:** Report 1 reads the *current* holder and doesn't strictly need the timeline;
+> only Report 2 does. Both live in 2b, but if 2b is sliced further, Report 1 can land before the timeline
+> IT fully settles. Phase 2a is the hard, foundational piece — do it first and get it provably right.
 
 ## Lifecycle diagram (Report 2, main path)
 ```mermaid
@@ -212,10 +243,10 @@ flowchart TB
 - **`persons.created_at` = first-seen, not FUB intake** → "arrived in window" approximate for pre-existing leads. *Mitigation:* documented limitation; forward windows under hosting are clean.
 
 ## Validation criteria
-- **Step 1:** IT proves a reassigned lead's calls each credit the holder-at-call-time; an unreassigned lead is a single interval.
-- **Report 1:** source→agent→outcome renders; source variants collapse; 3-state counts sum to the agent's held-lead total.
-- **Report 2:** per-agent 3-state renders; a lead reassigned mid-window credits the right agent (no false red); the unreached drill lists the actual leads.
+- **Phase 2a (timeline):** IT proves a reassigned lead's calls each credit the holder-at-call-time; an unreassigned lead is a single interval.
+- **Phase 2b · Report 1:** source→agent→outcome renders; source variants collapse; 3-state counts sum to the agent's held-lead total.
+- **Phase 2b · Report 2:** per-agent 3-state renders; a lead reassigned mid-window credits the right agent (no false red); the unreached drill lists the actual leads.
 - **Suite:** existing backend suite + new ITs green; FE gate green once built.
 
 ## Repo decisions impact
-**Yes.** Governed by **[RD-014](../../repo-decisions/RD-014-reporting-query-architecture.md)** (Accepted; its 2026-07-02 amendment already records the event-sourced timeline as the semantic-layer substrate and demotes the reconcile job). The DB-view-as-semantic-layer is RD-014's literal implementation — **no new RD needed**. Action item: **RD-014 is missing from `Docs/repo-decisions/README.md` — add it** (hygiene). RD-012 framework extraction stays Phase 3 (these views are plain SQL, not the framework). FE follows RD-011 (schema ownership) + RD-013 (charts).
+**Yes.** Governed by **[RD-014](../../repo-decisions/RD-014-reporting-query-architecture.md)** (Accepted; its 2026-07-02 amendment records the event-sourced timeline as the semantic-layer substrate. **The amendment's "reconcile job optional" clause was REVERSED the same day by a live-API audit — the reconcile/backfill job + a stable webhook ingress are MANDATORY and gate R2's call-derived accuracy; see data-truths §2.1 CORRECTION and phases.md Phase 2c.**). The DB-view-as-semantic-layer is RD-014's literal implementation — **no new RD needed**. Action item: **RD-014 is missing from `Docs/repo-decisions/README.md` — add it** (hygiene). RD-012 framework extraction stays Phase 3 (these views are plain SQL, not the framework). FE follows RD-011 (schema ownership) + RD-013 (charts).
