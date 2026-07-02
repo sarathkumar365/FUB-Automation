@@ -22,9 +22,14 @@ Two facts discovered after acceptance sharpen (do not reverse) this decision:
    at-most-once delivery (no replay) + no backfill** — not app uptime, not ingestion. Continuous app
    hosting does not make forward windows complete. The 24/7 **and** reconcile prerequisite in
    Consequences below **stands**; only the "reconcile is optional" wording is retracted. Fix = a stable
-   public webhook URL **plus** a scheduled FUB `/v1/calls`+`/v1/people` since-last-sync reconcile. See
+   public webhook URL **plus** (optionally) a reconcile. See
    [data-truths §2.1 CORRECTION](../features/reporting-platform/findings/data-truths.md) and
    [phases.md](../features/reporting-platform/phases.md) Phase 2c.
+   **RESOLUTION 2026-07-02:** the **ingress half is FIXED** — the app runs on Railway at a stable public
+   URL with FUB webhooks registered to it (verified: steady hourly ingestion). Forward data is now
+   reliable, so **R2 is trustworthy for windows entirely after the fix.** The **reconcile/backfill job is
+   PARKED (not built)** — we accept forward-only R2 and do not recover pre-fix history. So the net
+   prerequisite for R2 was a *stable ingress*, now met; the reconcile job is optional insurance, deferred.
 
 Deterministic-first, accountability-frozen-in-SQL, and NL-deferred-and-demand-gated all stand unchanged.
 

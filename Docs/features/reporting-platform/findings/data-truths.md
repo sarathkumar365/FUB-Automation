@@ -23,7 +23,14 @@
 ## 2. Data-quality truths (the things NOT in the schema)
 Each is a fact about how this brokerage / pipeline works that no schema-probe or row-sample reveals.
 
-### 2.1 Completeness is NOT healed by hosting — reconcile is mandatory (ingress-bound accuracy gate)
+### 2.1 Completeness is ingress-bound — ingress now FIXED (Railway); backfill parked
+> **RESOLUTION 2026-07-02 (read this first).** The ingress root cause below is **fixed**: the app runs on
+> Railway at a stable public URL with FUB webhooks registered to it — verified by steady hourly ingestion
+> the same day. **Forward data is now reliable, so any 24h/7d window entirely after the fix is complete
+> and R2 is trustworthy over it.** We are **not** backfilling pre-fix history (reconcile job PARKED — see
+> phases.md Phase 2c), so a window reaching back into the pre-fix zero-days still undercounts; this
+> self-heals as the window rolls forward. The audit narrative below is retained as the *why*.
+>
 > **CORRECTION 2026-07-02 (audit) — supersedes the "healed by continuous hosting / reconcile optional"
 > reframe below.** A live FUB-API audit disproved the "hosted ⇒ complete" premise. Measured against
 > ground truth *today*: recent call capture is **~41%** (30 of 73 FUB outbound calls in a 06-24/25 slice
