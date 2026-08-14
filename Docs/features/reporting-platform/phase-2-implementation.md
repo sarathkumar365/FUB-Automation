@@ -455,6 +455,53 @@ GET /admin/reporting/accountability?window=yesterday
 | Time | `ReportWindowTest` (8) | Toronto boundaries, non-moving windows, half-open ranges |
 | End-to-end | `SourceContactReportFlowTest` (9) | Real HTTP through security → SQL → JSON; 400 on bad input; 403 without a role |
 
+## Phase 2f — Frontend plan (2026-08-14, design handoff received)
+
+Design source: `ui/Flux Design System/design_handoff_reporting_phase2/` (README + `Reports.dc.html`
+prototype). High-fidelity; recreate with codebase primitives, never ship the HTML. The handoff
+predates the 2026-08-12 backend replan, so two of its assumptions are deliberately overridden
+(owner-approved 2026-08-14):
+
+| Handoff says | We build | Why |
+|---|---|---|
+| Windows "Last 24 Hours / Last 7 Days" | Segmented control with **Yesterday / Today / This week** | Calendar-day windows in the business timezone are a locked replan decision — rolling windows change hourly |
+| Middle outcome = "reached by another channel" (contacted) | **Spoke / Attempted / Untouched**; "reached %" counts Spoke only | Our middle state means *dialled but NOT reached* — keeping the handoff copy would report attempts as contact, the exact lie the replan removed. Colors stay (teal/indigo/amber) |
+
+Also fixed at approval: inspector stays the shell's 320px (not the handoff's 372px); no role
+gating — all three roles see both reports and contact handles, matching the backend's
+`@PreAuthorize`; the "Preview State" pill is prototype-only chrome, not implemented.
+
+**Charting — [RD-015](../../repo-decisions/RD-015-charting-library-echarts.md).** The sankey is
+ECharts (first consumer of the new library), via the centralized `ui/src/platform/charts/` layer:
+`chartTheme.ts` (theme resolved from CSS tokens at runtime, light+dark) + `EChart.tsx` (the one
+wrapper: init/resize/dispose/events; modular `echarts/core` imports). Option builders are pure,
+unit-tested functions in the feature's `lib/` — the traceability chain per chart is
+API → Zod contract → port/adapter → query hook → pure option builder → `<EChart>`. Everything
+that is not a chart (ledger tree, agent table, mix bars, chips, worklist) is plain flex/grid
+per the handoff. Sankey visuals therefore sit close to, not pixel-identical with, the prototype.
+
+**Data fit (verified against the shipped DTOs):** R1's nested `sources[].agents[].counts` is
+exactly the sankey triple (source×agent×state) — drill, breadcrumb, and both ledger levels are
+client-side folds of it, no new endpoints. R2's `agents[].counts` drives the table; the
+`/unreached` worklist already returns name/phone/email/source/arrivedAt oldest-first, and its
+`truncated` flag renders as an honesty note at the 200 cap. `window.eventsReceived` gives the
+empty state its "quiet day vs feed down" variant — a distinction the handoff couldn't know about.
+The handoff's "Agents hold all of them" narration holds by construction (R1's cohort filters
+`assignedUserId IS NOT NULL`).
+
+**Module shape (one module, not two):** `ui/src/modules/reports/` — `data/` (three query hooks),
+`lib/` (pure folds: narration, sankey option, ledger rows, sort), `ui/` (ReportsPage + the two
+report views + inspector worklist). Platform chain: `contracts/reportingSchemas.ts` → 
+`ports/reportingPort.ts` → `adapters/http/httpReportingAdapter.ts` → `container.ts` →
+`queryKeys.reports.*(window)`.
+
+**Build order:** RD-015 + `echarts` install → `platform/charts/` → tokens
+(`--color-outcome-{call|other|none}-*`) + primitives (SegmentedControl — new; Skeleton `shimmer`
+variant; EmptyState hero extension; bar-chart + eye icons) → data plumbing → shell entries
+(rail item, `/admin-ui/reports` route, panel nav cards, `uiText.reports`) → Report 1 (narration,
+flow story w/ drill, ledger) → Report 2 (sortable table, narration, inspector worklist) →
+states → tests + `npm run check`.
+
 ## Placement (net-new files)
 Backend (mirrors the dashboard package shape):
 - `service/reporting/timeline/` — timeline read repo over the view (or the view is read directly by each report repo).
@@ -464,7 +511,11 @@ Backend (mirrors the dashboard package shape):
 - DTOs under `controller/dto/`.
 - Flyway: `V24__create_lead_holder_intervals_view.sql`; `V25__index_persons_assigned_user_id.sql` (`CREATE INDEX ... ON persons ((person_details->>'assignedUserId')) WHERE kind='LEAD'`).
 
-Frontend (blocked on design handoff): `modules/reporting-source/` and `modules/reporting-accountability/`, each with its `platform/contracts/*Schemas.ts` + port + `httpAdapter` + container wiring + `queryKeys` + `use*Query`.
+Frontend (plan above, 2026-08-14): one `modules/reports/` module + the shared
+`platform/charts/` layer; single `contracts/reportingSchemas.ts` + `reportingPort` +
+`httpReportingAdapter` + container wiring + `queryKeys.reports` + three `use*Query` hooks.
+*(The earlier two-module sketch here is superseded — both reports share one nav surface,
+one port, and one uiText namespace.)*
 
 ## The two phases (build order, BE-first)
 
@@ -493,7 +544,7 @@ leads. Independently reviewable and shippable — a pure substrate with no behav
 | **2c** | Report 1 — leads by source, three states, calendar windows | **DONE 2026-08-13** — `GET /admin/reporting/source-contact`; 29 tests + a 6-case end-to-end HTTP flow |
 | **2d** | Report 2 — agent scorecard + unreached drill | **DONE 2026-08-14** — `GET /admin/reporting/accountability` and `/{agentId}/unreached`; 23 tests. Each lead lands on exactly one agent: whoever acted on it, else whoever holds it now |
 | **2e** | `V26` JSONB index + 5-minute client cache | Measured, not assumed |
-| **2f** | Frontend, both modules | Needs a design brief — the old one was deleted |
+| **2f** | Frontend — one `modules/reports/` module, ECharts sankey (RD-015) | **Design handoff received + plan approved 2026-08-14** — see "Phase 2f — Frontend plan" above |
 
 ### Phase 2b — The two reports (on the timeline)
 3. **Report 1** — read path + IT (source normalization + the decision-4 contact-state aggregate) → API (endpoint + DTO +
