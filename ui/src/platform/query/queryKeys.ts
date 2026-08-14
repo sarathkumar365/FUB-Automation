@@ -1,4 +1,5 @@
 import type { PersonListFilters, PersonSummaryFilters } from '@shared/types/person'
+import type { ReportWindowKey } from '../contracts/reportingSchemas'
 import type { WebhookListFilters } from '@shared/types/webhook'
 import type { ProcessedCallFilters } from '../ports/processedCallsPort'
 import type { WorkflowListFilters } from '../ports/workflowPort'
@@ -36,6 +37,12 @@ export const queryKeys = {
   },
   dashboard: {
     snapshot: () => ['dashboard', 'snapshot'] as const,
+  },
+  reports: {
+    sourceContact: (window: ReportWindowKey) => ['reports', 'source-contact', window] as const,
+    accountability: (window: ReportWindowKey) => ['reports', 'accountability', window] as const,
+    unreached: (agentId: number, window: ReportWindowKey) =>
+      ['reports', 'unreached', agentId, window] as const,
   },
   settings: {
     config: () => ['settings', 'config'] as const,

@@ -52,3 +52,6 @@ ui/playwright-report/
 ### Claude Code personal/local config ###
 .claude/settings.local.json
 .claude/worktrees/
+
+### Design handoffs — local reference only, not tracked ###
+ui/Flux Design System/design_handoff_*/

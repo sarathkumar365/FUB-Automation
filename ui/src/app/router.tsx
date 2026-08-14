@@ -15,6 +15,7 @@ import { WorkflowDetailPage } from '@modules/workflows/ui/WorkflowDetailPage'
 import { WorkflowRunsPage } from '@modules/workflow-runs/ui/WorkflowRunsPage'
 import { WorkflowRunDetailPage } from '@modules/workflow-runs/ui/WorkflowRunDetailPage'
 import { DashboardPage } from '@modules/dashboard/ui/DashboardPage'
+import { ReportsPage } from '@modules/reports/ui/ReportsPage'
 import { SettingsPage } from '@modules/settings/ui/SettingsPage'
 import { PersonsPage } from '@modules/persons/ui/PersonsPage'
 import { PersonDetailPage } from '@modules/persons/ui/PersonDetailPage'
@@ -109,6 +110,10 @@ export function createAppRouter() {
             {
               path: 'workflow-runs/:runId',
               element: <WorkflowRunDetailPage />,
+            },
+            {
+              path: 'reports',
+              element: <ReportsPage />,
             },
             {
               path: 'settings',

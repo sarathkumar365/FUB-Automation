@@ -1,4 +1,4 @@
-export type AppNavKey = 'webhooks' | 'processedCalls' | 'persons' | 'workflows' | 'settings'
+export type AppNavKey = 'webhooks' | 'processedCalls' | 'persons' | 'workflows' | 'reports' | 'settings'
 
 export const routes = {
   root: '/',
@@ -16,6 +16,7 @@ export const routes = {
   workflowBuilderEdit: (key: string) => `/admin-ui/workflows/${encodeURIComponent(key)}/edit`,
   workflowRuns: '/admin-ui/workflow-runs',
   workflowRunDetail: (runId: number) => `/admin-ui/workflow-runs/${encodeURIComponent(String(runId))}`,
+  reports: '/admin-ui/reports',
   settings: '/admin-ui/settings',
   sessionDisabled: '/admin-ui/session-disabled',
 } as const
@@ -59,6 +60,11 @@ export const appNavItems: readonly NavItem[] = [
     // Active on both the Definitions sub-tab (/workflows) and the Runs
     // sub-tab (/workflow-runs). Detail pages under each also qualify.
     matchPaths: [routes.workflows, routes.workflowRuns],
+  },
+  {
+    key: 'reports',
+    to: routes.reports,
+    matchPaths: [routes.reports],
   },
   {
     key: 'settings',

@@ -6,6 +6,13 @@ Accepted (2026-06-19) — the **custom-vs-library split** is decided. The specif
 consumer). Scope: `ui/` reporting (and any future charting in the app). Implementation
 begins with reporting-platform Phase 1 (dashboard charts, custom).
 
+> **2026-08-14 — library chosen at the designated trigger.** The first chart-heavy
+> consumer arrived (Phase 2f reporting sankey) and the choice was made per this record's
+> "confirm at adoption" clause: **Apache ECharts**, not visx — see
+> [RD-015](./RD-015-charting-library-echarts.md) for the re-evaluation. The
+> custom-vs-library split above **still stands**; only the provisional visx lean (point 3)
+> is superseded.
+
 ## Context
 The reporting platform will need charts across its lifetime, but they fall into two very
 different classes:

@@ -19,7 +19,9 @@ This folder is the repo-wide decision registry for architectural and process dec
 - `RD-010-step-type-categories.md` — Status: Accepted (implementation = loop-primitive Phase 0)
 - `RD-011-ui-schema-ownership.md` — Status: Accepted (ui/ only; implementation = ui-architecture-conformance Phase 2)
 - `RD-012-reporting-platform-architecture.md` — Status: Proposed (extract & ratify on reporting-platform Phase 3, rule of three)
-- `RD-013-reporting-charts-custom-vs-library.md` — Status: Accepted (custom SVG for design-primitives; library — lean visx — at the analytical layer)
+- `RD-013-reporting-charts-custom-vs-library.md` — Status: Accepted (custom SVG for design-primitives; library at the analytical layer — lean superseded: library chosen in RD-015)
+- `RD-014-reporting-query-architecture.md` — Status: Accepted (deterministic-first over a thin semantic layer = SQL views + data-truths.md; NL deferred/demand-gated. Amended 2026-07-02: event-sourced timeline substrate; reconcile job optional)
+- `RD-015-charting-library-echarts.md` — Status: Accepted (Apache ECharts behind an in-house wrapper + token-driven theme in `platform/charts/`; executes RD-013's deferred choice at the first chart-heavy consumer — reporting 2f sankey)
 
 ## Decision Lifecycle
 - Status values: `Proposed`, `Accepted`, `Superseded`, `Deprecated`
