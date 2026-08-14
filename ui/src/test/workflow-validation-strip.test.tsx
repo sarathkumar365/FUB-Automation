@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import { ValidationStrip } from '../modules/workflows/ui/WorkflowDetailPage/StoryboardTab/ValidationStrip'
+import { ValidationStrip } from '@modules/workflows/ui/WorkflowDetailPage/StoryboardTab/ValidationStrip'
 
 describe('ValidationStrip', () => {
   it('shows the idle hint by default', () => {

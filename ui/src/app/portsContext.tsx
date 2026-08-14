@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { appPorts } from '../platform/container'
+import { appPorts } from '@platform/container'
 import { PortsContext } from './portsContextValue'
 
 export function AppPortsProvider({ children }: { children: ReactNode }) {

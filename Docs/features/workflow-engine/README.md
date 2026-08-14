@@ -1,6 +1,8 @@
 # Workflow Engine Rebuild — Documentation Index
 
-The workflow engine is being rebuilt in tracked **waves**. Each wave has its own folder under `waves/` containing all phased implementation notes for that wave.
+> **Status: COMPLETE.** The rebuild shipped — Waves 1–5 and the Operator UI track are all `COMPLETED` (see [phases.md](phases.md)). The legacy policy engine has been removed (Wave 5). Two items remain as explicit **deferred backlog**, out of the rebuild scope: Wave 4b (builder UI) and run/step retry controls. The loop primitive is tracked separately under [loop-primitive/](loop-primitive/).
+
+The workflow engine was rebuilt in tracked **waves**. Each wave has its own folder under `waves/` containing all phased implementation notes for that wave.
 
 ## Sample Workflow - consists 2 section. A Trigger & Steps
 
@@ -34,6 +36,7 @@ The workflow engine is being rebuilt in tracked **waves**. Each wave has its own
 | [workflow-engine-technical-implementation.md](workflow-engine-technical-implementation.md) | Detailed technical design and schema-level notes. |
 | [policy-engine-rebuild-analysis-and-plan.md](policy-engine-rebuild-analysis-and-plan.md) | Legacy analysis document that informed the workflow rebuild direction. |
 | [scenarios/lead-intake-call-attempt-workflow/](scenarios/lead-intake-call-attempt-workflow/) | Scenario pack for complex lead-intake/call-attempt workflow and capability-gap planning. |
+| [steps/](steps/) | Per-step reference docs (one file per `WorkflowStepType.id()`). Start at [steps/README.md](steps/README.md) for the convention. |
 
 ## Waves
 

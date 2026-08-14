@@ -26,10 +26,10 @@ Out of scope per the user's answers: new trigger event types and rich conditiona
 ### Key files (verified)
 | Role | File |
 |---|---|
-| Blueprint validator (single-template, hardcoded) | `src/main/java/com/fuba/automation_engine/service/policy/PolicyBlueprintValidator.java` |
-| Planning / idempotency / run+step materialization | `src/main/java/com/fuba/automation_engine/service/policy/PolicyExecutionManager.java` |
-| Step dispatch + transition application | `src/main/java/com/fuba/automation_engine/service/policy/PolicyStepExecutionService.java` |
-| Polling worker (every 2s, FOR UPDATE SKIP LOCKED) | `src/main/java/com/fuba/automation_engine/service/policy/PolicyExecutionDueWorker.java` |
+| Blueprint validator (single-template, hardcoded) | `src/main/java/com/flux/service/policy/PolicyBlueprintValidator.java` |
+| Planning / idempotency / run+step materialization | `src/main/java/com/flux/service/policy/PolicyExecutionManager.java` |
+| Step dispatch + transition application | `src/main/java/com/flux/service/policy/PolicyStepExecutionService.java` |
+| Polling worker (every 2s, FOR UPDATE SKIP LOCKED) | `src/main/java/com/flux/service/policy/PolicyExecutionDueWorker.java` |
 | Step executors (one per Java class) | `WaitAndCheckClaimStepExecutor`, `WaitAndCheckCommunicationStepExecutor`, `OnCommunicationMissActionStepExecutor` (same package) |
 | Hardcoded step state machine | `PolicyStepTransitionContract` |
 | Webhook → policy fan-out | `service/webhook/WebhookEventProcessorService.java` (`processAssignmentDomainEvent`) |
@@ -254,24 +254,24 @@ The user's answer was **greenfield engine alongside old**, so phases 1–4 are p
 
 **Backend (new):**
 - `src/main/resources/db/migration/V{next}__create_workflow_engine.sql`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepType.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepRegistry.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowGraphValidator.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionDueWorker.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/WaitAndCheckClaimWorkflowStep.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubReassignWorkflowStep.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/FubMoveToPondWorkflowStep.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/SlackNotifyWorkflowStep.java`
-- `src/main/java/com/fuba/automation_engine/persistence/entity/WorkflowEntity.java`, `WorkflowRunEntity.java`, `WorkflowRunStepEntity.java`
-- `src/main/java/com/fuba/automation_engine/persistence/repository/WorkflowRepository.java`, `WorkflowRunRepository.java`, `WorkflowRunStepRepository.java` (the step repo holds the `claimDuePendingSteps()` analog)
-- `src/main/java/com/fuba/automation_engine/controller/AdminWorkflowController.java`
-- `src/main/java/com/fuba/automation_engine/controller/AdminWorkflowExecutionController.java`
+- `src/main/java/com/flux/service/workflow/WorkflowStepType.java`
+- `src/main/java/com/flux/service/workflow/WorkflowStepRegistry.java`
+- `src/main/java/com/flux/service/workflow/WorkflowGraphValidator.java`
+- `src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java`
+- `src/main/java/com/flux/service/workflow/WorkflowExecutionDueWorker.java`
+- `src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java`
+- `src/main/java/com/flux/service/workflow/steps/WaitAndCheckClaimWorkflowStep.java`
+- `src/main/java/com/flux/service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.java`
+- `src/main/java/com/flux/service/workflow/steps/FubReassignWorkflowStep.java`
+- `src/main/java/com/flux/service/workflow/steps/FubMoveToPondWorkflowStep.java`
+- `src/main/java/com/flux/service/workflow/steps/SlackNotifyWorkflowStep.java`
+- `src/main/java/com/flux/persistence/entity/WorkflowEntity.java`, `WorkflowRunEntity.java`, `WorkflowRunStepEntity.java`
+- `src/main/java/com/flux/persistence/repository/WorkflowRepository.java`, `WorkflowRunRepository.java`, `WorkflowRunStepRepository.java` (the step repo holds the `claimDuePendingSteps()` analog)
+- `src/main/java/com/flux/controller/AdminWorkflowController.java`
+- `src/main/java/com/flux/controller/AdminWorkflowExecutionController.java`
 
 **Backend (modified):**
-- `src/main/java/com/fuba/automation_engine/service/webhook/WebhookEventProcessorService.java` — additive: invoke `WorkflowTriggerRouter` after the existing policy fan-out. Existing `processAssignmentDomainEvent` untouched.
+- `src/main/java/com/flux/service/webhook/WebhookEventProcessorService.java` — additive: invoke `WorkflowTriggerRouter` after the existing policy fan-out. Existing `processAssignmentDomainEvent` untouched.
 
 **Frontend (new):**
 - `ui/src/modules/workflows/**` — full module

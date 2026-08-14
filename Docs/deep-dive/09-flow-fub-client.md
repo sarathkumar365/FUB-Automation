@@ -1,5 +1,7 @@
 # Flow E: FUB REST API Client
 
+> ⚠️ **Staleness banner (2026-06-03).** This deep-dive set predates the **Lead→Person rename (V21)** and the **domain-events feature** (typed domain events / Rail 2, the `events` table V22, `workflow_runs.domain_event_id` V23, the engine-echo gate, and run-supersede). Where it describes webhooks triggering workflows directly, a `leads` table / `sourceLeadId`, a 5-method FUB client, or the legacy policy engine as live, treat it as historical. Current sources: [`../features/domain-events/README.md`](../features/domain-events/README.md), [`../features/domain-events/README.md`](../features/domain-events/README.md), and the latest Flyway migrations (V23). A full content refresh of this set is pending.
+
 ## Client interface
 
 `FollowUpBossClient` (port interface) defines 5 methods:
@@ -53,4 +55,4 @@ for attempt = 1..∞:
         attempt++   // (no backoff delay — simple retry loop)
 ```
 
-**Note:** Unlike the call-processing retry (see [06-flow-call-automation.md](06-flow-call-automation.md#subflow-b3-retry-logic-executewithretry)) which has exponential backoff with jitter, the policy executor retry is a simple retry loop without delay. This is because the due worker can re-claim the step on the next poll if it fails.
+**Note:** Unlike the call-processing retry (see [06-flow-call-automation.md](06-flow-call-automation.md#subflow-b3-retry-logic-executewithretry)) which has exponential backoff with jitter, the workflow step executor retry is a simple retry loop without delay. The workflow due worker can re-claim the step on the next poll if it fails.

@@ -41,6 +41,6 @@ Locked V1 decisions:
 - Superseded by: none
 
 ## See Also
-- Feature plan: [`Docs/features/dev-hosting-security-hardening/plan.md`](../features/dev-hosting-security-hardening/plan.md) — full design with sequence diagram and role matrix.
-- Phase log: [`Docs/features/dev-hosting-security-hardening/phase-2-implementation.md`](../features/dev-hosting-security-hardening/phase-2-implementation.md) — decisions taken during implementation.
+- Feature plan: [`Docs/initiatives/dev-hosting-security-hardening/plan.md`](../initiatives/dev-hosting-security-hardening/plan.md) — full design with sequence diagram and role matrix.
+- Phase log: [`Docs/initiatives/dev-hosting-security-hardening/phase-2-implementation.md`](../initiatives/dev-hosting-security-hardening/phase-2-implementation.md) — decisions taken during implementation.
 - Security checklist: [`Docs/hosting-decision/dev/dev-hosting-security-checklist.md`](../hosting-decision/dev/dev-hosting-security-checklist.md) — origin of the A1 requirement.

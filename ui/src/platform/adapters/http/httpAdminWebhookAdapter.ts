@@ -1,5 +1,5 @@
 import type { AdminWebhookPort } from '../../ports/adminWebhookPort'
-import type { WebhookEventDetail, WebhookFeedPage, WebhookListFilters, WebhookStreamFilters } from '../../../shared/types/webhook'
+import type { WebhookEventDetail, WebhookFeedPage, WebhookListFilters, WebhookStreamFilters } from '@shared/types/webhook'
 import { HttpJsonClient } from './httpJsonClient'
 import { toQueryString } from './queryParams'
 import { webhookDetailSchema, webhookEventTypesSchema, webhookFeedPageSchema } from './webhookSchemas'

@@ -1,37 +1,38 @@
-import { useMemo } from 'react'
-import { useShellRegionRegistration } from './useShellRegionRegistration'
-import { uiText } from '../shared/constants/uiText'
-import { EmptyState } from '../shared/ui/EmptyState'
-import { PageCard } from '../shared/ui/PageCard'
-import { PageHeader } from '../shared/ui/PageHeader'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { LockIcon } from '@shared/ui'
+import { FullPageStatus } from './status/FullPageStatus'
+import { StatusScreen, type StatusContent } from './status/StatusScreen'
 
+/**
+ * Terminal screen shown when the session guard has admin UI access turned off.
+ * Full-page (rendered outside `AppShell`): there is nothing actionable inside
+ * the console, so no shell chrome and no primary action — only a quiet return
+ * link; the helper line carries the real guidance.
+ */
 export function SessionDisabledPage() {
-  const panelRegion = useMemo(
-    () => ({
-      title: uiText.app.shell.panelTitle,
-      body: <p>{uiText.session.disabledPanelNote}</p>,
-    }),
-    [],
-  )
-  const inspectorRegion = useMemo(
-    () => ({
-      title: uiText.app.shell.inspectorTitle,
-      body: <p className="text-sm text-[var(--color-text-muted)]">{uiText.app.shell.inspectorFallback}</p>,
-    }),
-    [],
-  )
+  const t = uiText.session
 
-  useShellRegionRegistration({
-    panel: panelRegion,
-    inspector: inspectorRegion,
-  })
+  const content: StatusContent = {
+    tone: 'warn',
+    glyph: LockIcon,
+    eyebrow: t.eyebrow,
+    title: t.title,
+    body: t.body,
+    helper: (
+      <>
+        {t.helperLead}
+        <span className="font-semibold text-[var(--color-text)]">{t.helperEmphasis}</span>
+        {t.helperTail}
+      </>
+    ),
+    meta: t.strip,
+    secondary: { label: t.returnToSignIn, href: routes.login },
+  }
 
   return (
-    <div className="space-y-4">
-      <PageHeader title={uiText.app.title} subtitle={uiText.session.disabledMessage} />
-      <PageCard title={uiText.notifications.warningTitle}>
-        <EmptyState message={uiText.session.disabledMessage} />
-      </PageCard>
-    </div>
+    <FullPageStatus>
+      <StatusScreen {...content} />
+    </FullPageStatus>
   )
 }

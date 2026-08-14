@@ -1,0 +1,39 @@
+{
+    "name": "supersede-chain-abc",
+    "description": "Rapid three-way reassignment A→B→C while runs are in flight. Each newer assignment supersedes the prior in-flight run; only the last (C) survives. Proves supersede chains correctly (newest always wins) rather than leaving orphans.",
+    "workflows": [
+        {
+            "key": "assign_followup_chain",
+            "trigger": { "on": "person.state_changed", "filter": "change.assignedUserId.changed" },
+            "graph": {
+                "schemaVersion": 1,
+                "entryNode": "wait",
+                "nodes": [
+                    { "id": "wait", "type": "delay", "config": { "delayMinutes": 60 },
+                      "transitions": { "DONE": { "terminal": "COMPLETED" } } }
+                ]
+            }
+        }
+    ],
+    "personSnapshots": {
+        "30002": { "id": 30002, "name": "Chain Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [] }
+    },
+    "events": [
+        { "deltaMs": 0, "eventId": "chain-create", "event": "peopleCreated", "resourceIds": [30002] },
+        { "deltaMs": 1500, "eventId": "chain-assign-a", "event": "peopleUpdated", "resourceIds": [30002],
+          "personSnapshots": { "30002": { "id": 30002, "name": "Chain Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [], "assignedUserId": 10, "assignedTo": "Agent A" } } },
+        { "deltaMs": 3500, "eventId": "chain-assign-b", "event": "peopleUpdated", "resourceIds": [30002],
+          "personSnapshots": { "30002": { "id": 30002, "name": "Chain Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [], "assignedUserId": 20, "assignedTo": "Agent B" } } },
+        { "deltaMs": 5500, "eventId": "chain-assign-c", "event": "peopleUpdated", "resourceIds": [30002],
+          "personSnapshots": { "30002": { "id": 30002, "name": "Chain Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "tags": [], "phones": [], "emails": [], "assignedUserId": 30, "assignedTo": "Agent C" } } }
+    ],
+    "drainTimeoutMs": 15000,
+    "expected": {
+        "notes": "3 assignment changes → 3 runs; run A superseded by B, run B superseded by C; run C survives. 2 superseded, 1 active.",
+        "minWebhookEvents": 4,
+        "expectedCreatedEventsForPerson": { "30002": 1 },
+        "expectedStateChangeEventsForPerson": { "30002": 3 },
+        "expectedTotalRunsForPerson": { "30002": 3 },
+        "expectedSupersededRunsForPerson": { "30002": 2 }
+    }
+}

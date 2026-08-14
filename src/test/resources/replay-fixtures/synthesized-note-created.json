@@ -1,0 +1,23 @@
+{
+    "name": "synthesized-note-created",
+    "description": "Synthesized fixture (no real-DB note webhook in the extracted set). One notesCreated webhook should produce exactly one note.created domain event with entity_type=note and entity_id matching the resourceId.",
+    "events": [
+        {
+            "event": "notesCreated",
+            "deltaMs": 0,
+            "eventId": "synthetic-note-1",
+            "resourceIds": [
+                9001
+            ]
+        }
+    ],
+    "drainTimeoutMs": 10000,
+    "personSnapshots": {},
+    "expected": {
+        "notes": "Append event: min not exact, since no uniqueness claim applies to notes. The harness's mock FUB client does not fetch note body content; the engine emits from the webhook payload directly.",
+        "minWebhookEvents": 1,
+        "minAppendEvents": {
+            "note.created": 1
+        }
+    }
+}

@@ -2,13 +2,13 @@ import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
 import { renderHook, waitFor } from '@testing-library/react'
 import { type PropsWithChildren } from 'react'
 import { describe, expect, it, vi } from 'vitest'
-import { PortsContext } from '../app/portsContextValue'
-import { useCancelWorkflowRunMutation } from '../modules/workflow-runs/data/useCancelWorkflowRunMutation'
-import { useWorkflowRunDetailQuery } from '../modules/workflow-runs/data/useWorkflowRunDetailQuery'
-import { useWorkflowRunsForKeyQuery } from '../modules/workflow-runs/data/useWorkflowRunsForKeyQuery'
-import { useWorkflowRunsQuery } from '../modules/workflow-runs/data/useWorkflowRunsQuery'
-import { queryKeys } from '../platform/query/queryKeys'
-import type { AppPorts } from '../platform/container'
+import { PortsContext } from '@app/portsContextValue'
+import { useCancelWorkflowRunMutation } from '@modules/workflow-runs/data/useCancelWorkflowRunMutation'
+import { useWorkflowRunDetailQuery } from '@modules/workflow-runs/data/useWorkflowRunDetailQuery'
+import { useWorkflowRunsForKeyQuery } from '@modules/workflow-runs/data/useWorkflowRunsForKeyQuery'
+import { useWorkflowRunsQuery } from '@modules/workflow-runs/data/useWorkflowRunsQuery'
+import { queryKeys } from '@platform/query/queryKeys'
+import type { AppPorts } from '@platform/container'
 
 function createWrapper(queryClient: QueryClient) {
   const listWorkflowRuns = vi.fn(async () => ({
@@ -32,7 +32,7 @@ function createWrapper(queryClient: QueryClient) {
     startedAt: null,
     completedAt: null,
     triggerPayload: {},
-    sourceLeadId: null,
+    sourcePersonId: null,
     eventId: null,
     steps: [],
   }))
@@ -45,7 +45,7 @@ function createWrapper(queryClient: QueryClient) {
     startedAt: null,
     completedAt: null,
     triggerPayload: {},
-    sourceLeadId: null,
+    sourcePersonId: null,
     eventId: null,
     steps: [],
   }))
@@ -172,9 +172,9 @@ describe('workflow runs hooks', () => {
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(
       expect.objectContaining({ queryKey: queryKeys.workflowRuns.detail(44) }),
     )
-    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: ['workflow-runs', 'list'] }))
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith(expect.objectContaining({ queryKey: queryKeys.workflowRuns.lists() }))
     expect(invalidateQueriesSpy).toHaveBeenCalledWith(
-      expect.objectContaining({ queryKey: ['workflow-runs', 'key', 'wf_a'] }),
+      expect.objectContaining({ queryKey: queryKeys.workflowRuns.forKey('wf_a') }),
     )
   })
 })

@@ -1,6 +1,6 @@
 # Dev Hosting Deploy Runbook
 
-Step-by-step for deploying the Automation Engine to **Railway** as a single
+Step-by-step for deploying Flux to **Railway** as a single
 service that serves both the Spring API and the bundled React SPA. Captures
 the actual gotchas we hit during the first deploy so the next operator
 (or you in three months) doesn't have to re-discover them.
@@ -46,7 +46,7 @@ Costs ~$5–8/month. Detailed comparison lives in
 - `SPRING_PROFILES_ACTIVE=prod` activates `application-prod.properties` which
   hardens body caps, disables `show-sql`, **and turns the legacy "call →
   task" automation off** (kill switch — see
-  [`Docs/features/disable-hardcoded-task-creation/`](../../features/disable-hardcoded-task-creation/)).
+  [`Docs/initiatives/disable-hardcoded-task-creation/`](../../initiatives/disable-hardcoded-task-creation/)).
 - Auth: stateless JWT bearer per [`RD-004`](../../repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md).
 
 ## Pre-flight (do these before clicking Deploy)
@@ -114,7 +114,7 @@ SERVER_PORT=${{PORT}}
 
 # JWT — admin auth (RD-004)
 JWT_SECRET=<paste output of: openssl rand -base64 48>
-JWT_ISSUER=automation-engine
+JWT_ISSUER=flux
 JWT_EXPIRY=8h
 
 # First-boot admin user — seeder consumes these once when app_user is empty
@@ -160,7 +160,7 @@ Railway probably triggered a build when you connected the repo. If not,
 Look for these lines in the runtime log:
 ```
 Picked up JAVA_TOOL_OPTIONS: -Djava.net.preferIPv6Stack=true -Djava.net.preferIPv6Addresses=true
-Started AutomationEngineApplication in X.X seconds
+Started FluxApplication in X.X seconds
 Successfully validated 16 migrations
 Schema "public" is up to date. No migration necessary.
 AdminUserSeeder: inserted ADMIN user username=<your-admin>
@@ -183,7 +183,7 @@ click anything. Each deploy:
    ```bash
    HOST=https://<your-railway-host>
 
-   curl -i $HOST/health                              # 200, "Automation Engine is running!"
+   curl -i $HOST/health                              # 200, "Flux is running!"
    curl -i $HOST/admin-ui                            # 200, HTML body
    curl -i $HOST/admin-ui/leads/anything             # 200, HTML body (deep-link refresh)
    curl -i $HOST/admin/leads                         # 401, {"error":"unauthorized"}
@@ -347,6 +347,6 @@ Local dev convenience. **Not used on Railway.** Two modes:
 
 - Auth design: [`RD-004-admin-auth-uses-jwt-bearer.md`](../../repo-decisions/RD-004-admin-auth-uses-jwt-bearer.md)
 - Security checklist: [`dev-hosting-security-checklist.md`](./dev-hosting-security-checklist.md)
-- Bundled-SPA Dockerfile design: [`Docs/features/railway-deploy-bundled-spa/plan.md`](../../features/railway-deploy-bundled-spa/plan.md)
-- Kill switch design: [`Docs/features/disable-hardcoded-task-creation/plan.md`](../../features/disable-hardcoded-task-creation/plan.md)
+- Bundled-SPA Dockerfile design: [`Docs/runbooks/railway-deploy-bundled-spa/plan.md`](../../runbooks/railway-deploy-bundled-spa/plan.md)
+- Kill switch design: [`Docs/initiatives/disable-hardcoded-task-creation/plan.md`](../../initiatives/disable-hardcoded-task-creation/plan.md)
 - Hosting comparison (Railway vs alternatives): [`dev-phase-hosting-comparison.md`](./dev-phase-hosting-comparison.md)

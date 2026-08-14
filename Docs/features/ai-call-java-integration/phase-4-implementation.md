@@ -13,7 +13,7 @@
   - Spring Boot + Postgres Testcontainers setup
   - manual `WorkflowExecutionDueWorker` polling (`workflow.worker.enabled=false`)
   - mutable test clock via `@Primary` bean
-  - stubbed `AiCallServiceClient` via `@Primary` bean
+  - stubbed `CortexClient` via `@Primary` bean
 - Implemented integration scenarios:
   - place -> in_progress -> completed (reschedule cadence + terminal transition)
   - place -> in_progress (>5m) -> timeout terminal payload

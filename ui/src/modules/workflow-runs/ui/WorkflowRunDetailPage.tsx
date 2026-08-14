@@ -1,18 +1,18 @@
 import { useMemo, useState, type ReactNode } from 'react'
 import { Link, useParams, useSearchParams } from 'react-router-dom'
-import { useShellRegionRegistration } from '../../../app/useShellRegionRegistration'
-import { routes } from '../../../shared/constants/routes'
-import { uiText } from '../../../shared/constants/uiText'
-import { formatDateTime } from '../../../shared/lib/date'
-import { useNotify } from '../../../shared/notifications/useNotify'
-import { Button } from '../../../shared/ui/button'
-import { ConfirmDialog } from '../../../shared/ui/ConfirmDialog'
-import { ErrorState } from '../../../shared/ui/ErrorState'
-import { JsonViewer } from '../../../shared/ui/JsonViewer'
-import { LoadingState } from '../../../shared/ui/LoadingState'
-import { PageCard } from '../../../shared/ui/PageCard'
-import { PageHeader } from '../../../shared/ui/PageHeader'
-import { StatusBadge } from '../../../shared/ui/StatusBadge'
+import { useShellRegionRegistration } from '@app/useShellRegionRegistration'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { formatDateTime } from '@shared/lib/date'
+import { useNotify } from '@shared/notifications/useNotify'
+import { Button } from '@shared/ui/button'
+import { ConfirmDialog } from '@shared/ui/ConfirmDialog'
+import { ErrorState } from '@shared/ui/ErrorState'
+import { JsonViewer } from '@shared/ui/JsonViewer'
+import { LoadingState } from '@shared/ui/LoadingState'
+import { PageCard } from '@shared/ui/PageCard'
+import { PageHeader } from '@shared/ui/PageHeader'
+import { StatusBadge } from '@shared/ui/StatusBadge'
 import { useCancelWorkflowRunMutation } from '../data/useCancelWorkflowRunMutation'
 import { useWorkflowRunDetailQuery } from '../data/useWorkflowRunDetailQuery'
 import {
@@ -106,15 +106,15 @@ export function WorkflowRunDetailPage() {
           <MetadataRow label={uiText.workflowRuns.detailStartedAtLabel} value={formatNullableDate(workflowRun.startedAt)} />
           <MetadataRow label={uiText.workflowRuns.detailCompletedAtLabel} value={formatNullableDate(workflowRun.completedAt)} />
           <MetadataRow
-            label={uiText.workflowRuns.detailSourceLeadIdLabel}
+            label={uiText.workflowRuns.detailSourcePersonIdLabel}
             value={
-              workflowRun.sourceLeadId ? (
+              workflowRun.sourcePersonId ? (
                 <Link
                   className="font-mono underline"
-                  to={`${routes.leadDetail(workflowRun.sourceLeadId)}?backTo=${encodeURIComponent(routes.workflowRunDetail(workflowRun.id))}`}
-                  data-testid="workflow-run-source-lead-link"
+                  to={`${routes.personDetail(workflowRun.sourcePersonId)}?backTo=${encodeURIComponent(routes.workflowRunDetail(workflowRun.id))}`}
+                  data-testid="workflow-run-source-person-link"
                 >
-                  {workflowRun.sourceLeadId}
+                  {workflowRun.sourcePersonId}
                 </Link>
               ) : (
                 uiText.workflowRuns.missingValue

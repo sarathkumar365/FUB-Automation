@@ -4,7 +4,31 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Automation Engine</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@500&family=Manrope:wght@500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <title>Flux</title>
+    <script>
+      // Apply the stored/preferred theme before first paint to avoid a flash of
+      // the wrong theme. Mirrors ui/src/shared/theme/theme.ts (key 'ae-theme').
+      (function () {
+        try {
+          var t = localStorage.getItem('ae-theme')
+          if (t !== 'dark' && t !== 'light') {
+            t =
+              window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches
+                ? 'dark'
+                : 'light'
+          }
+          document.documentElement.dataset.theme = t
+        } catch (e) {
+          /* ignore */
+        }
+      })()
+    </script>
   </head>
   <body>
     <div id="root"></div>

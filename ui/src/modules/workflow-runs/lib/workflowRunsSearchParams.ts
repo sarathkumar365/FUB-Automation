@@ -1,4 +1,4 @@
-import type { WorkflowRunStatus } from '../../workflows/lib/workflowSchemas'
+import type { WorkflowRunStatus } from '@platform/contracts/workflowSchemas'
 
 const RUN_STATUS_VALUES: WorkflowRunStatus[] = ['PENDING', 'BLOCKED', 'DUPLICATE_IGNORED', 'CANCELED', 'COMPLETED', 'FAILED']
 export const DEFAULT_WORKFLOW_RUNS_PAGE = 0

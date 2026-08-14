@@ -1,5 +1,7 @@
 # Workflow Engine — Technical Implementation Details
 
+> ⚠️ **Staleness banner (2026-06-03).** Parts of this doc predate two later changes and are out of date where they describe: (1) the trigger model — it teaches `FubWebhookTriggerType` / `fub_webhook` / a webhook-shaped trigger, but Rail 1 was deleted in the domain-events feature; the only trigger type now is `DomainEventTriggerType` (id `domain_event`) and workflows subscribe to typed domain events. (2) The `Lead`→`Person` rename — `sourceLeadId` is now `sourcePersonId`, `LeadUpsertService` → `PersonUpsertService`. It also references the legacy policy engine as if live; that subsystem was dropped (Flyway V12). The engine machinery (claim loop, delay/branch/transition, validator, V10 schema) is still accurate. For the current trigger/runtime picture see [`domain-events/README.md`](../domain-events/README.md) and [`domain-events/README.md`](../domain-events/README.md).
+>
 > **Parent document:** [workflow-engine-implementation-plan.md](workflow-engine-implementation-plan.md)
 >
 > This document describes **how** each wave is implemented — database schemas, Java interfaces, method-level data flows, diagrams, and concrete input/output examples. Read the parent document first for the **what** and **why**.
@@ -276,7 +278,7 @@ Note: `"COMM_NOT_FOUND": ["do_reassign", "notify_slack"]` — **parallel fan-out
 #### WorkflowStepType (the plugin contract)
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.Map;
 import java.util.Set;
@@ -316,7 +318,7 @@ public interface WorkflowStepType {
 #### StepExecutionContext (what a step receives)
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.Map;
 
@@ -340,7 +342,7 @@ public record StepExecutionContext(
 #### StepExecutionResult (what a step returns)
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.Map;
 
@@ -371,7 +373,7 @@ public record StepExecutionResult(
 #### WorkflowStepRegistry
 
 ```java
-package com.fuba.automation_engine.service.workflow;
+package com.flux.service.workflow;
 
 import java.util.List;
 import java.util.Map;
@@ -1238,7 +1240,7 @@ flowchart TB
 src/main/resources/db/migration/
   V{next}__create_workflow_engine.sql
 
-src/main/java/com/fuba/automation_engine/
+src/main/java/com/flux/
   service/workflow/
     WorkflowStepType.java                    ← plugin interface
     WorkflowStepRegistry.java                ← auto-discovers step types
@@ -1267,7 +1269,7 @@ src/main/java/com/fuba/automation_engine/
     WorkflowRunStepRepository.java
     WorkflowRunStepClaimRepository.java      ← JDBC, holds the claim query
 
-src/test/java/com/fuba/automation_engine/
+src/test/java/com/flux/
   service/workflow/
     WorkflowGraphValidatorTest.java
     WorkflowEngineSmokeTest.java             ← end-to-end: plan → worker → COMPLETED
@@ -1276,7 +1278,7 @@ src/test/java/com/fuba/automation_engine/
 ### Wave 2
 
 ```
-src/main/java/com/fuba/automation_engine/
+src/main/java/com/flux/
   service/workflow/
     RunContext.java                           ← trigger payload + prior outputs
     ExpressionEvaluator.java                 ← interface
@@ -1291,7 +1293,7 @@ src/main/java/com/fuba/automation_engine/
   service/fub/
     FubCallHelper.java                       ← extracted retry/transient helper (shared)
 
-src/test/java/com/fuba/automation_engine/
+src/test/java/com/flux/
   service/workflow/
     WorkflowParityTest.java                  ← old engine vs new, same scenarios
     ExpressionEvaluatorTest.java
@@ -1300,7 +1302,7 @@ src/test/java/com/fuba/automation_engine/
 ### Wave 3
 
 ```
-src/main/java/com/fuba/automation_engine/
+src/main/java/com/flux/
   service/workflow/
     WorkflowTriggerType.java                 ← trigger plugin interface
     WorkflowTriggerRegistry.java             ← auto-discovers trigger types
@@ -1330,7 +1332,7 @@ src/main/java/com/fuba/automation_engine/
       WorkflowRunDetailResponse.java
       StepTypeResponse.java
 
-src/test/java/com/fuba/automation_engine/
+src/test/java/com/flux/
   service/workflow/
     WorkflowTriggerRouterTest.java
   controller/

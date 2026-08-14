@@ -2,7 +2,7 @@ import {
   __resetTokenStoreCacheForTests,
   setToken,
   type StoredToken,
-} from '../../modules/auth/state/tokenStore'
+} from '@modules/auth/state/tokenStore'
 
 /**
  * Seeds an admin JWT in the token store so the AuthGuard does not redirect

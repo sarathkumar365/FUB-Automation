@@ -1,9 +1,25 @@
+import type { ComponentType, ReactNode, SVGProps } from 'react'
 import { NavLink, useLocation } from 'react-router-dom'
-import { LogoutButton } from '../../modules/auth/ui/LogoutButton'
-import { appNavItems, navItemIsActive, routes } from '../constants/routes'
+import { appNavItems, navItemIsActive, routes, type AppNavKey } from '../constants/routes'
 import { uiText } from '../constants/uiText'
+import { cn } from '../lib/cn'
+import { ActivityIcon, BarChartIcon, LogoMarkIcon, PhoneIcon, SettingsIcon, UsersIcon, WorkflowIcon } from './icons'
+import { ThemeToggle } from './ThemeToggle'
 
-export function AppRail() {
+const NAV_ICONS: Record<AppNavKey, ComponentType<SVGProps<SVGSVGElement>>> = {
+  webhooks: ActivityIcon,
+  processedCalls: PhoneIcon,
+  persons: UsersIcon,
+  workflows: WorkflowIcon,
+  reports: BarChartIcon,
+  settings: SettingsIcon,
+}
+
+type AppRailProps = {
+  logout?: ReactNode
+}
+
+export function AppRail({ logout }: AppRailProps) {
   const location = useLocation()
   return (
     <aside
@@ -14,13 +30,14 @@ export function AppRail() {
       <NavLink
         to={routes.dashboard}
         aria-label={uiText.app.nav.home}
-        className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-brand)] text-sm font-bold text-white"
+        className="mb-4 inline-flex h-9 w-9 items-center justify-center rounded-md bg-[var(--color-brand)] text-white"
       >
-        AE
+        <LogoMarkIcon className="h-5 w-5" />
       </NavLink>
       <nav className="mt-2 flex w-full flex-col items-center gap-2" aria-label={uiText.app.nav.ariaLabel}>
         {appNavItems.map((item) => {
           const active = navItemIsActive(item.matchPaths, location.pathname)
+          const Icon = NAV_ICONS[item.key]
           return (
             <NavLink
               key={item.key}
@@ -28,20 +45,23 @@ export function AppRail() {
               title={uiText.app.nav[item.key]}
               aria-label={uiText.app.nav[item.key]}
               aria-current={active ? 'page' : undefined}
-              className={[
-                'flex h-10 w-10 items-center justify-center rounded-md text-xs font-semibold transition-colors',
+              className={cn(
+                'flex h-10 w-10 items-center justify-center rounded-md transition-colors',
                 active
                   ? 'bg-[var(--color-brand)] text-white'
                   : 'bg-[var(--color-surface-alt)] text-[var(--color-text-muted)] hover:text-[var(--color-text)]',
-              ].join(' ')}
+              )}
             >
-              {item.railLabel}
+              <Icon className="h-[18px] w-[18px]" />
             </NavLink>
           )
         })}
       </nav>
       </div>
-      <LogoutButton variant="rail" />
+      <div className="flex w-full flex-col items-center gap-2">
+        <ThemeToggle />
+        {logout}
+      </div>
     </aside>
   )
 }

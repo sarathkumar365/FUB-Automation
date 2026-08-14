@@ -8,11 +8,11 @@
 		<version>4.0.3</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.fuba</groupId>
-	<artifactId>automation-engine</artifactId>
+	<groupId>com.flux</groupId>
+	<artifactId>flux</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>automation-engine</name>
-	<description>FUB Automation</description>
+	<name>flux</name>
+	<description>Flux</description>
 	<url/>
 	<licenses>
 		<license/>

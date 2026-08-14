@@ -25,6 +25,26 @@ Locked V1 decisions:
 - Ingestion, normalization, orchestration, domain routing
 - Features using webhook/event-driven automation
 
+## Normalized event field schema
+
+Source of truth: `service/webhook/model/NormalizedWebhookEvent.java` (+ `NormalizedDomain`, `NormalizedAction`). Fields (migrated here from the former RFC-001 so the contract has a non-feature-scoped home; terminology updated for the later Lead→Person rename):
+
+| Field | Req? | Notes |
+|---|---|---|
+| `sourceSystem` | required | enum: `internal`, `fub` |
+| `sourceEventType` | required | provider event type, e.g. `peopleUpdated`, `callsCreated`, `notesCreated` |
+| `receivedAt` | required | ingestion timestamp |
+| `normalizedDomain` | required | enum: `PERSON`, `CALL`, `NOTE`, `UNKNOWN` (was `assignment`/`call`/`unknown` pre-rename) |
+| `normalizedAction` | required | `created`/`updated`/`deleted`/`unknown` |
+| `payload` | required | normalized payload for domain handlers |
+| `eventId` | optional | stable id for dedupe when available |
+| `occurredAt` | optional | source event timestamp |
+| `sourcePersonId` | optional | source-system person id (was `sourceLeadId`); required only for flows that depend on person identity |
+| `providerMeta` | optional | transport extras (`headers`, `uri`, raw `resourceIds`) |
+| `payloadHash` | optional | fallback dedupe hash |
+
+Nullability: optional fields are omitted/null consistently by the parser; domain handlers must not fail solely on missing optional fields.
+
 ## Supersedes / Superseded By
-- Supersedes: none
+- Supersedes: feature-folder `rfc-001-normalized-lead-event-contract.md` (folded in here, 2026-06-03)
 - Superseded by: none

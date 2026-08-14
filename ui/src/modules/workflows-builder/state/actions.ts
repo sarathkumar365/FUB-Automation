@@ -27,10 +27,3 @@ export type BuilderAction =
   | { type: 'entry/set'; nodeId: string }
   | { type: 'trigger/set'; trigger: Record<string, unknown> | null }
   | { type: 'surface/switch'; surface: 'storyboard' | 'outline' | 'json' }
-
-export type BuilderActionType = BuilderAction['type']
-
-/** Name of the action for logs / debug overlay. */
-export function actionName(action: BuilderAction): string {
-  return action.type
-}

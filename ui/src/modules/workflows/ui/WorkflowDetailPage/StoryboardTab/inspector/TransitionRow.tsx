@@ -10,7 +10,7 @@
  * The list is flattened upstream via `./transitions.flattenTransitions`
  * so this component just renders a single outcome.
  */
-import { uiText } from '../../../../../../shared/constants/uiText'
+import { uiText } from '@shared/constants/uiText'
 import type { TransitionRowData } from './transitions'
 
 interface TransitionRowProps {

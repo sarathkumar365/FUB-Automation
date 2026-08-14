@@ -1,6 +1,6 @@
-# Automation Engine — Admin UI
+# Flux — Admin UI
 
-React + TypeScript + Vite frontend for the Automation Engine admin dashboard.
+React + TypeScript + Vite frontend for the Flux admin dashboard.
 
 ## What this is
 

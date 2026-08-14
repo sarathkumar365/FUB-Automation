@@ -16,6 +16,7 @@
 
 // --- Primitives: layout shells ---
 export { AppContentFrame } from './AppContentFrame'
+export { BrandLockup } from './BrandLockup'
 export { AppPanel } from './AppPanel'
 export { AppRail } from './AppRail'
 export { InspectorPanel } from './InspectorPanel'
@@ -31,7 +32,7 @@ export { Select } from './select'
 export { DateInput } from './DateInput'
 
 // --- Primitives: Radix wrappers ---
-export { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from './Popover'
+export { Popover, PopoverAnchor, PopoverContent } from './Popover'
 export { Tabs, TabsContent, TabsList, TabsTrigger } from './Tabs'
 
 // --- Primitives: specialized ---
@@ -43,19 +44,41 @@ export { FilterBar } from './FilterBar'
 export { JsonViewer, type JsonViewerProps } from './JsonViewer'
 export { LoadingState } from './LoadingState'
 export { PagePagination, type PagePaginationProps } from './PagePagination'
+export { SegmentedControl, type SegmentedOption } from './SegmentedControl'
 export { StatusBadge, type StatusTone } from './StatusBadge'
+export { Toggle } from './Toggle'
 
 // --- Icons ---
 export {
+  ActivityIcon,
+  AlertTriangleIcon,
   ApplyIcon,
+  BarChartIcon,
+  ChevronDownIcon,
+  ChevronLeftIcon,
   CloseIcon,
+  CompassIcon,
+  EyeIcon,
   FilterIcon,
+  LockIcon,
+  LogoMarkIcon,
+  LogoutIcon,
+  MoonIcon,
   NextIcon,
   PauseIcon,
+  PhoneIcon,
+  RefreshIcon,
   ReplayIcon,
   ResetIcon,
   ResumeIcon,
+  SettingsIcon,
+  SunIcon,
+  UsersIcon,
+  WorkflowIcon,
 } from './icons'
+
+// --- Theme ---
+export { ThemeToggle } from './ThemeToggle'
 
 // --- Recipes ---
 export * from './recipes'

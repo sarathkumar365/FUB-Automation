@@ -5,12 +5,12 @@
  * `overflow: visible` (for chip shadows) while this body handles its own
  * vertical scroll when transitions/config lists grow tall.
  */
-import { uiText } from '../../../../../../shared/constants/uiText'
-import { Button } from '../../../../../../shared/ui/button'
-import { CloseIcon } from '../../../../../../shared/ui/icons'
-import { formatScene } from '../../../../../workflows-builder/model/cardFormatters'
-import { getAccentTone } from '../../../../../workflows-builder/surfaces/storyboard/accentTokens'
-import type { GraphNode } from '../../../../../workflows-builder/state/runtimeContract'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
+import { CloseIcon } from '@shared/ui/icons'
+import { formatScene } from '@modules/workflows-builder/model/cardFormatters'
+import { getAccentTone } from '@modules/workflows-builder/surfaces/storyboard/accentTokens'
+import type { GraphNode } from '@modules/workflows-builder/state/runtimeContract'
 import { INSPECTOR_PADDING_X, INSPECTOR_PADDING_Y } from '../constants'
 import { ConfigRow } from './ConfigRow'
 import { TransitionRow } from './TransitionRow'

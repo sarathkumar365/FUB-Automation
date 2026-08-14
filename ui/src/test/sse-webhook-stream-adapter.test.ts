@@ -1,9 +1,9 @@
-import { SseWebhookStreamAdapter } from '../platform/adapters/sse/sseWebhookStreamAdapter'
-import type { AdminWebhookPort } from '../platform/ports/adminWebhookPort'
+import { SseWebhookStreamAdapter } from '@platform/adapters/sse/sseWebhookStreamAdapter'
+import type { AdminWebhookPort } from '@platform/ports/adminWebhookPort'
 import {
   __resetTokenStoreCacheForTests,
   setToken,
-} from '../modules/auth/state/tokenStore'
+} from '@modules/auth/state/tokenStore'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 /**

@@ -1,8 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import App from '../app/App'
-import { uiText } from '../shared/constants/uiText'
+import App from '@app/App'
+import { uiText } from '@shared/constants/uiText'
 import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('App routing and shell', () => {
@@ -30,12 +30,13 @@ describe('App routing and shell', () => {
 
     render(<App />)
 
-    expect(await screen.findByText('Automation Engine Admin')).toBeInTheDocument()
+    expect(await screen.findByText('Flux Admin')).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: uiText.dashboard.title })).toBeInTheDocument()
     expect(await screen.findByText(uiText.dashboard.subtitle)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.railAriaLabel)).toBeInTheDocument()
     expect(screen.getByLabelText(uiText.app.shell.contentAriaLabel)).toBeInTheDocument()
-    expect(screen.getByLabelText(uiText.app.shell.inspectorAriaLabel)).toBeInTheDocument()
+    // Dashboard is a full-width overview — it publishes no panel or inspector region.
+    expect(screen.queryByLabelText(uiText.app.shell.inspectorAriaLabel)).not.toBeInTheDocument()
   })
 
   it('navigates to dashboard when clicking rail brand icon from inside admin', async () => {
@@ -47,5 +48,24 @@ describe('App routing and shell', () => {
     await user.click(await screen.findByRole('link', { name: uiText.app.nav.home }))
 
     expect(await screen.findByText(uiText.dashboard.subtitle)).toBeInTheDocument()
+  })
+
+  it('renders the 404 page for an unknown admin path', async () => {
+    window.history.pushState({}, '', '/admin-ui/does-not-exist')
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: uiText.notFound.title })).toBeInTheDocument()
+    expect(screen.getByText(uiText.notFound.message)).toBeInTheDocument()
+    // The console strip surfaces the real attempted path.
+    expect(screen.getByText(/admin-ui\/does-not-exist/)).toBeInTheDocument()
+  })
+
+  it('renders the 404 page for an unknown top-level path', async () => {
+    window.history.pushState({}, '', '/totally-unknown')
+
+    render(<App />)
+
+    expect(await screen.findByRole('heading', { name: uiText.notFound.title })).toBeInTheDocument()
   })
 })

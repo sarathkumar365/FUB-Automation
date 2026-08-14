@@ -1,5 +1,7 @@
 # Lead Management Platform: Overview
 
+> ⚠️ **Staleness banner (2026-06-03).** This deep-dive set predates the **Lead→Person rename (V21)** and the **domain-events feature** (typed domain events / Rail 2, the `events` table V22, `workflow_runs.domain_event_id` V23, the engine-echo gate, and run-supersede). Where it describes webhooks triggering workflows directly, a `leads` table / `sourceLeadId`, a 5-method FUB client, or the legacy policy engine as live, treat it as historical. Current sources: [`../features/domain-events/README.md`](../features/domain-events/README.md), [`../features/domain-events/README.md`](../features/domain-events/README.md), and the latest Flyway migrations (V23). A full content refresh of this set is pending.
+
 ## 1) What This App Is and Why It Exists
 
 ### 1.1 The problem
@@ -13,7 +15,7 @@ These are the two real-world problems this app solves.
 
 ### 1.2 How it solves them
 
-The **Automation Engine** sits between Follow Up Boss and the team's workflow. It listens for events from FUB via webhooks and takes automated action:
+The **Flux** sits between Follow Up Boss and the team's workflow. It listens for events from FUB via webhooks and takes automated action:
 
 **Scenario 1 — Call Automation (live today):**
 A call happens in FUB. FUB fires a `callsCreated` webhook to this app. The app fetches the call details, evaluates the outcome, and decides:
@@ -22,11 +24,13 @@ A call happens in FUB. FUB fires a `callsCreated` webhook to this app. The app f
 - **"No answer" outcome** → creates a "Call back" task.
 - **Connected call** (duration > 30 seconds) → no action needed, skip.
 
-**Scenario 2 — Assignment SLA Enforcement (live today):**
-A lead is created or updated in FUB. FUB fires a `peopleCreated` or `peopleUpdated` webhook. The app starts a policy-driven SLA timer:
-1. Wait 5 minutes → check if the lead is still claimed by the assigned agent.
-2. If claimed, wait 10 more minutes → check if the agent has made contact.
-3. If no contact → trigger an action (reassign or move to pond). Action targets are validated from policy (`targetUserId` / `targetPondId`), executed against FUB via the adapter (`PUT /people/{id}`), and the step completes with `ACTION_SUCCESS`.
+**Scenario 2 — Agent Follow-up Enforcement (live today, via workflow engine):**
+A lead is created or updated in FUB. FUB fires a `peopleCreated` or `peopleUpdated` webhook. The workflow engine plans an `agent_followup_enforcement` run that:
+1. Waits 3 minutes → checks if the assigned agent has called the lead.
+2. If no call → posts a nudge note that @-mentions the assigned agent.
+3. Waits another 27 minutes → re-checks; if still no call, reassigns to ISA (daytime) or moves to the unorganic pond (off-hours).
+
+See [`Docs/features/agent-followup-enforcement/`](../features/agent-followup-enforcement/) for the full spec and [`Docs/features/domain-events/`](../features/domain-events/) for the trigger / event architecture this rides on.
 
 ### 1.3 Who uses it
 
@@ -35,8 +39,8 @@ A lead is created or updated in FUB. FUB fires a `peopleCreated` or `peopleUpdat
   - Live webhook feed (SSE streaming) — see events arrive in real time.
   - Processed calls list — see what happened to each call and why.
   - Replay failed calls — retry a failed call with one click.
-  - Policy execution monitoring — see SLA enforcement runs and their step-by-step outcomes.
-  - Policy control plane — create, update, activate policies.
+  - Workflow run monitoring — see workflow executions and their step-by-step outcomes.
+  - Workflow admin — create, update, activate workflow definitions.
 
 ### 1.4 Scope of this document
 
@@ -72,7 +76,7 @@ Required variables in `.env`:
 | `FUB_BASE_URL` | FUB API base URL | `https://api.followupboss.com/v1` |
 | `FUB_X_SYSTEM` | X-System header (from FUB system registration) | `your-system-name` |
 | `FUB_X_SYSTEM_KEY` | X-System-Key header (also used as webhook signing key) | `your-system-key` |
-| `DB_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://localhost:5432/automation_engine` |
+| `DB_URL` | PostgreSQL JDBC URL | `jdbc:postgresql://localhost:5432/flux` |
 | `DB_USER` | Database username | `postgres` |
 | `DB_PASS` | Database password | `postgres` |
 | `DEV_TEST_USER_ID` | In `local` profile, only process calls for this FUB user ID (safety guard) | `30` |

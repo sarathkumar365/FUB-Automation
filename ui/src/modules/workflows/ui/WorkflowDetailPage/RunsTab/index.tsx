@@ -7,24 +7,24 @@
  */
 import { useMemo, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { routes } from '../../../../../shared/constants/routes'
-import { uiText } from '../../../../../shared/constants/uiText'
-import { Button } from '../../../../../shared/ui/button'
-import { DataTable, type ColumnDef } from '../../../../../shared/ui/DataTable'
-import { ErrorState } from '../../../../../shared/ui/ErrorState'
-import { LoadingState } from '../../../../../shared/ui/LoadingState'
-import { PagePagination } from '../../../../../shared/ui/PagePagination'
-import { FilterBar } from '../../../../../shared/ui/FilterBar'
-import { Select } from '../../../../../shared/ui/select'
-import { StatusBadge } from '../../../../../shared/ui/StatusBadge'
-import { formatDateTime } from '../../../../../shared/lib/date'
-import { useWorkflowRunsForKeyQuery } from '../../../../workflow-runs/data/useWorkflowRunsForKeyQuery'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
+import { DataTable, type ColumnDef } from '@shared/ui/DataTable'
+import { ErrorState } from '@shared/ui/ErrorState'
+import { LoadingState } from '@shared/ui/LoadingState'
+import { PagePagination } from '@shared/ui/PagePagination'
+import { FilterBar } from '@shared/ui/FilterBar'
+import { Select } from '@shared/ui/select'
+import { StatusBadge } from '@shared/ui/StatusBadge'
+import { formatDateTime } from '@shared/lib/date'
+import { useWorkflowRunsForKeyQuery } from '@modules/workflow-runs/data/useWorkflowRunsForKeyQuery'
 import {
   formatWorkflowRunReasonCode,
   formatWorkflowRunStatus,
   getWorkflowRunStatusTone,
-} from '../../../../workflow-runs/lib/workflowRunsDisplay'
-import type { WorkflowResponse, WorkflowRunStatus, WorkflowRunSummary } from '../../../lib/workflowSchemas'
+} from '@modules/workflow-runs/lib/workflowRunsDisplay'
+import type { WorkflowResponse, WorkflowRunStatus, WorkflowRunSummary } from '@platform/contracts/workflowSchemas'
 import {
   createWorkflowDetailSearchParamsFromState,
   parseWorkflowDetailSearchParams,

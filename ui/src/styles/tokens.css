@@ -50,6 +50,29 @@
   --color-accent-neutral-bg: rgba(100, 116, 139, 0.10);
   --color-accent-neutral-dot: #64748b;
 
+  /* Reporting contact-outcome palette (reporting handoff; RD-015 charts read
+     these at runtime). spoke = conversation happened, attempted = dialled but
+     not reached, nothing = untouched. Each: fg (text), bg (chip fill),
+     dot (solid swatch/node), ribbon (sankey band). */
+  --color-outcome-spoke-fg: #0c7f93;
+  --color-outcome-spoke-bg: rgba(15, 159, 184, 0.12);
+  --color-outcome-spoke-dot: #0f9fb8;
+  --color-outcome-spoke-ribbon: rgba(15, 159, 184, 0.42);
+  --color-outcome-attempted-fg: #4f46e5;
+  --color-outcome-attempted-bg: rgba(99, 102, 241, 0.12);
+  --color-outcome-attempted-dot: #6366f1;
+  --color-outcome-attempted-ribbon: rgba(99, 102, 241, 0.40);
+  --color-outcome-nothing-fg: #b45309;
+  --color-outcome-nothing-bg: rgba(217, 119, 6, 0.12);
+  --color-outcome-nothing-dot: #d97706;
+  --color-outcome-nothing-ribbon: rgba(217, 119, 6, 0.42);
+  /* sankey source→agent band (outcome not yet known at that hop) */
+  --color-flow-ribbon: rgba(15, 159, 184, 0.30);
+
+  /* Skeleton shimmer gradient stops (reporting handoff loading state) */
+  --color-shimmer-lo: #eaf0f9;
+  --color-shimmer-hi: #f6fafd;
+
   /* Storyboard surface hints */
   --color-storyboard-grid-dot: rgba(15, 23, 42, 0.05);
   --color-storyboard-card-border: rgba(15, 23, 42, 0.12);
@@ -103,10 +126,158 @@
   --space-5: 20px;
 
   /* Elevation */
-  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08);
+  --shadow-subtle: 0 1px 3px rgba(15, 23, 42, 0.08); /* resting card */
+  --shadow-float: 0 8px 22px rgba(15, 23, 42, 0.04); /* glass milestone card */
+
+  /* ---- Semantic type roles ----------------------------------------------
+     Manrope is heavy by design: titles 700–800, body 500. Negative tracking
+     on large display; technical values in mono. Lifted from the design
+     system's colors_and_type.css so type roles are first-class tokens. */
+  /* Display / hero (landing) */
+  --type-display-font: var(--font-ui);
+  --type-display-size: clamp(30px, 4.6vw, 56px);
+  --type-display-weight: 800;
+  --type-display-leading: 1.03;
+  --type-display-tracking: -0.03em;
+  /* H1 — page title (PageHeader) */
+  --type-h1-size: 20px;
+  --type-h1-weight: 600;
+  --type-h1-leading: 1.3;
+  /* H2 — card title (PageCard) */
+  --type-h2-size: 18px;
+  --type-h2-weight: 600;
+  /* H3 — section / inspector heading */
+  --type-h3-size: 14px;
+  --type-h3-weight: 600;
+  /* Body */
+  --type-body-size: 14px;
+  --type-body-weight: 500;
+  --type-body-leading: 1.5;
+  /* Body small / table cells */
+  --type-small-size: 12px;
+  --type-small-weight: 500;
+  /* Kicker / overline — uppercase labels above headings */
+  --type-kicker-size: 11px;
+  --type-kicker-weight: 800;
+  --type-kicker-tracking: 0.12em;
+  /* Eyebrow / field caption — uppercase muted labels in inspectors */
+  --type-caption-size: 11px;
+  --type-caption-weight: 600;
+  --type-caption-tracking: 0.04em;
+  /* Mono — IDs, hashes, timestamps, payloads */
+  --type-mono-size: 12px;
+  --type-mono-weight: 500;
 
   /* Form controls */
   --select-chevron: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 20 20' fill='none' stroke='%2364748b' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><polyline points='6 8 10 12 14 8'/></svg>");
+}
+
+/* ============================================================================
+   DARK THEME — opt-in extension. Activated by `data-theme="dark"` on <html>.
+   Re-maps the same token names; brand cyan is brightened so it reads on a deep
+   slate canvas, semantic status keeps its hue with translucent fills + brighter
+   ink. Ported from the design system's colors_and_type.css. Anything built
+   against tokens adopts this automatically. The product ships light by default;
+   this is the explicit "extension beyond the product" the design system ships.
+   ========================================================================== */
+:root[data-theme='dark'] {
+  /* surfaces — deep cool slate, layered lighter as you go up */
+  --color-bg: #0b1220;
+  --color-surface: #131c2e;
+  --color-surface-alt: #1a2438;
+  --color-border: #28344c;
+
+  /* text */
+  --color-text: #e8eef9;
+  --color-text-muted: #93a4c0;
+
+  /* brand — brighter cyan for contrast on dark; soft = translucent tint */
+  --color-brand: #2dc4dd;
+  --color-brand-soft: rgba(45, 196, 221, 0.16);
+  --color-brand-2: #2dd4bf;
+
+  /* semantic status — hue preserved, translucent bg, brightened fg */
+  --color-status-ok: #5eead4;
+  --color-status-ok-bg: rgba(20, 184, 166, 0.18);
+  --color-status-warn: #fbbf24;
+  --color-status-warn-bg: rgba(245, 158, 11, 0.18);
+  --color-status-bad: #fb7185;
+  --color-status-bad-bg: rgba(244, 63, 94, 0.18);
+
+  /* live / streaming indicator */
+  --color-live: #34d399;
+
+  /* storyboard accents — dots brightened, fills lifted for the dark canvas */
+  --color-accent-trigger-fg: #67e8f9;
+  --color-accent-trigger-bg: rgba(34, 211, 238, 0.2);
+  --color-accent-trigger-dot: #22d3ee;
+  --color-accent-side-effect-fg: #fcd34d;
+  --color-accent-side-effect-bg: rgba(251, 191, 36, 0.2);
+  --color-accent-side-effect-dot: #fbbf24;
+  --color-accent-wait-fg: #a5b4fc;
+  --color-accent-wait-bg: rgba(129, 140, 248, 0.2);
+  --color-accent-wait-dot: #818cf8;
+
+  /* reporting outcomes — same brightened-dot / translucent-fill treatment */
+  --color-outcome-spoke-fg: #67e8f9;
+  --color-outcome-spoke-bg: rgba(34, 211, 238, 0.2);
+  --color-outcome-spoke-dot: #2dc4dd;
+  --color-outcome-spoke-ribbon: rgba(45, 196, 221, 0.45);
+  --color-outcome-attempted-fg: #a5b4fc;
+  --color-outcome-attempted-bg: rgba(129, 140, 248, 0.2);
+  --color-outcome-attempted-dot: #818cf8;
+  --color-outcome-attempted-ribbon: rgba(129, 140, 248, 0.45);
+  --color-outcome-nothing-fg: #fcd34d;
+  --color-outcome-nothing-bg: rgba(251, 191, 36, 0.2);
+  --color-outcome-nothing-dot: #fbbf24;
+  --color-outcome-nothing-ribbon: rgba(251, 191, 36, 0.45);
+  --color-flow-ribbon: rgba(45, 196, 221, 0.32);
+  --color-shimmer-lo: #1a2438;
+  --color-shimmer-hi: #22304a;
+  --color-accent-branch-fg: #f9a8d4;
+  --color-accent-branch-bg: rgba(244, 114, 182, 0.2);
+  --color-accent-branch-dot: #f472b6;
+  --color-accent-compute-fg: #6ee7b7;
+  --color-accent-compute-bg: rgba(52, 211, 153, 0.2);
+  --color-accent-compute-dot: #34d399;
+  --color-accent-neutral-fg: #cbd5e1;
+  --color-accent-neutral-bg: rgba(148, 163, 184, 0.16);
+  --color-accent-neutral-dot: #94a3b8;
+
+  /* storyboard surfaces + ink-based hints (light-on-dark so edges/arrows
+     stay visible against the slate canvas) */
+  --color-storyboard-grid-dot: rgba(232, 238, 249, 0.06);
+  --color-storyboard-card-border: rgba(232, 238, 249, 0.14);
+  --color-storyboard-card-ring-selected: rgba(129, 140, 248, 0.9);
+  --color-storyboard-card-shadow: 0 2px 10px rgba(0, 0, 0, 0.45);
+  --color-storyboard-card-shadow-selected: 0 6px 18px rgba(0, 0, 0, 0.55);
+  --color-storyboard-edge: rgba(232, 238, 249, 0.3);
+  --color-storyboard-arrow: rgba(232, 238, 249, 0.55);
+  --color-storyboard-edge-soft: rgba(232, 238, 249, 0.18);
+  --color-storyboard-edge-dashed: rgba(232, 238, 249, 0.2);
+  --color-storyboard-chip-neutral-bg: rgba(148, 163, 184, 0.16);
+  --color-storyboard-chip-neutral-border: rgba(148, 163, 184, 0.35);
+  --color-storyboard-chip-neutral-text: #cbd5e1;
+  --color-storyboard-chip-strong-text: #e2e8f0;
+
+  /* terminal pills — lifted fills + brightened ink so they read on the dark
+     canvas (light values were near-invisible / low-contrast on #0b1220) */
+  --color-storyboard-terminal-success-bg: rgba(34, 197, 94, 0.18);
+  --color-storyboard-terminal-success-border: rgba(74, 222, 128, 0.5);
+  --color-storyboard-terminal-success-text: #4ade80;
+  --color-storyboard-terminal-failure-bg: rgba(239, 68, 68, 0.18);
+  --color-storyboard-terminal-failure-border: rgba(248, 113, 113, 0.5);
+  --color-storyboard-terminal-failure-text: #fb7185;
+  --color-storyboard-terminal-skipped-bg: rgba(245, 158, 11, 0.18);
+  --color-storyboard-terminal-skipped-border: rgba(251, 191, 36, 0.5);
+  --color-storyboard-terminal-skipped-text: #fbbf24;
+  --color-storyboard-terminal-noop-bg: rgba(100, 116, 139, 0.18);
+  --color-storyboard-terminal-noop-border: rgba(148, 163, 184, 0.5);
+  --color-storyboard-terminal-noop-text: #cbd5e1;
+
+  /* elevation — shadows go darker / deeper on a dark canvas */
+  --shadow-subtle: 0 1px 3px rgba(0, 0, 0, 0.45);
+  --shadow-float: 0 10px 26px rgba(0, 0, 0, 0.5);
 }
 
 /* Storyboard canvas dot-grid background. Shared across builder + detail. */
@@ -142,5 +313,34 @@
   }
   100% {
     opacity: 0;
+  }
+}
+
+/* Skeleton shimmer (reporting handoff loading state) — gradient slide over the
+   shimmer tokens. Consumed by the Skeleton recipe's `animation="shimmer"`. */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-shimmer-lo) 25%,
+    var(--color-shimmer-hi) 37%,
+    var(--color-shimmer-lo) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.5s ease infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+    background: var(--color-shimmer-lo);
   }
 }

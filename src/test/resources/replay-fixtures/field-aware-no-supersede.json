@@ -1,0 +1,37 @@
+{
+    "name": "field-aware-no-supersede",
+    "description": "Field-aware supersede guard. A workflow triggers on EITHER assignedUserId OR phones changing. An assignment change starts run1; a later phone-only change starts run2 but must NOT supersede run1 — the two events touch disjoint fields. Proves supersede fires on overlapping change-sets only, so an unrelated edit never cancels an assignment-premised run.",
+    "workflows": [
+        {
+            "key": "assign_or_phone",
+            "trigger": { "on": "person.state_changed", "filter": "change.assignedUserId.changed or change.phones.changed" },
+            "graph": {
+                "schemaVersion": 1,
+                "entryNode": "wait",
+                "nodes": [
+                    { "id": "wait", "type": "delay", "config": { "delayMinutes": 60 },
+                      "transitions": { "DONE": { "terminal": "COMPLETED" } } }
+                ]
+            }
+        }
+    ],
+    "personSnapshots": {
+        "30003": { "id": 30003, "name": "FieldAware Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "assignedUserId": 10, "assignedTo": "Agent A", "tags": [], "phones": [ { "value": "1111111111" } ], "emails": [] }
+    },
+    "events": [
+        { "deltaMs": 0, "eventId": "fa-create", "event": "peopleCreated", "resourceIds": [30003] },
+        { "deltaMs": 1500, "eventId": "fa-reassign", "event": "peopleUpdated", "resourceIds": [30003],
+          "personSnapshots": { "30003": { "id": 30003, "name": "FieldAware Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "assignedUserId": 11, "assignedTo": "Agent A2", "tags": [], "phones": [ { "value": "1111111111" } ], "emails": [] } } },
+        { "deltaMs": 3500, "eventId": "fa-phone", "event": "peopleUpdated", "resourceIds": [30003],
+          "personSnapshots": { "30003": { "id": 30003, "name": "FieldAware Lead", "stage": "Lead", "type": "Buyer", "claimed": true, "assignedUserId": 11, "assignedTo": "Agent A2", "tags": [], "phones": [ { "value": "2222222222" } ], "emails": [] } } }
+    ],
+    "drainTimeoutMs": 15000,
+    "expected": {
+        "notes": "reassign → state_changed[assignedUserId] → run1. phone change → state_changed[phones] → run2 (matches the phones clause). plan() compares change-sets: [assignedUserId] vs [phones] → no overlap → run1 NOT superseded. Both runs survive; 0 superseded.",
+        "minWebhookEvents": 3,
+        "expectedCreatedEventsForPerson": { "30003": 1 },
+        "expectedStateChangeEventsForPerson": { "30003": 2 },
+        "expectedTotalRunsForPerson": { "30003": 2 },
+        "expectedSupersededRunsForPerson": { "30003": 0 }
+    }
+}

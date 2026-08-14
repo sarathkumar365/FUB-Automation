@@ -1,39 +1,65 @@
+import { lazy, Suspense } from 'react'
 import { createBrowserRouter } from 'react-router-dom'
-import { routes } from '../shared/constants/routes'
+import { routes } from '@shared/constants/routes'
+import { LoadingState } from '@shared/ui/LoadingState'
 import { AppShell } from './AppShell'
 import { SessionGuard } from './SessionGuard'
-import { LandingPage } from '../modules/landing/ui/LandingPage'
-import { AuthGuard } from '../modules/auth/ui/AuthGuard'
-import { LoginPage } from '../modules/auth/ui/LoginPage'
-import { WebhooksPage } from '../modules/webhooks/ui/WebhooksPage'
-import { ProcessedCallsPage } from '../modules/processed-calls/ui/ProcessedCallsPage'
-import { WorkflowsPage } from '../modules/workflows/ui/WorkflowsPage'
-import { WorkflowDetailPage } from '../modules/workflows/ui/WorkflowDetailPage'
-import { WorkflowBuilderPage } from '../modules/workflows-builder/ui/WorkflowBuilderPage'
-import { WorkflowRunsPage } from '../modules/workflow-runs/ui/WorkflowRunsPage'
-import { WorkflowRunDetailPage } from '../modules/workflow-runs/ui/WorkflowRunDetailPage'
-import { DashboardPage } from '../modules/dashboard/ui/DashboardPage'
-import { LeadsPage } from '../modules/leads/ui/LeadsPage'
-import { LeadDetailPage } from '../modules/leads/ui/LeadDetailPage'
+import { LandingPage } from '@modules/landing/ui/LandingPage'
+import { AuthGuard } from '@modules/auth/ui/AuthGuard'
+import { LoginPage } from '@modules/auth/ui/LoginPage'
+import { SignupPage } from '@modules/auth/ui/SignupPage'
+import { WebhooksPage } from '@modules/webhooks/ui/WebhooksPage'
+import { ProcessedCallsPage } from '@modules/processed-calls/ui/ProcessedCallsPage'
+import { WorkflowsPage } from '@modules/workflows/ui/WorkflowsPage'
+import { WorkflowDetailPage } from '@modules/workflows/ui/WorkflowDetailPage'
+import { WorkflowRunsPage } from '@modules/workflow-runs/ui/WorkflowRunsPage'
+import { WorkflowRunDetailPage } from '@modules/workflow-runs/ui/WorkflowRunDetailPage'
+import { DashboardPage } from '@modules/dashboard/ui/DashboardPage'
+import { ReportsPage } from '@modules/reports/ui/ReportsPage'
+import { SettingsPage } from '@modules/settings/ui/SettingsPage'
+import { PersonsPage } from '@modules/persons/ui/PersonsPage'
+import { PersonDetailPage } from '@modules/persons/ui/PersonDetailPage'
 import { SessionDisabledPage } from './SessionDisabledPage'
+import { NotFoundPage } from './NotFoundPage'
+import { RouteErrorBoundary } from './RouteErrorBoundary'
+
+// eslint-disable-next-line react-refresh/only-export-components -- route table, not a fast-refresh target
+const WorkflowBuilderPage = lazy(() =>
+  import('@modules/workflows-builder/ui/WorkflowBuilderPage').then((m) => ({ default: m.WorkflowBuilderPage })),
+)
+
+const builderElement = (
+  <Suspense fallback={<LoadingState />}>
+    <WorkflowBuilderPage />
+  </Suspense>
+)
 
 export function createAppRouter() {
   return createBrowserRouter([
     {
       path: routes.root,
       element: <LandingPage />,
+      errorElement: <RouteErrorBoundary />,
+    },
+    {
+      // Full-page (outside AppShell): the session guard turns off all console
+      // access, so there is no shell chrome to show.
+      path: routes.sessionDisabled,
+      element: <SessionDisabledPage />,
+      errorElement: <RouteErrorBoundary />,
     },
     {
       path: routes.adminUi,
       element: <AppShell />,
+      errorElement: <RouteErrorBoundary />,
       children: [
-        {
-          path: 'session-disabled',
-          element: <SessionDisabledPage />,
-        },
         {
           path: 'login',
           element: <LoginPage />,
+        },
+        {
+          path: 'signup',
+          element: <SignupPage />,
         },
         {
           element: <SessionGuard />,
@@ -54,12 +80,12 @@ export function createAppRouter() {
               element: <ProcessedCallsPage />,
             },
             {
-              path: 'leads',
-              element: <LeadsPage />,
+              path: 'persons',
+              element: <PersonsPage />,
             },
             {
-              path: 'leads/:sourceLeadId',
-              element: <LeadDetailPage />,
+              path: 'persons/:sourcePersonId',
+              element: <PersonDetailPage />,
             },
             {
               path: 'workflows',
@@ -67,11 +93,11 @@ export function createAppRouter() {
             },
             {
               path: 'workflows/new',
-              element: <WorkflowBuilderPage />,
+              element: builderElement,
             },
             {
               path: 'workflows/:key/edit',
-              element: <WorkflowBuilderPage />,
+              element: builderElement,
             },
             {
               path: 'workflows/:key',
@@ -85,11 +111,30 @@ export function createAppRouter() {
               path: 'workflow-runs/:runId',
               element: <WorkflowRunDetailPage />,
             },
+            {
+              path: 'reports',
+              element: <ReportsPage />,
+            },
+            {
+              path: 'settings',
+              element: <SettingsPage />,
+            },
               ],
             },
           ],
         },
+        {
+          // Unknown /admin-ui/* path — 404 inside the shell.
+          path: '*',
+          element: <NotFoundPage inShell />,
+        },
       ],
+    },
+    {
+      // Unknown top-level path — standalone 404.
+      path: '*',
+      element: <NotFoundPage />,
+      errorElement: <RouteErrorBoundary />,
     },
   ])
 }

@@ -1,5 +1,7 @@
 # Architecture Overview (Backend)
 
+> ⚠️ **Staleness banner (2026-06-03).** This deep-dive set predates the **Lead→Person rename (V21)** and the **domain-events feature** (typed domain events / Rail 2, the `events` table V22, `workflow_runs.domain_event_id` V23, the engine-echo gate, and run-supersede). Where it describes webhooks triggering workflows directly, a `leads` table / `sourceLeadId`, a 5-method FUB client, or the legacy policy engine as live, treat it as historical. Current sources: [`../features/domain-events/README.md`](../features/domain-events/README.md), [`../features/domain-events/README.md`](../features/domain-events/README.md), and the latest Flyway migrations (V23). A full content refresh of this set is pending.
+
 ## Layered architecture pattern
 
 The backend follows a **hexagonal / ports-and-adapters** pattern layered as:
@@ -19,25 +21,21 @@ Repository / External API
 ## Package structure
 
 ```
-com.fuba.automation_engine/
-├── AutomationEngineApplication.java          ← Spring Boot entry point
+com.flux/
+├── FluxApplication.java          ← Spring Boot entry point
 ├── config/                                    ← Configuration beans and property classes
 │   ├── FubClientProperties                   ← FUB API connection config
 │   ├── WebhookProperties                     ← Webhook ingestion config
 │   ├── CallOutcomeRulesProperties            ← Call decision rules config
-│   ├── PolicyWorkerProperties                ← Due worker config
 │   ├── FubRetryProperties                    ← Retry policy config
 │   ├── HttpClientConfig                      ← RestClient.Builder bean
 │   ├── JacksonConfig                         ← ObjectMapper bean
 │   ├── TimeConfig                            ← Clock.systemUTC() bean
-│   ├── WebhookAsyncConfig                    ← Async thread pool for webhook dispatch
-│   └── PolicyWorkerSchedulingConfig          ← Enables @Scheduled
+│   └── WebhookAsyncConfig                    ← Async thread pool for webhook dispatch
 ├── controller/                                ← HTTP endpoints
 │   ├── WebhookIngressController              ← POST /webhooks/{source}
 │   ├── AdminWebhookController                ← GET /admin/webhooks, stream
 │   ├── ProcessedCallAdminController          ← GET/POST /admin/processed-calls
-│   ├── AdminPolicyController                 ← CRUD /admin/policies
-│   ├── AdminPolicyExecutionController        ← GET /admin/policy-executions
 │   ├── HealthController                      ← GET /health
 │   └── dto/                                  ← Request/response DTOs (13 classes)
 ├── service/
@@ -55,20 +53,6 @@ com.fuba.automation_engine/
 │   │   ├── dispatch/                         ← WebhookDispatcher + AsyncWebhookDispatcher
 │   │   ├── live/                             ← WebhookLiveFeedPublisher + WebhookSseHub
 │   │   └── model/                            ← NormalizedWebhookEvent, enums
-│   └── policy/
-│       ├── AutomationPolicyService           ← Policy CRUD + activation
-│       ├── PolicyExecutionManager            ← Planning orchestrator
-│       ├── PolicyStepExecutionService        ← Step execution + transitions
-│       ├── PolicyExecutionDueWorker          ← Scheduled worker
-│       ├── AdminPolicyExecutionService       ← Execution feed queries
-│       ├── PolicyBlueprintValidator          ← Blueprint JSON validation
-│       ├── PolicyExecutionMaterializationContract ← Step template definitions
-│       ├── PolicyStepTransitionContract      ← Transition map
-│       ├── PolicyExecutionCursorCodec        ← Cursor encoding
-│       ├── WaitAndCheckClaimStepExecutor     ← Claim check executor
-│       ├── WaitAndCheckCommunicationStepExecutor ← Communication check executor
-│       ├── OnCommunicationMissActionStepExecutor ← Action executor (target-validated, live FUB adapter execution)
-│       └── (context, result, request, outcome records)
 ├── client/fub/
 │   ├── FubFollowUpBossClient                 ← Adapter: FUB REST API client
 │   └── dto/                                  ← FUB API request/response DTOs
@@ -98,17 +82,23 @@ flowchart LR
     Processor"]
     PROC -->|"CALL domain"| CALL["Call
     Automation"]
-    PROC -->|"ASSIGNMENT domain"| ASSIGN["Policy
-    Planning"]
+    PROC -->|"LEAD domain"| LEADUP["Lead
+    Upsert"]
+    PROC -->|"trigger router"| WFR["Workflow
+    Trigger Router"]
     CALL -->|"GET /calls"| FUB_API["FUB REST API"]
     CALL -->|persist| DB
-    ASSIGN -->|"persist run + steps"| DB
-    WORKER["Due Worker
-    Scheduled"] -->|"claim + execute"| DB
-    WORKER -->|"GET /people"| FUB_API
+    LEADUP -->|"GET /people"| FUB_API
+    LEADUP -->|persist| DB
+    WFR -->|"plan run"| DB
+    WORKER["Workflow Due Worker
+    Scheduled"] -->|"claim + execute steps"| DB
+    WORKER -->|"FUB writes"| FUB_API
     ADMIN["Admin UI
     React"] -->|"REST APIs"| CTRL["Admin
     Controllers"]
     ADMIN -->|SSE| SSE
     CTRL -->|query| DB
 ```
+
+> The earlier policy-execution branch (PROC → ASSIGNMENT → Policy Planning → Due Worker) was the V5–V11 architecture. It was dropped in V12; active automation now goes through the workflow engine via the trigger router.

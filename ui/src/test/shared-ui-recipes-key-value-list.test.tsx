@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { KeyValueList } from '../shared/ui/recipes/KeyValueList'
+import { KeyValueList } from '@shared/ui/recipes/KeyValueList'
 
 describe('KeyValueList recipe', () => {
   it('renders a dl in grid variant (default)', () => {
@@ -28,7 +28,7 @@ describe('KeyValueList recipe', () => {
     const { container } = render(
       <KeyValueList
         variant="stacked"
-        items={[{ label: 'Type', value: 'webhook' }, { label: 'Path', value: '/leads' }]}
+        items={[{ label: 'Type', value: 'webhook' }, { label: 'Path', value: '/persons' }]}
       />,
     )
     // In stacked mode, no <dl> — FieldRow renders its own flex-col wrapper.

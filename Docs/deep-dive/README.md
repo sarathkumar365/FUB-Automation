@@ -1,6 +1,8 @@
-# Lead Management Platform — Documentation
+# Flux — System Deep-Dive
 
-Backend implementation documentation for the Automation Engine's lead management platform. Each file covers a specific area — start with the overview, then dive into any flow.
+> ⚠️ **Staleness banner (2026-06-03).** This set predates the **Lead→Person rename (V21)** and the **domain-events feature** (typed domain events / Rail 2, `events` table V22, `workflow_runs.domain_event_id` V23, engine-echo gate, run-supersede). Treat "lead"/`sourceLeadId`/direct webhook→workflow routing/5-method FUB client/legacy policy engine as historical. Current sources: [`../features/domain-events/README.md`](../features/domain-events/README.md) and [`../features/domain-events/README.md`](../features/domain-events/README.md). A full content refresh of this set is pending.
+
+Backend implementation documentation for Flux. Each file covers a specific area — start with the overview, then dive into any flow.
 
 ## Contents
 
@@ -12,15 +14,14 @@ Backend implementation documentation for the Automation Engine's lead management
 | 04 | [Configuration and Schema](04-configuration-and-schema.md) | All config properties, database tables, indexes, constraints |
 | 05 | [Flow A: Webhook Ingestion](05-flow-webhook-ingestion.md) | POST /webhooks/{source} → signature verification → parsing → dedup → dispatch |
 | 06 | [Flow B: Call Automation](06-flow-call-automation.md) | Call processing, decision engine, task creation, retry logic, dev guard |
-| 07 | [Flow C: Assignment Policy Planning](07-flow-assignment-policy.md) | Assignment routing, blueprint validation, idempotency, step materialization |
-| 08 | [Flow D: Policy Execution](08-flow-policy-execution.md) | Due worker, claim query, transition engine, step executors, compensation |
 | 09 | [Flow E: FUB Client](09-flow-fub-client.md) | REST API client interface, adapter, exception mapping, retry wrapper |
-| 10 | [Flow F: Admin APIs](10-flow-admin-apis.md) | All admin endpoints, pagination, SSE live feed, replay, policy CRUD |
-| 11 | [End-to-End Scenario](11-end-to-end-scenario.md) | Full assignment SLA lifecycle walkthrough with alternative paths |
-| 12 | [Reference](12-reference.md) | Enum values, known gaps, verification log |
+| 10 | [Flow F: Admin APIs](10-flow-admin-apis.md) | All admin endpoints, pagination, SSE live feed, replay |
+| 12 | [Reference](12-reference.md) | Enum values, known gaps |
+
+> **Removed:** docs 07, 08, and 11 (assignment policy planning, policy execution, end-to-end policy scenario) were dropped along with the policy subsystem in V12. Active automation is documented in [`Docs/features/domain-events/`](../features/domain-events/) and individual workflow specs under [`Docs/features/`](../features/).
 
 ## Reading order
 
 - **New to the project?** Start with [01-overview.md](01-overview.md), then [02-architecture.md](02-architecture.md).
-- **Working on a specific flow?** Jump directly to the relevant flow doc (05–10).
+- **Working on a specific flow?** Jump directly to the relevant flow doc (05, 06, 09, 10).
 - **Debugging?** Check [12-reference.md](12-reference.md) for enums and known gaps.

@@ -10,7 +10,7 @@
  *  - wall-clock timestamp
  *  - the action name + payload snapshot
  *  - content hashes of the graph before/after (see contentHash.ts)
- *  - optional correlationId propagated through telemetry.ts
+ *  - optional correlationId propagated via dispatch meta
  */
 
 export interface ActionLogEntry {

@@ -1,12 +1,12 @@
 import { fireEvent, render, screen, within } from '@testing-library/react'
 import { describe, expect, it, vi } from 'vitest'
-import type { SceneLayout } from '../modules/workflows-builder/model/layoutEngine'
-import type { Graph } from '../modules/workflows-builder/state/runtimeContract'
+import type { SceneLayout } from '@modules/workflows-builder/model/layoutEngine'
+import type { Graph } from '@modules/workflows-builder/state/runtimeContract'
 import {
   POPOVER_MAX_HEIGHT,
   POPOVER_WIDTH,
-} from '../modules/workflows/ui/WorkflowDetailPage/StoryboardTab/constants'
-import { SceneInspectorPopover } from '../modules/workflows/ui/WorkflowDetailPage/StoryboardTab/SceneInspectorPopover'
+} from '@modules/workflows/ui/WorkflowDetailPage/StoryboardTab/constants'
+import { SceneInspectorPopover } from '@modules/workflows/ui/WorkflowDetailPage/StoryboardTab/SceneInspectorPopover'
 
 const graph: Graph = {
   schemaVersion: 1,
@@ -275,7 +275,7 @@ describe('SceneInspectorPopover', () => {
         {
           id: 'n1',
           type: 'slack_notify',
-          config: { greeting: 'Hello {{ lead.name }}' },
+          config: { greeting: 'Hello {{ person.name }}' },
           transitions: {},
         },
       ],
@@ -290,7 +290,7 @@ describe('SceneInspectorPopover', () => {
         onClose={vi.fn()}
       />,
     )
-    const valueCell = screen.getByText('Hello {{ lead.name }}')
+    const valueCell = screen.getByText('Hello {{ person.name }}')
     expect(valueCell.className).toMatch(/font-mono/)
     // A copy button (distinct from the JsonViewer one, which isn't rendered here).
     expect(screen.getByRole('button', { name: /copy/i })).toBeInTheDocument()

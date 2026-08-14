@@ -5,7 +5,7 @@
  * without throwing. Zod issues are flattened into readable strings intended
  * for an end-user facing error panel.
  */
-import { graphSchema, type Graph } from '../../../../workflows-builder/state/runtimeContract'
+import { graphSchema, type Graph } from '@modules/workflows-builder/state/runtimeContract'
 
 export type ParseWorkflowGraphResult =
   | { ok: true; graph: Graph }

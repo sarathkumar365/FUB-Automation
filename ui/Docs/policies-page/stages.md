@@ -55,7 +55,7 @@ policyResponseSchema:
 
 policyExecutionRunListItemSchema:
   id: number, source: enum(FUB, INTERNAL), eventId: string | null,
-  sourceLeadId: string | null, domain: string, policyKey: string,
+  sourcePersonId: string | null, domain: string, policyKey: string,
   policyVersion: number, status: enum(PENDING, BLOCKED_POLICY,
   DUPLICATE_IGNORED, COMPLETED, FAILED), reasonCode: string | null,
   createdAt: string, updatedAt: string

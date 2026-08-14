@@ -1,7 +1,7 @@
 import { useNavigate } from 'react-router-dom'
-import { routes } from '../../../shared/constants/routes'
-import { uiText } from '../../../shared/constants/uiText'
-import { Button } from '../../../shared/ui/button'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
 import './LandingPage.css'
 
 const MILESTONES = [
@@ -31,9 +31,11 @@ export function LandingPage() {
             aria-label={uiText.landing.timelinePathAriaLabel}
           >
             <defs>
+              {/* Decorative timeline gradient — a bright cyan→teal accent that
+                  reads on both light and dark canvases by design. */}
               <linearGradient id="landing-curve-gradient" x1="0" y1="0" x2="1" y2="0">
-                <stop offset="0%" stopColor="#67e8f9" />
-                <stop offset="100%" stopColor="#2dd4bf" />
+                <stop offset="0%" stopColor="#67e8f9" /> {/* hex-allow */}
+                <stop offset="100%" stopColor="#2dd4bf" /> {/* hex-allow */}
               </linearGradient>
             </defs>
             <path

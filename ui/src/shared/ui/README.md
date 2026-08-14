@@ -1,6 +1,6 @@
 # `shared/ui`
 
-Shared UI layer for the app. Everything in here is app-agnostic: no workflow, run, or lead logic. If a component knows about a domain concept, it belongs in a feature module (`src/modules/<feature>/ui/`), not here.
+Shared UI layer for the app. Everything in here is app-agnostic: no workflow, run, or person logic. If a component knows about a domain concept, it belongs in a feature module (`src/modules/<feature>/ui/`), not here.
 
 Organized into three tiers — pick the right tier when adding a new file.
 
@@ -18,7 +18,7 @@ Two flavors coexist here:
 **When to add a primitive:**
 - The behavior or markup is needed in more than one unrelated feature.
 - It wraps a third-party lib (Radix, etc.) and we don't want that import leaking into feature modules.
-- There's no domain vocabulary in the API — no "workflow," no "run," no "lead."
+- There's no domain vocabulary in the API — no "workflow," no "run," no "person."
 
 **When *not* to:**
 - It's only used by one feature. Keep it in that feature's `ui/` folder.
@@ -73,10 +73,10 @@ If a piece of a feature starts looking generic, promote it — feature → recip
 
 ```ts
 // Via barrel (preferred for multi-import):
-import { Badge, Button, Tabs, TabsContent } from '@/shared/ui'
+import { Badge, Button, Tabs, TabsContent } from '@shared/ui'
 
 // Via explicit path (fine too):
-import { Badge } from '@/shared/ui/badge'
+import { Badge } from '@shared/ui/badge'
 ```
 
 There is no hard rule. Pick whichever reads better at the call site.

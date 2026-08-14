@@ -1,20 +1,23 @@
-export type AppNavKey = 'webhooks' | 'processedCalls' | 'leads' | 'workflows'
+export type AppNavKey = 'webhooks' | 'processedCalls' | 'persons' | 'workflows' | 'reports' | 'settings'
 
 export const routes = {
   root: '/',
   adminUi: '/admin-ui',
   dashboard: '/admin-ui',
   login: '/admin-ui/login',
+  signup: '/admin-ui/signup',
   webhooks: '/admin-ui/webhooks',
   processedCalls: '/admin-ui/processed-calls',
-  leads: '/admin-ui/leads',
-  leadDetail: (sourceLeadId: string) => `/admin-ui/leads/${encodeURIComponent(sourceLeadId)}`,
+  persons: '/admin-ui/persons',
+  personDetail: (sourcePersonId: string) => `/admin-ui/persons/${encodeURIComponent(sourcePersonId)}`,
   workflows: '/admin-ui/workflows',
   workflowDetail: (key: string) => `/admin-ui/workflows/${encodeURIComponent(key)}`,
   workflowBuilderNew: '/admin-ui/workflows/new',
   workflowBuilderEdit: (key: string) => `/admin-ui/workflows/${encodeURIComponent(key)}/edit`,
   workflowRuns: '/admin-ui/workflow-runs',
   workflowRunDetail: (runId: number) => `/admin-ui/workflow-runs/${encodeURIComponent(String(runId))}`,
+  reports: '/admin-ui/reports',
+  settings: '/admin-ui/settings',
   sessionDisabled: '/admin-ui/session-disabled',
 } as const
 
@@ -30,7 +33,6 @@ export const routes = {
 type NavItem = {
   key: AppNavKey
   to: string
-  railLabel: string
   matchPaths: readonly string[]
 }
 
@@ -38,30 +40,36 @@ export const appNavItems: readonly NavItem[] = [
   {
     key: 'webhooks',
     to: routes.webhooks,
-    railLabel: 'WH',
     matchPaths: [routes.webhooks],
   },
   {
     key: 'processedCalls',
     to: routes.processedCalls,
-    railLabel: 'PC',
     matchPaths: [routes.processedCalls],
   },
   {
-    key: 'leads',
-    to: routes.leads,
-    railLabel: 'LD',
-    // Active on both the list (/admin-ui/leads) and detail
-    // (/admin-ui/leads/:sourceLeadId) routes.
-    matchPaths: [routes.leads],
+    key: 'persons',
+    to: routes.persons,
+    // Active on both the list (/admin-ui/persons) and detail
+    // (/admin-ui/persons/:sourcePersonId) routes.
+    matchPaths: [routes.persons],
   },
   {
     key: 'workflows',
     to: routes.workflows,
-    railLabel: 'WF',
     // Active on both the Definitions sub-tab (/workflows) and the Runs
     // sub-tab (/workflow-runs). Detail pages under each also qualify.
     matchPaths: [routes.workflows, routes.workflowRuns],
+  },
+  {
+    key: 'reports',
+    to: routes.reports,
+    matchPaths: [routes.reports],
+  },
+  {
+    key: 'settings',
+    to: routes.settings,
+    matchPaths: [routes.settings],
   },
 ] as const
 

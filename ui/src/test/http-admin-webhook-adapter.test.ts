@@ -1,5 +1,5 @@
-import { HttpAdminWebhookAdapter } from '../platform/adapters/http/httpAdminWebhookAdapter'
-import { HttpJsonClient } from '../platform/adapters/http/httpJsonClient'
+import { HttpAdminWebhookAdapter } from '@platform/adapters/http/httpAdminWebhookAdapter'
+import { HttpJsonClient } from '@platform/adapters/http/httpJsonClient'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 const mockFetch = vi.fn()

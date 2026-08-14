@@ -1,4 +1,4 @@
-import type { WebhookEventStatus, WebhookSource } from '../../../shared/types/webhook'
+import type { WebhookEventStatus, WebhookSource } from '@shared/types/webhook'
 
 const SOURCE_VALUES: WebhookSource[] = ['FUB']
 const STATUS_VALUES: WebhookEventStatus[] = ['RECEIVED']

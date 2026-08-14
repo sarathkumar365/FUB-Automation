@@ -17,8 +17,8 @@
  * The row never wraps the value in an anchor; navigation affordances are
  * deliberately out of scope for the inspector (per D4.5-c).
  */
-import { ClampedText, CopyableValue, FieldRow } from '../../../../../../shared/ui'
-import { JsonViewer } from '../../../../../../shared/ui/JsonViewer'
+import { ClampedText, CopyableValue, FieldRow } from '@shared/ui'
+import { JsonViewer } from '@shared/ui/JsonViewer'
 import { CONFIG_JSON_MAX_HEIGHT_CLASS } from '../constants'
 import { formatConfigValue } from './formatConfigValue'
 

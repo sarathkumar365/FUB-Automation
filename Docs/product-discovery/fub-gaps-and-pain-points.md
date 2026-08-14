@@ -114,6 +114,8 @@ Last updated: 2026-04-09
 
 **Opportunity:** A contact intelligence layer that enriches, links, and audits contact data beyond FUB's native capabilities.
 
+> **In progress (2026-06-09):** first slice of this layer is [features/person-profile-enrichment](../features/person-profile-enrichment/README.md) — AI-inferred, evidence-backed profile classification with a human-review/audit trail (addresses #2 audit-trail and the enrichment angle). Linking related contacts (#1) remains open.
+
 ---
 
 ## 8. Agent Autonomy & Permissions
@@ -183,7 +185,7 @@ Last updated: 2026-04-09
 
 ---
 
-## Priority Matrix — What Your Automation Engine Can Solve
+## Priority Matrix — What Flux Can Solve
 
 | Gap | Can We Solve Via API? | Impact | Effort |
 |-----|----------------------|--------|--------|

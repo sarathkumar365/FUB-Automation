@@ -1,6 +1,6 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
-import type { CreateWorkflowCommand } from '../../../platform/ports/workflowPort'
+import { useAppPorts } from '@app/useAppPorts'
+import type { CreateWorkflowCommand } from '@platform/ports/workflowPort'
 import { invalidateWorkflowMutationQueries } from './workflowMutationInvalidation'
 
 export function useCreateWorkflowMutation() {

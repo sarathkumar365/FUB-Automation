@@ -4,12 +4,12 @@ import userEvent from '@testing-library/user-event'
 import { type PropsWithChildren } from 'react'
 import { MemoryRouter, Route, Routes, useLocation } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { ShellRegionsProvider } from '../app/ShellRegionsProvider'
-import { useShellRegions } from '../app/useShellRegions'
-import { PortsContext } from '../app/portsContextValue'
-import { WorkflowDetailPage } from '../modules/workflows/ui/WorkflowDetailPage'
-import type { AppPorts } from '../platform/container'
-import { notifyContext } from '../shared/notifications/notifyContext'
+import { ShellRegionsProvider } from '@app/ShellRegionsProvider'
+import { useShellRegions } from '@app/useShellRegions'
+import { PortsContext } from '@app/portsContextValue'
+import { WorkflowDetailPage } from '@modules/workflows/ui/WorkflowDetailPage'
+import type { AppPorts } from '@platform/container'
+import { notifyContext } from '@shared/notifications/notifyContext'
 
 function InspectorHost() {
   const { inspectorContent } = useShellRegions()

@@ -12,29 +12,37 @@
  * "ready" branch to a child component so `useWorkflowDetailActions` can
  * assume a non-null workflow.
  */
-import { useMemo } from 'react'
+import { lazy, Suspense, useEffect, useMemo } from 'react'
 import { useParams, useSearchParams } from 'react-router-dom'
-import { useShellRegionRegistration } from '../../../../app/useShellRegionRegistration'
-import { uiText } from '../../../../shared/constants/uiText'
-import { ConfirmDialog } from '../../../../shared/ui/ConfirmDialog'
-import { ErrorState } from '../../../../shared/ui/ErrorState'
-import { LoadingState } from '../../../../shared/ui/LoadingState'
-import { PageCard } from '../../../../shared/ui/PageCard'
-import { PageHeader } from '../../../../shared/ui/PageHeader'
+import { useShellRegionRegistration } from '@app/useShellRegionRegistration'
+import { uiText } from '@shared/constants/uiText'
+import { ConfirmDialog } from '@shared/ui/ConfirmDialog'
+import { ErrorState } from '@shared/ui/ErrorState'
+import { LoadingState } from '@shared/ui/LoadingState'
+import { PageCard } from '@shared/ui/PageCard'
+import { PageHeader } from '@shared/ui/PageHeader'
 import { useWorkflowDetailQuery } from '../../data/useWorkflowDetailQuery'
 import { useWorkflowVersionsQuery } from '../../data/useWorkflowVersionsQuery'
-import type { WorkflowResponse, WorkflowVersionSummary } from '../../lib/workflowSchemas'
+import type { WorkflowResponse, WorkflowVersionSummary } from '@platform/contracts/workflowSchemas'
 import { parseWorkflowDetailSearchParams } from '../../lib/workflowsSearchParams'
 import { WorkflowEditModal } from '../WorkflowEditModal'
 import { WorkflowVersionList } from '../WorkflowVersionList'
 import { RunsTab } from './RunsTab'
-import { StoryboardTab } from './StoryboardTab'
 import { WorkflowHeaderStrip } from './WorkflowHeaderStrip'
 import { WorkflowTabs } from './WorkflowTabs'
-import { useWorkflowDetailActions } from './lib/useWorkflowDetailActions'
+import { useWorkflowDetailActions } from './useWorkflowDetailActions'
+
+const importStoryboardTab = () => import('./StoryboardTab')
+const StoryboardTab = lazy(() => importStoryboardTab().then((m) => ({ default: m.StoryboardTab })))
 
 export function WorkflowDetailPage() {
   const { key } = useParams<{ key: string }>()
+
+  // Prefetch the storyboard chunk so the default tab renders without a load flash. A failed prefetch is
+  // ignored here — the lazy render path surfaces real chunk-load errors via Suspense + the route boundary.
+  useEffect(() => {
+    void importStoryboardTab().catch(() => {})
+  }, [])
 
   const detailQuery = useWorkflowDetailQuery(key)
   const versionsQuery = useWorkflowVersionsQuery(key)
@@ -134,13 +142,15 @@ function WorkflowDetailReady({
       {detailSearchState.tab === 'runs' ? (
         <RunsTab workflow={workflow} />
       ) : (
-        <StoryboardTab
-          workflow={workflow}
-          validationState={actions.validationState}
-          onValidate={() => void actions.onValidate()}
-          onDismissValidation={actions.dismissValidation}
-          isValidationPending={actions.validationState.mode === 'pending'}
-        />
+        <Suspense fallback={<LoadingState />}>
+          <StoryboardTab
+            workflow={workflow}
+            validationState={actions.validationState}
+            onValidate={() => void actions.onValidate()}
+            onDismissValidation={actions.dismissValidation}
+            isValidationPending={actions.validationState.mode === 'pending'}
+          />
+        </Suspense>
       )}
 
       {/*

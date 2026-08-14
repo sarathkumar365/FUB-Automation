@@ -1,5 +1,4 @@
 import type { ReactNode } from 'react'
-import { useMemo } from 'react'
 import { uiText } from '../constants/uiText'
 
 type ColumnDef<T> = {
@@ -18,6 +17,9 @@ type DataTableProps<T> = {
   onRowClick?: (row: T) => void
   selectedRowKey?: string | number | null
   getRowAriaLabel?: (row: T) => string
+  // Optional always-on leading accent rail color per row (e.g. status-tinted "ledger" treatment).
+  // When omitted, the rail keeps its default brand-on-hover/selected behavior.
+  rowAccent?: (row: T) => string
 }
 
 export function DataTable<T>({
@@ -29,62 +31,86 @@ export function DataTable<T>({
   onRowClick,
   selectedRowKey = null,
   getRowAriaLabel,
+  rowAccent,
 }: DataTableProps<T>) {
-  const normalizedRows = useMemo(() => rows, [rows])
-
   if (loading) {
     return <p className="text-sm text-[var(--color-text-muted)]">{uiText.states.loadingMessage}</p>
   }
 
-  if (normalizedRows.length === 0) {
+  if (rows.length === 0) {
     return <p className="text-sm text-[var(--color-text-muted)]">{emptyMessage ?? uiText.states.emptyMessage}</p>
   }
 
   return (
-    <div className="overflow-x-auto rounded-md border border-[var(--color-border)] bg-[var(--color-surface)]">
+    <div className="overflow-x-auto rounded-xl border border-[var(--color-border)] bg-[var(--color-surface)]">
       <table className="min-w-full text-left text-sm">
         <thead className="bg-[var(--color-surface-alt)] text-[var(--color-text-muted)]">
-          <tr>
+          <tr className="border-b border-[var(--color-border)]">
             {columns.map((column) => (
-              <th key={column.key} className="px-3 py-2 font-medium">
+              <th key={column.key} className="px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.05em]">
                 {column.header}
               </th>
             ))}
           </tr>
         </thead>
         <tbody>
-          {normalizedRows.map((row) => {
+          {rows.map((row) => {
             const rowKey = getRowKey(row)
             const isSelected = selectedRowKey !== null && selectedRowKey === rowKey
+            const interactive = Boolean(onRowClick)
+            const accentColor = rowAccent?.(row)
+
+            const railClass = isSelected
+              ? 'border-l-[3px] border-l-[var(--color-brand)]'
+              : interactive
+                ? 'border-l-[3px] border-l-transparent group-hover:border-l-[var(--color-brand)]'
+                : 'border-l-[3px] border-l-transparent'
 
             return (
               <tr
                 key={rowKey}
-                // TODO: Replace row-level button semantics with a focusable cell control to preserve native table navigation semantics.
-                className={`border-t border-[var(--color-border)] ${onRowClick ? 'cursor-pointer hover:bg-[var(--color-surface-alt)] focus-within:bg-[var(--color-surface-alt)]' : ''} ${
-                  isSelected ? 'bg-[var(--color-brand-soft)]' : ''
-                }`}
-                role={onRowClick ? 'button' : undefined}
-                tabIndex={onRowClick ? 0 : undefined}
-                aria-label={onRowClick ? (getRowAriaLabel?.(row) ?? undefined) : undefined}
-                aria-pressed={onRowClick ? isSelected : undefined}
-                onClick={onRowClick ? () => onRowClick(row) : undefined}
+                className={[
+                  'group border-t border-[color-mix(in_srgb,var(--color-border),transparent_40%)] transition-colors',
+                  interactive
+                    ? 'cursor-pointer focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-[var(--color-brand)]'
+                    : '',
+                  interactive && !isSelected ? 'hover:bg-[var(--color-surface-alt)]' : '',
+                  isSelected ? 'bg-[var(--color-brand-soft)]' : '',
+                ].join(' ')}
+                role={interactive ? 'button' : undefined}
+                tabIndex={interactive ? 0 : undefined}
+                aria-label={interactive ? (getRowAriaLabel?.(row) ?? undefined) : undefined}
+                aria-pressed={interactive ? isSelected : undefined}
+                onClick={interactive ? () => onRowClick?.(row) : undefined}
                 onKeyDown={
-                  onRowClick
+                  interactive
                     ? (event) => {
                         if (event.key === 'Enter' || event.key === ' ') {
                           event.preventDefault()
-                          onRowClick(row)
+                          onRowClick?.(row)
                         }
                       }
                     : undefined
                 }
               >
-                {columns.map((column) => (
-                  <td key={column.key} className={`px-3 py-2 ${column.className ?? ''}`}>
-                    {column.render(row)}
-                  </td>
-                ))}
+                {columns.map((column, colIndex) => {
+                  const isRail = colIndex === 0
+                  // Selection rail wins over the accent rail so a selected row stays visibly selected.
+                  const accented = isRail && accentColor !== undefined && !isSelected
+                  return (
+                    <td
+                      key={column.key}
+                      className={`px-4 py-3 ${isRail && !accented ? railClass : ''} ${column.className ?? ''}`}
+                      style={
+                        accented
+                          ? { borderLeftWidth: '3px', borderLeftStyle: 'solid', borderLeftColor: accentColor }
+                          : undefined
+                      }
+                    >
+                      {column.render(row)}
+                    </td>
+                  )
+                })}
               </tr>
             )
           })}

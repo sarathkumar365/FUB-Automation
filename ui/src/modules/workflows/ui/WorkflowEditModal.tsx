@@ -1,10 +1,10 @@
 import * as Dialog from '@radix-ui/react-dialog'
 import { useMemo, useState } from 'react'
-import type { UpdateWorkflowCommand } from '../../../platform/ports/workflowPort'
-import type { WorkflowResponse } from '../lib/workflowSchemas'
-import { uiText } from '../../../shared/constants/uiText'
-import { Button } from '../../../shared/ui/button'
-import { Input } from '../../../shared/ui/input'
+import type { UpdateWorkflowCommand } from '@platform/ports/workflowPort'
+import type { WorkflowResponse } from '@platform/contracts/workflowSchemas'
+import { uiText } from '@shared/constants/uiText'
+import { Button } from '@shared/ui/button'
+import { Input } from '@shared/ui/input'
 
 type WorkflowEditModalProps = {
   open: boolean
@@ -119,7 +119,7 @@ function Field({ label, error, children }: { label: string; error?: string; chil
     <label className="flex flex-col gap-1">
       <span className="text-sm font-medium text-[var(--color-text)]">{label}</span>
       {children}
-      {error ? <span className="text-xs text-[var(--color-status-bad-text)]">{error}</span> : null}
+      {error ? <span className="text-xs text-[var(--color-status-bad)]">{error}</span> : null}
     </label>
   )
 }

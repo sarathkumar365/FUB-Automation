@@ -13,13 +13,6 @@ export function Popover(props: ComponentPropsWithoutRef<typeof PopoverPrimitive.
   return <PopoverPrimitive.Root {...props} />
 }
 
-export const PopoverTrigger = forwardRef<
-  ElementRef<typeof PopoverPrimitive.Trigger>,
-  ComponentPropsWithoutRef<typeof PopoverPrimitive.Trigger>
->(function PopoverTrigger(props, ref) {
-  return <PopoverPrimitive.Trigger ref={ref} {...props} />
-})
-
 export const PopoverAnchor = forwardRef<
   ElementRef<typeof PopoverPrimitive.Anchor>,
   ComponentPropsWithoutRef<typeof PopoverPrimitive.Anchor>

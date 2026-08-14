@@ -1,12 +1,12 @@
 import type {
   StepTypeCatalogEntry,
-  TriggerTypeCatalogEntry,
+  TriggerTypeCatalog,
   ValidateWorkflowResponse,
   WorkflowPageResponse,
   WorkflowResponse,
   WorkflowStatus,
   WorkflowVersionSummary,
-} from '../../modules/workflows/lib/workflowSchemas'
+} from '../contracts/workflowSchemas'
 
 export type WorkflowListFilters = {
   status?: WorkflowStatus
@@ -51,5 +51,5 @@ export interface WorkflowPort {
   rollbackWorkflow(key: string, cmd: RollbackWorkflowCommand): Promise<WorkflowResponse>
   archiveWorkflow(key: string): Promise<WorkflowResponse>
   listStepTypes(): Promise<StepTypeCatalogEntry[]>
-  listTriggerTypes(): Promise<TriggerTypeCatalogEntry[]>
+  listTriggerTypes(): Promise<TriggerTypeCatalog>
 }

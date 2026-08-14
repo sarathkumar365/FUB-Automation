@@ -1,5 +1,9 @@
 # How the Workflow Engine Works — A Walkthrough
 
+> **⚠️ Status (2026-06-03).** Accurate for the **execution machinery** (claiming, delays, branching, retries, scope), but two things have moved since it was written:
+> - **Naming:** predates the `Lead`→`Person` rename — read `lead`/`sourceLeadId` as `person`/`sourcePersonId` (the code is renamed; the snapshot lives under `person.*`).
+> - **Trigger model:** the webhook-shaped trigger described here (`fub_webhook` → `WorkflowTriggerRouter.route(webhook)`) is **"Rail 1"**, being migrated to **domain-event triggers** in Phase 4 — workflows will subscribe to typed events (`person.state_changed`, …), not raw webhooks. For the current/target architecture and the migration, see [`../domain-events/README.md`](../domain-events/README.md) and [`../domain-events/README.md`](../domain-events/README.md).
+
 **Audience:** You, a stakeholder, or any engineer new to this codebase who needs the whole picture in one sitting before touching the engine.
 **Approach:** One realistic example traced end-to-end, from the moment a webhook hits the server to the moment the last step completes. Every mechanism (claiming, delays, branching, retries) is explained against the same example, with file paths and line numbers so you can jump to the code.
 
@@ -48,11 +52,15 @@ Each entry: what it is, one example. Skim this list first; you'll recognize ever
 
 **Template** — A string with `{{ ... }}` markers inside a step's config. The engine resolves the markers before calling `execute()`. *Example:* `"Follow up with {{ event.payload.firstName }}"` → `"Follow up with Sarath"`.
 
-**Expression Scope** — The `Map<String, Object>` every JSONata expression evaluates against. Has exactly three keys: `event` (wraps the webhook payload under `event.payload`), `sourceLeadId`, and `steps` (prior step outputs). There is **no `trigger` key** — the payload is always reached via `event.payload.<key>`. *Example:* `{ "event": { "payload": { "firstName": "Sarath", "priority": "high" } }, "sourceLeadId": "42", "steps": { "check_claim": { "outputs": { "assignedUserId": 77 } } } }`.
+**Expression Scope** — The `Map<String, Object>` every JSONata expression evaluates against. Has four keys: `event` (wraps the webhook payload under `event.payload`), `sourceLeadId`, `lead` (the locally-snapshotted lead details — see below), and `steps` (prior step outputs). There is **no `trigger` key** — the payload is always reached via `event.payload.<key>`. *Example:* `{ "event": { "payload": { "firstName": "Sarath", "priority": "high" } }, "sourceLeadId": "42", "lead": { "assignedUserId": 30, "assignedTo": "ISA AuraKeyRealty", "stage": "Lead" }, "steps": { "check_claim": { "outputs": { "assignedUserId": 77 } } } }`.
+
+**`lead.*` namespace** — Resolved at the start of every step from the `leads.lead_details` JSONB column via `LeadSnapshotResolver`. Auto-fresh: any `peopleUpdated` webhook re-snapshots the lead via the standard ingestion path, so a step running 30 minutes after its workflow started sees the latest field values without an extra FUB API call. Always present in scope; an empty map (`{}`) when the lead hasn't been ingested yet, so `{{ lead.foo }}` returns null gracefully via JSONata path navigation. Source system is currently hardcoded to `"FUB"` — see [known-issues.md](../../engineering-reference/known-issues.md) #18. Trigger-filter scope does NOT yet include `lead.*` — see [known-issues.md](../../engineering-reference/known-issues.md) #17 and `Docs/product-discovery/ideas.md`.
+
+**`now.*` namespace** — Time-of-day flags resolved at the start of every step via `BusinessHoursService`. Two fields: `now.isDaytime` (boolean — true when within configured business hours in the configured timezone) and `now.hourLocal` (int 0–23, hour-of-day in local timezone). Driven by `BusinessHoursProperties` (`automation.business-hours.*`): timezone, startHour, endHour, weekdaysOnly. Per-step resolution means long-running workflows that cross the daytime/off-hours boundary see the correct value at each subsequent step. Workflows branch via `branch_on_field` with `expression: "now.isDaytime"`.
 
 **Expression Evaluator** — There is exactly **one evaluator**: `JsonataExpressionEvaluator`. It is not multiple evaluators — the same class does everything expression-related in the engine. It has two modes (methods): `resolveTemplate(str, scope)` for fill-in-the-blanks strings with `{{ ... }}` markers, and `evaluatePredicate(expr, scope)` for raw boolean/scalar expressions with no markers. Same class, same scope, two different ways to call it.
 
-**RunContext** — A rebuilt-each-time record carrying metadata (runId, workflowKey), the frozen trigger payload, the sourceLeadId, and a map of every completed step's outputs. Used to build the Expression Scope.
+**RunContext** — A rebuilt-each-time record carrying metadata (runId, workflowKey), the frozen trigger payload, the sourceLeadId, the resolved lead snapshot, and a map of every completed step's outputs. Used to build the Expression Scope.
 
 **Resolved Config** — The step's config after all `{{ ... }}` templates are evaluated. Persisted to `workflow_run_steps.resolved_config` for debugging. *Example:* authored `{"name": "Call {{ event.payload.firstName }}"}` becomes resolved `{"name": "Call Sarath"}`.
 
@@ -397,9 +405,69 @@ It has **two modes**:
 - **`resolveTemplate(String template, ExpressionScope scope)`** — the "fill in the blanks" mode. You hand it a string like `"Hello {{ event.payload.firstName }}"` and it finds the `{{ ... }}` parts, evaluates each one against the scope, and returns the filled-in result.
 - **`evaluatePredicate(String expression, ExpressionScope scope)`** — the "is this true?" mode. You hand it a raw expression with no `{{ }}` markers, like `event.payload.score > 5`, and it evaluates it and returns the result (a boolean, a string, a number — whatever JSONata computes).
 
-The **scope** is the context — the map where the answers live. It has exactly three keys: `event.payload` (the webhook payload), `steps.<nodeId>.outputs.<key>` (previous steps' outputs), and `sourceLeadId`. There is no `trigger` key — all webhook data is reached via `event.payload.<key>`. JSONata walks this map to find the value your expression points at.
+The **scope** is the context — the map where the answers live. It has five keys: `event.payload` (the webhook payload), `sourceLeadId`, `lead.<field>` (the locally-snapshotted lead details, auto-refreshed by webhook ingestion), `now.<field>` (time-of-day flags from `BusinessHoursService`), and `steps.<nodeId>.outputs.<key>` (previous steps' outputs). There is no `trigger` key — all webhook data is reached via `event.payload.<key>`. JSONata walks this map to find the value your expression points at.
 
-Both modes evaluate against an `ExpressionScope` — a map with `event`, `sourceLeadId`, and `steps.<nodeId>.outputs.<key>`.
+Both modes evaluate against an `ExpressionScope` — a map with `event`, `sourceLeadId`, `lead.<field>`, `now.<field>`, and `steps.<nodeId>.outputs.<key>`.
+
+### End-to-end trace: how a value lands on a step's input
+
+Concrete example — a workflow step writes `{{ lead.assignedTo }}` in its config. Where does the agent display name actually come from?
+
+```
+FUB                    Our system                       The step
+───                    ──────────                       ────────
+
+peopleUpdated  ───►   FubWebhookParser
+webhook                       │
+                              ▼
+                       processLeadDomainEvent
+                              │
+                              ▼
+                       getPersonRawById(18399)  ◄── one FUB API call
+                              │     ↓
+                              │   { ... assignedUserId: 30,
+                              │       assignedTo: "ISA AuraKeyRealty",
+                              │       stage: "Lead", ... }
+                              ▼
+                       leads.lead_details JSONB        (← stored locally)
+                              │
+                              ▼
+                       WorkflowTriggerRouter starts a run
+                              │
+                              ▼ (per step)
+                       buildRunContext(run)
+                              │
+                              ▼
+                       LeadSnapshotResolver
+                       .resolve("18399")
+                              │   ↓
+                              │   { assignedUserId: 30, assignedTo: "ISA AuraKeyRealty", ... }
+                              ▼
+                       runContext.lead = <map>
+                              │
+                              ▼
+                       ExpressionScope.from(runContext)
+                              │
+                              ▼
+                       resolveConfigTemplates(rawConfig, scope)
+                              │
+                              ▼
+                       Template `{{ lead.assignedTo }}`
+                       walks lead → assignedTo
+                       returns "ISA AuraKeyRealty"
+                              │
+                              ▼                ┌─────────────────────────┐
+                       resolvedConfig:         │   the step (any kind)   │
+                       {                       │                         │
+                         mentionUserIds:[30],  │ Sees pre-resolved values│
+                         mentionUserNames:     │ Knows nothing about     │
+                           ["ISA AuraKeyRealty"], │ "agents" or "leads"  │
+                         ...                   │                         │
+                       }       ───────────────►│ Just runs its action    │
+                                               └─────────────────────────┘
+```
+
+**Key takeaway:** the step never queries the DB or calls FUB to look anything up. It receives strings and numbers. All the "where does this come from" complexity lives in `ExpressionScope` (what's available) and the workflow JSON (what to bind). Adding a new namespace = put a new key in scope. Adding a new step that reads existing data = no extra plumbing, just a `{{ ... }}` in the workflow JSON.
 
 **The decision tree inside `resolveTemplate`:**
 
@@ -711,13 +779,13 @@ Critically: when a run is planned, the engine **freezes a snapshot** of the defi
 
 ### 2.1 Webhook comes in
 
-File: `src/main/java/com/fuba/automation_engine/controller/WebhookIngressController.java`
+File: `src/main/java/com/flux/controller/WebhookIngressController.java`
 
 The controller exposes `POST /webhooks/{source}` (e.g. `/webhooks/fub`). It reads the raw body, grabs the headers, and hands off to `WebhookIngressService.ingest()`.
 
 ### 2.2 Ingest persists and dispatches
 
-File: `src/main/java/com/fuba/automation_engine/service/webhook/WebhookIngressService.java`, method `ingest()` (lines 59–157).
+File: `src/main/java/com/flux/service/webhook/WebhookIngressService.java`, method `ingest()` (lines 59–157).
 
 The ingest service does four things:
 1. Verifies the webhook signature.
@@ -727,7 +795,7 @@ The ingest service does four things:
 
 ### 2.3 Trigger router picks which workflows to run
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/trigger/WorkflowTriggerRouter.java`, method `route()` (lines 46–193).
+File: `src/main/java/com/flux/service/workflow/trigger/WorkflowTriggerRouter.java`, method `route()` (lines 46–193).
 
 Important mental model: **triggers are not steps.** Triggers are evaluated *before* any run exists. A trigger's only job is to answer "does this webhook event cause this workflow to start, and if so, for which entity (lead)?"
 
@@ -742,7 +810,7 @@ For our example, suppose a FUB webhook arrives for a newly-created lead. The tri
 
 ### 2.4 Planning creates the run and materializes every step
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionManager.java`, method `plan()` (lines 68–130).
+File: `src/main/java/com/flux/service/workflow/WorkflowExecutionManager.java`, method `plan()` (lines 68–130).
 
 This is the most important method in the whole engine. In one transaction it:
 
@@ -778,7 +846,7 @@ Nothing in the engine is event-driven in-process. Everything is database-polled.
 
 ### 3.1 The polling worker
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowExecutionDueWorker.java`, method `pollAndProcessDueSteps()` (lines 39–77).
+File: `src/main/java/com/flux/service/workflow/WorkflowExecutionDueWorker.java`, method `pollAndProcessDueSteps()` (lines 39–77).
 
 A `@Scheduled` method wakes up every ~2 seconds (configurable via `workflow.worker.poll-interval-ms`). Each tick it:
 1. Runs stale-recovery (rescues steps stuck in PROCESSING from a crashed prior tick).
@@ -787,7 +855,7 @@ A `@Scheduled` method wakes up every ~2 seconds (configurable via `workflow.work
 
 ### 3.2 The claim query — the heart of concurrency safety
 
-File: `src/main/java/com/fuba/automation_engine/persistence/repository/JdbcWorkflowRunStepClaimRepository.java`, method `claimDuePendingSteps()` (lines 96–108).
+File: `src/main/java/com/flux/persistence/repository/JdbcWorkflowRunStepClaimRepository.java`, method `claimDuePendingSteps()` (lines 96–108).
 
 ```sql
 WITH due AS (
@@ -823,7 +891,7 @@ A successfully claimed step transitions **PENDING → PROCESSING** atomically. I
 
 ## 4. Executing a Single Step
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepExecutionService.java`, method `executeClaimedStep()` (lines 61–135).
+File: `src/main/java/com/flux/service/workflow/WorkflowStepExecutionService.java`, method `executeClaimedStep()` (lines 61–135).
 
 Let's walk the claim of `wait_5m` — the very first step to execute in our example — and then `branch_check`, to see how data flows between them.
 
@@ -866,7 +934,7 @@ This step is worth taking slowly, because the expression system is what makes th
 
 There is **one evaluator, two modes**. Not two evaluators — one class (`JsonataExpressionEvaluator`) that does everything.
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/expression/ExpressionEvaluator.java` (interface)
+File: `src/main/java/com/flux/service/workflow/expression/ExpressionEvaluator.java` (interface)
 Implementation: `JsonataExpressionEvaluator.java`
 
 | Mode | Method | When used | Input shape | Returns |
@@ -1129,7 +1197,7 @@ The previous sections traced one run from webhook to completion. But a productio
 
 ### 8.1 The graph validator — how authors are protected from themselves
 
-File: `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowGraphValidator.java` (class `WorkflowGraphValidator`, main method `validate(Map<String, Object> graph)` at line 23).
+File: `src/main/java/com/flux/service/workflow/WorkflowGraphValidator.java` (class `WorkflowGraphValidator`, main method `validate(Map<String, Object> graph)` at line 23).
 
 **Why it exists.** The graph is a JSONB blob authored by a human (via the admin UI or an API call). Nothing in JSON's structure prevents someone from writing a graph whose entry node doesn't exist, whose transitions point at dead node IDs, or whose cycles make the run loop forever. The validator is the gatekeeper that rejects such graphs before they can harm anything.
 

@@ -1,5 +1,7 @@
 # Workflow Engine Rebuild — Research
 
+> ⚠️ **Partly stale (2026-06-03).** The "Current Ground Truth" below stops around Wave 3 and lists `FubWebhookTriggerType` as live. Waves 4–5 and the domain-events cutover shipped since: the only trigger type now is `DomainEventTriggerType`; workflows subscribe to typed domain events. See [`../domain-events/README.md`](../domain-events/README.md). Kept as research history.
+
 ## Purpose
 This file is the workflow-engine feature research entrypoint required by the repo feature workflow.
 
@@ -7,7 +9,7 @@ This file is the workflow-engine feature research entrypoint required by the rep
 - [Workflow Engine — Implementation Plan](workflow-engine-implementation-plan.md)
 - [Workflow Engine — Technical Implementation Details](workflow-engine-technical-implementation.md)
 - [Workflow Engine Rebuild Plan Review Findings](rebuild-plan-findings.md)
-- [Repository Decisions Index](/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/repo-decisions/README.md)
+- [Repository Decisions Index](/Users/sarathkumar/Projects/2Creative/flux/Docs/repo-decisions/README.md)
 
 ## Current Ground Truth (Implementation)
 - Wave 1 core runtime exists under `service/workflow/*` with dedicated workflow tables (`V10` migration).

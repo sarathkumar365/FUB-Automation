@@ -1,5 +1,6 @@
-import type { LeadListFilters, LeadSummaryFilters } from '../../shared/types/lead'
-import type { WebhookListFilters } from '../../shared/types/webhook'
+import type { PersonListFilters, PersonSummaryFilters } from '@shared/types/person'
+import type { ReportWindowKey } from '../contracts/reportingSchemas'
+import type { WebhookListFilters } from '@shared/types/webhook'
 import type { ProcessedCallFilters } from '../ports/processedCallsPort'
 import type { WorkflowListFilters } from '../ports/workflowPort'
 import type { WorkflowRunListFilters } from '../ports/workflowRunPort'
@@ -11,14 +12,16 @@ export const queryKeys = {
     eventTypes: () => ['webhooks', 'event-types'] as const,
   },
   processedCalls: {
+    lists: () => ['processed-calls', 'list'] as const,
     list: (filters: ProcessedCallFilters) => ['processed-calls', 'list', filters] as const,
   },
-  leads: {
-    list: (filters: LeadListFilters) => ['leads', 'list', filters] as const,
-    summary: (sourceLeadId: string, filters: LeadSummaryFilters) =>
-      ['leads', 'summary', sourceLeadId, filters] as const,
+  persons: {
+    list: (filters: PersonListFilters) => ['persons', 'list', filters] as const,
+    summary: (sourcePersonId: string, filters: PersonSummaryFilters) =>
+      ['persons', 'summary', sourcePersonId, filters] as const,
   },
   workflows: {
+    lists: () => ['workflows', 'list'] as const,
     list: (filters: WorkflowListFilters) => ['workflows', 'list', filters] as const,
     detail: (key: string) => ['workflows', 'detail', key] as const,
     versions: (key: string) => ['workflows', 'versions', key] as const,
@@ -26,11 +29,22 @@ export const queryKeys = {
     triggerTypes: () => ['workflows', 'trigger-types'] as const,
   },
   workflowRuns: {
+    lists: () => ['workflow-runs', 'list'] as const,
     list: (filters: WorkflowRunListFilters) => ['workflow-runs', 'list', filters] as const,
+    forKey: (key: string) => ['workflow-runs', 'key', key] as const,
     listForKey: (key: string, filters: WorkflowRunListFilters) => ['workflow-runs', 'key', key, filters] as const,
     detail: (runId: number) => ['workflow-runs', 'detail', runId] as const,
   },
   dashboard: {
     snapshot: () => ['dashboard', 'snapshot'] as const,
+  },
+  reports: {
+    sourceContact: (window: ReportWindowKey) => ['reports', 'source-contact', window] as const,
+    accountability: (window: ReportWindowKey) => ['reports', 'accountability', window] as const,
+    unreached: (agentId: number, window: ReportWindowKey) =>
+      ['reports', 'unreached', agentId, window] as const,
+  },
+  settings: {
+    config: () => ['settings', 'config'] as const,
   },
 }

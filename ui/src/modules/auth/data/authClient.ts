@@ -1,5 +1,5 @@
 import { z } from 'zod'
-import { HttpJsonClient } from '../../../platform/adapters/http/httpJsonClient'
+import { HttpJsonClient } from '@platform/adapters/http/httpJsonClient'
 
 const RoleSchema = z.enum(['ADMIN', 'OPERATOR', 'VIEWER'])
 

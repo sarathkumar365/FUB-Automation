@@ -22,11 +22,12 @@ import type { SceneLayout } from '../../model/layoutEngine'
 import type { StoryboardScene } from '../../model/graphAdapters'
 import { getAccentTone } from './accentTokens'
 
-// Scene cards render neutral by default: no colored left stripe, no accent-tinted
-// pill. The `data-accent` attribute still reflects the step-type category so
-// tests and later features can read it, but the visible treatment is monochrome
-// so the graph reads calmly at scan-speed. All colors below come from
-// `ui/src/styles/tokens.css` — no hardcoded literals here.
+// Scene cards carry a per-category accent on the step-type pill (trigger=cyan,
+// wait=indigo, branch=pink, side-effect=amber, compute=emerald, neutral=slate)
+// per design-system §4. Fills are the soft ~14% alpha `--color-accent-*-bg`
+// tokens so the dot-grid canvas stays calm. The `data-accent` attribute mirrors
+// the category for tests. All colors come from `ui/src/styles/tokens.css` — no
+// hardcoded literals here.
 
 export interface SceneProps {
   scene: StoryboardScene
@@ -87,10 +88,6 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
       >
         <span
           data-builder-region="scene-type"
-          // Tone currently resolves to neutral for every scene — see the comment
-          // at the top of the file. The accent tokens are still wired up so we
-          // can opt into colored categories per scene in a later pass without
-          // re-plumbing color resolution.
           data-accent-fg={tone.fg}
           style={{
             alignSelf: 'flex-start',
@@ -99,8 +96,8 @@ export function Scene({ scene, layout, selected, onSelect }: SceneProps) {
             alignItems: 'center',
             padding: '1px 8px',
             borderRadius: 999,
-            background: 'var(--color-accent-neutral-bg)',
-            color: 'var(--color-accent-neutral-fg)',
+            background: tone.bg,
+            color: tone.fg,
             fontSize: 11,
             fontWeight: 600,
             letterSpacing: 0.2,

@@ -5,22 +5,22 @@
 
 ## Scope completed
 - Added typed call-service port:
-  - `AiCallServiceClient`
+  - `CortexClient`
   - `PlaceCallRequest` / `PlaceCallResponse`
   - `GetCallResponse`
-  - `AiCallServiceClientException`
+  - `CortexClientException`
 - Added HTTP adapter implementation:
-  - `AiCallServiceHttpClientAdapter`
+  - `CortexHttpClientAdapter`
 - Added transport DTOs:
-  - `AiCallPlaceRequestDto`
-  - `AiCallPlaceResponseDto`
+  - `CortexPlaceRequestDto`
+  - `CortexPlaceResponseDto`
   - `AiCallStatusResponseDto`
 - Added configuration:
-  - `AiCallServiceProperties`
-  - `AiCallServiceConfig`
-  - `application.properties` entries for `ai-call-service.base-url`, `connect-timeout-ms`, `read-timeout-ms`
+  - `CortexProperties`
+  - `CortexConfig`
+  - `application.properties` entries for `cortex.base-url`, `connect-timeout-ms`, `read-timeout-ms`
 - Added adapter test suite:
-  - `AiCallServiceHttpClientAdapterTest`
+  - `CortexHttpClientAdapterTest`
 
 ## Behavior now available
 - Java runtime has a dedicated typed client for the Python call-service contract endpoints:

@@ -45,8 +45,11 @@ Storyboard-specific visual effects: grid dot, card border, selected-scene ring, 
 ### Spacing — `--space-1` through `--space-5`
 4 / 8 / 12 / 16 / 20 px. Most primitives use Tailwind utility classes for spacing (`gap-3`, `p-4`), so these tokens show up mostly in CSS or inline `style` where utility classes don't fit.
 
-### Elevation — `--shadow-subtle`
-Standard drop shadow for the handful of surfaces that need elevation. Scene cards have their own storyboard-specific shadows.
+### Elevation — `--shadow-subtle`, `--shadow-float`
+Two soft, low drop shadows: `--shadow-subtle` (resting card), `--shadow-float` (glass milestone card). No hard or dark drop shadows anywhere. Scene cards have their own storyboard-specific shadows.
+
+### Semantic type roles — `--type-*`
+First-class type roles lifted from the design system: `display` (hero), `h1`/`h2`/`h3`, `body`, `small`, `kicker` (uppercase overline), `caption` (uppercase field label), `mono`. Each role exposes its size/weight/leading/tracking as separate tokens (e.g. `--type-h1-size`, `--type-h1-weight`). Reference these instead of re-deriving sizes per component so type stays consistent.
 
 ### Form controls — `--select-chevron`
 Inline SVG used as the `<select>` chevron background. Not a color, but belongs to the form-control visual language.
@@ -79,6 +82,6 @@ Don't add a token for:
 
 ## Dark mode
 
-Not implemented yet. When it lands, overrides will be grouped under a `:root[data-theme='dark']` (or `@media (prefers-color-scheme: dark)`) block in this same file. Every token that needs a dark value gets overridden in one place; TSX does not branch on theme.
+Implemented as an opt-in theme. Dark values are grouped under the `:root[data-theme='dark']` block in this file — every token that needs a dark value is overridden in one place; TSX never branches on theme. The active theme is the `data-theme` attribute on `<html>`, set before first paint by an inline boot script in `index.html` and toggled at runtime via `shared/theme/theme.ts` (persisted to `localStorage` key `ae-theme`, defaulting to `prefers-color-scheme`). The rail's `ThemeToggle` flips it.
 
-Writing primitives against tokens — *not* inline colors — is what makes this future migration a one-file change. The token rule in [`src/shared/ui/README.md`](../shared/ui/README.md) is the enforcement point.
+Writing primitives against tokens — *not* inline colors — is what makes this work: anything token-driven adopts dark automatically. The token rule in [`src/shared/ui/README.md`](../shared/ui/README.md), plus the `npm run lint:tokens` guard, is the enforcement point.

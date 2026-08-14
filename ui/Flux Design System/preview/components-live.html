@@ -1,0 +1,27 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.pill{display:inline-flex;align-items:center;gap:7px;border-radius:999px;border:1px solid;padding:5px 11px;font-size:12px;font-weight:600}
+.dot{width:8px;height:8px;border-radius:999px;display:inline-block}
+.icbtn{width:36px;height:36px;border:1px solid #dde6f2;border-radius:8px;background:#fff;display:inline-flex;align-items:center;justify-content:center}
+.icbtn svg{width:16px;height:16px;stroke:#0f172a;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+</style></head>
+<body>
+<div class="row" style="gap:10px">
+  <span class="pill" style="border-color:rgba(15,118,110,.3);background:#ccfbf1;color:#0f766e"><span class="dot" style="background:#10b981"></span>Live</span>
+  <span class="pill" style="border-color:rgba(180,83,9,.3);background:#fef3c7;color:#b45309"><span class="dot" style="background:#b45309"></span>Connecting</span>
+  <span class="pill" style="border-color:rgba(190,18,60,.3);background:#ffe4e6;color:#be123c"><span class="dot" style="background:#be123c"></span>Reconnecting</span>
+  <span class="pill" style="border-color:#dde6f2;background:#fbfdff;color:#64748b"><span class="dot" style="background:#64748b"></span>Paused</span>
+  <button class="icbtn" aria-label="Pause"><svg viewBox="0 0 24 24"><path d="M9 5v14"/><path d="M15 5v14"/></svg></button>
+</div>
+<div style="margin-top:18px;display:flex;gap:4px;align-items:center" aria-hidden="true">
+  <span style="height:6px;flex:1;border-radius:999px;background:rgba(16,185,129,.6)"></span>
+  <span style="height:6px;flex:1;border-radius:999px;background:rgba(16,185,129,.6)"></span>
+  <span style="height:6px;flex:1;border-radius:999px;background:rgba(16,185,129,.6)"></span>
+  <span style="height:6px;flex:1;border-radius:999px;background:#b45309"></span>
+  <span style="height:6px;flex:1;border-radius:999px;background:#dde6f2"></span>
+  <span style="height:6px;flex:1;border-radius:999px;background:#dde6f2"></span>
+  <span style="height:6px;flex:1;border-radius:999px;background:#dde6f2"></span>
+  <span style="height:6px;flex:1;border-radius:999px;background:#dde6f2"></span>
+</div>
+<p class="caption" style="margin-top:14px">Streaming = corner pulse-dot pill (never a "Live" button) + icon pause control. Activity tick-strip sits under live feed headers; the amber tick flashes on heartbeat.</p>
+</body></html>

@@ -14,7 +14,7 @@
 
 ## Post-pass hardening (2026-04-21)
 
-- **Terminal payload mapping**: `AiCallServiceHttpClientAdapter` now deserializes the
+- **Terminal payload mapping**: `CortexHttpClientAdapter` now deserializes the
   status response straight to `Map<String, Object>`, keeping `status` and `call_sid`
   in `terminalPayload` so downstream JSONata (e.g. `{{ steps.ai1.outputs.call_sid }}`)
   resolves correctly.
@@ -42,7 +42,7 @@
   emits the synthetic `timeout` payload at age > 5m, Python keeps the call alive in
   its in-memory registry. Extend the contract with `POST /calls/{sid}/cancel` (or
   `DELETE /calls/{sid}`) and have the step invoke it before returning the timeout
-  payload. Touches `ai-call-service/docs/CONTRACT.md`, `AiCallServiceClient`, and
+  payload. Touches `cortex/docs/CONTRACT.md`, `CortexClient`, and
   `AiCallWorkflowStep.pollCall` timeout branch.
 
 - **Poll/timeout math is tight** (review issue #4). Current cadence

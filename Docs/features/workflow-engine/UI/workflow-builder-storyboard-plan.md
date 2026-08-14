@@ -1,6 +1,6 @@
 # Workflow Builder UI — "Storyboard" Design & Phased Implementation Plan
 
-> **Status:** Proposal · supersedes `workflow-builder-ui-plan.md` (which described a generic React-Flow MVP). This plan picks a distinct design tailored to this platform and engine, and lays out a phased implementation with first-class observability and traceability.
+> **Status:** Proposal · supersedes the earlier generic React-Flow MVP plan (since removed). This plan picks a distinct design tailored to this platform and engine, and lays out a phased implementation with first-class observability and traceability.
 
 ---
 
@@ -363,7 +363,7 @@ When the server returns validation errors, each error is mapped to:
 - `ui/package.json`
 - `ui/src/modules/workflows-builder/**` (new)
 - `ui/src/app/router.tsx`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepType.java`
+- `src/main/java/com/flux/service/workflow/WorkflowStepType.java`
 
 **Tests:**
 - `runtimeContract.test.ts` — valid + invalid graph fixtures.
@@ -470,9 +470,9 @@ When the server returns validation errors, each error is mapped to:
 - `ui/src/modules/workflows-builder/panels/inspector/**`
 - `ui/src/modules/workflows-builder/panels/IssuesPanel.tsx`
 - `ui/src/modules/workflows-builder/validation/**`
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowGraphValidator.java`
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/*WorkflowStep.java` (add `outputsSchema()`)
-- `src/main/java/com/fuba/automation_engine/controller/dto/ValidateWorkflowResponse.java`
+- `src/main/java/com/flux/service/workflow/WorkflowGraphValidator.java`
+- `src/main/java/com/flux/service/workflow/steps/*WorkflowStep.java` (add `outputsSchema()`)
+- `src/main/java/com/flux/controller/dto/ValidateWorkflowResponse.java`
 
 **Tests:**
 - `TemplateChipInput.test.ts` — parse/render/edit chips correctly.
@@ -549,9 +549,9 @@ When the server returns validation errors, each error is mapped to:
 - "Copy as curl" on the Save button drop-down — generates a curl that replays the same operation.
 
 **Files touched:**
-- `src/main/java/com/fuba/automation_engine/service/workflow/dryrun/**` (new)
-- `src/main/java/com/fuba/automation_engine/controller/AdminWorkflowController.java` (new endpoint)
-- `src/main/java/com/fuba/automation_engine/controller/dto/DryRun*.java` (new)
+- `src/main/java/com/flux/service/workflow/dryrun/**` (new)
+- `src/main/java/com/flux/controller/AdminWorkflowController.java` (new endpoint)
+- `src/main/java/com/flux/controller/dto/DryRun*.java` (new)
 - `ui/src/modules/workflows-builder/panels/DryRunPanel.tsx`
 - `ui/src/modules/workflows-builder/model/timeStretch.ts`
 - `ui/src/modules/workflows-builder/state/actions.ts` (undo/redo)
@@ -566,7 +566,7 @@ When the server returns validation errors, each error is mapped to:
 **Observability checkpoints:**
 - `builder.dryRun(graphHash, sampleHash)` span with attributes for branch coverage.
 - Trace replay logs every overlay transition for debugging.
-- Backend dry-run uses a separate logger namespace `com.fuba.automation_engine.dryrun` so prod logs are easy to filter.
+- Backend dry-run uses a separate logger namespace `com.flux.dryrun` so prod logs are easy to filter.
 
 **Exit criteria:** Authors can prove a workflow's behavior end-to-end before publishing. Branch-coverage indicator (X of Y exits exercised) shown on the panel.
 
@@ -584,13 +584,13 @@ When the server returns validation errors, each error is mapped to:
 - Empty state for new workflow: storyboard shows the trigger scene + a friendly "+ Add first scene" affordance.
 - Keyboard shortcuts cheatsheet (Cmd+/) — every shortcut documented inline.
 - Accessibility pass: every action reachable by keyboard, focus order coherent, ARIA labels on canvas elements (announced as "Wait and check claim, scene 2 of 5"), reduced-motion respected (matches existing `prefers-reduced-motion` in landing CSS).
-- Delete the prior `workflow-builder-ui-plan.md` doc (superseded by this one).
+- ~~Delete the prior `workflow-builder-ui-plan.md` doc~~ — done (removed in the 2026-06-03 docs cleanup).
 
 **Files touched:**
 - `ui/src/modules/workflows/ui/WorkflowDetailPage.tsx`
 - `ui/src/modules/workflows/ui/WorkflowsPage.tsx`
 - `ui/src/modules/workflows-builder/WorkflowBuilderPage.tsx`
-- `docs/features/workflow-engine/UI/workflow-builder-ui-plan.md` (delete)
+- `docs/features/workflow-engine/UI/workflow-builder-ui-plan.md` (deleted ✓)
 
 **Tests:**
 - Full E2E suite green; visual regression suite green.
@@ -648,12 +648,12 @@ When the server returns validation errors, each error is mapped to:
 ## 10. Critical-path file map
 
 **Backend (additive only):**
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowStepType.java` — add `outputsSchema()` default.
-- `src/main/java/com/fuba/automation_engine/service/workflow/steps/*WorkflowStep.java` — populate `outputsSchema()` per type (Phase 3).
-- `src/main/java/com/fuba/automation_engine/service/workflow/WorkflowGraphValidator.java` — emit structured `ValidationIssue` objects (Phase 3).
-- `src/main/java/com/fuba/automation_engine/service/workflow/dryrun/**` — entire new package (Phase 5).
-- `src/main/java/com/fuba/automation_engine/controller/AdminWorkflowController.java` — add `POST /dry-run` (Phase 5).
-- `src/main/java/com/fuba/automation_engine/controller/dto/ValidateWorkflowResponse.java` — extend with structured issues (Phase 3).
+- `src/main/java/com/flux/service/workflow/WorkflowStepType.java` — add `outputsSchema()` default.
+- `src/main/java/com/flux/service/workflow/steps/*WorkflowStep.java` — populate `outputsSchema()` per type (Phase 3).
+- `src/main/java/com/flux/service/workflow/WorkflowGraphValidator.java` — emit structured `ValidationIssue` objects (Phase 3).
+- `src/main/java/com/flux/service/workflow/dryrun/**` — entire new package (Phase 5).
+- `src/main/java/com/flux/controller/AdminWorkflowController.java` — add `POST /dry-run` (Phase 5).
+- `src/main/java/com/flux/controller/dto/ValidateWorkflowResponse.java` — extend with structured issues (Phase 3).
 - Whatever filter writes MDC for webhook ingress — extend to honor `X-Correlation-Id` for `/admin/*` (Phase 0).
 
 **Frontend (entirely new module):**

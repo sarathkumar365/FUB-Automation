@@ -1,0 +1,28 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.wrap{border:1px solid #dde6f2;border-radius:12px;overflow:hidden;background:#fff}
+table{border-collapse:collapse;width:100%;text-align:left;font-size:13.5px}
+thead tr{border-bottom:1px solid #dde6f2}
+th{padding:11px 16px;font-size:11px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:#64748b;white-space:nowrap}
+td{padding:12px 16px;border-bottom:1px solid rgba(221,230,242,.6)}
+tbody tr:last-child td{border-bottom:none}
+.acc{width:4px;padding:0}
+.sel{background:#e3f7fb;box-shadow:inset 3px 0 0 #0f9fb8}
+.m{font-family:var(--font-mono);font-size:12px}
+.bdg{display:inline-flex;border-radius:999px;padding:2px 9px;font-size:11px;font-weight:600}
+.ok{background:#ccfbf1;color:#0f766e}.bad{background:#ffe4e6;color:#be123c}.info{background:#e3f7fb;color:#0f9fb8}.mut{background:#fbfdff;color:#64748b;border:1px solid #dde6f2}
+</style></head>
+<body style="padding:0">
+<div class="wrap">
+<table>
+<thead><tr><th>Run ID</th><th>Workflow</th><th>Status</th><th>Completed</th></tr></thead>
+<tbody>
+<tr><td class="m">90412</td><td class="m">lead_follow_up_v1</td><td><span class="bdg ok">SUCCEEDED</span></td><td>16:11:14</td></tr>
+<tr><td class="m">90411</td><td class="m">missed_call_recover</td><td><span class="bdg bad">FAILED</span></td><td>16:06:13</td></tr>
+<tr class="sel"><td class="m">90410</td><td class="m">lead_follow_up_v1</td><td><span class="bdg info">RUNNING</span></td><td>—</td></tr>
+<tr><td class="m">90408</td><td class="m">stale_lead_nudge</td><td><span class="bdg mut">CANCELED</span></td><td>15:40:50</td></tr>
+</tbody>
+</table>
+</div>
+<p class="caption" style="margin-top:14px">Refined “ledger” table: tracked uppercase headers, hairline row rules, mono IDs, status badges. The selected/hover row gets a brand inset rail + soft fill.</p>
+</body></html>

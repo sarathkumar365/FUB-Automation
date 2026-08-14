@@ -1,0 +1,47 @@
+<!doctype html><html lang="en"><head><meta charset="utf-8"><link rel="stylesheet" href="_card.css">
+<style>
+.tiles{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.tile{background:#fff;border:1px solid #dde6f2;border-radius:12px;padding:16px 16px 14px;box-shadow:0 1px 3px rgba(15,23,42,.08);display:flex;flex-direction:column;gap:11px;text-decoration:none}
+.thead{display:flex;align-items:center;justify-content:space-between}
+.tlabel{font-size:11px;font-weight:700;letter-spacing:.05em;text-transform:uppercase;color:#64748b}
+.sdot{width:8px;height:8px;border-radius:999px}
+.tnum{display:flex;align-items:baseline;gap:8px}
+.tval{font-size:32px;font-weight:700;line-height:.9;color:#0f172a;letter-spacing:-.02em}
+.tdelta{font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:2px}
+.spark{display:flex;align-items:flex-end;gap:3px;height:30px}
+.spark span{flex:1;border-radius:2px;min-height:3px}
+.tfoot{font-size:11px;font-weight:600;color:#0f9fb8}
+</style></head>
+<body>
+<div class="tiles">
+  <!-- Active workflows -->
+  <a class="tile">
+    <div class="thead"><span class="tlabel">Active Workflows</span><span class="sdot" style="background:#10b981" title="healthy"></span></div>
+    <div class="tnum"><span class="tval">12</span><span class="tdelta" style="color:#0f766e">▲ 2</span></div>
+    <div class="spark">
+      <span style="height:40%;background:#cde9ef"></span><span style="height:55%;background:#cde9ef"></span><span style="height:50%;background:#cde9ef"></span><span style="height:70%;background:#cde9ef"></span><span style="height:65%;background:#cde9ef"></span><span style="height:80%;background:#9bd4df"></span><span style="height:75%;background:#9bd4df"></span><span style="height:90%;background:#0f9fb8"></span><span style="height:85%;background:#0f9fb8"></span><span style="height:100%;background:#0f9fb8"></span>
+    </div>
+    <span class="tfoot">Browse Workflows →</span>
+  </a>
+  <!-- Failed runs -->
+  <a class="tile">
+    <div class="thead"><span class="tlabel">Failed Runs · 24h</span><span class="sdot" style="background:#fb7185" title="needs attention"></span></div>
+    <div class="tnum"><span class="tval">3</span><span class="tdelta" style="color:#0f766e">▼ 4</span></div>
+    <div class="spark">
+      <span style="height:90%;background:#fecdd3"></span><span style="height:100%;background:#fecdd3"></span><span style="height:75%;background:#fecdd3"></span><span style="height:80%;background:#fda4af"></span><span style="height:60%;background:#fda4af"></span><span style="height:55%;background:#fda4af"></span><span style="height:45%;background:#fb7185"></span><span style="height:40%;background:#fb7185"></span><span style="height:30%;background:#be123c"></span><span style="height:25%;background:#be123c"></span>
+    </div>
+    <span class="tfoot">Browse Failed Runs →</span>
+  </a>
+  <!-- Ingest activity -->
+  <a class="tile">
+    <div class="thead"><span class="tlabel">Ingest · last hour</span>
+      <span style="display:inline-flex;align-items:center;gap:5px;font-size:10px;font-weight:700;color:#0f766e"><span class="sdot" style="background:#10b981"></span>LIVE</span></div>
+    <div class="tnum"><span class="tval">148</span><span class="tdelta" style="color:#64748b">events</span></div>
+    <div class="spark">
+      <span style="height:30%;background:#dde6f2"></span><span style="height:50%;background:#dde6f2"></span><span style="height:45%;background:#dde6f2"></span><span style="height:65%;background:#cde9ef"></span><span style="height:55%;background:#cde9ef"></span><span style="height:75%;background:#cde9ef"></span><span style="height:60%;background:#9bd4df"></span><span style="height:85%;background:#9bd4df"></span><span style="height:70%;background:#0f9fb8"></span><span style="height:95%;background:#0f9fb8"></span>
+    </div>
+    <span class="tfoot">View Webhook Activity →</span>
+  </a>
+</div>
+<p class="caption" style="margin-top:14px">New idea: no left-border rail. Each tile carries a 10-bar micro-trend (the live-feed tick-strip motif), a delta vs. prior window, and a single health dot — green healthy, rose needs-attention, plus the LIVE marker on streaming metrics.</p>
+</body></html>

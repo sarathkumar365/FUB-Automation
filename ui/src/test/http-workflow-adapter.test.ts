@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { HttpJsonClient } from '../platform/adapters/http/httpJsonClient'
-import { HttpWorkflowAdapter } from '../platform/adapters/http/httpWorkflowAdapter'
-import { HttpWorkflowRunAdapter } from '../platform/adapters/http/httpWorkflowRunAdapter'
+import { HttpJsonClient } from '@platform/adapters/http/httpJsonClient'
+import { HttpWorkflowAdapter } from '@platform/adapters/http/httpWorkflowAdapter'
+import { HttpWorkflowRunAdapter } from '@platform/adapters/http/httpWorkflowRunAdapter'
 
 const mockFetch = vi.fn()
 
@@ -104,7 +104,7 @@ describe('workflow adapters', () => {
           startedAt: '2026-04-10T10:00:00Z',
           completedAt: null,
           triggerPayload: { source: 'FUB' },
-          sourceLeadId: '123',
+          sourcePersonId: '123',
           eventId: 'evt_1',
           steps: [
             {

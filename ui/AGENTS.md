@@ -1,21 +1,22 @@
 # UI Submodule Agent Guide
 
-This file defines how to work inside the `ui/` submodule for `automation-engine`.
+This file defines how to work inside the `ui/` submodule for `flux`.
 
 ## Context
 - Submodule purpose: build and maintain the internal admin UI for webhook visibility and replay workflows.
-- Parent module: `/Users/sarathkumar/Projects/2Creative/automation-engine`
+- Parent module: `/Users/sarathkumar/Projects/2Creative/flux`
 - Product priority:
 1. Scenario 1: call outcome -> task automation (primary)
 2. Scenario 2: intent/transcription -> task (future)
 
 ## Source of truth (read first)
-- Parent agreement: `/Users/sarathkumar/Projects/2Creative/automation-engine/AGENTS.md`
-- Structure/implementation rules: `/Users/sarathkumar/Projects/2Creative/automation-engine/developer-rules.md`
-- UI plan: `/Users/sarathkumar/Projects/2Creative/automation-engine/ui/docs/ui-0.1-plan.md`
-- UI style decisions: `/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/ui-style-guide-v1.md`
-- Figma baseline: `/Users/sarathkumar/Projects/2Creative/automation-engine/Docs/ui-figma-reference.md`
-- Tokens: `/Users/sarathkumar/Projects/2Creative/automation-engine/ui/src/styles/tokens.css`
+- Parent agreement: `/Users/sarathkumar/Projects/2Creative/flux/AGENTS.md`
+- Structure/implementation rules: `/Users/sarathkumar/Projects/2Creative/flux/developer-rules.md`
+- UI plan: `/Users/sarathkumar/Projects/2Creative/flux/ui/docs/ui-0.1-plan.md`
+- **Design source of truth: `/Users/sarathkumar/Projects/2Creative/flux/Flux Design System/`** — brand foundations, tokens, component patterns, and a high-fidelity console UI kit. **Start with its `HANDOFF.md`** (context, where-everything-is, locked UX rules); `README.md` is the deep reference, `colors_and_type.css` the canonical tokens. These are design references to recreate with this module's patterns/primitives, not code to copy verbatim.
+- UI style decisions: `/Users/sarathkumar/Projects/2Creative/flux/Docs/ui-style-guide-v1.md`
+- Figma baseline: `/Users/sarathkumar/Projects/2Creative/flux/Docs/ui-figma-reference.md`
+- Tokens: `/Users/sarathkumar/Projects/2Creative/flux/ui/src/styles/tokens.css`
 
 ## UI architecture decisions (locked for v0.1)
 - Keep `ui/` as a standalone frontend module.
@@ -31,10 +32,20 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 4. `Inspector`: contextual details/actions
 - Keep module boundaries:
 1. `src/app`: app shell, router, providers
-2. `src/platform`: API adapters, Zod validation, query setup, SSE wrapper
-3. `src/modules/webhooks`: webhook list/live/detail features
-4. `src/modules/processed-calls`: processed call list/replay features
-5. `src/shared`: reusable types/utils/primitives
+2. `src/platform`: API adapters, Zod validation, query setup, SSE wrapper. Zod schemas are platform-owned:
+   app-wide contracts (imported by ports + modules + adapters) live in `platform/contracts/`; adapter-internal
+   schemas (imported only by their adapter) stay in `platform/adapters/http/`. See RD-011.
+3. `src/modules/*`: feature modules — currently `auth`, `dashboard`, `landing`, `persons`, `settings`,
+   `webhooks`, `processed-calls`, `workflows`, `workflows-builder`, `workflow-runs`. Each splits into
+   `data/` (hooks/queries), `lib/` (pure helpers/schemas), `ui/` (views). `workflows-builder` is expanded
+   for its graph domain (`model/`, `state/` (Zustand), `surfaces/`, `observability/`); `auth` adds `state/`.
+4. `src/shared`: reusable types/utils/primitives — a **leaf**: must not import from `app`/`modules`/`platform`.
+- **Boundary rules are ESLint-enforced** (`no-restricted-imports` zones in `eslint.config.js`, RD-011):
+1. `platform` must not import from `modules` — sole exception: the auth token store
+   (`httpJsonClient`/`sseWebhookStreamAdapter`), a cross-cutting transport concern.
+2. `ports` must not import from `adapters` (import contract types from `platform/contracts`).
+3. `platform/contracts` and `shared` are leaves (contracts: zod only; shared: no app/modules/platform).
+4. Deep relative imports (4+ `../`) are banned everywhere; use an alias.
 
 ## UX and style decisions (locked for v1)
 - Canonical stream baseline: Figma `node-id=23-2` in file key `svLM7vfwHvmdxjoNE1Sr3U`.
@@ -74,10 +85,28 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 - Prefer modular design for components, hooks, and methods. Extract reusable logic to helper files when duplicated or complex.
 - Follow strict UI structure and separation:
 1. `app`: route/shell/provider composition only
-2. `platform`: adapters, transport, query wiring, stream contracts
+2. `platform`: adapters, transport, query wiring, stream contracts. `platform/contracts/` holds app-wide Zod
+   schemas (+ their `z.infer` types); `platform/adapters/http/` holds adapter-internal schemas. Ports import
+   types from `contracts/`, never from `adapters/` (RD-011).
+   - **New schemas (the rule going forward):** single-source — one file with the Zod schema **and** its
+     `z.infer` type, in `platform/contracts/`. Import the type from there; do **not** hand-write a copy in
+     `shared/types`.
+   - **Legacy exceptions (do NOT copy, do NOT "tidy"):** `person`/`webhook` hand-write types in
+     `shared/types` with Zod separately; `processed-calls` declares types inline in its port. Left as-is on
+     purpose — see RD-011. They follow the layering rule; only the type-writing style differs.
 3. `modules/*/data`: hooks and data orchestration
-4. `modules/*/ui`: view components only
-5. `shared`: reusable primitives, constants, helpers, and cross-module types
+4. `modules/*/lib`: pure helpers/transformers/schemas (no React)
+5. `modules/*/ui`: view components, plus page-local hooks/helpers that are scoped to a single
+   page folder (e.g. `WorkflowDetailPage/useWorkflowDetailActions.ts`). Reusable hooks belong in `data/`,
+   not `ui/`.
+6. `shared`: reusable primitives, constants, helpers, and cross-module types
+- Import paths — use path aliases for cross-layer/cross-module imports; relative only within a folder/module:
+1. Aliases (`tsconfig.app.json` + `vite.config.ts`): `@app/*`, `@platform/*`, `@modules/*`, `@shared/*` — one
+   per top-level src dir that holds JS/TS modules. (`styles/` is CSS-only, imported via CSS `@import`, so it
+   has no JS alias.)
+2. Any import that crosses a top-level layer (`app`/`platform`/`modules`/`shared`) or jumps to a different
+   module under `modules/` uses an alias. Keep `./` and intra-module relatives as relatives.
+3. Deep relative imports (4+ `../`) are banned by ESLint (`no-restricted-imports`); use an alias instead.
 - Prefer performant code by default:
 1. avoid unnecessary re-renders and derived-state duplication
 2. memoize expensive computation/selectors where relevant
@@ -146,3 +175,15 @@ This file defines how to work inside the `ui/` submodule for `automation-engine`
 2. `npm run build`
 3. `npm run test`
 - Report blockers clearly if execution is not possible; do not claim completion without validation evidence.
+
+## UI change pre-flight checklist (run through this before writing code)
+Before adding or changing a component, work top-to-bottom:
+1. **Read the rules first.** This file + `src/shared/ui/README.md` (tier model) + `src/styles/tokens.README.md`. Don't infer conventions from the design system alone.
+2. **Search for reuse.** Grep `shared/ui` (primitives), `shared/ui/recipes` (recipes), and the feature module before creating anything. Enhance an existing shared component rather than cloning it. If you write the same markup twice, extract a helper (per "modular design" above).
+3. **Place by tier.** App-agnostic primitive → `shared/ui`. Opinionated composition → `shared/ui/recipes`. Domain/feature UI → `modules/<feature>/ui`. Cross-cutting non-UI (theme, notifications) → its own `shared/<concern>` folder.
+4. **Tokens, never hex.** All colors via `var(--…)` from `tokens.css`. No `#hex`/`rgba()` literals in `*.tsx`/feature `*.css` (enforced by `npm run lint:tokens`). New color → add a token. Anything token-driven also flips in dark mode (`:root[data-theme="dark"]`).
+5. **Copy via `uiText`.** No user-facing string literals in feature files; add a `uiText` key.
+6. **Export new shared primitives from the barrel** (`shared/ui/index.ts`).
+7. **Import via aliases.** Cross-layer/cross-module imports use `@shared`/`@modules`/`@platform`/`@app`; only intra-folder/intra-module stay relative. Deep relatives (4+ `../`) fail lint.
+8. **No dead code.** If you remove a usage, remove the now-orphaned field/export/string. `npm run deadcode` (knip) catches these.
+9. **Validate.** `npm run check` (lint + lint:tokens + build + test) must pass; add/adjust tests for changed behavior. For observable UI, browser-verify via the preview.

@@ -259,12 +259,12 @@ Show and manage FUB webhook registrations:
 ```
 
 **Backend needed:**
-- New: `GET /admin/leads/{leadId}/summary` — aggregates:
+- New: `GET /admin/persons/{sourcePersonId}/summary` — aggregates:
   - FUB person data via existing `getPersonById()`
-  - Policy execution runs filtered by `sourceLeadId`
+  - Policy execution runs filtered by `sourcePersonId`
   - Processed calls related to this person (needs a new query on `personId` from raw_payload, or add a `person_id` column to `processed_calls`)
-  - Webhook events related to this lead (filtered by `source_lead_id` — partially available, but currently null for assignment events; would work once parser fix lands)
-- Moderate effort for the aggregation endpoint. High product value because it answers "what happened with this lead?" in one view.
+  - Webhook events related to this person (filtered by `source_person_id`)
+- Moderate effort for the aggregation endpoint. High product value because it answers "what happened with this person?" in one view.
 
 ---
 

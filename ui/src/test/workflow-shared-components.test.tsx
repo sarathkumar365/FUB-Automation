@@ -1,7 +1,7 @@
 import { fireEvent, render, screen } from '@testing-library/react'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
-import { JsonViewer } from '../shared/ui/JsonViewer'
-import { PagePagination } from '../shared/ui/PagePagination'
+import { JsonViewer } from '@shared/ui/JsonViewer'
+import { PagePagination } from '@shared/ui/PagePagination'
 
 describe('workflow shared components', () => {
   beforeEach(() => {

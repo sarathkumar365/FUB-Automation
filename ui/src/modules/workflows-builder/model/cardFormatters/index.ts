@@ -13,7 +13,7 @@
  * If the engine gains a new step type and no formatter is registered, the
  * default fallback renders the step type id verbatim — never crashes.
  */
-import { readTriggerType } from '../../../workflows/lib/readTriggerType'
+import { readTriggerType } from '@modules/workflows/lib/readTriggerType'
 
 export type FormatterAccent = 'side-effect' | 'wait' | 'branch' | 'compute' | 'trigger' | 'neutral'
 

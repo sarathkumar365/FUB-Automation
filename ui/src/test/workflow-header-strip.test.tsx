@@ -1,13 +1,13 @@
 import { render, screen } from '@testing-library/react'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
-import { WorkflowHeaderStrip } from '../modules/workflows/ui/WorkflowDetailPage/WorkflowHeaderStrip'
-import type { WorkflowResponse } from '../modules/workflows/lib/workflowSchemas'
+import { WorkflowHeaderStrip } from '@modules/workflows/ui/WorkflowDetailPage/WorkflowHeaderStrip'
+import type { WorkflowResponse } from '@platform/contracts/workflowSchemas'
 
 const workflow: WorkflowResponse = {
   id: 1,
-  key: 'lead_intake_v1',
-  name: 'Lead Intake',
+  key: 'person_intake_v1',
+  name: 'Person Intake',
   description: 'Intake workflow',
   trigger: { type: 'webhook' },
   graph: {},
@@ -31,9 +31,9 @@ describe('WorkflowHeaderStrip', () => {
         />
       </MemoryRouter>,
     )
-    expect(screen.getByRole('heading', { level: 1, name: 'Lead Intake' })).toBeInTheDocument()
-    // Status badge renders the formatted status label ("Draft").
-    expect(screen.getByText('Draft')).toBeInTheDocument()
+    expect(screen.getByRole('heading', { level: 1, name: 'Person Intake' })).toBeInTheDocument()
+    // Status badge renders the status enum literally in UPPERCASE ("DRAFT").
+    expect(screen.getByText('DRAFT')).toBeInTheDocument()
     // Version chip prints v3.
     expect(screen.getByText('v3')).toBeInTheDocument()
     // Trigger chip exposes a data-testid and prints the trigger type.

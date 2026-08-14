@@ -1,0 +1,149 @@
+package com.flux.service.workflow.steps;
+
+import com.fasterxml.jackson.databind.node.LongNode;
+import com.flux.exception.fub.FubPermanentException;
+import com.flux.exception.fub.FubTransientException;
+import com.flux.service.FollowUpBossClient;
+import com.flux.service.event.EngineWriteCoordinator;
+import com.flux.service.fub.FubCallHelper;
+import com.flux.service.model.ActionExecutionResult;
+import com.flux.service.workflow.RetryPolicy;
+import com.flux.service.workflow.StepCategory;
+import com.flux.service.workflow.StepExecutionContext;
+import com.flux.service.workflow.StepExecutionResult;
+import com.flux.service.workflow.WorkflowStepType;
+import java.util.Map;
+import java.util.Set;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Component
+public class FubMoveToPondWorkflowStep implements WorkflowStepType {
+
+    @Override
+    public StepCategory category() {
+        return StepCategory.BUSINESS;
+    }
+
+    public static final String SOURCE_LEAD_ID_MISSING = "SOURCE_LEAD_ID_MISSING";
+    public static final String SOURCE_LEAD_ID_INVALID = "SOURCE_LEAD_ID_INVALID";
+    public static final String TARGET_POND_ID_MISSING = "TARGET_POND_ID_MISSING";
+    public static final String TARGET_POND_ID_INVALID = "TARGET_POND_ID_INVALID";
+    public static final String FUB_MOVE_TRANSIENT = "FUB_MOVE_TRANSIENT";
+    public static final String FUB_MOVE_PERMANENT = "FUB_MOVE_PERMANENT";
+    public static final String MOVE_EXECUTION_ERROR = "MOVE_EXECUTION_ERROR";
+
+    private static final Logger log = LoggerFactory.getLogger(FubMoveToPondWorkflowStep.class);
+
+    private final FollowUpBossClient followUpBossClient;
+    private final FubCallHelper fubCallHelper;
+    private final EngineWriteCoordinator engineWriteCoordinator;
+
+    public FubMoveToPondWorkflowStep(
+            FollowUpBossClient followUpBossClient,
+            FubCallHelper fubCallHelper,
+            EngineWriteCoordinator engineWriteCoordinator) {
+        this.followUpBossClient = followUpBossClient;
+        this.fubCallHelper = fubCallHelper;
+        this.engineWriteCoordinator = engineWriteCoordinator;
+    }
+
+    @Override
+    public String id() {
+        return "fub_move_to_pond";
+    }
+
+    @Override
+    public String displayName() {
+        return "Move Person to Pond";
+    }
+
+    @Override
+    public String description() {
+        return "Move a person to a specified pond in Follow Up Boss.";
+    }
+
+    @Override
+    public Map<String, Object> configSchema() {
+        return Map.of(
+                "type", "object",
+                "properties", Map.of(
+                        "targetPondId", Map.of(
+                                "type", "integer",
+                                "description", "FUB pond ID to move the person to. Accepts template expressions.")),
+                "required", java.util.List.of("targetPondId"));
+    }
+
+    @Override
+    public Set<String> declaredResultCodes() {
+        return Set.of("SUCCESS", "FAILED");
+    }
+
+    @Override
+    public RetryPolicy defaultRetryPolicy() {
+        return RetryPolicy.DEFAULT_FUB;
+    }
+
+    @Override
+    public StepExecutionResult execute(StepExecutionContext context) {
+        long personId;
+        try {
+            personId = fubCallHelper.parsePersonId(context.sourcePersonId());
+        } catch (IllegalArgumentException ex) {
+            String code = (context.sourcePersonId() == null || context.sourcePersonId().isBlank())
+                    ? SOURCE_LEAD_ID_MISSING : SOURCE_LEAD_ID_INVALID;
+            return StepExecutionResult.failure(code, ex.getMessage());
+        }
+
+        Map<String, Object> config = context.resolvedConfig() != null ? context.resolvedConfig() : context.rawConfig();
+        Long targetPondId = parseLong(config.get("targetPondId"));
+        if (targetPondId == null) {
+            return StepExecutionResult.failure(TARGET_POND_ID_MISSING, "Missing targetPondId in config");
+        }
+        if (targetPondId <= 0) {
+            return StepExecutionResult.failure(TARGET_POND_ID_INVALID, "Invalid targetPondId: " + targetPondId);
+        }
+
+        try {
+            ActionExecutionResult actionResult = engineWriteCoordinator.applyScalarFieldUpdate(
+                    context.sourcePersonId(),
+                    Map.of("assignedPondId", LongNode.valueOf(targetPondId)),
+                    context.runId(),
+                    () -> fubCallHelper.executeWithRetry(
+                            () -> followUpBossClient.movePersonToPond(personId, targetPondId)));
+            if (actionResult == null || !actionResult.success()) {
+                String message = actionResult != null && actionResult.message() != null
+                        ? actionResult.message() : "Move to pond action returned unsuccessful result";
+                return StepExecutionResult.failure("FAILED", message);
+            }
+            return StepExecutionResult.success("SUCCESS");
+        } catch (FubTransientException ex) {
+            return StepExecutionResult.transientFailure(FUB_MOVE_TRANSIENT,
+                    "Transient failure moving person " + personId + " to pond"
+                            + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
+        } catch (FubPermanentException ex) {
+            return StepExecutionResult.failure(FUB_MOVE_PERMANENT,
+                    "Permanent failure moving person " + personId + " to pond"
+                            + " status=" + FubCallHelper.stringifyStatus(ex.getStatusCode()));
+        } catch (RuntimeException ex) {
+            log.error("Unexpected move-to-pond execution failure stepId={} runId={} sourcePersonId={}",
+                    context.stepId(), context.runId(), context.sourcePersonId(), ex);
+            return StepExecutionResult.failure(MOVE_EXECUTION_ERROR, "Unexpected move-to-pond execution failure");
+        }
+    }
+
+    private Long parseLong(Object value) {
+        if (value instanceof Number number) {
+            return number.longValue();
+        }
+        if (value instanceof String text) {
+            try {
+                return Long.parseLong(text.trim());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+}

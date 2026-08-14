@@ -6,7 +6,7 @@ import {
   getToken,
   setToken,
   type StoredToken,
-} from '../modules/auth/state/tokenStore'
+} from '@modules/auth/state/tokenStore'
 
 const validToken: StoredToken = {
   token: 'fake.jwt.token',

@@ -1,6 +1,6 @@
 import { render, screen } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { Section } from '../shared/ui/recipes/Section'
+import { Section } from '@shared/ui/recipes/Section'
 
 describe('Section recipe', () => {
   it('renders the caption with uppercase tracking', () => {

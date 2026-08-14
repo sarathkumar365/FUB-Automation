@@ -1,7 +1,8 @@
 import { render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
-import App from '../app/App'
-import { uiText } from '../shared/constants/uiText'
+import App from '@app/App'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
 import { clearMockAdminToken, seedMockAdminToken } from './support/authTestHelpers'
 
 describe('Option 1 shell regions', () => {
@@ -24,16 +25,20 @@ describe('Option 1 shell regions', () => {
     expect(screen.getByText(uiText.webhooks.inspectorEmpty)).toBeInTheDocument()
   })
 
-  it('renders session-disabled route inside the same shell', async () => {
+  it('redirects a guarded route to the full-page session-disabled screen (no shell chrome)', async () => {
     window.history.pushState({}, '', '/admin-ui/webhooks')
     window.sessionStorage.setItem('admin-ui-enabled', 'false')
 
     render(<App />)
 
-    expect(await screen.findAllByText(uiText.session.disabledMessage)).toHaveLength(2)
-    expect(screen.getByLabelText(uiText.app.shell.railAriaLabel)).toBeInTheDocument()
-    expect(screen.getByLabelText(uiText.app.shell.panelAriaLabel)).toBeInTheDocument()
-    expect(screen.getByLabelText(uiText.app.shell.inspectorAriaLabel)).toBeInTheDocument()
+    expect(await screen.findByRole('heading', { name: uiText.session.title })).toBeInTheDocument()
+    expect(screen.getByText(uiText.session.body)).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: uiText.session.returnToSignIn })).toHaveAttribute(
+      'href',
+      routes.login,
+    )
+    // Full-page: rendered outside AppShell, so no four-region chrome.
+    expect(screen.queryByLabelText(uiText.app.shell.railAriaLabel)).not.toBeInTheDocument()
     window.sessionStorage.removeItem('admin-ui-enabled')
   })
 

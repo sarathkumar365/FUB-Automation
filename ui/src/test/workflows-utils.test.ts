@@ -7,7 +7,7 @@ import {
   canValidateWorkflow,
   formatWorkflowStatus,
   getWorkflowStatusTone,
-} from '../modules/workflows/lib/workflowsDisplay'
+} from '@modules/workflows/lib/workflowsDisplay'
 import {
   DEFAULT_WORKFLOW_DETAIL_RUNS_PAGE,
   DEFAULT_WORKFLOW_DETAIL_RUNS_SIZE,
@@ -19,14 +19,14 @@ import {
   parseWorkflowsSearchParams,
   toWorkflowDetailRunsDraftFilters,
   toWorkflowsDraftFilters,
-} from '../modules/workflows/lib/workflowsSearchParams'
+} from '@modules/workflows/lib/workflowsSearchParams'
 
 describe('workflow display helpers', () => {
   it('maps workflow statuses to user-facing labels and tones', () => {
-    expect(formatWorkflowStatus('DRAFT')).toBe('Draft')
-    expect(formatWorkflowStatus('ACTIVE')).toBe('Active')
-    expect(formatWorkflowStatus('INACTIVE')).toBe('Inactive')
-    expect(formatWorkflowStatus('ARCHIVED')).toBe('Archived')
+    expect(formatWorkflowStatus('DRAFT')).toBe('DRAFT')
+    expect(formatWorkflowStatus('ACTIVE')).toBe('ACTIVE')
+    expect(formatWorkflowStatus('INACTIVE')).toBe('INACTIVE')
+    expect(formatWorkflowStatus('ARCHIVED')).toBe('ARCHIVED')
 
     expect(getWorkflowStatusTone('DRAFT')).toBe('warning')
     expect(getWorkflowStatusTone('ACTIVE')).toBe('success')
@@ -35,7 +35,7 @@ describe('workflow display helpers', () => {
   })
 
   it('falls back safely for null status', () => {
-    expect(formatWorkflowStatus(null)).toBe('Unknown')
+    expect(formatWorkflowStatus(null)).toBe('UNKNOWN')
     expect(getWorkflowStatusTone(null)).toBe('info')
   })
 

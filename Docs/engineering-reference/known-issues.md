@@ -2,7 +2,13 @@
 
 This document tracks currently known issues identified in the codebase.
 
-**Last reviewed:** 2026-04-21
+**Last reviewed:** 2026-06-03
+
+For cross-cutting learnings spanning #20–#25 (over-fire mechanisms, lookback-buffer overload, defense-in-depth gaps), see [`Docs/features/agent-followup-enforcement/plan.md`](../features/agent-followup-enforcement/plan.md).
+
+For the architectural response — a layered fix that resolves the #20/#23/#24/#25 bug family at the design level rather than per-bug patches — see [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md).
+
+The proposed architectural fix that addresses #20 / #23 / #24 / #25 together is in [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md).
 
 | # | Issue | Priority | Status |
 |---|-------|----------|--------|
@@ -10,18 +16,37 @@ This document tracks currently known issues identified in the codebase.
 | 2 | Duplicate handling is too broad on DB integrity errors | Medium | Open |
 | 3 | SSE publish path can throw on null event fields | Medium | Open |
 | 4 | Replay does not reset retry count | Low | Open |
-| 5 | Missing end-to-end scenario coverage for policy worker execution flow | High | Open |
-| 6 | No watchdog for stale `PROCESSING` policy steps after hard crashes | High | Resolved (2026-04-08) |
-| 7 | Action target validation truncates non-integer numeric values | Medium | Open |
-| 8 | Stale recovery can leave requeued steps in runs already failed | Medium | Open |
-| 9 | Active policy blueprint read validation is temporarily bypassed | High | Open (Temporary) |
+| 5 | ~~Missing end-to-end scenario coverage for policy worker execution flow~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 6 | ~~No watchdog for stale `PROCESSING` policy steps after hard crashes~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 7 | ~~Action target validation truncates non-integer numeric values~~ (`PolicyBlueprintValidator`) | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 8 | ~~Stale recovery can leave requeued steps in runs already failed~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
+| 9 | ~~Active policy blueprint read validation is temporarily bypassed~~ | — | Resolved by removal (V12 — policy subsystem dropped) |
 | 10 | JSONata evaluator swallows expression errors and returns null | High | Open |
 | 11 | Time-sensitive workflow steps can execute after business validity window under sustained backlog | High | Open |
 | 12 | Workflow steps are not consistently local-first and still rely on direct FUB calls | High | Open |
 | 13 | Workflow run can deadlock on OR-style fan-in because engine enforces AND-only join activation | High | Open |
-| 14 | Workflow expressions cannot resolve lead phone from webhook payload for ai_call `to` | High | Open |
+| 14 | Workflow expressions cannot resolve person phone from webhook payload for ai_call `to` | High | Open |
 | 15 | SSE async-dispatch logs `AuthorizationDeniedException: Access Denied` on subscriber disconnect | Low | Open |
 | 16 | `JAVA_TOOL_OPTIONS` IPv6 flags on Railway break outbound HTTPS to FUB | High | Resolved (2026-05-05) |
+| 17 | Trigger-filter scope does not include `person.*` namespace | Low | Open |
+| 18 | `RunContext` hardcodes `"FUB"` as the source system | Low | Open |
+| 19 | No `getUser(id)` client method or `users` ingestion path — workflows cannot mention arbitrary users by ID | Low | Open |
+| 20 | No change-detection mechanism — triggers cannot fire on field transitions (e.g. "assignedUserId changed") | High | Open |
+| 21 | `wait_and_check_communication` lookback is anchored to check time, not workflow start | High | Resolved (2026-05-08, validated in production 2026-05-11) |
+| 22 | `FollowUpBossClient.checkPersonCommunication` reads `person.contacted` which doesn't reflect outbound agent calls | High | Resolved (2026-05-08, validated in production 2026-05-11) |
+| 23 | Self-induced over-fire — engine writes to FUB trigger fresh `peopleUpdated` webhooks → fresh workflow runs | High | Open |
+| 24 | No suppression of duplicate workflow runs for the same `(workflow_key, source_person_id)` | High | Open |
+| 25 | `workflow_runs.webhook_event_id` FK is never populated | Medium | Open |
+| 26 | Misleading echo event after permanent FUB failure (Phase 3 trade-off) | Low | Open (accepted) |
+| 27 | Note annotation channel dormant until `notesCreated` is ingested | Low | Deferred (revisit when note ingestion is enabled) |
+| 28 | Early-echo race on engine note creation | Low | Open (documented, no fix planned) |
+| 29 | Run-collision supersede has a truly-simultaneous-events race | Low | Open (residual; supersede built in Phase 5; revisit on data) |
+| 30 | Append-event trigger filters (`event.payload.*`) unvalidated at save-time | Low | Open (accepted; no consumer today) |
+| 31 | Rail 2 run planning ran in the after-commit hook without a live transaction | High | Resolved (2026-06-03, Phase 4d; caught by replay harness) |
+| 32 | Domain-event triggers are single-kind — assignment-followup must choose `person.created` *or* `person.state_changed` | Medium | Open (product limitation; multi-kind `on` not supported) |
+| 33 | Engine-caused echo of a *derived* field (`assignedTo`) is labeled `external` | Low | Accepted / documented (provenance of derived fields; no fix planned) |
+| 34 | Industry professionals trigger lead workflows — `kind` is stage-derived, late, and exact-match-only | Medium | Open (durable fix in flight) |
+| 35 | `ui/` `WorkflowBuilderPage` has no page-level test — mounting it hangs the Vitest forks worker | Low | Open (deferred) |
 
 ---
 
@@ -57,50 +82,17 @@ This document tracks currently known issues identified in the codebase.
 - **Impact:** Replay attempts carry stale retry history, making diagnostics and retry behavior misleading.
 - **Suggested fix:** Reset `retryCount` to `0` as part of replay reinitialization.
 
-## 5) Missing end-to-end scenario coverage for policy worker execution flow
+## 5–9) Policy subsystem issues (resolved by removal)
 
-- **Status:** Open
-- **Priority:** High
-- **Location:** `service/policy/` (worker + execution dispatcher + executors + FUB client integration path)
-- **Issue:** Current tests are mostly unit/component-level; no single scenario-driven test slice validates the complete flow from claimed DB step → executor dispatch → FUB people fetch → persisted step/run outcomes.
-- **Impact:** Cross-component regressions in orchestration flow can pass isolated tests but fail in real execution paths.
-- **Suggested fix:** Add scenario integration tests for policy worker flows starting with `WAIT_AND_CHECK_CLAIM` success/failure, including DB claim input, executor selection, external client behavior, and final persistence assertions.
+The policy subsystem (`service/policy/`, `automation_policies` / `policy_execution_runs` / `policy_execution_steps` tables) was dropped in migration V12. Entries 5–9 below all referred to code or tables that no longer exist:
 
-## 6) No watchdog for stale `PROCESSING` policy steps after hard crashes
+- **#5** Missing end-to-end scenario coverage for policy worker execution flow
+- **#6** No watchdog for stale `PROCESSING` policy steps after hard crashes
+- **#7** Action target validation truncates non-integer numeric values (`PolicyBlueprintValidator`)
+- **#8** Stale recovery can leave requeued steps in runs already failed
+- **#9** Active policy blueprint read validation is temporarily bypassed
 
-- **Status:** Resolved (2026-04-08)
-- **Priority:** High
-- **Location:** `service/policy/PolicyExecutionDueWorker.java`
-- **Issue (historical):** Worker compensation previously covered only exceptions observed by the running process. A hard crash (JVM kill/node restart) after atomic claim could strand rows in `PROCESSING`.
-- **Resolution:** Added stale-processing watchdog/reaper with bounded redrive semantics (requeue once, then fail deterministically).
-- **Implemented behavior:** stale rows are selected by lease age (`updated_at` threshold), recovered using `FOR UPDATE SKIP LOCKED`, and terminal run failure is marked with reason code `STALE_PROCESSING_TIMEOUT`.
-
-## 7) Action target validation truncates non-integer numeric values
-
-- **Status:** Open
-- **Priority:** Medium
-- **Location:** `service/policy/PolicyBlueprintValidator.java`
-- **Issue:** `extractPositiveLong` accepts generic `Number` values and coerces with `longValue()`, which truncates fractional inputs.
-- **Impact:** JSON payloads with values like `12.9` can pass validation and execute against an unintended target ID (`12`).
-- **Suggested fix:** Only accept integer numeric inputs for action targets (or parse string values strictly as whole numbers) and reject fractional numeric values.
-
-## 8) Stale recovery can leave requeued steps in runs already failed
-
-- **Status:** Open
-- **Priority:** Medium
-- **Location:** `persistence/repository/JdbcPolicyExecutionStepClaimRepository.java`, `service/policy/PolicyStepExecutionService.java`
-- **Issue:** A single stale-recovery pass can requeue some rows and fail others for the same run, after which run status is marked `FAILED` while requeued sibling rows remain claimable.
-- **Impact:** Workers can continue executing pending steps that belong to a run already transitioned to terminal failed state.
-- **Suggested fix:** Ensure stale recovery does not produce mixed outcomes per run (for example, fail all stale rows for runs where any row reaches stale-fail threshold, or suppress requeue for those runs).
-
-## 9) Active policy blueprint read validation is temporarily bypassed
-
-- **Status:** Open (Temporary)
-- **Priority:** High
-- **Location:** `service/policy/AutomationPolicyService.java` (`getActivePolicy`)
-- **Issue:** Active-policy lookup currently bypasses blueprint validation and returns `SUCCESS` even when the active blueprint is invalid.
-- **Impact:** Invalid policies are no longer blocked at planning time; runs can proceed and fail later during step execution (for example, action step `ACTION_TARGET_MISSING`), increasing runtime noise and delayed failure detection.
-- **Suggested fix:** Remove temporary bypass and restore strict active-policy validation once action config contracts are finalized; keep detailed failure logging for diagnostics.
+No further action is needed. Active automation lives in the workflow engine; equivalent concerns for the workflow engine are tracked as #11, #12, #13.
 
 ## 10) JSONata evaluator swallows expression errors and returns null
 
@@ -138,14 +130,14 @@ This document tracks currently known issues identified in the codebase.
 - **Observed evidence:** Workflow key `fub-lead-claim-contact-followup--v1` version `5`; runs `80`, `83`, `84` stuck with `move_to_pond` in `WAITING_DEPENDENCY` and `pending_dependency_count=1` after `check_communication` completed as `COMM_NOT_FOUND`.
 - **Suggested fix:** Introduce explicit join semantics at graph/runtime level (for example `joinMode: ALL|ANY`, default `ALL` for backward compatibility), update validator/materialization/transition activation accordingly, and add migration/runbook guidance for existing stuck runs.
 
-## 14) Workflow expressions cannot resolve lead phone from webhook payload for ai_call `to`
+## 14) Workflow expressions cannot resolve person phone from webhook payload for ai_call `to`
 
 - **Status:** Open
 - **Priority:** High
 - **Location:** `service/webhook/parse/FubWebhookParser.java`, `service/workflow/trigger/WorkflowTriggerRouter.java`, `service/workflow/expression/ExpressionScope.java`
-- **Issue:** FUB webhook payload normalization exposes only minimal event metadata (`eventType`, `resourceIds`, `uri`, headers, `rawBody`) to workflow trigger payload. Lead phone is not materialized into trigger payload or expression scope, so `ai_call.config.to` cannot reliably bind to a phone path from `event.payload`.
-- **Impact:** AI call workflows must hardcode `to` or depend on local dev safe override. Production-safe dynamic dialing from lead data is blocked in graph config.
-- **Suggested fix:** Enrich workflow planning scope with resolved lead contact fields (for example from local `leads` snapshot) or add explicit step-level lead lookup for `ai_call` when resolving `to`.
+- **Issue:** FUB webhook payload normalization exposes only minimal event metadata (`eventType`, `resourceIds`, `uri`, headers, `rawBody`) to workflow trigger payload. Person phone is not materialized into trigger payload or expression scope, so `ai_call.config.to` cannot reliably bind to a phone path from `event.payload`.
+- **Impact:** AI call workflows must hardcode `to` or depend on local dev safe override. Production-safe dynamic dialing from person data is blocked in graph config.
+- **Suggested fix:** Enrich workflow planning scope with resolved person contact fields (for example from local `persons` snapshot) or add explicit step-level person lookup for `ai_call` when resolving `to`.
 
 ## 15) SSE async-dispatch logs `AuthorizationDeniedException: Access Denied` on subscriber disconnect
 
@@ -166,3 +158,242 @@ This document tracks currently known issues identified in the codebase.
 - **Resolution:** `JAVA_TOOL_OPTIONS` removed from the Railway service. Postgres still connects without the flag because `postgres.railway.internal` resolves AAAA-only — the JVM uses IPv6 by necessity, no hint required. FUB calls now resolve and connect over IPv4.
 - **Verification marker:** logs show `FUB getPersonRawById succeeded`, `FUB getCallById succeeded`, and `Lead upserted (insert) sourceSystem=FUB ...` after the env-var change.
 - **Follow-up:** the deploy runbook still recommends the flag in its env-var contract block and Failure 3 fix; correct when convenient so the next operator hitting a Postgres reach issue does not reintroduce it.
+
+## 17) Trigger-filter scope does not include `person.*` namespace
+
+- **Status:** Open
+- **Priority:** Low
+- **Location:** `service/workflow/trigger/FubWebhookTriggerType.java:79`, `service/workflow/expression/ExpressionScope.java`
+- **Issue:** The domain-events rename moves the persisted person snapshot into the `person.*` namespace. The trigger-filter scope, built separately at webhook ingestion time, does not include `person.*` yet. Trigger filters can therefore only match against `event.payload.*`, not against persistent person state.
+- **Impact:** Workflow authors cannot write filters like `"person.stage = 'Lead'"` or `"$contains(person.tags, 'DNC') = false"`. Most filtering needs are covered by webhook payload alone today, so this is low-priority until Phase 4 switches triggers to domain events.
+- **Suggested fix:** When picked up, share the per-step `RunContext`-style metadata-build with the trigger evaluator (single source of truth for scope shape) and cache the snapshot per webhook-event-id so N active workflows hitting the same person share one DB read.
+
+## 18) `RunContext` hardcodes `"FUB"` as the source system
+
+- **Status:** Open
+- **Priority:** Low
+- **Location:** `service/workflow/RunContext.java`, `service/workflow/WorkflowStepExecutionService.buildRunContext`, `service/person/PersonSnapshotResolver`
+- **Issue:** `RunContext` carries only `sourcePersonId`, no `sourceSystem`. Lookups against `persons` (which has a composite key `(source_system, source_person_id)`) hardcode `"FUB"` everywhere. Today this is correct because FUB is the only adapter, but it will silently misroute lookups when a second CRM lands.
+- **Impact:** None today. Becomes a real bug when HubSpot / Salesforce / Pipedrive adapters are added (see `Docs/product-discovery/ideas.md` "CRM-agnostic event vocabulary").
+- **Suggested fix:** Add `sourceSystem` to `RunContext` (default `"FUB"` until multi-CRM lands), thread it through from `WorkflowRunEntity`, replace hardcoded `"FUB"` strings in resolver call sites.
+
+## 19) No `getUser(id)` client method or `users` ingestion path
+
+- **Status:** Open
+- **Priority:** Low
+- **Location:** `client/fub/FubFollowUpBossClient.java` (no `getUser`), no `users` table or entity in the persistence layer
+- **Issue:** The system stores leads (and minimal call records) but does not store FUB users (agents, ISAs, brokers). FUB also doesn't emit user webhooks, so there's no natural ingestion trigger. Workflows can mention the **lead's currently assigned agent** because `assignedUserId` + `assignedTo` come together inside the lead snapshot. Mentioning **any other user** by ID — e.g. a fixed ISA whose name isn't on the lead — has no clean local source for the display name.
+- **Impact:** Today, workflows that need to mention a non-assigned user must hand-type the display name as a string literal in workflow JSON (drift risk: rename a user in FUB, the literal goes stale). The agent-followup-enforcement workflow does not hit this — it only mentions the assigned agent.
+- **Why it's deferred (not done now):** a `getUser(id)` lazy lookup is one extra FUB API call per execution; a `users` ingestion path would need a polling / sync mechanism since there's no webhook. Neither is justified for current use cases. Documented in `Docs/features/agent-followup-enforcement/plan.md` "Why no `getUser` lookup."
+- **Suggested fix when picked up:** add `FubFollowUpBossClient.getUser(userId) → FubUserResponseDto` with the standard retry policy. If multiple workflows start needing this, add a short-TTL `FubUserDirectoryService` cache. A full `users` table sync is overkill until users-per-workflow becomes a hot path.
+
+## 20) No change-detection mechanism — triggers cannot fire on field transitions
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/trigger/FubWebhookTriggerType.java`, `service/webhook/parse/FubWebhookParser.java`, `service/person/PersonUpsertService.java`
+- **Issue:** FUB collapses every kind of person-record change (assignment, stage, tags, lender, custom fields, name edits, …) into the same generic `peopleUpdated` webhook. The current trigger-filter scope sees only the post-update state — it has no view of what was different. Workflows therefore cannot express predicates like "fire only when `assignedUserId` changed" or "fire only when stage moved into Hot." They must over-fire on every `peopleUpdated` and rely on downstream steps to no-op, or hard-code a per-purpose trigger class for every transition of interest.
+- **Impact:** The agent-followup-enforcement workflow currently over-fires on all `peopleUpdated` events for assigned leads (false-positive escalation runs on tag/stage edits). Acceptable in dev; a real correctness/cost problem once high-volume workflows depend on transition semantics. Any future workflow that needs "fire on stage transition," "fire when lender attached," etc. is blocked.
+- **Measured over-fire rate (2026-05-11, 14 runs):** at least 9 of 14 runs (64%) should not have started by product intent — 5 caused by the agent's own call being recorded in FUB, 2 caused by the engine's own reassignment (see #23), 1 by an unrelated peopleUpdated, plus 1 reassignment that was workflow-correct but product-wrong (lead had a substantive prior conversation outside the buffer window). The "real assignment" trigger rate is only ~43%.
+- **2026-05-12 (26 runs, ~46% bad-run rate):** confirms the pattern holds at higher volume. **New observation — FUB-side webhook bursts:** lead 20231 received 4 `peopleUpdated` webhooks within 16 seconds, lead 20235 received 3 within 8 seconds. Neither was preceded by an engine write. The cause is upstream (likely rapid human edits, or FUB-internal quirks where one operation fires multiple webhooks). This is a third over-fire mechanism distinct from agent-induced and engine-induced. See [field-observations.md](../features/agent-followup-enforcement/plan.md) §"Pattern A (NEW): FUB-side webhook bursts" for the data.
+- **Why it's deferred (not done now):** the only concrete need today is the agent-followup-enforcement workflow, and we're explicitly shipping it with the over-firing trigger to gather usage signal before committing to an architectural fix. Phase 5 was skipped in [Docs/features/agent-followup-enforcement/README.md](../features/agent-followup-enforcement/README.md) for this reason.
+- **Suggested fix when picked up:** see [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md), which supersedes the earlier sketch in [Docs/product-discovery/ideas.md](../product-discovery/ideas.md) ("Change-detection in trigger filters"). The design proposes diff-at-upsert + `change.*` namespace in trigger filter scope + engine-write attribution, in one cohesive change. Resolves #17 in the same release (Layer 2 exposes `person.*` in filter scope).
+
+## 21) `wait_and_check_communication` lookback is anchored to check time, not workflow start
+
+- **Status:** Resolved (2026-05-08, validated in production 2026-05-11)
+- **Production validation (2026-05-11):** `agent_followup_enforcement` run 160 for lead 20197 fired off a `peopleUpdated` webhook at 11:44:39.959 EDT (triggered by the agent's call ending). The agent's call had started at **11:39:41 EDT — 4 minutes 59 seconds before the run was created**, with a duration of 288 s. With the old "anchor to now" logic, the 3-min check at 11:47:42 would have opened the lookback at ~11:44:42 and completely missed a call started at 11:39:41. With the fix, the lookback was anchored to `runStartedAt (11:44:40) - 5 min buffer = ~11:39:40`, putting the call inside the window by ~1 second. Engine correctly returned `CONVERSATIONAL` and terminated the workflow without posting a nudge — preventing the run-150 false-positive pattern.
+- **Follow-up: 5-min buffer is at its margin.** Run 172 on 2026-05-11 (lead 20125) classified a call as `CONVERSATIONAL` even though the call started at 15:34:09 — **14 seconds before** the buffer window opens (15:34:23 = runStartedAt 15:39:23 minus 5 min). It worked because the local `processed_calls` row records a timestamp inside the window (likely the call's `created` rather than `startedAt`), but a slightly slower webhook on a slightly earlier call would fall outside. Suggested follow-up: bump default buffer to 10 min, or derive it dynamically from observed `max(webhook.received_at − call.startedAt)` with a safety factor.
+- **Resolution:** `RunContext.RunMetadata` now carries `runStartedAt` (sourced from `workflow_runs.created_at`). `WaitAndCheckCommunicationWorkflowStep.computeLookbackSince` anchors the lookback window to that fixed timestamp, so the window doesn't drift as a step waits. Effective lookback is `max(lookbackMinutes, DEFAULT_BUFFER_MINUTES=5)` — a 5-minute floor covers webhook-delivery races and "agent called before claiming" patterns. Backwards-compatible: collapses to today's behavior for any workflow with `delayMinutes ≈ 0`. Also fixed an ancillary issue where `WorkflowRunEntity.@PrePersist` used `OffsetDateTime.now()` (system clock) instead of the injected `Clock` — `WorkflowExecutionManager` now sets `createdAt` explicitly so test `Clock`s are honored.
+- **Priority:** High
+- **Location:** `service/workflow/steps/WaitAndCheckCommunicationWorkflowStep.resolveFromLocalEvidence` (line ~153)
+- **Issue:** The step computes the local-evidence lookback window as `since = OffsetDateTime.now(clock).minusMinutes(lookbackMinutes)` — i.e., relative to **when the check runs**, not relative to **when the workflow run started**. Result: any call that happened *before* the workflow's trigger webhook arrived is invisible to the check, regardless of how generous `lookbackMinutes` is set. The lookback can only see the window between the wait completing and "now."
+- **Impact:** Concretely observed in `agent_followup_enforcement` run 150 on 2026-05-08:
+  - Lead 20123 was called at 10:45:34 (42-second conversation, logged in `processed_calls`)
+  - A `peopleUpdated` webhook arrived at 10:46:03 (30s after the call) → spawned run 150
+  - 3-min check at 10:49:06 used lookback `[10:46:06 → 10:49:06]` — missed the call by 32 seconds
+  - 30-min check at 11:16:07 used lookback `[10:46:07 → 11:16:07]` — missed the call by 33 seconds
+  - Run 150 posted a "please call your lead" nudge note AND reassigned the lead to ISA, both wrong because the agent was already in active conversation
+  - Run 149 (the legitimate trigger at 10:44:25, before the call) had a 3-min lookback `[10:44:27 → 10:47:27]` that did include the call → correctly returned `CONVERSATIONAL`
+- **Why this is a real bug, not a workflow-author error:** widening `lookbackMinutes` does not fix it. The window's *anchor* is wrong, not its *width*. Any run whose trigger fires after the call started is systematically blind to that call.
+- **Suggested fix:** anchor the lookback to workflow-run start time (or to the trigger event's `received_at`). Concretely: thread the run's `created_at` (or webhook `received_at`) through `RunContext` / `StepExecutionContext`, then compute `since = max(runStartedAt - bufferMinutes, now - lookbackMinutes)`. Buffer covers calls that happened just before the trigger fired (sub-minute race). Add a config flag `lookbackAnchor: "runStart" | "now"` if backwards-compat for existing workflows matters; default to `runStart` since the current `now`-anchored behavior is rarely what authors want.
+- **Related:** masked by but distinct from #20 — even a perfectly-aimed change-detection trigger would still hit this bug whenever the call slightly precedes the assignment-changed signal.
+
+## 22) `FollowUpBossClient.checkPersonCommunication` reads `person.contacted` which doesn't reflect outbound agent calls
+
+- **Status:** Resolved (2026-05-08, validated in production 2026-05-11)
+- **Production validation (2026-05-11):** `agent_followup_enforcement` run 162 for lead 20188. 3-min check at 11:58:18 returned `COMM_NOT_FOUND` (FUB confirmed: no call existed yet); 27-min check at 12:25:20 correctly returned `CONNECTED_NON_CONVERSATIONAL` after the agent placed a 2-sec outbound call at 12:02:37. The 27-min check found the call via `listPersonCalls` — the old `person.contacted` path would have continued to return false (a 2-sec outbound call doesn't bump `contacted`). Workflow terminated correctly, no incorrect reassignment.
+- **Resolution:** Hard-deleted `checkPersonCommunication` and the `PersonCommunicationCheckResult` record. Replaced with `FollowUpBossClient.listPersonCalls(personId, since)` that hits FUB's `/v1/calls?personId=X&sort=-created&limit=10` and returns `List<CallEvidence>`. Empirical smoke testing confirmed FUB silently ignores `since=` / `createdSince=` / `startedAfter=` query params on `/v1/calls`, so the `since` filter is applied client-side. New unified `CallEvidence` record (sourcePersonId, callStartedAt, durationSeconds, outcome, isIncoming) is shared by the local-evidence path and the FUB-fallback path; the step's classifier runs on either uniformly. 8 simple test stubs migrated; 4 complex test cases rewritten to exercise the new shape.
+- **Priority:** High
+- **Location:** `client/fub/FubFollowUpBossClient.java:152-161`
+- **Issue:** The FUB-fallback communication check decides "found" based on `person.contacted > 0`. Empirically (lead 20123, 2026-05-08): a 42-second outbound agent → lead call was correctly logged in our local `processed_calls` table, but the FUB person record still reported `contacted: 0` even minutes after the call. `person.contacted` appears to track inbound (lead-initiated) communications only, or some other counter — not "did anyone in our org call this lead?"
+- **Impact:** When local evidence is empty (e.g. the call hasn't yet been ingested locally, or the lookback window misses it per #21), the FUB fallback returns false negatives. The step then returns `COMM_NOT_FOUND` and downstream nodes (notes, reassignment, pond moves) execute when they shouldn't. This is the second of two compounding bugs that caused the wrong nudge note + wrong reassignment in `agent_followup_enforcement` run 150.
+- **Why it didn't matter before:** the existing `lead_ai_call_followup` workflow uses this step in a context where `person.contacted` aligns with intent ("has the lead replied yet?"). Agent-followup-enforcement is the first workflow that asks the inverse question ("has the agent contacted the lead yet?"), which `person.contacted` is the wrong signal for.
+- **Suggested fix:** replace the `contacted`-counter check with an actual call lookup. Two reasonable shapes:
+  - (a) `GET /v1/calls?personId=X&limit=10` and inspect call records in the relevant time window (best — gives duration, direction, outcome — same shape as our local `processed_calls`)
+  - (b) `GET /v1/people/X/calls` (if FUB exposes a per-person sub-resource — verify in API docs)
+  Either way, return a richer result that distinguishes inbound vs outbound and includes timestamps, so the step can apply the same `classifyCall` logic it already uses for local evidence. As a quick interim mitigation, the step can stop falling back to FUB entirely and rely on local evidence only — acceptable while #21 is open, since the fallback's signal is unreliable anyway.
+
+## 23) Self-induced over-fire — engine writes to FUB trigger fresh `peopleUpdated` webhooks → fresh workflow runs
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/steps/FubReassignWorkflowStep`, `service/workflow/steps/FubMoveToPondWorkflowStep`, `service/workflow/trigger/FubWebhookTriggerType.java`
+- **Issue:** FUB fires `peopleUpdated` whenever a person record mutates, including mutations the engine itself just made. When a workflow both (a) is triggered by `peopleUpdated` and (b) writes to FUB (reassign, move-to-pond, tag updates, etc.), each mutating step risks producing an echo webhook that re-triggers the same workflow on the same lead. The engine has no awareness that it caused the upstream event.
+- **Confirmed reproductions:**
+  | Date | Lead | Runs | Trigger write | Echo webhook | Gap |
+  |------|------|------|---------------|--------------|-----|
+  | 2026-05-08 | 20123 | 150 → 153 | `reassign_isa` at 11:16:07.617 | 4099 at 11:16:08.193 | 576 ms |
+  | 2026-05-11 | 19255 | 163 → 167 | `reassign_isa` at 14:29:29.387 | 4266 at 14:29:29.865 | 478 ms |
+  | 2026-05-11 | 20207 | 165 → 168 | `reassign_isa` at 14:56:08.174 | 4271 at 14:56:08.472 | 298 ms |
+- **Why this is independent of #20:** even a perfectly-aimed change-detection trigger that only fires on "assignedUserId changed" would still fire on the engine's own reassign. The webhook *is* a legitimate change-detection signal; the engine just doesn't know it caused it.
+- **Frequency:** 10 reproductions across 3 days. On 2026-05-12 specifically, **7 of 7 reassignments executed produced echo webhooks** within 298–788 ms. The echo is **universal on `fub_reassign`, not occasional.** Earlier "~3:1 echo:no-echo" was an N=4 fluke; corrected rate is "every meaningful engine reassign produces an echo." Useful sub-observation: FUB suppresses `peopleUpdated` when the post-update value equals the pre-update value — confirmed by lead 20235's three back-to-back reassigns to the same user producing only one echo. So the precise rule is "every *value-changing* engine write produces an echo."
+- **Cascade can exceed 2 runs:** lead 20207 on 2026-05-11 saw 3 runs in 51 minutes (165 → echo 168 → unrelated peopleUpdated 169) producing 3 nudge notes plus 1 reassignment, including notes posted on a lead in the middle of an 11m44s real conversation with its agent. With no run-level dedup (#24), the cascade is unbounded.
+- **2026-05-12 worst case:** lead 20235 received a FUB-side burst of 3 `peopleUpdated` webhooks within 8 seconds (11:39:15, 20, 23) — not engine-induced. Three parallel workflow runs (195, 196, 197) proceeded for 30 minutes each and **all three reassigned the lead to the same user back-to-back at 12:09:21, 12:09:26, 12:09:30**. The first reassign produced an echo webhook (run 201 spawned 339 ms later); the second and third did not (FUB diffs server-side and suppresses no-op writes). This is the strongest single argument for #24's run-level dedup.
+- **Proposed fix:** [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md) Layer 1 — `EngineWriteTracker` records every engine-originated FUB write in a 10-second in-memory cache, and Layer 0's diff annotates matching field changes with `source: "ENGINE"`. The platform's **engine-echo gate** excludes them by default (reading the `event.origin` provenance annotation surfaced in scope; workflows opt back in via the two-level gate — see domain-events plan "Engine-echo exclusion"). Chosen over the FUB-side marker approach because FUB has no standardized "system-originated" attribution on echoed `peopleUpdated`.
+- **Related:** #20 (over-fire on every `peopleUpdated` due to no change detection), #24 (no run-level suppression).
+
+## 24) No suppression of duplicate workflow runs for the same `(workflow_key, source_person_id)`
+
+- **Status:** Open
+- **Priority:** High
+- **Location:** `service/workflow/WorkflowExecutionManager.planWorkflowRun`, trigger-evaluation pipeline
+- **Issue:** Every webhook that matches a workflow's trigger filter starts a fresh workflow run. There is no check for an active (non-terminal) run on the same `(workflow_key, source_person_id)`, nor a recency check against recently-completed runs. Two webhooks for the same person within minutes will produce two independent runs that proceed in parallel, unaware of each other.
+- **Concretely observed (2026-05-08, lead 20123, `agent_followup_enforcement`):**
+  - Webhook 4089 (`peopleUpdated`) at 10:44:25 → run 149
+  - Webhook 4092 (`peopleUpdated`, functionally identical) at 10:46:03 — **1m 38s later** → run 150
+  - Run 149 had already completed `gate_assigned` and was in `wait_3m_check` when run 150 started
+  - Run 150 had no awareness of run 149; it proceeded to post a nudge note and reassign — both wrong, since run 149 ended at 10:47:27 correctly returning `CONVERSATIONAL`
+- **Why this is distinct from per-step idempotency:** the existing webhook-event uniqueness (`uk_webhook_events_source_event_id`) and step-level idempotency keys protect against literal duplicate webhooks and step retries, but not against semantically-equivalent webhooks that the engine should logically treat as one event.
+- **Proposed fix:** [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md) Phase 5 — at `WorkflowExecutionManager.plan`, check for active runs on `(workflow_key, source_person_id)` (hard suppression) and for recent terminal runs within `dedupWindowMinutes` (soft suppression). Default window derived from `max(delayMinutes)` in the graph. Suppressed runs persist as a `SUPPRESSED` row referencing the prior run id for audit.
+- **More reproductions (2026-05-11 afternoon batch):**
+  - Lead 19255: runs 163 and 167, 30m apart (167 is a #23 echo of 163's reassign — second run does the same nudge + reassign work). Two runs on one lead in 60 min.
+  - Lead 20206: runs 164 and 166, 8m apart (166 triggered by call ending). Both correctly terminated, but two runs spawned for one lead.
+  - **Lead 20207: runs 165, 168, 169 — three runs in 51 minutes.** 168 is a #23 echo; 169 is an unrelated peopleUpdated. Three nudge notes and one reassignment posted on a single lead, including notes on a lead in the middle of a real 11m44s conversation. Cascade extends beyond 2 runs.
+- **Related:** #23 (the engine itself produces some of these duplicates), #20 (the underlying trigger has no transition semantics).
+
+## 25) `workflow_runs.webhook_event_id` FK is never populated
+
+- **Status:** Open
+- **Priority:** Medium
+- **Location:** `service/workflow/WorkflowExecutionManager.planWorkflowRun`, `domain/workflow/WorkflowRunEntity`
+- **Issue:** The `workflow_runs.webhook_event_id` column exists, has a FK constraint to `webhook_events.id` with `ON DELETE SET NULL`, but is null on every workflow run created to date. Verified empirically across runs 149, 150, 153 (2026-05-08) and 159, 160, 161, 162 (2026-05-11). The engine knows the triggering webhook's id when it creates the run (the planner reads from `webhook_events`), but doesn't write it to the run row.
+- **Impact:** Operators investigating a run must correlate by `(source_person_id, created_at)` and time-window matching against `webhook_events`, which is brittle when multiple webhooks for the same person land close together. Also blocks any clean implementation of #24's dedup logic, which would naturally key off "last run for this person, plus its trigger webhook id."
+- **Proposed fix:** bundled in [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md) Layer 5 cleanups. The line in `WorkflowExecutionManager.plan` (~line 117) already calls `run.setWebhookEventId(request.webhookEventId())` — the request just isn't populated upstream. Trace and fix the caller.
+- **Related:** #24 (dedup design needs this column populated for clean auditing).
+
+## 26) Misleading echo event after permanent FUB failure (Phase 3 known trade-off)
+
+- **Status:** Open — known trade-off, accepted by [`Docs/features/domain-events/plan.md`](../features/domain-events/plan.md) §"Defaults"
+- **Priority:** Low (rare combination; benign for current workflows)
+- **Location:** `service/event/EngineWriteCoordinator` (scalar mode) + downstream `PersonUpsertService` echo processing
+- **Issue:** When a scalar-mode engine write (`fub_reassign`, `fub_move_to_pond`) fails permanently after retry exhaustion, the wrap pattern leaves local Person state with the engine's intended value (e.g., `assignedUserId = Alice`) even though FUB still has the prior value (e.g., `Bob`). The next `peopleUpdated` webhook from FUB carries `assignedUserId = Bob` (FUB's truth) → `PersonUpsertService` computes a diff `Alice → Bob` against local → emits a `person.state_changed` event that **looks like an external reassignment from Alice to Bob** when in reality Alice was never on FUB.
+- **Why this design:** the matrix-audit reframing of Phase 3 dropped revert entirely (`RetryPolicy.DEFAULT_FUB` handles transient failures; permanent failures are the rare residual). Adding a revert path back to address this would re-introduce the matrix's A6/C3 "destroys legitimate concurrent change" failure mode. Trade-off chosen: simpler code + rare misleading event over revert + occasional silent data loss on concurrent writers.
+- **Mitigation today:** workflow authors investigating an unexpected `person.state_changed` event can correlate with `workflow_runs.status = FAILED` for the same `source_person_id` shortly before the event. The misleading event always trails a failed run.
+- **Mitigation if it becomes painful:** annotate post-failure echoes with a new payload field (`event.payload.engine_post_failure_echo = true`) consulted by Phase 4 filters. Defer until observation justifies it.
+- **Proposed fix:** none planned. Documented as accepted.
+- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/plan.md) A5/A6 cells.
+
+## 27) Note `note.created` annotation needs Phase 4 verification; person-side channel ruled out
+
+- **Status:** Deferred — channel dormant while `notesCreated` is un-ingested; reopen when note ingestion is enabled (revisit trigger below)
+- **Priority:** Low while deferred (no `note.created` event reaches a consumer today); rises to Medium the moment note ingestion is turned on
+- **Location:** `service/note/NoteEmissionService` (the `note.created` annotation hook, Phase 3e)
+- **Issue:** Phase 3e wires `EngineWriteTracker` annotation for the **single** echo channel triggered by `fub_create_note`: the `notesCreated` echo emits a `note.created` event annotated `source=ENGINE`. It is exercised structurally by the Phase 3 race harness (D1/D3/D4), but no workflow consumes the event in Phase 3 (`WorkflowTriggerRouter.route(event)` still runs on the old webhook-shaped path). Phase 4 introduces the first consumer; until then the annotation is verified by tests, not a real subscriber.
+- **Person-side channel ruled out (2026-06-01):** an earlier plan assumed a second channel — a person-side `peopleUpdated` echo (carrying `lastNoteAt`) — needing annotation. **It does not exist.** Confirmed three ways: (1) empirical — creating notes produced no `peopleUpdated` webhook; (2) FUB API docs — `peopleUpdated`'s trigger field list excludes note activity, and note creation fires only `notesCreated`; (3) code — `lastNoteAt`/`lastActivity` are not in `PersonUpsertService.SNAPSHOT_FIELDS`/`PersonDiffComputer`, so no `person.state_changed` event is produced. No person-side annotation is wired.
+- **Channel is dormant until note ingestion is enabled (confirmed 2026-06-02):** `config/fub-webhook-events.txt` subscribes to `callsCreated` / `peopleCreated` / `peopleUpdated` only — **`notesCreated` is not ingested.** No `note.created` event ever reaches a consumer, so the Phase 3e annotation channel and any `note`-trigger echo filter are inert by definition. Phase 4 therefore does **no** note-channel work and does not add a `note` event-kind schema to the workflow validator; the deferral is recorded in the Phase 4 section of [`phases.md`](../features/domain-events/README.md) so it is explicit, not silently dropped.
+- **Revisit trigger:** when `notesCreated` is added to `config/fub-webhook-events.txt` (i.e. note ingestion is turned on), this issue must be reopened to: (1) verify a workflow with trigger `{ on: "note.created", filter: "event.origin != 'ENGINE'" }` does NOT fire on engine-created notes (the scope builder surfaces the engine annotation as `event.origin` for all event kinds, so note filters use it too); (2) populate the validator's per-event-kind field schema for `note` (until then `note` payload references are unvalidated — an accepted, documented gap).
+  - **Watch condition for the ruled-out person-side channel:** if note-activity metadata is ever added to `SNAPSHOT_FIELDS` AND FUB is found to echo it on note creation, wire the person-side channel in `FubCreateNoteWorkflowStep` + `NoteEmissionService`. A breadcrumb at `SNAPSHOT_FIELDS` records this. (Re-verify against a real note-creation `peopleUpdated` payload once prod FUB creds are restored — they were invalid as of 2026-06-01.)
+- **Risk if not verified:** silent over-firing of `note.created` triggers if note ingestion is enabled without this revisit, regressing the bad-run-rate gain.
+- **Proposed fix:** keep deferred while `notesCreated` is un-ingested; reopen on the revisit trigger above. Tracked here so the future note-ingestion author doesn't miss it.
+- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/plan.md) D-cells, [`phase-3-plan.md`](../features/domain-events/plan.md) §3e + 2026-06-01 changelog.
+
+## 28) Early-echo race on engine note creation
+
+- **Status:** Open — empirically rare, documented for future fix if observed
+- **Priority:** Low (typically POST response is faster than webhook fire)
+- **Location:** `service/event/EngineWriteCoordinator.applyEntityCreateTrackedOnly` and downstream tracker recording in 3e
+- **Issue:** `fub_create_note` records on the tracker **after** `followUpBossClient.createNote(command)` returns (because the FUB-assigned `noteId` is the tracker key). If FUB's `notesCreated` webhook fires before the POST response arrives back at our coordinator, `NoteEmissionService` processes the echo and consults a tracker that has no record yet → the `note.created` event emits without `source=ENGINE` annotation (so `event.origin` resolves to `EXTERNAL`). Phase 4 workflows filtering `event.origin != 'ENGINE'` would treat the engine-created note as a real external note and fire.
+- **Why not fixed in Phase 3:** the cost of fixing (content-hash keying — record on tracker before POST keyed by hash of `(personId, body)`; match on echo by computing the same hash) is high, and the empirical rate is unknown but believed to be low (FUB POST responses typically resolve before webhook fan-out).
+- **Mitigation:** Phase 3 race harness scenario D3 is the diagnostic test for this race. If it ever transitions from "annotation missing" to "annotation present," the race window has changed and the assumption needs revisiting.
+- **Proposed fix when justified:** content-hash key — coordinator records `tracker.record(entityType="note", entityId="hash:" + hashOf(personId, body), changedFields=Set.of("created"))` **before** the POST; `NoteEmissionService` computes the same hash from the echo payload and looks up by hash key (in addition to noteId key). Closes the race at the cost of one extra tracker lookup per note echo.
+- **Related:** [`phase-3-race-matrix.md`](../features/domain-events/plan.md) D3, [`phase-3-plan.md`](../features/domain-events/plan.md) §3e "The early-echo race".
+
+## 29) Run-collision supersede has a truly-simultaneous-events race
+
+- **Status:** Open — accepted residual, experimental; revisit on data. (Supersede itself is **built** — Phase 5; this entry now tracks only the concurrency residual.)
+- **Priority:** Low (doubly-rare case; frequent collision causes already closed by Phases 2–4)
+- **Location:** Phase 5 run-collision handling — `RunSupersedePolicy` + `WorkflowExecutionManager.plan` + `WorkflowRunControlService`
+- **What shipped (resolves the old cancel-only limitation):** When a newer event arrives for a `(workflow_key, source_person_id)` that already has an in-flight (`PENDING`) run **and the two events' `changed_fields` overlap**, Phase 5 **supersedes**: it cancels the stale run (`reason_code = SUPERSEDED_BY_NEWER_EVENT`, `domain_event_id` = the newer event) and the newer run — which the event already spawned under Rail 2 — proceeds to enforce the newest state. So the newer change is **no longer unenforced** (the prior cancel-only trade-off is gone), and the stale run is cancelled before its waited actions fire (no freshness gate needed). Field overlap keeps unrelated changes (e.g. a phone edit) from cancelling an assignment-premised run.
+- **Residual issue:** the collision lookup (`findByWorkflowKeyAndSourcePersonIdAndStatus`) is not lock-protected and there is no partial unique index on `(workflow_key, source_person_id)`. Two **truly simultaneous** events for the same person (each in its own `REQUIRES_NEW` plan transaction) can each fail to see the other's not-yet-committed run → both runs proceed → a duplicate action is possible. This is the same gap the original design accepted when it dropped the partial unique index.
+- **Why accepted:** requires two genuinely-distinct meaningful changes for the same person *within the commit window* — vanishingly rare after Phases 2–4. We don't yet have data that it happens.
+- **Revisit trigger:** frequency is self-reported — `SELECT COUNT(*) FROM workflow_runs WHERE reason_code = 'SUPERSEDED_BY_NEWER_EVENT'` (supersede activity, per `workflow_key`), and watch for `>1` concurrent `PENDING` run per `(workflow_key, source_person_id)`.
+- **Proposed fix when justified:** a partial unique index on `(workflow_key, source_person_id) WHERE status = 'PENDING'` (DB-level mutual exclusion), or a per-step freshness backstop on the irreversible actions (reassign / move-to-pond no-op when the run's premise field changed since trigger). Either closes the race.
+- **Related:** [`plan.md`](../features/domain-events/plan.md) §7, [`phases.md`](../features/domain-events/README.md) Phase 5, [`overview.md`](../features/domain-events/README.md) §7.
+
+## 30) Append-event trigger filters (`event.payload.*`) are not validated at save-time
+
+- **Status:** Open — accepted gap; no consumer today
+- **Priority:** Low (no workflow subscribes to append/non-person events yet)
+- **Location:** Phase 4 validator (4c) + `DomainEventScopeBuilder`
+- **Issue:** The trigger scope builder produces `event.*` and `event.origin` generically for **every** event kind, but `change.*` / `current.*` / `person.*` are person-specific (a `person.state_changed` carries `{changed_fields, previous, current}`; `person.created` carries a `current` snapshot; append kinds carry the raw FUB entity payload). So a filter on an append/non-person kind (`call.created`, `note.created/updated/deleted`, future `task.*`) must reach its data via `event.payload.*`. The save-time field-reference validator only declares a field schema for **person** kinds (from `PersonDiffComputer`); it does **not** validate `event.payload.*` references for append kinds. A typo'd or absent field there is therefore *not* caught at save time and the trigger silently never fires — the universal silent-no-fire bug, unguarded for these kinds. (The builder itself does not error on these kinds — it degrades gracefully: `event.*`/`event.origin` present, `change`/`current` absent, `person` empty. That part is correct, not a bug.)
+- **Why accepted:** no workflow subscribes to append/non-person events today. Declaring a FUB-payload field schema with zero consumers would be speculative (you'd guess the wrong fields); the right schema emerges when a real consumer defines what it needs.
+- **Revisit trigger:** when the first workflow subscribes to an append-event kind, declare that kind's field schema in the validator's per-event-kind registry (the seam already exists, marked "unvalidated-payload"). For `note` specifically this is bundled with note ingestion — see #27.
+- **Related:** [`phase-4-plan.md`](../features/domain-events/plan.md) 4c, #27.
+
+## 31) Rail 2 run planning ran in the after-commit hook without a live transaction
+
+- **Status:** Resolved (2026-06-03, Phase 4d)
+- **Priority:** High — would have created **zero** workflow runs on Rail 2 in production
+- **Location:** `WorkflowExecutionManager.plan` ← `WorkflowTriggerRouter` ← `InMemoryDomainEventDispatcher` ← `DomainEventEmitter` after-commit hook
+- **Issue:** Domain events dispatch from `DomainEventEmitter`'s `TransactionSynchronization.afterCommit()` — by design, so the event row is durably committed before any listener acts. Under Rail 1 the trigger router ran *inside* the live webhook-processing transaction, so `plan()`'s `saveAndFlush` had an active transaction. Under Rail 2 (Phase 4) the router is a domain-event listener and runs in that after-commit callback, where Spring still reports the just-committed transaction as active (`isActualTransactionActive()` is `true` until cleanup). `plan()` was `@Transactional` (default `REQUIRED`), so it **joined the completing transaction** instead of starting a fresh one — and `saveAndFlush` against it threw `InvalidDataAccessApiUsageException: No active transaction`. The dispatcher caught and logged it per-listener, so emission and the rest of webhook processing succeeded silently while **no run was ever created**.
+- **Fix:** `plan()` → `@Transactional(propagation = REQUIRES_NEW)`. Its sole caller is the post-commit router, so the new transaction is the run's own unit of work; this also preserves the existing per-workflow isolation (each `plan()` already its own transaction, one bad workflow not rolling back siblings). Event durability is unaffected — the event is committed before dispatch, so a planning failure can only fail to act, never lose the event.
+- **How it was caught:** `ReplayHarnessTest` — replaying the five recorded incident bursts end-to-end through `/webhooks/fub` produced 0 runs where the migrated workflow expected 1, surfacing the after-commit transaction gap that no unit test reached.
+- **Related:** [`phase-4-plan.md`](../features/domain-events/plan.md) 4d.
+
+## 32) Domain-event triggers are single-kind — `agent_followup_enforcement` must choose `person.created` *or* `person.state_changed`
+
+- **Status:** Open — product limitation (2026-06-04)
+- **Priority:** Medium — narrows real-world coverage of the assignment-followup workflow
+- **Location:** `WorkflowTriggerRouter.route` (`:85`, exact-`equals` on `trigger.on`), `DomainEventTriggerType.matches` (`:51`), `DomainEventTriggerValidator.validate` (`:71`, `on` is a single string)
+- **Issue:** A domain-event trigger's `on` is matched as a **single exact string** against `event.eventKind()` in both the router pre-filter and the authoritative matcher; the validator likewise treats it as one kind. A workflow therefore subscribes to exactly **one** event kind. For `agent_followup_enforcement` the operative signal is *"a lead became assigned to an agent,"* which arrives as **two** different kinds:
+  - new lead created already-assigned → `person.created` (assignment in the `current` snapshot, no `change` block);
+  - existing lead reassigned → `person.state_changed` with `change.assignedUserId.changed`.
+  A single trigger can cover only one. In FUB the dominant case is **assignment-at-creation** (leads arrive auto-assigned), so a `person.state_changed` trigger silently misses the common path — which is what surfaced this (live webhooks produced `person.created`, no runs).
+- **Why it looks like a regression:** under the pre-domain-events Rail 1 trigger (`webhook_fub`, `eventAction=UPDATED`) the workflow fired on the trailing `peopleUpdated` FUB emits right after `peopleCreated` — i.e. it caught new-assigned leads *by over-firing* (the bad-run family #20/#23/#24). Rail 2's diff-collapse correctly suppresses that no-op trailing update, so the assignment signal for new leads now lives **only** in `person.created`. Net coverage is narrower but correct; the breadth was previously an artifact of over-firing.
+- **Workarounds:** (a) trigger on `person.created` with `person.kind = 'LEAD' and $boolean(person.assignedUserId)` — covers the common case (currently deployed); (b) run **two** workflows, one per kind, for full coverage.
+- **Proper fix (not yet built):** make `on` accept a `String` **or** a `List<String>` (match if `event.eventKind()` ∈ set) across the two match sites + the validator's per-kind scoping (`change.*` allowed when `person.state_changed` is among the kinds), paired with a kind-branching filter: `person.kind = 'LEAD' and ((event.kind = 'person.created' and $boolean(person.assignedUserId)) or (event.kind = 'person.state_changed' and change.assignedUserId.changed))`. Small, well-contained; worth having as a general feature.
+- **Evidence:** person 20796/20797 created with `assignedUserId=1` → `person.created`, no run under the `person.state_changed` trigger.
+
+## 33) Engine-caused echo of a *derived* field (`assignedTo`) is labeled `external` — accepted
+
+- **Status:** Accepted / documented (2026-06-04) — no fix planned; revisit only if a workflow ever needs to filter on a derived display field
+- **Priority:** Low
+- **Location:** `DomainEventEmitter.maybeAnnotateEngineSource` ↔ `InMemoryEngineWriteTracker` (per-field superset match: `diffFields.containsAll(recordedFields)`); `DefaultEngineWriteCoordinator.applyScalarFieldUpdate` (`mergeFields` writes only the field it set); `fub_reassign`.
+- **Issue:** A `fub_reassign` writes only `assignedUserId` to the local snapshot and records that one field in the engine-write tracker. FUB, applying the reassign, *also derives* `assignedTo` (the new user's display name). The echo webhook therefore carries an `assignedTo` change the engine never wrote; the tracker (keyed on `assignedUserId`) can't attribute it, so the resulting `person.state_changed` is emitted annotated `external`. A workflow filtering on `change.assignedTo.changed` would react to the platform's *own* reassignment — the self-induced over-fire family (#23), leaking through the derived field.
+- **This is a *provenance* problem, not a spurious-event problem.** The `assignedTo` change is a real observed state change; the system's job is to faithfully emit a domain event for every genuine change, and it does. The only thing wrong is the engine/external **label**. Suppressing the event (pre-writing `assignedTo` locally so the echo is a no-op) was considered and **rejected**: it would hide a legitimate change and, worse, swallow any genuinely-external field that rode in on the same webhook (e.g. the `phones` change below). Faithful emission must be preserved; any fix belongs in *attribution*, not suppression.
+- **Why correct attribution is hard:** the system honestly did not write `assignedTo` — FUB derived it. To label it `ENGINE` the platform must (a) encode domain knowledge that `assignedTo` is derived from `assignedUserId`, and (b) attribute provenance **per field**, because one webhook can mix an engine-caused field (`assignedTo`) and a genuinely-external one (`phones`) in a single event. Provenance today is per-*event*. The proper fix is a derived-field map + per-field source tags — a real change to the diff/emit model.
+- **Decision (2026-06-04 — accept & document):** `assignedTo` carries no information beyond `assignedUserId` (the same fact spelled out), and no workflow filters on it, so the mislabeled event triggers nothing today. Per-field provenance is not worth building for a zero-impact field. Revisit if/when a workflow needs to filter on a derived display field.
+- **Evidence (person 20798, 2026-06-04):** engine reassign → event #57 `change=[assignedUserId]` `source=ENGINE` (gate suppressed it), then echo #58 `change=[assignedTo, phones]` annotated `external` — `assignedTo` engine-derived (would be a false trigger), `phones` genuinely external (correctly `external`).
+- **Related:** #23 (self-induced over-fire), RD-006 (engine-echo exclusion).
+
+## 34) Industry professionals trigger lead workflows — `kind` is stage-derived, late, and exact-match-only
+
+- **Status:** Open (2026-06-09) — durable fix in flight
+- **Priority:** Medium
+- **Location:** `PersonUpsertService.mapStageToKind`; `person.created` trigger evaluation
+- **Issue:** Two compounding gaps let realtors / mortgage agents trigger lead-only workflows. (a) **Timing:** people arrive from FUB as default stage `Lead` and are reclassified to an agent stage **manually, minutes-to-hours later**; a `person.created` trigger evaluates against the bare "Lead" snapshot before any agent signal exists. (b) **Classifier:** `mapStageToKind` does a case-insensitive **exact** match on the stage string (`"lead"`/`"agent"`/`"realtor"`), so even the enriched stage `"Real Estate or Mortgage Agent"` falls through to `kind=UNKNOWN` rather than an agent kind — the code comment at `PersonUpsertService` already flags this.
+- **Concretely observed (2026-06-05, person 20827 "Gordon Bartozzi Agent", `agent_followup_enforcement` run 229):** at trigger time the snapshot read `stage=Lead`, `tags=[]`, so the filter (`person.kind = 'LEAD'`) passed and the flow nudged + queued reassignment. The agent stage + `Realtor`/`Real Estate Agent` tags arrived ~6 min later on a re-sync; an operator manually canceled the run at 14:55.
+- **Durable fix in flight:** [`Docs/features/person-profile-enrichment`](../features/person-profile-enrichment/README.md) — infer an evidence-backed industry-professional classification on ingest (`person.profile.inferredKind` / `isIndustryProfessional`), independent of the FUB stage string, that workflows can gate on. Note it **sidesteps** rather than fixes `mapStageToKind`; a separate token-scan fix to `kind` is still possible if the stage-derived value matters elsewhere. See [RD-008](../repo-decisions/RD-008-profile-enrichment-inferred-kind.md).
+
+## 35) `ui/` `WorkflowBuilderPage` has no page-level test — mounting it hangs the Vitest forks worker
+
+- **Status:** Open — deferred (2026-06-19); revisit when the interactive builder is built
+- **Priority:** Low (UI; the page is view-only today and its logic layer is fully unit-tested)
+- **Location:** `ui/src/modules/workflows-builder/ui/WorkflowBuilderPage.tsx` (a page-level test would live under `ui/src/test/`)
+- **Issue:** A React Testing Library mount of `WorkflowBuilderPage` hangs the Vitest `forks`-pool worker (~580 s "Timeout terminating forks worker"). The page renders the full `<Storyboard />` surface (layout engine + storyboard render path); mounting that under the forks pool wedges the worker. `gcTime: 0` on the test `QueryClient` and `resetBuilderStore()` did not resolve it; a single minimal mount reproduces it, and no code-level open handle was found. The test was written during ui-architecture-conformance Phase 5 and removed before commit (so there is no git trace of it).
+- **Impact:** The page-level *wiring* is untested: the `useEffect` load (`graph/load` + `trigger/set` on `:key`, empty-graph seed on the new-workflow route) and the three guard branches (loading / not-found / invalid-graph). The builder's *logic* layer is fully covered — 23 tests in `ui/src/test/workflows-builder-pure.test.ts` (contentHash, runtimeContract zod schema, graphAdapters, layoutEngine, cardFormatters, builderStore reducer, actionLog). The gap is ~15 lines of glue plus 3 conditional branches on a read-only screen.
+- **Why deferred (not done now):** the page is a thin view-only viewer whose underlying logic is already tested, and the screen will be rewritten when interactive authoring lands (builder "Phase 2+") — the natural moment to add a page test rather than testing glue that is about to change.
+- **Revisit trigger:** when interactive-builder work begins — i.e. the first edit to `WorkflowBuilderPage` beyond the read-only viewer.
+- **Proposed fix when picked up:** stub `<Storyboard />` in the page test so the mount exercises only the page's wiring/branches (the correct altitude for a page test — the surface is already unit-tested), which should also sidestep the forks-worker hang. Fallbacks if it still hangs: pin that one file to the `threads` pool via `poolMatchGlobs`, or run it under `happy-dom`.
+- **Related:** `Docs/features/ui-architecture-conformance/` UAC-11 (where the deferral was originally recorded).

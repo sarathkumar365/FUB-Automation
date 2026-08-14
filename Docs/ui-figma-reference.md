@@ -22,5 +22,5 @@
   - update this file to point `Approved baseline` to the new node
   - move the old baseline node to `Supporting explorations` with a note
 - Keep style and token alignment with:
-  - `Docs/archive/ui-style-guide-v1.md`
+  - `Docs/ui-style-guide-v1.md`
   - `ui/src/styles/tokens.css`

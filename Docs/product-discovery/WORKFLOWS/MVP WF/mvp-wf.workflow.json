@@ -1,0 +1,80 @@
+{
+  "key": "agent_followup_enforcement_mvp",
+  "name": "MVP — Agent Follow-up Enforcement",
+  "description": "When an agent self-assigns a lead, wait a grace period and check communication. No call attempt -> lead back to pond. Conversational -> done. Non-conversational -> follow-up task under the same agent, re-check at task date, then save or pond. Retry loop (N attempts) intentionally omitted in this MVP cut.",
+  "status": "ACTIVE",
+  "trigger": {
+    "anyOf": [
+      { "on": "person.created", "filter": "person.kind = 'LEAD' and $boolean(person.assignedUserId)" },
+      { "on": "person.state_changed", "filter": "person.kind = 'LEAD' and change.assignedUserId.changed and $boolean(change.assignedUserId.new)" }
+    ],
+    "reactToEngineEvents": false
+  },
+  "graph": {
+    "schemaVersion": 1,
+    "entryNode": "wait_grace_check",
+    "nodes": [
+      {
+        "id": "wait_grace_check",
+        "type": "wait_and_check_communication",
+        "config": {
+          "delayMinutes": 3,
+          "lookbackMinutes": 3
+        },
+        "transitions": {
+          "COMM_NOT_FOUND": ["to_pond_no_call"],
+          "CONVERSATIONAL": { "terminal": "COMPLETED" },
+          "CONNECTED_NON_CONVERSATIONAL": ["create_followup_task"]
+        }
+      },
+      {
+        "id": "to_pond_no_call",
+        "type": "fub_move_to_pond",
+        "config": {
+          "targetPondId": "__POND_ID__"
+        },
+        "transitions": {
+          "SUCCESS": { "terminal": "COMPLETED" },
+          "FAILED": { "terminal": "FAILED" }
+        }
+      },
+      {
+        "id": "create_followup_task",
+        "type": "fub_create_task",
+        "config": {
+          "name": "Follow up with lead — prior call attempts were not conversational",
+          "assignedUserId": "{{ person.assignedUserId }}",
+          "dueDateTime": "{{ $fromMillis($toMillis($now()) + 7200000) }}"
+        },
+        "transitions": {
+          "SUCCESS": ["recheck_at_task_date"],
+          "FAILED": { "terminal": "FAILED" }
+        }
+      },
+      {
+        "id": "recheck_at_task_date",
+        "type": "wait_and_check_communication",
+        "config": {
+          "delayMinutes": 120,
+          "lookbackMinutes": 120
+        },
+        "transitions": {
+          "CONVERSATIONAL": { "terminal": "COMPLETED" },
+          "CONNECTED_NON_CONVERSATIONAL": ["to_pond_final"],
+          "COMM_NOT_FOUND": ["to_pond_final"]
+        }
+      },
+      {
+        "id": "to_pond_final",
+        "type": "fub_move_to_pond",
+        "config": {
+          "targetPondId": "__POND_ID__"
+        },
+        "transitions": {
+          "SUCCESS": { "terminal": "COMPLETED" },
+          "FAILED": { "terminal": "FAILED" }
+        }
+      }
+    ]
+  }
+}

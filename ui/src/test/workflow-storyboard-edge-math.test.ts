@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   cubicBezierPoint,
   edgeLabelT,
-} from '../modules/workflows-builder/surfaces/storyboard/edgeMath'
+} from '@modules/workflows-builder/surfaces/storyboard/edgeMath'
 
 describe('edgeLabelT', () => {
   it('centers a lone edge label at 0.5', () => {

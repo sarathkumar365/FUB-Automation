@@ -1,5 +1,5 @@
 import { Navigate, Outlet, useLocation } from 'react-router-dom'
-import { routes } from '../shared/constants/routes'
+import { routes } from '@shared/constants/routes'
 
 const SESSION_FLAG_KEY = 'admin-ui-enabled'
 

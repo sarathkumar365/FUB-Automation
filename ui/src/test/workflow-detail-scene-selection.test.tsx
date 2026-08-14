@@ -1,6 +1,6 @@
 import { act, renderHook } from '@testing-library/react'
 import { describe, expect, it } from 'vitest'
-import { useSceneSelection } from '../modules/workflows/ui/WorkflowDetailPage/StoryboardTab/useSceneSelection'
+import { useSceneSelection } from '@modules/workflows/ui/WorkflowDetailPage/StoryboardTab/useSceneSelection'
 
 describe('useSceneSelection', () => {
   it('starts with a null selection', () => {

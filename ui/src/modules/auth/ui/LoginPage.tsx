@@ -1,10 +1,13 @@
 import { useEffect, useState, type FormEvent } from 'react'
-import { useNavigate, useSearchParams } from 'react-router-dom'
-import { Button, Input, PageHeader } from '../../../shared/ui'
-import { routes } from '../../../shared/constants/routes'
-import { HttpRequestError } from '../../../platform/adapters/http/httpJsonClient'
+import { Link, useNavigate, useSearchParams } from 'react-router-dom'
+import { Button } from '@shared/ui/button'
+import { routes } from '@shared/constants/routes'
+import { uiText } from '@shared/constants/uiText'
+import { HttpRequestError } from '@platform/adapters/http/httpJsonClient'
 import { AuthClient } from '../data/authClient'
 import { getToken, setToken } from '../state/tokenStore'
+import { AuthShell } from './AuthShell'
+import { AuthError, AuthField } from './AuthField'
 
 const ADMIN_PREFIX = '/admin-ui'
 
@@ -51,9 +54,9 @@ export function LoginPage({ authClient = new AuthClient() }: { authClient?: Auth
       navigate(next, { replace: true })
     } catch (err) {
       if (err instanceof HttpRequestError && err.status === 401) {
-        setError('Invalid username or password.')
+        setError(uiText.login.errorInvalidCredentials)
       } else {
-        setError('Could not sign in. Please try again.')
+        setError(uiText.login.errorGeneric)
       }
     } finally {
       setSubmitting(false)
@@ -61,51 +64,42 @@ export function LoginPage({ authClient = new AuthClient() }: { authClient?: Auth
   }
 
   return (
-    <div className="mx-auto flex min-h-[60vh] w-full max-w-md flex-col justify-center px-4 py-10">
-      <PageHeader
-        title="Admin sign in"
-        subtitle="Use your admin credentials to access the operations console."
-      />
-      <section className="mt-6 rounded-lg border border-[var(--color-border)] bg-[var(--color-surface)] p-5 shadow-[var(--shadow-subtle)]">
-        <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-[var(--color-text)]">Username</span>
-            <Input
-              autoComplete="username"
-              autoFocus
-              disabled={submitting}
-              onChange={(event) => setUsername(event.target.value)}
-              required
-              value={username}
-            />
-          </label>
-          <label className="flex flex-col gap-1 text-sm">
-            <span className="font-medium text-[var(--color-text)]">Password</span>
-            <Input
-              autoComplete="current-password"
-              disabled={submitting}
-              onChange={(event) => setPassword(event.target.value)}
-              required
-              type="password"
-              value={password}
-            />
-          </label>
-          {error !== null && (
-            <p
-              role="alert"
-              className="rounded-md border border-[var(--color-status-bad)] bg-[color-mix(in_srgb,var(--color-status-bad),white_85%)] px-3 py-2 text-sm text-[var(--color-status-bad)]"
-            >
-              {error}
-            </p>
-          )}
-          <Button
-            type="submit"
-            disabled={submitting || username.trim().length === 0 || password.length === 0}
-          >
-            {submitting ? 'Signing in…' : 'Sign in'}
-          </Button>
-        </form>
-      </section>
-    </div>
+    <AuthShell>
+      <h1 className="text-[22px] font-bold text-[var(--color-text)]">{uiText.login.title}</h1>
+      <p className="mb-6 mt-1 text-sm text-[var(--color-text-muted)]">{uiText.login.subtitle}</p>
+      <form className="flex flex-col gap-4" onSubmit={handleSubmit} noValidate>
+        <AuthField
+          label={uiText.login.usernameLabel}
+          autoComplete="username"
+          autoFocus
+          disabled={submitting}
+          onChange={(event) => setUsername(event.target.value)}
+          required
+          value={username}
+        />
+        <AuthField
+          label={uiText.login.passwordLabel}
+          autoComplete="current-password"
+          disabled={submitting}
+          onChange={(event) => setPassword(event.target.value)}
+          required
+          type="password"
+          value={password}
+        />
+        {error !== null && <AuthError>{error}</AuthError>}
+        <Button
+          type="submit"
+          disabled={submitting || username.trim().length === 0 || password.length === 0}
+        >
+          {submitting ? uiText.login.submitting : uiText.login.submit}
+        </Button>
+      </form>
+      <p className="mt-5 text-sm text-[var(--color-text-muted)]">
+        {uiText.login.requestAccountPrompt}{' '}
+        <Link to={routes.signup} className="font-semibold text-[var(--color-brand)]">
+          {uiText.login.requestAccountCta}
+        </Link>
+      </p>
+    </AuthShell>
   )
 }

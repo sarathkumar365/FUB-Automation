@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
-import { useAppPorts } from '../../../app/useAppPorts'
-import { queryKeys } from '../../../platform/query/queryKeys'
-import { queryDefaults } from '../../../shared/constants/queryDefaults'
-import type { WebhookListFilters } from '../../../shared/types/webhook'
+import { useAppPorts } from '@app/useAppPorts'
+import { queryKeys } from '@platform/query/queryKeys'
+import { queryDefaults } from '@shared/constants/queryDefaults'
+import type { WebhookListFilters } from '@shared/types/webhook'
 
 export function useWebhookListQuery(filters: Omit<WebhookListFilters, 'limit'>, enabled = true) {
   const { adminWebhookPort } = useAppPorts()

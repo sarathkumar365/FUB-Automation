@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Navigate, Outlet, useLocation, useNavigate } from 'react-router-dom'
-import { routes } from '../../../shared/constants/routes'
-import { ADMIN_UNAUTHORIZED_EVENT } from '../../../platform/adapters/http/httpJsonClient'
+import { routes } from '@shared/constants/routes'
+import { ADMIN_UNAUTHORIZED_EVENT } from '@platform/adapters/http/httpJsonClient'
 import { getToken } from '../state/tokenStore'
 
 /**

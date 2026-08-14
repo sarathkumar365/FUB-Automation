@@ -1,6 +1,7 @@
 import { NavLink, useLocation } from 'react-router-dom'
 import { navItemIsActive, panelNavItems } from '../constants/routes'
 import { uiText } from '../constants/uiText'
+import { cn } from '../lib/cn'
 
 type PanelNavProps = {
   onNavigate?: () => void
@@ -18,12 +19,12 @@ export function PanelNav({ onNavigate }: PanelNavProps) {
             to={item.to}
             onClick={onNavigate}
             aria-current={active ? 'page' : undefined}
-            className={[
+            className={cn(
               'block rounded-md px-3 py-2 text-sm transition-colors',
               active
                 ? 'bg-[var(--color-brand-soft)] text-[var(--color-brand)]'
                 : 'text-[var(--color-text)] hover:bg-[var(--color-surface-alt)]',
-            ].join(' ')}
+            )}
           >
             {uiText.app.nav[item.key]}
           </NavLink>
