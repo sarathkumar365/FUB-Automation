@@ -50,6 +50,29 @@
   --color-accent-neutral-bg: rgba(100, 116, 139, 0.10);
   --color-accent-neutral-dot: #64748b;
 
+  /* Reporting contact-outcome palette (reporting handoff; RD-015 charts read
+     these at runtime). spoke = conversation happened, attempted = dialled but
+     not reached, nothing = untouched. Each: fg (text), bg (chip fill),
+     dot (solid swatch/node), ribbon (sankey band). */
+  --color-outcome-spoke-fg: #0c7f93;
+  --color-outcome-spoke-bg: rgba(15, 159, 184, 0.12);
+  --color-outcome-spoke-dot: #0f9fb8;
+  --color-outcome-spoke-ribbon: rgba(15, 159, 184, 0.42);
+  --color-outcome-attempted-fg: #4f46e5;
+  --color-outcome-attempted-bg: rgba(99, 102, 241, 0.12);
+  --color-outcome-attempted-dot: #6366f1;
+  --color-outcome-attempted-ribbon: rgba(99, 102, 241, 0.40);
+  --color-outcome-nothing-fg: #b45309;
+  --color-outcome-nothing-bg: rgba(217, 119, 6, 0.12);
+  --color-outcome-nothing-dot: #d97706;
+  --color-outcome-nothing-ribbon: rgba(217, 119, 6, 0.42);
+  /* sankey source→agent band (outcome not yet known at that hop) */
+  --color-flow-ribbon: rgba(15, 159, 184, 0.30);
+
+  /* Skeleton shimmer gradient stops (reporting handoff loading state) */
+  --color-shimmer-lo: #eaf0f9;
+  --color-shimmer-hi: #f6fafd;
+
   /* Storyboard surface hints */
   --color-storyboard-grid-dot: rgba(15, 23, 42, 0.05);
   --color-storyboard-card-border: rgba(15, 23, 42, 0.12);
@@ -194,6 +217,23 @@
   --color-accent-wait-fg: #a5b4fc;
   --color-accent-wait-bg: rgba(129, 140, 248, 0.2);
   --color-accent-wait-dot: #818cf8;
+
+  /* reporting outcomes — same brightened-dot / translucent-fill treatment */
+  --color-outcome-spoke-fg: #67e8f9;
+  --color-outcome-spoke-bg: rgba(34, 211, 238, 0.2);
+  --color-outcome-spoke-dot: #2dc4dd;
+  --color-outcome-spoke-ribbon: rgba(45, 196, 221, 0.45);
+  --color-outcome-attempted-fg: #a5b4fc;
+  --color-outcome-attempted-bg: rgba(129, 140, 248, 0.2);
+  --color-outcome-attempted-dot: #818cf8;
+  --color-outcome-attempted-ribbon: rgba(129, 140, 248, 0.45);
+  --color-outcome-nothing-fg: #fcd34d;
+  --color-outcome-nothing-bg: rgba(251, 191, 36, 0.2);
+  --color-outcome-nothing-dot: #fbbf24;
+  --color-outcome-nothing-ribbon: rgba(251, 191, 36, 0.45);
+  --color-flow-ribbon: rgba(45, 196, 221, 0.32);
+  --color-shimmer-lo: #1a2438;
+  --color-shimmer-hi: #22304a;
   --color-accent-branch-fg: #f9a8d4;
   --color-accent-branch-bg: rgba(244, 114, 182, 0.2);
   --color-accent-branch-dot: #f472b6;
@@ -273,5 +313,34 @@
   }
   100% {
     opacity: 0;
+  }
+}
+
+/* Skeleton shimmer (reporting handoff loading state) — gradient slide over the
+   shimmer tokens. Consumed by the Skeleton recipe's `animation="shimmer"`. */
+@keyframes skeleton-shimmer {
+  0% {
+    background-position: 100% 0;
+  }
+  100% {
+    background-position: -100% 0;
+  }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    var(--color-shimmer-lo) 25%,
+    var(--color-shimmer-hi) 37%,
+    var(--color-shimmer-lo) 63%
+  );
+  background-size: 400% 100%;
+  animation: skeleton-shimmer 1.5s ease infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .skeleton-shimmer {
+    animation: none;
+    background: var(--color-shimmer-lo);
   }
 }

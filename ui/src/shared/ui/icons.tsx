@@ -212,3 +212,23 @@ export function SunIcon(props: IconProps) {
     </SvgIcon>
   )
 }
+
+export function BarChartIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M3 3v16a2 2 0 0 0 2 2h16" />
+      <path d="M8 17v-5" />
+      <path d="M13 17V7" />
+      <path d="M18 17v-9" />
+    </SvgIcon>
+  )
+}
+
+export function EyeIcon(props: IconProps) {
+  return (
+    <SvgIcon {...props}>
+      <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7-10-7-10-7z" />
+      <circle cx="12" cy="12" r="3" />
+    </SvgIcon>
+  )
+}

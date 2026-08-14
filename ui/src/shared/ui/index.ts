@@ -44,6 +44,7 @@ export { FilterBar } from './FilterBar'
 export { JsonViewer, type JsonViewerProps } from './JsonViewer'
 export { LoadingState } from './LoadingState'
 export { PagePagination, type PagePaginationProps } from './PagePagination'
+export { SegmentedControl, type SegmentedOption } from './SegmentedControl'
 export { StatusBadge, type StatusTone } from './StatusBadge'
 export { Toggle } from './Toggle'
 
@@ -52,10 +53,12 @@ export {
   ActivityIcon,
   AlertTriangleIcon,
   ApplyIcon,
+  BarChartIcon,
   ChevronDownIcon,
   ChevronLeftIcon,
   CloseIcon,
   CompassIcon,
+  EyeIcon,
   FilterIcon,
   LockIcon,
   LogoMarkIcon,
