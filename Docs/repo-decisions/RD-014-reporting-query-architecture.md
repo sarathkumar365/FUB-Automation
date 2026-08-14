@@ -3,6 +3,8 @@
 ## Status
 **Accepted (2026-06-26)** — direction agreed in a `/consult` architecture deliberation. Implementation
 is phased/incremental (see [reporting-platform/phases.md](../features/reporting-platform/phases.md)).
+**Both reports built 2026-08-13/14** on this architecture; see the 2026-08-14 amendment below for the
+six decisions that came out of building them.
 **Sharpens, does not replace, [RD-012](./RD-012-reporting-platform-architecture.md).** Scope: the
 reporting *query / consumption* architecture — how reports are produced and served, and where (if
 ever) an LLM / natural-language interface fits.
@@ -32,6 +34,70 @@ Two facts discovered after acceptance sharpen (do not reverse) this decision:
    prerequisite for R2 was a *stable ingress*, now met; the reconcile job is optional insurance, deferred.
 
 Deterministic-first, accountability-frozen-in-SQL, and NL-deferred-and-demand-gated all stand unchanged.
+
+## Amendment (2026-08-14) — how reports are computed, and what a contact is
+
+A `/consult` replan revisited the substrate from the root and then built both reports. Six
+decisions came out of it. All of them sharpen this RD; none reverse it.
+
+### 1. On-read computation stays. Snapshots and write-time stamping were rejected.
+Four ways to answer "who held this lead when the call happened" were rated:
+
+| | Approach | Verdict |
+|---|---|---|
+| **1** | **On-read SQL view** (chosen) | Cannot drift — recomputed from source every time. Works on all history. Worst case is *slow*, which is visible |
+| 2 | Stamp the holder onto each call at write time | Rejected: forward-only, and the only option that **cannot be recomputed** if the rule turns out wrong |
+| 3 | A stored ownership-history table | Deferred: same answers, rebuildable from `events`. **This is the upgrade path** if reads ever get slow — an internal swap, invisible to the reports |
+| 4 | Ignore reassignment, credit the current holder | Rejected: wrong on 37 of 1,034 calls (3.6%), and wrong precisely on the reassigned leads people dispute |
+
+The deciding distinction: **1 and 3 are derived and always rebuildable; 2 is captured and
+permanently wrong if captured wrong.** Measured cost at 5× the brokerage's entire lead count
+(100k leads / 300k calls / 400 days): R1 ~199ms, R2 ~96ms. Not a constraint.
+
+A **nightly snapshot table** was also designed and dropped. Its one unique benefit was dating
+FUB's `contacted` flag — and decision 2 below removed the need. What remained was a scheduled
+job to babysit for an 11% fuzzy signal, on a system whose ingestion has silently stopped twice.
+
+### 2. A contact is a conversation. FUB's `contacted` flag is demoted to "Attempted".
+The flag flips on *any* touch. Measured: of 532 flagged leads, only **318 had a real
+conversation**; **143 had nothing but failed dials**. A 27% overstatement on the number a
+manager acts on. Contact now means an outbound call over the configured threshold, **made by
+whoever held the lead at that moment**. Three states: **Spoke / Attempted / Nothing**.
+
+Only 31% of outbound calls clear the threshold (791 of 2,534), so "called" and "spoke to"
+differ threefold — this is not a rounding difference.
+
+The classifier is **reused, not re-invented**: the same duration ladder the workflow engine
+already applies, with the threshold passed from config as a bind parameter so SQL and engine
+cannot drift. It is applied **on read, never stored** — storing a label would freeze the
+then-current threshold into history and make old and new rows incomparable the moment it is tuned.
+
+### 3. Windows are calendar days in the business timezone.
+Yesterday / Today / This week, resolved against `automation.business-hours.timezone`. Not UTC
+(a UTC "day" for a Toronto brokerage starts at 8pm the evening before) and **not rolling** — a
+rolling 24-hour window answers a different question every hour, so two people reading the same
+board disagree about a settled fact. Month and year need no new code, only wider bounds.
+
+### 4. Company data does not belong in the schema.
+A `V25` view encoding this brokerage's ad channels was built and **reverted**. Those values are
+one company's marketing channels, not a property of the database: another company's are
+different, and adding a channel should not need a migration and a deploy. The mapping now sits
+behind the `LeadSourceResolver` interface (`StaticLeadSourceResolver` today), swappable for a
+per-company table by adding one `@Primary` bean. Unrecognised values become `Other` rather than
+vanishing, so a new channel can never silently drop out of a total.
+
+### 5. The two reports answer different questions and are not required to agree.
+**R1 is coverage** — leads counted once against their current holder, so totals reconcile to
+arrivals; the agent column is routing, not a scorecard. **R2 is attribution** — each lead
+credited to whoever acted on it, falling back to the current holder when nobody did. A
+reassigned lead legitimately appears differently in each. An earlier criterion demanding they
+match was retracted: enforcing it would have forced double-counting in R1.
+
+### 6. One join and one aggregate per report.
+Measured at 20k leads: the per-lead-subquery shape took 112ms where join-and-aggregate took
+13ms, because the former re-scans the holder view once per lead. The view cannot push a filter
+into itself, so cost tracks total lead count rather than window size — affordable only if each
+report scans it once.
 
 ## Context
 The reporting platform is meant to grow from fixed dashboards toward answering arbitrary questions.

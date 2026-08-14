@@ -87,12 +87,15 @@ evidence instead of guessing the contract up front. See "Order of work".
 > The `source_user_id` null-rate gate and the coverage-vs-attribution layering below were resolved by
 > two later findings: continuous hosting removed the uptime blocker, and the `events` diary lets us
 > reconstruct a per-lead **timeline** so attribution is exact (credited to the holder-at-the-time),
-> not gated. Contact is now a 3-state model (reached-by-call / reached-by-other-channel / not-reached).
-> The universe below still holds; read the impl doc for the current metric model.
+> not gated. **Amended 2026-08-12:** contact now requires a **conversational** call **by the holder**
+> (states: conversation / dialled-no-conversation / covered-by-someone-else / other-channel /
+> not-reached). The universe below still holds; read the impl doc for the current metric model.
 
 - **Universe:** `persons` where `kind=LEAD` and `assignedUserId` is set.
-- **Called:** an outbound (`is_incoming=false`) `processed_calls` row for the lead.
-  Attempt counts (voicemail/no-answer = effort); outcome/connected ignored in v1.
+- ~~**Called:** an outbound (`is_incoming=false`) `processed_calls` row for the lead.
+  Attempt counts (voicemail/no-answer = effort); outcome/connected ignored in v1.~~
+  **Superseded 2026-08-12** — counting attempts as contact overstates by ~3× (only 31% of outbound
+  calls are conversational). See phase-2-implementation decisions 11–12.
 - **Two layers, degrading on data quality** (decided by the Phase-2 null-rate gate):
   - **Coverage** ("no lead missed") — called by *anyone*; depends only on
     `source_person_id`. Always ships.

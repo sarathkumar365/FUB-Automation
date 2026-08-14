@@ -13,11 +13,12 @@
 | Term | Definition |
 |---|---|
 | **Active assigned lead** (denominator) | `persons` where `kind='LEAD' AND status='ACTIVE'` and `assignedUserId` present. Nothing else. (725 today.) |
-| **Called / Attempted** | ≥1 **outbound** call (`processed_calls.is_incoming=false`) by the **assigned agent** (`source_user_id = (assignedUserId)::bigint`). Same FUB userId namespace — the join is valid. |
-| **Connected** | a Called row with **`duration_seconds >= 30`** (tunable). `outcome` is useless here — free-text, 91% blank, no positive value. |
+| **Dialled / Attempted** | ≥1 **outbound** call (`processed_calls.is_incoming=false`) by the **assigned agent** (`source_user_id = (assignedUserId)::bigint`). Same FUB userId namespace — the join is valid; **caller id is present on 100% of outbound calls** (2,534/2,534, verified 2026-08-12). Attempted is *effort*, not contact. |
+| **Conversational** | a dialled row with **`duration_seconds > 30`** — strictly greater, matching `WaitAndCheckCommunicationWorkflowStep.classifyCall()`; the threshold is config (`rules.call-outcome.short-call-threshold-seconds`) and must be passed to SQL as a bind parameter, never hardcoded. *(Supersedes the earlier `>= 30` here, which disagreed with the code — see phase-2-implementation decision 11.)* Below it: `CONNECTED_NON_CONVERSATIONAL` (1..30s) or `COMM_NOT_FOUND` (0s). `outcome` is useless as a signal — free-text, 91% blank. |
+| **Contact (credited)** | a **conversational** call **by the holder at that instant**. Only this counts as the agent having reached the lead. Live split (2026-08-12): of 2,534 outbound calls just **791 (31%)** are conversational — 1,431 are 1–30s, 312 are zero. "Called" and "spoke to" differ threefold. |
 | **Contacted** (FUB flag) | `person_details.contacted = '1'` — FUB's own multi-channel, FUB-computed flag. **NOT the same as Called** (see §2.5). Downtime-robust. |
 | **Lead-initiated** | ≥1 **inbound** call (`is_incoming=true`) from the lead — a separate signal, never credited as the agent calling. |
-| **Red** | active assigned lead with **no qualifying agent-outbound call** in the active window. *(Trust gated — see §2.1.)* |
+| **Red** | active assigned lead, arriving in the window, with **no conversation by its holder** by the **window's end** (verdicts freeze at window end, never "as of now"). A lead dialled without a conversation is *not* green. *(Trust gated — see §2.1.)* |
 | **Group key** | **`assignedUserId`** (stable id); **display `assignedTo`** (name). Never group by name. |
 
 ## 2. Data-quality truths (the things NOT in the schema)
@@ -100,6 +101,21 @@ from numbers not in the FUB address book). **Treat `'0'` as unlinked/null; never
 `kind` cannot be trusted to identify agents. **Separate bug ticket** (tokenize the stage; look for an
 `agent`/`lead` word) — pairs with the onboarding-ingest pipeline (also closes Issue #19).
 
+### 2.5a FUB's `contacted` overstates by 27% — it flips on an *attempt* (measured 2026-08-12)
+The flag turns true on any touch, including a call nobody answered. Live check of the 532 active
+leads FUB marks `contacted='1'`:
+
+| | leads |
+|---|---|
+| Actually had a conversation (outbound call > threshold) | 318 |
+| **Only failed dials — nobody spoke to them** | **143** |
+| No call on record at all (text/email, or a call we lost) | 60 |
+
+**Consequence:** never label this flag "Contacted" in a UI, and never use it as the contact metric.
+It is **Attempted** — effort, not outcome. Contact means a conversation (phase-2 decision 17). The
+60 with no call are why we cannot simply define contact as "conversation only" either: a lead genuinely
+reached by text would read as ignored, and we cannot distinguish that from a dropped call webhook.
+
 ### 2.5 `contacted` (FUB flag) ≠ `called` (our calls) — report both, never conflate
 FUB's `contacted` is **multi-channel and FUB-defined** (likely texts/emails/manual too) and rides the
 person snapshot → **downtime-robust**. Our `called` is one (gappy) channel. They diverge: of 244
@@ -131,7 +147,8 @@ raw→canonical mapping is encoded in the semantic-layer view and read by Report
 | **Listing** | `Listing` |
 | **Referral** | `Referral`, `Reference` |
 | **Open house** | `Open house` |
-| **Unspecified** | blank / null |
+| **Unspecified** | `<unspecified>` (FUB sends this **literal string**, not a blank — corrected 2026-08-13; 91 of 820 active leads), plus genuinely blank/absent |
+| **Other** | anything unrecognised — kept visible rather than dropped, and listed by `v_lead_source_unmapped` so a new channel can be added to the map |
 
 ### 2.8 Mirror is materially incomplete vs FUB (completeness = webhook delivery)
 **59%** of person-linked calls are **orphans** (reference a lead absent from our `persons` mirror).
